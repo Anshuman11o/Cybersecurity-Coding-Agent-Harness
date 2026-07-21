@@ -180,6 +180,60 @@ def skip_string(text: str, i: int) -> int:
     return i
 
 
+def skip_regex_literal(text: str, i: int) -> int | None:
+    """text[i] == '/', assumed to start a regex literal -- return index just past
+    it (including trailing flags), or None if it doesn't look like a valid one
+    (unterminated / contains a literal newline before closing)."""
+    n = len(text)
+    j = i + 1
+    in_class = False
+    while j < n:
+        c = text[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == "\n":
+            return None
+        if c == "[":
+            in_class = True
+        elif c == "]":
+            in_class = False
+        elif c == "/" and not in_class:
+            j += 1
+            while j < n and text[j].isalpha():
+                j += 1
+            return j
+        j += 1
+    return None
+
+
+# characters after which a following '/' is division/comment context, not a
+# regex literal (i.e. the previous token was a value: identifier, number,
+# closing bracket, string/regex end)
+_DIVISION_CONTEXT_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$)]\"'`")
+
+
+def _advance(text: str, i: int, prev_sig: str | None):
+    """Advance past one lexical unit starting at text[i]. Returns
+    (new_i, new_prev_sig, char_for_depth_counting_or_None)."""
+    c = text[i]
+    if c in "\"'`":
+        return skip_string(text, i), ")", None
+    if text[i:i + 2] == "//":
+        nl = text.find("\n", i)
+        return (nl if nl != -1 else len(text)), prev_sig, None
+    if text[i:i + 2] == "/*":
+        end = text.find("*/", i + 2)
+        return (end + 2 if end != -1 else len(text)), prev_sig, None
+    if c == "/" and prev_sig not in _DIVISION_CONTEXT_CHARS:
+        end = skip_regex_literal(text, i)
+        if end is not None:
+            return end, ")", None
+    if c.isspace():
+        return i + 1, prev_sig, None
+    return i + 1, c, c
+
+
 def find_matching(text: str, open_idx: int) -> int:
     """text[open_idx] is '(' or '{' -- return index of the matching close char."""
     open_c = text[open_idx]
@@ -187,26 +241,17 @@ def find_matching(text: str, open_idx: int) -> int:
     depth = 1
     i = open_idx + 1
     n = len(text)
+    prev_sig = open_c
     while i < n and depth > 0:
-        c = text[i]
-        if c in "\"'`":
-            i = skip_string(text, i)
+        i, prev_sig, dc = _advance(text, i, prev_sig)
+        if dc is None:
             continue
-        if text[i:i + 2] == "//":
-            nl = text.find("\n", i)
-            i = nl if nl != -1 else n
-            continue
-        if text[i:i + 2] == "/*":
-            end = text.find("*/", i + 2)
-            i = end + 2 if end != -1 else n
-            continue
-        if c == open_c:
+        if dc == open_c:
             depth += 1
-        elif c == close_c:
+        elif dc == close_c:
             depth -= 1
             if depth == 0:
-                return i
-        i += 1
+                return i - 1
     return i - 1
 
 
@@ -217,27 +262,19 @@ def split_top_level_args(text: str) -> list:
     start = 0
     i = 0
     n = len(text)
+    prev_sig = None
     while i < n:
-        c = text[i]
-        if c in "\"'`":
-            i = skip_string(text, i)
+        prev_i = i
+        i, prev_sig, dc = _advance(text, i, prev_sig)
+        if dc is None:
             continue
-        if text[i:i + 2] == "//":
-            nl = text.find("\n", i)
-            i = nl if nl != -1 else n
-            continue
-        if text[i:i + 2] == "/*":
-            end = text.find("*/", i + 2)
-            i = end + 2 if end != -1 else n
-            continue
-        if c in "([{":
+        if dc in "([{":
             depth += 1
-        elif c in ")]}":
+        elif dc in ")]}":
             depth -= 1
-        elif c == "," and depth == 0:
-            args.append(text[start:i])
-            start = i + 1
-        i += 1
+        elif dc == "," and depth == 0:
+            args.append(text[start:prev_i])
+            start = i
     args.append(text[start:])
     return args
 
@@ -271,6 +308,13 @@ def phase3_neutralize_solveif():
             open_idx = m.end() - 1
             close_idx = find_matching(text, open_idx)
             inner = text[open_idx + 1:close_idx]
+            if len(inner) > 2000:
+                raise RuntimeError(
+                    f"[3] suspiciously long solveIf(...) span ({len(inner)} chars) at "
+                    f"{rel}:{line_of(text, m.start())} -- likely a scanner mismatch "
+                    f"(e.g. an unhandled regex literal), not a real criteria. Aborting "
+                    f"rather than silently corrupting the file."
+                )
             args = split_top_level_args(inner)
             if len(args) < 2:
                 continue  # malformed / not the pattern we expect
