@@ -67,8 +67,7 @@ def load_vulnhunter(report_dir: str) -> list[Finding]:
     return out
 
 
-def load_vvah(sarif_path: str) -> list[Finding]:
-    """VVAH emits SARIF 2.1.0 per its README."""
+def _load_one_sarif(sarif_path: str) -> list[Finding]:
     with open(sarif_path) as f:
         sarif = json.load(f)
     out = []
@@ -83,6 +82,24 @@ def load_vvah(sarif_path: str) -> list[Finding]:
                 region = phys.get("region", {})
                 line = region.get("startLine")
             out.append(Finding(file=file, line=line, title=title, description=title))
+    return out
+
+
+def load_vvah(sarif_path: str) -> list[Finding]:
+    """VVAH emits a single SARIF 2.1.0 file per its README."""
+    return _load_one_sarif(sarif_path)
+
+
+def load_raptor(scan_dir: str) -> list[Finding]:
+    """raptor's /scan writes one SARIF file per policy category/engine under
+    the scan run directory (semgrep_category_*.sarif, semgrep_semgrep_*.sarif);
+    merge all of them. Empty-result files are skipped automatically since
+    _load_one_sarif just yields nothing for a run with no results."""
+    import glob
+    import os
+    out = []
+    for path in glob.glob(os.path.join(scan_dir, "*.sarif")):
+        out.extend(_load_one_sarif(path))
     return out
 
 
