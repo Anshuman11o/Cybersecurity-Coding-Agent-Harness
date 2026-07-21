@@ -49,13 +49,22 @@ Phases:
    specific challenge keys). `package.json`'s now-dead `rsn`/`rsn:update`
    scripts are removed.
 4. **Neutralize `challengeUtils.solveIf(challenge, criteria)`** — the
-   scoring oracle the brief calls out by name — repo-wide (97 call
-   sites across 39 files, not just the two files used as illustrative
-   examples). Only the criteria argument is replaced with `() => false`;
-   everything else about the call (which challenge, any trailing
-   `isRestore`/`isCheating` flags) is left alone, so the app still runs
-   identically for a normal user — it just never locally reports what
-   would have solved a challenge.
+   scoring oracle the brief calls out by name — repo-wide in application
+   source (95 call sites across 37 files, not just the two files used as
+   illustrative examples). Only the criteria argument is replaced with
+   `() => false`; everything else about the call (which challenge, any
+   trailing `isRestore`/`isCheating` flags) is left alone, so the app still
+   runs identically for a normal user — it just never locally reports what
+   would have solved a challenge. `test/**` is explicitly excluded from
+   this pass: some unit tests (e.g.
+   `test/server/challengeUtils.unit.test.ts`) call `solveIf` directly to
+   test the mechanism itself with their own criteria, and neutralizing
+   those breaks the test rather than hiding anything.
+   Also patches `routes/vulnCodeFixes.ts`'s `readFixes` to degrade
+   gracefully (empty result) instead of throwing `ENOENT` now that
+   `data/static/codefixes/` is gone — it's exercised by a legitimate,
+   kept functional test (`challengeUtils.unit.test.ts`'s `solveFixIt`
+   suite) via `lib/antiCheat.ts`'s cheat-score calculation.
 5. **Strip `hints`/`description`/`mitigationUrl`** from
    `data/static/challenges.yml`, keeping `name`/`category`/`key`/etc.
    Fields are zeroed (`''`/`[]`) rather than deleted — `data/datacreator.ts`

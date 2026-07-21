@@ -146,6 +146,32 @@ def phase2_wholesale_moves():
             print(f"[2] removed package.json script matching {line_pat!r}")
     pkg_path.write_text(pkg_text, encoding="utf-8")
 
+    # routes/vulnCodeFixes.ts:readFixes does fs.readdirSync(FixesDir) unconditionally.
+    # With codefixes/ moved out, lib/antiCheat.ts's calculateFixItCheatScore (called
+    # from challengeUtils.solveFixIt, exercised by a kept functional test) crashes
+    # with ENOENT instead of just finding no fixes. Degrade gracefully instead,
+    # matching how lib/codingChallenges.ts already handles no markers found.
+    vcf_path = WORK / "routes/vulnCodeFixes.ts"
+    vcf_text = vcf_path.read_text(encoding="utf-8")
+    old = """export const readFixes = (key: string) => {
+  if (CodeFixes[key]) {
+    return CodeFixes[key]
+  }
+  const files = fs.readdirSync(FixesDir)
+  const fixes: string[] = []
+  let correct: number = -1"""
+    new = """export const readFixes = (key: string) => {
+  if (CodeFixes[key]) {
+    return CodeFixes[key]
+  }
+  const fixes: string[] = []
+  let correct: number = -1
+  const files = fs.existsSync(FixesDir) ? fs.readdirSync(FixesDir) : []"""
+    if vcf_text.count(old) != 1:
+        raise RuntimeError("[2] routes/vulnCodeFixes.ts readFixes shape changed upstream -- update this patch")
+    vcf_path.write_text(vcf_text.replace(old, new, 1), encoding="utf-8")
+    print("[2] patched routes/vulnCodeFixes.ts:readFixes to degrade gracefully without data/static/codefixes/")
+
 
 # ---------------------------------------------------------------------------
 # Shared JS/TS-aware scanning helpers (string/template/comment-safe brace matching)
@@ -296,13 +322,20 @@ def phase3_neutralize_solveif():
     for p in iter_text_files(WORK):
         if p.suffix != ".ts":
             continue
+        rel = str(p.relative_to(WORK))
+        if rel == "test" or rel.startswith("test/") or rel.startswith("test\\"):
+            # Test files legitimately call challengeUtils.solveIf(...) directly
+            # with their own test-controlled criteria (e.g.
+            # test/server/challengeUtils.unit.test.ts exercises the mechanism
+            # itself with `criteria = () => true`). Neutralizing those calls
+            # doesn't hide an answer-key giveaway -- it breaks the test.
+            continue
         try:
             text = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
         if "solveIf" not in text:
             continue
-        rel = str(p.relative_to(WORK))
         edits = []  # (start, end, replacement)
         for m in SOLVEIF_CALL_RE.finditer(text):
             open_idx = m.end() - 1
