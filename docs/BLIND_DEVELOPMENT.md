@@ -44,10 +44,14 @@ Phases:
 3. **Move wholesale** to the answer key: `data/static/codefixes/` (the
    game's own "pick the correct fix" data), `SOLUTIONS.md`, `rsn/` (the
    Refactoring-Safety-Net tooling that diffs source snippets against
-   codefixes — meaningless once both are gone), and
+   codefixes — meaningless once both are gone),
    `.ai/skills/verify-rsn-fix/` (an internal maintainer skill that names
-   specific challenge keys). `package.json`'s now-dead `rsn`/`rsn:update`
-   scripts are removed.
+   specific challenge keys), and the two `test/api/vuln-code-*.test.ts`
+   files, which exercise the `/snippets/*` codefixes-minigame endpoints
+   directly and embed giveaway content of their own (e.g. the exact
+   vulnerable line number for a specific challenge as the "correct"
+   `selectedLines` answer, or a fix's explanation text).
+   `package.json`'s now-dead `rsn`/`rsn:update` scripts are removed.
 4. **Neutralize `challengeUtils.solveIf(challenge, criteria)`** — the
    scoring oracle the brief calls out by name — repo-wide in application
    source (95 call sites across 37 files, not just the two files used as
@@ -100,6 +104,17 @@ Phases:
 The script writes `answer-key.json` plus the mirrored directories/files
 into the answer-key output; nothing it touches remains in the working
 copy.
+
+## Verification
+
+Against the stripped working copy: `npm install`, `npx tsc --noEmit` (0
+errors), `npm run test:server` (233/233 pass), `npm run test:api`
+(466/474 pass — the 8 failures are all in
+`test/api/internet-resources.test.ts`, which makes live HTTP requests to
+`pastebin.com`/`stackoverflow.com` to check specific paste content exists;
+this sandbox has no outbound access to those hosts, confirmed with a
+direct `curl`, and the same 8 tests would fail identically against an
+unmodified Juice Shop checkout here — not a regression from the strip).
 
 ## Known limitations
 

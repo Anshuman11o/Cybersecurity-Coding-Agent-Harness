@@ -112,6 +112,12 @@ WHOLESALE_MOVES = [
     (".ai/skills/verify-rsn-fix", "ai-skills/verify-rsn-fix"),
     ("test/server/rsn.unit.test.ts", "tests/server/rsn.unit.test.ts"),
     ("test/server/codingChallengeFixes.unit.test.ts", "tests/server/codingChallengeFixes.unit.test.ts"),
+    # These test the /snippets/* codefixes-minigame endpoints directly and embed
+    # giveaway content of their own (e.g. the exact vulnerable line numbers for
+    # specific challenges as "correct" selectedLines, and a fix's explanation
+    # text) -- not just infrastructure that becomes a no-op like the two above.
+    ("test/api/vuln-code-fixes.test.ts", "tests/test/api/vuln-code-fixes.test.ts"),
+    ("test/api/vuln-code-snippet.test.ts", "tests/test/api/vuln-code-snippet.test.ts"),
 ]
 
 
