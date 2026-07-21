@@ -1,0 +1,100 @@
+  [s4] chunk spec-access-control-38 (medium, rank 248, lens=access-control): access-control specialist sweep over module 'views/userProfile.pug'.
+  [s4] chunk spec-batch-etl-01 (medium, rank 249, lens=batch-etl): batch-etl specialist sweep over module 'entry'.
+  [s4] chunk spec-batch-etl-02 (medium, rank 250, lens=batch-etl): batch-etl specialist sweep over module 'server'.
+  [s4] chunk spec-batch-etl-03 (medium, rank 251, lens=batch-etl): batch-etl specialist sweep over module 'routes'.
+  [s4] chunk spec-batch-etl-04 (medium, rank 252, lens=batch-etl): batch-etl specialist sweep over module 'lib/security'.
+  [s4] chunk spec-batch-etl-05 (medium, rank 253, lens=batch-etl): batch-etl specialist sweep over module 'lib/xml'.
+  [s4] chunk spec-batch-etl-06 (medium, rank 254, lens=batch-etl): batch-etl specialist sweep over module 'lib/utils'.
+  [s4] chunk spec-batch-etl-07 (medium, rank 255, lens=batch-etl): batch-etl specialist sweep over module 'lib/challenge'.
+  [s4] chunk spec-batch-etl-08 (medium, rank 256, lens=batch-etl): batch-etl specialist sweep over module 'lib/startup'.
+  [s4] chunk spec-batch-etl-09 (medium, rank 257, lens=batch-etl): batch-etl specialist sweep over module 'lib/webhook'.
+  [s4] chunk spec-batch-etl-10 (medium, rank 258, lens=batch-etl): batch-etl specialist sweep over module 'models'.
+  [s4] chunk spec-batch-etl-11 (medium, rank 259, lens=batch-etl): batch-etl specialist sweep over module 'data'.
+  [s4] chunk spec-batch-etl-12 (medium, rank 260, lens=batch-etl): batch-etl specialist sweep over module 'frontend'.
+  [s4] chunk spec-batch-etl-13 (medium, rank 261, lens=batch-etl): batch-etl specialist sweep over module 'cg:Gruntfile'.
+  [s4] chunk spec-batch-etl-14 (medium, rank 262, lens=batch-etl): batch-etl specialist sweep over module 'cg:basket.service'.
+  [s4] chunk spec-batch-etl-15 (medium, rank 263, lens=batch-etl): batch-etl specialist sweep over module 'cg:order-history.component'.
+  [s4] chunk spec-batch-etl-16 (medium, rank 264, lens=batch-etl): batch-etl specialist sweep over module '.'.
+  [s4] chunk spec-batch-etl-17 (medium, rank 265, lens=batch-etl): batch-etl specialist sweep over module '.github/workflows'.
+  [s4] chunk spec-batch-etl-18 (medium, rank 266, lens=batch-etl): batch-etl specialist sweep over module 'data/static'.
+  [s4] chunk spec-batch-etl-19 (medium, rank 267, lens=batch-etl): batch-etl specialist sweep over module 'frontend/eslint.config.mjs'.
+  [s4] chunk spec-batch-etl-20 (medium, rank 268, lens=batch-etl): batch-etl specialist sweep over module 'frontend/filter-bundle-stats-for-diagram.mts'.
+  [s4] chunk spec-batch-etl-21 (medium, rank 269, lens=batch-etl): batch-etl specialist sweep over module 'frontend/src [shard 1/3]'.
+  [s4] chunk spec-batch-etl-22 (medium, rank 270, lens=batch-etl): batch-etl specialist sweep over module 'frontend/src [shard 2/3]'.
+  [s4] chunk spec-batch-etl-23 (medium, rank 271, lens=batch-etl): batch-etl specialist sweep over module 'frontend/src [shard 3/3]'.
+  [s4] chunk spec-batch-etl-24 (medium, rank 272, lens=batch-etl): batch-etl specialist sweep over module 'frontend/stylelint.config.mjs'.
+  [s4] chunk spec-batch-etl-25 (medium, rank 273, lens=batch-etl): batch-etl specialist sweep over module 'frontend/vitest-base.config.mts'.
+  [s4] chunk spec-batch-etl-26 (medium, rank 274, lens=batch-etl): batch-etl specialist sweep over module 'lib/config.schema.ts'.
+  [s4] chunk spec-batch-etl-27 (medium, rank 275, lens=batch-etl): batch-etl specialist sweep over module 'lib/is-docker.ts'.
+  [s4] chunk spec-batch-etl-28 (medium, rank 276, lens=batch-etl): batch-etl specialist sweep over module 'lib/is-heroku.ts'.
+  [s4] chunk spec-batch-etl-29 (medium, rank 277, lens=batch-etl): batch-etl specialist sweep over module 'lib/is-windows.ts'.
+  [s4] chunk spec-batch-etl-30 (medium, rank 278, lens=batch-etl): batch-etl specialist sweep over module 'lib/logger.ts'.
+  [s4] chunk spec-batch-etl-31 (medium, rank 279, lens=batch-etl): batch-etl specialist sweep over module 'lib/noUpdate.ts'.
+  [s4] chunk spec-batch-etl-32 (medium, rank 280, lens=batch-etl): batch-etl specialist sweep over module 'lib/scripts'.
+  [s4] chunk spec-batch-etl-33 (medium, rank 281, lens=batch-etl): batch-etl specialist sweep over module 'lib/startup'.
+  [s4] chunk spec-batch-etl-34 (medium, rank 282, lens=batch-etl): batch-etl specialist sweep over module 'routes/web3Wallet.ts'.
+  [s4] chunk spec-batch-etl-35 (medium, rank 283, lens=batch-etl): batch-etl specialist sweep over module 'views/dataErasureForm.hbs'.
+  [s4] chunk spec-batch-etl-36 (medium, rank 284, lens=batch-etl): batch-etl specialist sweep over module 'views/dataErasureResult.hbs'.
+  [s4] chunk spec-batch-etl-37 (medium, rank 285, lens=batch-etl): batch-etl specialist sweep over module 'views/themes'.
+  [s4] chunk spec-batch-etl-38 (medium, rank 286, lens=batch-etl): batch-etl specialist sweep over module 'views/userProfile.pug'.
+  [s4] chunk spec-iac-01 (medium, rank 287, lens=iac): iac specialist sweep over module '.'.
+  [s4] chunk spec-iac-02 (medium, rank 288, lens=iac): iac specialist sweep over module '.github/workflows'.
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-03: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-03] (11678 chars, max_tokens=64000)
+
+    [s4] taint-02: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-02] (11687 chars, max_tokens=64000)
+    [cli] usage: in=3913 (cache_read=2152, cache_write=1758) out=3929
+    [s4] taint-04 run 1/1: 1 raw findings
+  [s4] chunk taint-04: 1 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-06: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-06] (9330 chars, max_tokens=64000)
+    [cli] prompt(claude-sonnet-4-6) [s4 taint-06]: transient upstream error (attempt 1/4); retrying in 30s
+    [cli] prompt(claude-sonnet-4-6) [s4 taint-06]: transient upstream error (attempt 2/4); retrying in 60s
+    [cli] usage: in=5986 (cache_read=0, cache_write=5983) out=8791
+    [s4] taint-02 run 1/1: 2 raw findings
+  [s4] chunk taint-02: 2 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-07: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-07] (7077 chars, max_tokens=64000)
+    [cli] usage: in=5986 (cache_read=0, cache_write=5983) out=11284
+    [s4] taint-03 run 1/1: 2 raw findings
+  [s4] chunk taint-03: 2 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-08: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-08] (7055 chars, max_tokens=64000)
+    [cli] usage: in=4507 (cache_read=2152, cache_write=2352) out=2078
+    [s4] taint-07 run 1/1: 1 raw findings
+  [s4] chunk taint-07: 1 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-09: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-09] (7974 chars, max_tokens=64000)
+    [cli] usage: in=5244 (cache_read=2152, cache_write=3089) out=1945
+    [s4] taint-06 run 1/1: 1 raw findings
+  [s4] chunk taint-06: 1 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-10: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-10] (7097 chars, max_tokens=64000)
+    [cli] usage: in=6458 (cache_read=0, cache_write=6455) out=12752
+    [s4] taint-01 run 1/1: 2 raw findings
+  [s4] chunk taint-01: 2 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in routes/chat.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-11: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-11] (19016 chars, max_tokens=64000)
+    [cli] usage: in=3913 (cache_read=2152, cache_write=1758) out=13233
+    [s4] taint-05 run 1/1: 2 raw findings
+  [s4] chunk taint-05: 2 high-confidence findings
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] redacted 0 PAN-prefix + 1 sensitive token(s) in /tmp/juice-shop-work/server.ts [SECRET:1]
+    [s4] taint-12: +2 neighbor-context excerpts
+    [cli] prompt mode -> claude-sonnet-4-6 [s4 taint-12] (7893 chars, max_tokens=64000)
+EXIT:124

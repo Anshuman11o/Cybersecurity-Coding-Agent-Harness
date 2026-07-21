@@ -103,32 +103,22 @@ def load_raptor(scan_dir: str) -> list[Finding]:
     return out
 
 
-def load_raptor_sarif(sarif_path: str) -> list[Finding]:
-    """raptor's /scan emits SARIF from its Semgrep stage."""
-    return load_vvah(sarif_path)  # SARIF 2.1.0 format is the same shape
-
-
 def load_deepsec(export_dir: str) -> list[Finding]:
     """deepsec's `export --format md-dir` writes one markdown file per finding
-    under --out, each with File/Line metadata -- format confirmed once the
-    tool's actual export completes."""
+    under --out/<SEVERITY>/, each starting '# [SEVERITY] Title' followed by
+    '**File:** `path` (lines NN)'."""
     import glob
     import os
     out = []
     for path in glob.glob(os.path.join(export_dir, "**", "*.md"), recursive=True):
         with open(path, encoding="utf-8", errors="replace") as f:
             text = f.read()
-        title_m = re.search(r"^#\s*(.+)$", text, re.MULTILINE)
-        file_m = re.search(r"\*{0,2}(?:File|Location)\*{0,2}:?\s*`?([^\s`\n:]+)`?:?(\d+)?", text, re.IGNORECASE)
-        line = None
-        file = ""
+        title_m = re.search(r"^#\s*(?:\[\w+\]\s*)?(.+)$", text, re.MULTILINE)
+        file_m = re.search(r"\*\*File:\*\*\s*`([^`]+)`(?:\s*\(lines?\s*(\d+))?", text, re.IGNORECASE)
+        file, line = "", None
         if file_m:
             file = file_m.group(1)
             line = int(file_m.group(2)) if file_m.group(2) else None
-        if not line:
-            line_m = re.search(r"\bline\s*:?\s*(\d+)", text, re.IGNORECASE)
-            if line_m:
-                line = int(line_m.group(1))
         out.append(Finding(file=file, line=line, title=(title_m.group(1).strip() if title_m else path),
                             description=text[:2000]))
     return out
