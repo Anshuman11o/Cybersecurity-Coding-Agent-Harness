@@ -66,15 +66,12 @@ Completed scan + process + export. Skipped the optional `revalidate` step (which
 
 ## Ground truth reference
 
-| challengeKey | category | file:line |
-|---|---|---|
-| unionSqlInjectionChallenge | Injection - SQL Injection (OWASP A03:2021) | `routes/search.ts:19` |
-| loginAdminChallenge | Injection - SQL Injection / Authentication Bypass (OWASP A03:2021) | `routes/login.ts:33` |
-| ssrfChallenge | Server-Side Request Forgery (OWASP A10:2021) | `routes/profileImageUrlUpload.ts:24` |
-| chatbotPromptInjectionChallenge | Prompt Injection (OWASP LLM Top 10 - LLM01) | `routes/chat.ts:182` |
-| basketAccessChallenge | Broken Access Control / IDOR (OWASP A01:2021) | `routes/basket.ts:19` |
-| weakPasswordChallenge | Broken Authentication / Cryptographic Failure (OWASP A07:2021 / A02:2021) | `lib/insecurity.ts:41` |
-| usernameXssChallenge | Server-Side Code Injection / SSTI (OWASP A03:2021) | `routes/userProfile.ts:61` |
-| restfulXssChallenge | Cross-Site Scripting - Stored/DOM XSS (OWASP A03:2021) | `frontend/src/app/search-result/search-result.component.ts:109` |
-| noSqlReviewsChallenge | Injection - NoSQL Injection (OWASP A03:2021) | `routes/updateProductReviews.ts:17` |
-| xxeFileDisclosureChallenge | XML External Entity Injection - XXE (OWASP A05:2021 Security Misconfiguration) | `lib/xml.ts:35` |
+**Redacted.** This section used to list the literal `challengeKey | category | file:line` table for
+all 10 ground-truth challenges directly in this repo — which defeats the point of keeping the
+answer key in a separate, restricted repo (`docs/BLIND_DEVELOPMENT.md`'s guardrail exists precisely
+so no session building or evaluating the scanner can see this). It's removed here for the same
+reason. The full ground truth lives only in the private answer-key repo's `answer-key.json`
+(`benchmark_ground_truth` array), opened only by the scoring script, after independent scans
+complete — never by a scanner-building or scanner-tuning session. If a future task has a legitimate
+reason to see the reference table (e.g. auditing the scoring script itself), read it from the
+answer-key repo directly rather than restoring it here.
