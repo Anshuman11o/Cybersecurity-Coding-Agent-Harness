@@ -1,0 +1,1053 @@
+- name: Password Hash Leak
+  category: Unspecified
+  description: ''
+  difficulty: 2
+  hints: &id001 []
+  mitigationUrl: ''
+  key: passwordHashLeakChallenge
+- name: API-only XSS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: restfulXssChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Access Log
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: accessLogDisclosureChallenge
+- name: Admin Registration
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: registerAdminChallenge
+- name: Admin Section
+  category: Unspecified
+  tags:
+  - Good for Demos
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: adminSectionChallenge
+  tutorial:
+    order: 8
+- name: Arbitrary File Write
+  category: Unspecified
+  tags:
+  - Danger Zone
+  - Prerequisite
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: fileWriteChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Bjoern's Favorite Pet
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 3
+  mitigationUrl: ''
+  hints: *id001
+  key: resetPasswordBjoernOwaspChallenge
+- name: Blockchain Hype
+  category: Unspecified
+  tags:
+  - Contraption
+  - Code Analysis
+  - Web3
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: tokenSaleChallenge
+- name: NFT Takeover
+  category: Unspecified
+  tags:
+  - Contraption
+  - Good for Demos
+  - Web3
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: nftUnlockChallenge
+- name: Mint the Honey Pot
+  category: Unspecified
+  tags:
+  - Web3
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: nftMintChallenge
+- name: Wallet Depletion
+  category: Unspecified
+  tags:
+  - Web3
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: web3WalletChallenge
+- name: Web3 Sandbox
+  category: Unspecified
+  tags:
+  - Web3
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: web3SandboxChallenge
+- name: Blocked RCE DoS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 5
+  mitigationUrl: ''
+  hints: *id001
+  key: rceChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: CAPTCHA Bypass
+  category: Unspecified
+  tags:
+  - Brute Force
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: captchaBypassChallenge
+- name: Change Bender's Password
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: changePasswordBenderChallenge
+- name: Christmas Special
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: christmasSpecialChallenge
+- name: CSP Bypass
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: usernameXssChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Client-side XSS Protection
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: persistedXssUserChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Confidential Document
+  category: Unspecified
+  tags:
+  - Good for Demos
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: directoryListingChallenge
+- name: DOM XSS
+  category: Unspecified
+  tags:
+  - Tutorial
+  - Good for Demos
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: localXssChallenge
+  tutorial:
+    order: 2
+- name: Database Schema
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: dbSchemaChallenge
+- name: Deprecated Interface
+  category: Unspecified
+  tags:
+  - Contraption
+  - Prerequisite
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: deprecatedInterfaceChallenge
+- name: Easter Egg
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - Contraption
+  - Good for Demos
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: easterEggLevelOneChallenge
+- name: Email Leak
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: emailLeakChallenge
+- name: Empty User Registration
+  category: Unspecified
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: emptyUserRegistration
+- name: Ephemeral Accountant
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: ephemeralAccountantChallenge
+- name: Error Handling
+  category: Unspecified
+  tags:
+  - Prerequisite
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: errorHandlingChallenge
+- name: Expired Coupon
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: manipulateClockChallenge
+- name: Extra Language
+  category: Unspecified
+  tags:
+  - Brute Force
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: extraLanguageChallenge
+- name: Five-Star Feedback
+  category: Unspecified
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: feedbackChallenge
+- name: Forged Coupon
+  category: Unspecified
+  tags:
+  - Good for Demos
+  - Code Analysis
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: forgedCouponChallenge
+- name: Forged Feedback
+  category: Unspecified
+  tags:
+  - Tutorial
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: forgedFeedbackChallenge
+  tutorial:
+    order: 11
+- name: Forged Review
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: forgedReviewChallenge
+- name: Forged Signed JWT
+  category: Unspecified
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: jwtForgedChallenge
+  disabledEnv:
+  - Windows
+- name: Forgotten Developer Backup
+  category: Unspecified
+  tags:
+  - Contraption
+  - Good for Demos
+  - Prerequisite
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: forgottenDevBackupChallenge
+- name: Forgotten Sales Backup
+  category: Unspecified
+  tags:
+  - Contraption
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: forgottenBackupChallenge
+- name: Frontend Typosquatting
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: typosquattingAngularChallenge
+- name: GDPR Data Erasure
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: ghostLoginChallenge
+- name: GDPR Data Theft
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: dataExportChallenge
+- name: HTTP-Header XSS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: httpHeaderXssChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Imaginary Challenge
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - Code Analysis
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: continueCodeChallenge
+- name: Leaked Access Logs
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: dlpPasswordSprayingChallenge
+- name: Leaked Unsafe Product
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - OSINT
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: dlpPastebinDataLeakChallenge
+- name: Legacy Typosquatting
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: typosquattingNpmChallenge
+- name: Login Admin
+  category: Unspecified
+  tags:
+  - Tutorial
+  - Good for Demos
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: loginAdminChallenge
+  tutorial:
+    order: 7
+- name: Login Amy
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: loginAmyChallenge
+- name: Login Bender
+  category: Unspecified
+  tags:
+  - Tutorial
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: loginBenderChallenge
+  tutorial:
+    order: 13
+- name: Login Bjoern
+  category: Unspecified
+  tags:
+  - Code Analysis
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: oauthUserPasswordChallenge
+- name: Login Jim
+  category: Unspecified
+  tags:
+  - Tutorial
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: loginJimChallenge
+  tutorial:
+    order: 12
+- name: Login MC SafeSearch
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - OSINT
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: loginRapperChallenge
+- name: Login Support Team
+  category: Unspecified
+  tags:
+  - Brute Force
+  - Code Analysis
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: loginSupportChallenge
+- name: Manipulate Basket
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: basketManipulateChallenge
+- name: Misplaced Signature File
+  category: Unspecified
+  tags:
+  - Good Practice
+  - Contraption
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: misplacedSignatureFileChallenge
+- name: Multiple Likes
+  category: Unspecified
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: timingAttackChallenge
+- name: Nested Easter Egg
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - Good for Demos
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: easterEggLevelTwoChallenge
+- name: NoSQL DoS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: noSqlCommandChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: NoSQL Exfiltration
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: noSqlOrdersChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: NoSQL Manipulation
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: noSqlReviewsChallenge
+- name: Outdated Allowlist
+  category: Unspecified
+  tags:
+  - Code Analysis
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: redirectCryptoCurrencyChallenge
+- name: Password Strength
+  category: Unspecified
+  tags:
+  - Brute Force
+  - Tutorial
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: weakPasswordChallenge
+  tutorial:
+    order: 9
+- name: Payback Time
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: negativeOrderChallenge
+- name: Premium Paywall
+  category: Unspecified
+  tags:
+  - Shenanigans
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: premiumPaywallChallenge
+- name: Privacy Policy
+  category: Unspecified
+  tags:
+  - Good Practice
+  - Tutorial
+  - Good for Demos
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: privacyPolicyChallenge
+  tutorial:
+    order: 4
+- name: Privacy Policy Inspection
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - Good for Demos
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: privacyPolicyProofChallenge
+- name: Product Tampering
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: changeProductChallenge
+- name: Reflected XSS
+  category: Unspecified
+  tags:
+  - Tutorial
+  - Danger Zone
+  - Good for Demos
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: reflectedXssChallenge
+  tutorial:
+    order: 5
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Repetitive Registration
+  category: Unspecified
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: passwordRepeatChallenge
+- name: Reset Bender's Password
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: resetPasswordBenderChallenge
+- name: Reset Bjoern's Password
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: resetPasswordBjoernChallenge
+- name: Reset Jim's Password
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: resetPasswordJimChallenge
+- name: Reset Morty's Password
+  category: Unspecified
+  tags:
+  - OSINT
+  - Brute Force
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: resetPasswordMortyChallenge
+- name: Retrieve Blueprint
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: retrieveBlueprintChallenge
+- name: SSRF
+  category: Unspecified
+  tags:
+  - Code Analysis
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: ssrfChallenge
+- name: SSTi
+  category: Unspecified
+  tags:
+  - Contraption
+  - Danger Zone
+  - Code Analysis
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: sstiChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Score Board
+  category: Unspecified
+  tags:
+  - Tutorial
+  - Code Analysis
+  description: ''
+  difficulty: 1
+  mitigationUrl: ''
+  key: scoreBoardChallenge
+  tutorial:
+    order: 1
+- name: Security Policy
+  category: Unspecified
+  tags:
+  - Good Practice
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: securityPolicyChallenge
+- name: Server-side XSS Protection
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: persistedXssFeedbackChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Steganography
+  category: Unspecified
+  tags:
+  - Shenanigans
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: hiddenImageChallenge
+- name: Successful RCE DoS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: rceOccupyChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Supply Chain Attack
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: supplyChainAttackChallenge
+- name: Two Factor Authentication
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: twoFactorAuthUnsafeSecretStorageChallenge
+- name: Unsigned JWT
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: jwtUnsignedChallenge
+- name: Upload Size
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: uploadSizeChallenge
+- name: Upload Type
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: uploadTypeChallenge
+- name: User Credentials
+  category: Unspecified
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: unionSqlInjectionChallenge
+- name: Video XSS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 6
+  hints: *id001
+  mitigationUrl: ''
+  key: videoXssChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: View Basket
+  category: Unspecified
+  tags:
+  - Tutorial
+  - Good for Demos
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: basketAccessChallenge
+  tutorial:
+    order: 10
+- name: Vulnerable Library
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: knownVulnerableComponentChallenge
+- name: Weird Crypto
+  category: Unspecified
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: weirdCryptoChallenge
+- name: Allowlist Bypass
+  category: Unspecified
+  tags:
+  - Prerequisite
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: redirectChallenge
+- name: XXE Data Access
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: xxeFileDisclosureChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: XXE DoS
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: xxeDosChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Memory Bomb
+  category: Unspecified
+  tags:
+  - Danger Zone
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: yamlBombChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Zero Stars
+  category: Unspecified
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: zeroStarsChallenge
+- name: Missing Encoding
+  category: Unspecified
+  tags:
+  - Shenanigans
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: missingEncodingChallenge
+- name: Cross-Site Imaging
+  category: Unspecified
+  tags:
+  - Contraption
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: svgInjectionChallenge
+- name: Exposed Metrics
+  category: Unspecified
+  tags:
+  - Good Practice
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: exposedMetricsChallenge
+- name: Deluxe Fraud
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: freeDeluxeChallenge
+- name: CSRF
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: csrfChallenge
+- name: Bonus Payload
+  category: Unspecified
+  tags:
+  - Shenanigans
+  - Tutorial
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: xssBonusChallenge
+  tutorial:
+    order: 3
+- name: Reset Uvogin's Password
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: resetPasswordUvoginChallenge
+- name: Meta Geo Stalking
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: geoStalkingMetaChallenge
+- name: Visual Geo Stalking
+  category: Unspecified
+  tags:
+  - OSINT
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: geoStalkingVisualChallenge
+- name: Poison Null Byte
+  category: Unspecified
+  tags:
+  - Prerequisite
+  description: ''
+  difficulty: 4
+  hints: *id001
+  mitigationUrl: ''
+  key: nullByteChallenge
+- name: Local File Read
+  category: Unspecified
+  tags:
+  - OSINT
+  - Danger Zone
+  difficulty: 5
+  hints: *id001
+  description: ''
+  key: lfrChallenge
+  disabledEnv:
+  - Docker
+  - Heroku
+- name: Mass Dispel
+  category: Unspecified
+  description: ''
+  difficulty: 1
+  hints: *id001
+  mitigationUrl: ''
+  key: closeNotificationsChallenge
+- name: Security Advisory
+  category: Unspecified
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: csafChallenge
+- name: Exposed Credentials
+  category: Unspecified
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: exposedCredentialsChallenge
+  tutorial:
+    order: 6
+- name: Leaked API Key
+  category: Unspecified
+  description: ''
+  difficulty: 5
+  hints: *id001
+  mitigationUrl: ''
+  key: leakedApiKeyChallenge
+- name: Chatbot Prompt Injection
+  category: Unspecified
+  tags:
+  - Good for Demos
+  - AI/LLM
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: chatbotPromptInjectionChallenge
+- name: Greedy Chatbot Manipulation
+  category: Unspecified
+  tags:
+  - AI/LLM
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: chatbotGreedyInjectionChallenge
+- name: AI Debugging
+  category: Unspecified
+  tags:
+  - AI/LLM
+  description: ''
+  difficulty: 2
+  hints: *id001
+  mitigationUrl: ''
+  key: aiDebuggingChallenge
+- name: System Prompt Extraction
+  category: Unspecified
+  tags:
+  - AI/LLM
+  description: ''
+  difficulty: 3
+  hints: *id001
+  mitigationUrl: ''
+  key: systemPromptExtractionChallenge
