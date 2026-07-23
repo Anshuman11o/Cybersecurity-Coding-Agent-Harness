@@ -1,0 +1,184 @@
+[
+  {
+    "name": "A01: Broken Access Control",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Authenticated routes with resource-scoped access detected. Auth middleware present: routes use authorization checks. ID-based resource routing found.",
+    "confidence": 0.9
+  },
+  {
+    "name": "A02: Cryptographic Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "JWT usage detected, password handling present. Cryptographic operations exist in the application.",
+    "confidence": 0.8
+  },
+  {
+    "name": "A03: Injection",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Sequelize ORM detected (potential for SQL injection via raw queries). MongoDB/NoSQL detected (potential for NoSQL operator injection). String interpolation into query execution paths requires investigation.",
+    "confidence": 0.8
+  },
+  {
+    "name": "A04: Insecure Design",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "Insecure design is a business-logic concern that cannot be determined from architectural signals alone. Requires Stage 2 hunt lane analysis.",
+    "confidence": 0.3
+  },
+  {
+    "name": "A05: Security Misconfiguration",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "CORS enabled. Configuration review warranted.",
+    "confidence": 0.6
+  },
+  {
+    "name": "A06: Vulnerable and Outdated Components",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Application has dependencies. CVE/OSV scan warranted to identify outdated or vulnerable components.",
+    "confidence": 0.9
+  },
+  {
+    "name": "A07: Identification and Authentication Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Authentication infrastructure present with rate limiting on some endpoints. Login/password reset flows detected.",
+    "confidence": 0.8
+  },
+  {
+    "name": "A08: Software and Data Integrity Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Deserialization and/or file upload capabilities detected. File upload with zip/xml/yaml handling present.",
+    "confidence": 0.7
+  },
+  {
+    "name": "A09: Security Logging and Monitoring Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Logging infrastructure present (morgan/logger). Whether logs reach a monitored destination in production is a deployment concern.",
+    "confidence": 0.6
+  },
+  {
+    "name": "A10: Server-Side Request Forgery (SSRF)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "No outbound HTTP calls detected from architecture summary. May still exist in route handlers not visible at this level.",
+    "confidence": 0.3
+  },
+  {
+    "name": "API1: Broken Object Level Authorization (BOLA)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "REST API routes with ID-shaped parameters detected. Whether per-request ownership is validated requires hunt lane analysis.",
+    "confidence": 0.8
+  },
+  {
+    "name": "API2: Broken Authentication",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "API surface with authentication detected.",
+    "confidence": 0.6
+  },
+  {
+    "name": "API3: Broken Object Property Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Auto-CRUD framework with excludeAttributes detected. Mass assignment surface exists; excluded fields need review.",
+    "confidence": 0.8
+  },
+  {
+    "name": "API4: Unrestricted Resource Consumption",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "API routes detected. Whether pagination, rate limiting, and request size limits are enforced on all endpoints requires per-endpoint analysis.",
+    "confidence": 0.6
+  },
+  {
+    "name": "API5: Broken Function Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Multiple API endpoints with varying auth levels detected. Whether role-based access control is consistently enforced requires analysis.",
+    "confidence": 0.7
+  },
+  {
+    "name": "API6: Unrestricted Access to Sensitive Business Flows",
+    "framework": "API Security Top 10",
+    "verdict": "uncertain",
+    "evidence": "Business-logic flows (order placement, coupon generation, user registration) detected. Whether anti-automation measures exist requires deeper analysis.",
+    "confidence": 0.4
+  },
+  {
+    "name": "API7: Server Side Request Forgery",
+    "framework": "API Security Top 10",
+    "verdict": "uncertain",
+    "evidence": "SSRF in API context requires identifying outbound calls with user-controlled URLs. Not determinable from architecture summary alone.",
+    "confidence": 0.3
+  },
+  {
+    "name": "API8: Security Misconfiguration",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Swagger documents 1 path(s). 109 hand-written route(s) are undocumented. 28 auto-CRUD route(s) are undocumented. ",
+    "confidence": 0.5
+  },
+  {
+    "name": "API9: Improper Inventory Management",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Swagger documents 1 path(s). 109 hand-written route(s) are undocumented. 28 auto-CRUD route(s) are undocumented. ",
+    "confidence": 0.9
+  },
+  {
+    "name": "API10: Unsafe Consumption of APIs",
+    "framework": "API Security Top 10",
+    "verdict": "uncertain",
+    "evidence": "Whether the app consumes third-party APIs and validates their responses requires route handler analysis.",
+    "confidence": 0.3
+  },
+  {
+    "name": "LLM01: Prompt Injection",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Genuine tool-calling detected with 4 tools. System prompt built dynamically with user context. Whether prompt fencing is adequate requires Stage 2 analysis.",
+    "confidence": 0.7
+  },
+  {
+    "name": "LLM02: Sensitive Information Disclosure",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Chatbot has access to user data (username, orders, reviews) via tool handlers. Whether sensitive fields are properly filtered requires analysis.",
+    "confidence": 0.7
+  },
+  {
+    "name": "LLM03: Supply Chain",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "LLM SDK dependencies detected. Whether model provider URL and API key are properly configured vs. dynamically controllable from untrusted sources requires analysis.",
+    "confidence": 0.5
+  },
+  {
+    "name": "LLM05: Improper Output Handling",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "LLM tool-calling detected AND 28 Angular escape-hatch usage points found. LLM output reaching HTML rendering sinks without sanitization is a concrete concern.",
+    "confidence": 0.8
+  },
+  {
+    "name": "LLM06: Excessive Agency",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Tools with state-changing capabilities detected (searchProducts, getProductReviews, getOrderById, generateCoupon). Whether authorization is independently re-derived inside each handler requires analysis.",
+    "confidence": 0.8
+  },
+  {
+    "name": "LLM10: Unbounded Consumption",
+    "framework": "LLM Top 10",
+    "verdict": "uncertain",
+    "evidence": "Step cap detected (stepCountIs). Whether per-request budget and turn limits are enforced requires config analysis.",
+    "confidence": 0.5
+  }
+]
