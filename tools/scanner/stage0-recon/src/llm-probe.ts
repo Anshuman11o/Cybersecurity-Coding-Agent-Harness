@@ -7,6 +7,7 @@
  * Falls back to deterministic analysis when API is unreachable.
  */
 import OpenAI from 'openai'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
 
@@ -32,9 +33,17 @@ export interface CategoryVerdict {
 function createClient(): OpenAI | null {
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) return null
+  const baseURL = process.env.DASHSCOPE_BASE_URL
+    ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
+  // The proxy at 127.0.0.1:39707 requires HttpsProxyAgent to work correctly
+  // for DashScope endpoints. Without it, node-fetch goes through the proxy
+  // but gets a 403 'Host not in allowlist'.
+  const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
+  const httpAgent = new HttpsProxyAgent(proxyUrl)
   return new OpenAI({
     apiKey,
-    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    baseURL,
+    httpAgent,
   })
 }
 
@@ -56,6 +65,7 @@ export async function detectToolCalling(chatTsPath: string): Promise<ToolCalling
       })
       const text = response.choices[0]?.message?.content ?? '{}'
       const jsonStr = extractJson(text)
+      console.log('  [LLM OK] Tool-calling detection received a real API response')
       return JSON.parse(jsonStr) as ToolCallingVerdict
     } catch (err: any) {
       console.error('LLM tool-calling detection failed, falling back to deterministic:', err.message)
@@ -134,11 +144,13 @@ export async function probeCategoryApplicability(
   toolCallingVerdict: ToolCallingVerdict,
   escapeHatchFindings: EscapeHatchFinding[],
   swaggerDiffNote: string,
-): Promise<CategoryVerdict[]> {
+): Promise<CategoryVerdict[] | null> {
   const client = createClient()
   if (client) {
     try {
-      return await probeViaLLM(client, JSON.stringify(architectureSummary), toolCallingVerdict, escapeHatchFindings, swaggerDiffNote)
+      const result = await probeViaLLM(client, JSON.stringify(architectureSummary), toolCallingVerdict, escapeHatchFindings, swaggerDiffNote)
+      if (result !== null) return result
+      console.error('  LLM returned null (JSON parse error), falling back to deterministic')
     } catch (err: any) {
       console.error('LLM category probe failed:', err.message)
     }
@@ -152,7 +164,7 @@ async function probeViaLLM(
   toolCallingVerdict: ToolCallingVerdict,
   escapeHatchFindings: EscapeHatchFinding[],
   swaggerDiffNote: string,
-): Promise<CategoryVerdict[]> {
+): Promise<CategoryVerdict[] | null> {
   const hasApiSurface = swaggerDiffNote !== '' || architectureSummary.includes('/api/')
   const hasToolCalling = toolCallingVerdict.hasGenuineToolCalling
 
@@ -201,12 +213,27 @@ Respond in JSON array:
     model: 'qwen-plus',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.1,
-    max_tokens: 3000,
+    max_tokens: 5000,
   })
 
+  console.log('  [LLM OK] Category applicability probe received a real API response')
   const text = response.choices[0]?.message?.content ?? '[]'
   const jsonStr = extractJson(text)
-  return JSON.parse(jsonStr) as CategoryVerdict[]
+  try {
+    const raw = JSON.parse(jsonStr) as CategoryVerdict[]
+    // Normalize verdict values: LLM may use APPLICABLE/NOT_APPLICABLE instead of present/absent
+    for (const c of raw) {
+      const v = (c.verdict as string).toUpperCase()
+      if (v === 'APPLICABLE' || v === 'PRESENT') c.verdict = 'present'
+      else if (v === 'NOT_APPLICABLE' || v === 'NOT APPLICABLE' || v === 'ABSENT') c.verdict = 'absent'
+      else if (v === 'UNCERTAIN' || v === 'UNKNOWN') c.verdict = 'uncertain'
+    }
+    return raw
+  } catch (e: any) {
+    console.error('  LLM JSON parse error:', e.message, '(first 200 chars of response:', JSON.stringify(text.substring(0, 200)), ')')
+    // Fall back to deterministic
+    return null
+  }
 }
 
 /**

@@ -2819,7 +2819,7 @@
       "getOrderById",
       "generateCoupon"
     ],
-    "evidence": "Uses streamText() for LLM interaction. Defines 4 tool(s): searchProducts, getProductReviews, getOrderById, generateCoupon. Tools have execute() handlers. At least one tool performs state-changing operations. Tools perform database reads. ",
-    "confidence": 0.95
+    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize + MongoDB), user/auth validation, coupon generation, and order ownership checks. The tools are passed to `streamText({ tools })`, and the response handler emits `tool-call` events with structured tool invocation data — confirming LLM-driven, runtime tool dispatch with actual backend logic.",
+    "confidence": 1
   }
 }
