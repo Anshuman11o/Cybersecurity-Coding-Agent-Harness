@@ -1,0 +1,14 @@
+{
+  "name": "stage1-budget-governor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/budget-governor.ts",
+    "test": "tsx src/test-harness.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
