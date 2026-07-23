@@ -1,0 +1,110 @@
+[
+  {
+    "lane_id": "access-control",
+    "tokens_used": 26273,
+    "seconds_elapsed": 4.381,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "injection-sql",
+    "tokens_used": 5990,
+    "seconds_elapsed": 10.987,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "injection-nosql",
+    "tokens_used": 8272,
+    "seconds_elapsed": 21.002,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "crypto-auth",
+    "tokens_used": 19272,
+    "seconds_elapsed": 32.675,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "misconfiguration",
+    "tokens_used": 0,
+    "seconds_elapsed": 20.173,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "vulnerable-components",
+    "tokens_used": 5824,
+    "seconds_elapsed": 23.168,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "integrity-failures",
+    "tokens_used": 19877,
+    "seconds_elapsed": 22.104,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "api-property-auth",
+    "tokens_used": 17343,
+    "seconds_elapsed": 2.333,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "resource-consumption",
+    "tokens_used": 18280,
+    "seconds_elapsed": 13.343,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "sensitive-business-flows",
+    "tokens_used": 23274,
+    "seconds_elapsed": 3.001,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "client-side",
+    "tokens_used": 34887,
+    "seconds_elapsed": 22.645,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "injection-code",
+    "tokens_used": 9234,
+    "seconds_elapsed": 18.015,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "ai-llm-agency",
+    "tokens_used": 10949,
+    "seconds_elapsed": 46.319,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "logging-monitoring",
+    "tokens_used": 14363,
+    "seconds_elapsed": 21.239,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "general-catchall",
+    "tokens_used": 15389,
+    "seconds_elapsed": 16.797,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "insecure-design",
+    "tokens_used": 19756,
+    "seconds_elapsed": 3.241,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "ssrf",
+    "tokens_used": 8628,
+    "seconds_elapsed": 14.251,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "ssrf-api",
+    "tokens_used": 8193,
+    "seconds_elapsed": 11.831,
+    "ceiling_hit": false
+  }
+]
