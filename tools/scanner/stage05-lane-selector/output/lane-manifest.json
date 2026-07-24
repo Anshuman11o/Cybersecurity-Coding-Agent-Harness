@@ -276,25 +276,6 @@
     "playbook_reference": "logging-monitoring"
   },
   {
-    "lane_id": "general-catchall",
-    "categories": [
-      "API10: Unsafe Consumption of APIs"
-    ],
-    "subsystem_scope": "Catch-all lane for categories Stage 0 marked uncertain (A04 Insecure Design, A10 SSRF, API7 SSRF, API10 Unsafe Consumption) — web3 endpoints, B2B orders, outbound HTTP calls, country mapping",
-    "seed_files": [
-      "target-apps/juice-shop-blind/lib/insecurity.ts",
-      "target-apps/juice-shop-blind/lib/utils.ts",
-      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
-      "target-apps/juice-shop-blind/routes/checkKeys.ts",
-      "target-apps/juice-shop-blind/routes/countryMapping.ts",
-      "target-apps/juice-shop-blind/routes/nftMint.ts",
-      "target-apps/juice-shop-blind/routes/redirect.ts",
-      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
-      "target-apps/juice-shop-blind/server.ts"
-    ],
-    "playbook_reference": "general-catchall"
-  },
-  {
     "lane_id": "insecure-design",
     "categories": [
       "A04: Insecure Design"
@@ -318,35 +299,14 @@
     "playbook_reference": "insecure-design"
   },
   {
-    "lane_id": "ssrf",
+    "lane_id": "uncertain-api10-unsafe-consumption-of-apis",
     "categories": [
-      "A10: Server-Side Request Forgery (SSRF)"
+      "API10: Unsafe Consumption of APIs"
     ],
-    "subsystem_scope": "SSRF via web3 node connections, B2B order callbacks, country mapping lookups, redirect handler with user-controlled URL",
+    "subsystem_scope": "Dedicated lane for uncertain category: API10: Unsafe Consumption of APIs",
     "seed_files": [
-      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
-      "target-apps/juice-shop-blind/routes/countryMapping.ts",
-      "target-apps/juice-shop-blind/routes/profileImageUrlUpload.ts",
-      "target-apps/juice-shop-blind/routes/redirect.ts",
-      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
       "target-apps/juice-shop-blind/server.ts"
     ],
-    "playbook_reference": "ssrf"
-  },
-  {
-    "lane_id": "ssrf-api",
-    "categories": [
-      "API7: Server Side Request Forgery"
-    ],
-    "subsystem_scope": "API-scoped SSRF: outbound calls via web3/B2B endpoints, URL construction from user input, DNS rebinding",
-    "seed_files": [
-      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
-      "target-apps/juice-shop-blind/routes/countryMapping.ts",
-      "target-apps/juice-shop-blind/routes/profileImageUrlUpload.ts",
-      "target-apps/juice-shop-blind/routes/redirect.ts",
-      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
-      "target-apps/juice-shop-blind/server.ts"
-    ],
-    "playbook_reference": "ssrf-api"
+    "playbook_reference": "general-catchall"
   }
 ]

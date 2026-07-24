@@ -7,7 +7,7 @@
     "wall_clock_ceiling_seconds": 625,
     "model_tier": "mid",
     "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (93,813 B, Q75=73,495 B); seed footprint in top quartile by file count (17 files, Q75=13 files)"
+    "escalation_reason": "seed footprint in top quartile by bytes (93,813 B, Q75=76,382 B); seed footprint in top quartile by file count (17 files, Q75=13 files)"
   },
   {
     "lane_id": "injection-sql",
@@ -87,7 +87,7 @@
     "wall_clock_ceiling_seconds": 490,
     "model_tier": "mid",
     "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (73,495 B, Q75=73,495 B); seed footprint in top quartile by file count (13 files, Q75=13 files)"
+    "escalation_reason": "seed footprint in top quartile by file count (13 files, Q75=13 files)"
   },
   {
     "lane_id": "sensitive-business-flows",
@@ -97,7 +97,7 @@
     "wall_clock_ceiling_seconds": 573,
     "model_tier": "mid",
     "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (85,877 B, Q75=73,495 B); seed footprint in top quartile by file count (15 files, Q75=13 files)"
+    "escalation_reason": "seed footprint in top quartile by bytes (85,877 B, Q75=76,382 B); seed footprint in top quartile by file count (15 files, Q75=13 files)"
   },
   {
     "lane_id": "client-side",
@@ -107,7 +107,7 @@
     "wall_clock_ceiling_seconds": 814,
     "model_tier": "mid",
     "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (122,128 B, Q75=73,495 B); seed footprint in top quartile by file count (23 files, Q75=13 files)"
+    "escalation_reason": "seed footprint in top quartile by bytes (122,128 B, Q75=76,382 B); seed footprint in top quartile by file count (23 files, Q75=13 files)"
   },
   {
     "lane_id": "injection-code",
@@ -140,16 +140,6 @@
     "escalation_reason": ""
   },
   {
-    "lane_id": "general-catchall",
-    "seed_file_count": 9,
-    "seed_bytes_total": 61133,
-    "token_ceiling": 61133,
-    "wall_clock_ceiling_seconds": 408,
-    "model_tier": "mid",
-    "escalation_flag": false,
-    "escalation_reason": ""
-  },
-  {
     "lane_id": "insecure-design",
     "seed_file_count": 13,
     "seed_bytes_total": 76382,
@@ -157,24 +147,14 @@
     "wall_clock_ceiling_seconds": 509,
     "model_tier": "mid",
     "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (76,382 B, Q75=73,495 B); seed footprint in top quartile by file count (13 files, Q75=13 files)"
+    "escalation_reason": "seed footprint in top quartile by bytes (76,382 B, Q75=76,382 B); seed footprint in top quartile by file count (13 files, Q75=13 files)"
   },
   {
-    "lane_id": "ssrf",
-    "seed_file_count": 6,
-    "seed_bytes_total": 44876,
-    "token_ceiling": 44876,
-    "wall_clock_ceiling_seconds": 299,
-    "model_tier": "mid",
-    "escalation_flag": false,
-    "escalation_reason": ""
-  },
-  {
-    "lane_id": "ssrf-api",
-    "seed_file_count": 6,
-    "seed_bytes_total": 44876,
-    "token_ceiling": 44876,
-    "wall_clock_ceiling_seconds": 299,
+    "lane_id": "uncertain-api10-unsafe-consumption-of-apis",
+    "seed_file_count": 1,
+    "seed_bytes_total": 37164,
+    "token_ceiling": 37164,
+    "wall_clock_ceiling_seconds": 248,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""

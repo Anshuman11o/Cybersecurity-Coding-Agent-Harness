@@ -1,0 +1,16 @@
+{
+  "name": "stage3-validate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/validator-orchestrator.ts"
+  },
+  "dependencies": {
+    "https-proxy-agent": "^9.1.0",
+    "openai": "^4.85.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

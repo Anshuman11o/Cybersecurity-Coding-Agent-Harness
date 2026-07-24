@@ -67,6 +67,7 @@ const HUNT_RESPONSE_SCHEMA = {
     },
     scope_requests: {
       type: 'array',
+      description: 'Files outside your seed set that are directly needed to complete a trace already in progress. If you hit a gap where a handler calls middleware, imports a model, or references a file you cannot see, request it here. An empty array is fine and expected when your seed files are sufficient -- do not request files speculatively.',
       items: {
         type: 'object',
         additionalProperties: false,
