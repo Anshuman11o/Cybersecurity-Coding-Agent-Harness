@@ -959,6 +959,17 @@ async function main() {
   const review = await runOrchestratorReview(arch, categories, lanes)
   lanes = applyOrchestratorReview(lanes, review, arch, handlerMap, serverTsPath, repoRoot)
 
+  // Permanent seed-file denylist: internal bookkeeping files that must never
+  // appear in any lane's seed_files, regardless of recon or orchestrator output.
+  const SEED_DENYLIST = [
+    'target-apps/juice-shop-blind/models/challenge.ts',
+    'target-apps/juice-shop-blind/lib/antiCheat.ts',
+    'target-apps/juice-shop-blind/data/datacreator.ts',
+  ]
+  for (const lane of lanes) {
+    lane.seed_files = lane.seed_files.filter((f) => !SEED_DENYLIST.includes(f))
+  }
+
   // Write lane manifest
   fs.mkdirSync(outputDir, { recursive: true })
   const manifestPath = path.join(outputDir, 'lane-manifest.json')
