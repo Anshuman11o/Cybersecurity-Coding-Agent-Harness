@@ -72,6 +72,20 @@ interface EscapeHatchFinding {
   type: string
 }
 
+interface UnclassifiedSurfaceGroup {
+  language: string
+  count: number
+  files: string[]
+}
+
+interface FileInventory {
+  total_source_files: number
+  by_language: Record<string, { count: number; sample_paths: string[] }>
+  unclassified_surface: UnclassifiedSurfaceGroup[]
+  smart_contract_surface_detected: boolean
+  smart_contract_files: string[]
+}
+
 interface CategoryVerdict {
   name: string
   framework: string
@@ -710,6 +724,62 @@ function instantiateLanes(
     console.log(`[LANE] general-catchall: ${uncertainCategories.length} uncertain categories (${uncertainCategories.map((c) => c.name).join(', ')}), ${uncertainSeeds.length} seed files`)
   }
 
+  // --- Unclassified surface routing (from Stage 0 file inventory) ---
+  // Stage 0 now walks the entire target and produces an unclassified_surface list
+  // of files that no framework-specific extraction touched. Route these into
+  // the general-catchall lane so they actually get scanned.
+  const fileInv = arch.file_inventory as FileInventory | undefined
+  if (fileInv && fileInv.unclassified_surface && fileInv.unclassified_surface.length > 0) {
+    const unclassifiedFiles = fileInv.unclassified_surface.flatMap((g) => g.files)
+    // Convert target-relative paths to repo-relative paths for consistency
+    // with other lanes (e.g. 'frontend/src/app/app.routing.ts' -> 'target-apps/juice-shop-blind/frontend/src/app/app.routing.ts')
+    const unclassifiedSeedFiles = [...new Set(unclassifiedFiles.map((f) =>
+      f.startsWith('target-apps/') ? f : path.join(repoRoot, 'target-apps/juice-shop-blind', f).replace(repoRoot + '/', ''),
+    ))].sort()
+
+    // Merge into existing general-catchall lane if present, otherwise create one
+    const catchallLane = lanes.find((l) => l.lane_id === 'general-catchall')
+    if (catchallLane) {
+      const existingSeeds = new Set(catchallLane.seed_files)
+      for (const f of unclassifiedSeedFiles) {
+        existingSeeds.add(f)
+      }
+      catchallLane.seed_files = [...existingSeeds].sort()
+      catchallLane.subsystem_scope +=
+        '. Additionally includes ' + unclassifiedSeedFiles.length + ' unclassified source files from file inventory walk (' +
+        fileInv.unclassified_surface.map((g) => g.language + ': ' + g.count).join(', ') + ')'
+      console.log(`[LANE] general-catchall: +${unclassifiedSeedFiles.length} unclassified surface files merged into existing lane`)
+    } else {
+      const scopeParts = fileInv.unclassified_surface.map((g) => g.language + ': ' + g.count + ' files')
+      lanes.push({
+        lane_id: 'general-catchall',
+        categories: [],
+        subsystem_scope:
+          'Catch-all lane for unclassified source files from Stage 0 file inventory — ' + scopeParts.join('; '),
+        seed_files: unclassifiedSeedFiles,
+        playbook_reference: 'general-catchall',
+      })
+      console.log(`[LANE] general-catchall: created for ${unclassifiedSeedFiles.length} unclassified surface files`)
+    }
+  }
+
+  // --- Smart contract surface lane ---
+  if (fileInv && fileInv.smart_contract_surface_detected && fileInv.smart_contract_files.length > 0) {
+    // Convert target-relative paths to repo-relative paths for consistency
+    const solSeedFiles = fileInv.smart_contract_files.map((f) =>
+      f.startsWith('target-apps/') ? f : path.join(repoRoot, 'target-apps/juice-shop-blind', f).replace(repoRoot + '/', ''),
+    )
+    lanes.push({
+      lane_id: 'smart-contract',
+      categories: [],
+      subsystem_scope:
+        'Solidity smart contract files detected via file inventory: ' + fileInv.smart_contract_files.map((f) => f.split('/').pop()).join(', ') + ' — vulnerability classes: reentrancy, integer overflow, access control, oracle manipulation',
+      seed_files: solSeedFiles,
+      playbook_reference: 'general-catchall',
+    })
+    console.log(`[LANE] smart-contract: ${fileInv.smart_contract_files.length} .sol file(s) seeded`)
+  }
+
   return lanes
 }
 
@@ -912,8 +982,16 @@ function applyOrchestratorReview(
 
     const catchall = lanes.find((l) => l.lane_id === 'general-catchall')
     if (catchall && catchall.categories.length === 0) {
-      lanes.splice(lanes.indexOf(catchall), 1)
-      console.log('[ORCHESTRATOR] Removed empty general-catchall lane')
+      // Keep the lane if it has unclassified surface seed files — it serves
+      // as a pure catch-all for files that no framework-specific extraction
+      // touched. Only remove if truly empty.
+      if (catchall.seed_files.length === 0) {
+        lanes.splice(lanes.indexOf(catchall), 1)
+        console.log('[ORCHESTRATOR] Removed empty general-catchall lane')
+      } else {
+        catchall.subsystem_scope = 'Catch-all lane for unclassified source files from Stage 0 file inventory (all uncertain categories promoted to dedicated lanes)'
+        console.log(`[ORCHESTRATOR] Kept general-catchall with ${catchall.seed_files.length} unclassified surface files`)
+      }
     }
   }
 
