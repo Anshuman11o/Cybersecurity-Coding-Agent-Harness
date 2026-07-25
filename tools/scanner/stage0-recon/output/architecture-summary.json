@@ -2819,7 +2819,7 @@
       "getOrderById",
       "generateCoupon"
     ],
-    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize + MongoDB), authentication checks, business logic (e.g., order ownership validation), and coupon generation with security challenge handling. The tools are passed to `streamText({ tools })` and explicitly invoked during streaming via `case 'tool-call'`, with metrics and logging confirming actual invocation.",
-    "confidence": 1
+    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: DB queries (Sequelize + MongoDB), authentication checks, and business logic (e.g., coupon generation via `security.generateCoupon`). The tools are passed to `streamText({ tools })`, and tool calls are explicitly handled in the SSE stream (`case 'tool-call'`), with metrics instrumentation confirming actual invocation. The system prompt mandates their use for specific user intents, confirming agentic tool-calling semantics.",
+    "confidence": 0.98
   }
 }
