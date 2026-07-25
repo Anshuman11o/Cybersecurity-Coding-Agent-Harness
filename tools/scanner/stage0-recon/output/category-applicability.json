@@ -1,184 +1,184 @@
 [
   {
-    "name": "A01: Broken Access Control",
-    "framework": "OWASP Top 10 2021",
+    "name": "A01: Broken Access Control (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Multiple authenticated, resource-scoped routes with ID parameters exist (e.g., GET /api/Users/:id, GET /api/Cards/:id, DELETE /api/Addresss/:id) and use auth middleware like security.isAuthorized(), security.appendUserId(), or security.denyAll(). However, inconsistent enforcement is evident: e.g., /api/Recycles/:id has auth: null + middleware: [\"recycles.getRecycleItem()\"] — no authorization check — and /api/SecurityAnswers/:id uses security.denyAll() but is also exposed via auto-CRUD ALL methods. This structural pattern of ID-based resource access with mixed/missing auth enforcement satisfies the structural prerequisite.",
-    "confidence": 0.99
-  },
-  {
-    "name": "A02: Cryptographic Failures",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Explicit use of JWT (jsonwebtoken v0.4.0), TOTP (twoFactorAuth.setup/verify), password handling (login, reset-password, change-password endpoints), and encryption keys served via /encryptionkeys/:file route. Dependencies include jsonwebtoken, @types/jsonwebtoken, and crypto-related tooling (test/files/encrypt.py, decrypt.py). Passwords are excluded from auto-CRUD responses (excludeAttributes: [\"password\",\"totpSecret\"]), indicating awareness — but presence of crypto operations and key exposure surface confirms structural prerequisites.",
-    "confidence": 0.98
-  },
-  {
-    "name": "A03: Injection",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Multiple high-risk parsers present: js-yaml (v3.14.0) used in /file-upload handler for YAML parsing; libxml2-wasm for XML parsing (handleXmlUpload); and raw SQL/NoSQL implied by Sequelize ORM usage with models including User, Product, Feedback, etc. Additionally, auto-CRUD routes (e.g., /api/Users) accept arbitrary query params (pagination, filtering) without visible sanitization in route definitions — a known injection vector when ORM query builders are misused. No evidence of parameterized queries or input validation in route metadata.",
-    "confidence": 0.97
-  },
-  {
-    "name": "A04: Insecure Design",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "uncertain",
-    "evidence": "Insecure design requires analysis of threat modeling, business logic flaws, and architectural decisions (e.g., flawed workflows, missing defense-in-depth layers). While architecture shows features enabling abuse (e.g., undocumented /rest/web3/walletExploitAddress, /b2b/v2/orders, Easter eggs, paywall endpoints), it lacks explicit evidence of *inherently flawed design patterns* (e.g., race conditions, flawed cryptographic protocols, or intentional bypass logic). Absence of threat-model.json content or design spec prevents definitive judgment.",
-    "confidence": 0.65
-  },
-  {
-    "name": "A05: Security Misconfiguration",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Multiple misconfiguration indicators: permissive file serving (/ftp, /.well-known, /encryptionkeys, /support/logs) with directory listing enabled (serveIndexMiddleware + { icons: true, view: 'details' }); lack of security headers (helmet v4.6.0 is present but no evidence of configuration — e.g., no CSP, HSTS, or XSS protection settings shown); XML parser (libxml2-wasm) with no indication of entity expansion disabled; and exposure of sensitive files (security.txt, csaf, logs, keys) without authentication or IP restriction on many paths.",
-    "confidence": 0.99
-  },
-  {
-    "name": "A06: Vulnerable and Outdated Components",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Dependency list includes known vulnerable versions: jsonwebtoken v0.4.0 (severe CVE-2018-1000866, CVE-2020-28032), js-yaml v3.14.0 (CVE-2022-29078, CVE-2023-28775), multer v1.4.5-lts.1 (CVE-2022-24435), and express-jwt v0.1.3 (obsolete, unmaintained, multiple auth bypass CVEs). Version pins are present and outdated — satisfying structural prerequisite for component vulnerability exposure.",
-    "confidence": 0.99
-  },
-  {
-    "name": "A07: Identification and Authentication Failures",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Full auth lifecycle implemented: login (/rest/user/login), password reset (/rest/user/reset-password with rate limiting), 2FA setup/verify/disable (/rest/2fa/*), TOTP, session management, and credential recovery flows. However, critical weaknesses are structurally evident: /rest/user/reset-password has no auth requirement and is rate-limited only at the route level (not tied to user identity), and /api/Users POST allows registration without CAPTCHA or bot mitigation beyond client-side checks. Auth infrastructure exists — and is demonstrably incomplete — fulfilling the prerequisite.",
-    "confidence": 0.98
-  },
-  {
-    "name": "A08: Software and Data Integrity Failures",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Webhook handling (lib/webhook.ts), plugin-like dynamic loading (routes/*.ts imported dynamically), deserialization surfaces (YAML upload via js-yaml, XML via libxml2-wasm, JSON in API bodies), and integrity-critical features (data export, wallet balance updates, order checkout) all rely on untrusted input. Auto-CRUD routes accept arbitrary payloads (e.g., POST /api/Users) with no schema validation visible in route definition. The presence of deserializers and unvalidated object construction satisfies structural prerequisites.",
-    "confidence": 0.96
-  },
-  {
-    "name": "A09: Security Logging and Monitoring Failures",
-    "framework": "OWASP Top 10 2021",
-    "verdict": "present",
-    "evidence": "Explicit logging infrastructure present: metrics.observeFileUploadMetricsMiddleware(), metrics.serveMetrics(), audit.json log file, and dedicated /support/logs endpoint serving log files. However, no evidence of intrusion detection, anomaly correlation, or alerting — only passive collection and exposure. Presence of logging modules (lib/logger.ts, metrics, audit.json) and log-serving routes confirms structural prerequisite for monitoring failures.",
+    "evidence": "Multiple authenticated, resource-scoped routes with ID parameters exist (e.g., GET /api/Users/:id, GET /api/Cards/:id, GET /api/Addresss/:id) and use authorization middleware (security.isAuthorized(), security.appendUserId()). However, inconsistent enforcement is evident: some routes like GET /api/Recycles/:id and GET /api/Hints/:id have auth: null or security.denyAll(), while others (e.g., PUT /api/Feedbacks/:id) are denied but lack corresponding read access controls — indicating potential BOLA/BFLA misconfigurations. Auto-CRUD routes (e.g., /api/Users/:id) also expose ID-based access without explicit per-route authorization logic shown.",
     "confidence": 0.95
   },
   {
-    "name": "A10: Server-Side Request Forgery (SSRF)",
-    "framework": "OWASP Top 10 2021",
+    "name": "A02: Cryptographic Failures (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Multiple endpoints accept and process external URLs: /profile/image/url (handler: profileImageUrlUpload), /rest/track-order/:id (implies external carrier integration), /rest/country-mapping (likely fetches remote geolocation data), and /rest/web3/* endpoints (interact with Ethereum nodes). No SSRF mitigation (e.g., allowlists, URL parsing/validation, network restrictions) is indicated in route middleware or dependency list. Structural prerequisite — outbound HTTP calls with dynamic user-controlled input — is satisfied.",
-    "confidence": 0.94
+    "evidence": "JWT usage confirmed via 'express-jwt' and 'jsonwebtoken' dependencies; password handling present in user registration/login flows; TOTP support (2FA setup/verify); encryption keys exposed via /encryptionkeys route; sensitive fields (password, totpSecret) explicitly excluded from auto-CRUD responses — implying cryptographic operations and storage concerns. Also, raw crypto dependencies (e.g., 'libxml2-wasm', 'js-yaml') used in parsing contexts increase risk of weak algorithm or misuse.",
+    "confidence": 0.98
   },
   {
-    "name": "API1: Broken Object Level Authorization",
-    "framework": "API Security Top 10",
+    "name": "A03: Injection (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Direct object references (DOR) via :id path params are pervasive across REST API surface (e.g., /api/Users/:id, /api/Cards/:id, /api/Addresss/:id) and auto-CRUD routes. Authorization is inconsistently applied: some routes enforce security.isAuthorized(), others use security.denyAll(), and several (e.g., /api/Recycles/:id, /api/Hints/:id) have auth: null. This matches the canonical BOLA pattern — ID-based access without per-object ownership checks — confirmed by route structure and auth metadata.",
+    "evidence": "File upload endpoints (/file-upload, /profile/image/file, /rest/memories) accept YAML, XML, ZIP — all parsed by js-yaml (v3.14.0, known vulnerable to arbitrary code execution via !js/function), libxml2-wasm, and ZIP extractors. Middleware includes 'handleYamlUpload', 'handleXmlUpload', 'handleZipFileUpload'. No evidence of safe parsing (e.g., no safeLoad, no disableJS, no entity expansion prevention). Also, search endpoint (/rest/products/search) and dynamic path routing (e.g., /snippets/:challenge) suggest potential for injection if input is reflected or interpolated.",
     "confidence": 0.99
   },
   {
-    "name": "API2: Broken Authentication",
-    "framework": "API Security Top 10",
+    "name": "A04: Insecure Design (OWASP Top 10 2021)",
+    "framework": "OWASP",
+    "verdict": "uncertain",
+    "evidence": "Architecture shows business logic (e.g., coupon generation, wallet balance, NFT minting, privacy requests) but lacks design artifacts (threat models, abuse cases, architecture decision records). While insecure patterns exist (e.g., client-side bypasses, undocumented APIs), 'insecure design' requires analysis of threat modeling rigor, abuse case coverage, and architectural trade-offs — not inferable from route/config metadata alone.",
+    "confidence": 0.4
+  },
+  {
+    "name": "A05: Security Misconfiguration (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Authentication mechanisms exist (JWT, TOTP, session tokens), but structural flaws are evident: /rest/user/reset-password accepts unauthenticated POST with no binding to user context; /api/Users POST allows admin registration bypass (verify.registerAdminChallenge is a challenge, not a guard); and /rest/2fa/setup lacks pre-authentication binding. These are API-specific auth failures — distinct from A07 — and directly observable in route auth/middleware configuration.",
+    "evidence": "Exposure of sensitive directories: /ftp (with serveIndexMiddleware), /encryptionkeys, /support/logs, /.well-known (with directory listing enabled), and /assets/public/images/uploads — all served without authentication or strict access control. Middleware 'verify.accessControlChallenges()' is applied selectively but insufficiently (e.g., /assets/public/images/products has it, but /ftp does not). Also, missing security headers implied by absence of explicit Helmet configuration in route list (though 'helmet' is a dependency), and permissive CORS ('cors' dependency present without config details).",
     "confidence": 0.97
   },
   {
-    "name": "API3: Broken Object Property Level Authorization",
-    "framework": "API Security Top 10",
+    "name": "A06: Vulnerable and Outdated Components (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Auto-CRUD routes (e.g., /api/Users) expose full model attributes except explicitly excluded ones (excludeAttributes: [\"password\",\"totpSecret\"]). However, other models (Product, Feedback, Complaint) have no exclusions — meaning PATCH/PUT requests could overwrite sensitive fields (e.g., isAdmin, isDeleted, status) without field-level authorization. Route definitions show no property-level access control logic — only full-object CRUD — satisfying the structural prerequisite.",
-    "confidence": 0.93
+    "evidence": "Dependency list includes known-vulnerable versions: 'js-yaml' ^3.14.0 (v3.14.x affected by CVE-2022-29033, RCE), 'jsonwebtoken' 0.4.0 (ancient, pre-8.x, lacks modern JWT security fixes), 'multer' ^1.4.5-lts.1 (v1.4.5 has known DoS via malicious multipart), and 'sequelize' ^6.37.3 (older than latest v6 LTS patch). Total dependencies = 117, with multiple security-relevant packages listed — satisfying structural prerequisite for component vulnerability exposure.",
+    "confidence": 1
   },
   {
-    "name": "API4: Unrestricted Resource Consumption",
-    "framework": "API Security Top 10",
+    "name": "A07: Identification and Authentication Failures (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Rate limiting is applied selectively (e.g., /rest/2fa/*, /rest/user/reset-password, /rest/basket) but absent on high-resource endpoints: file uploads (/file-upload, /profile/image/file), search (/rest/products/search), metrics (/metrics), and auto-CRUD bulk operations (e.g., GET /api/Users with pagination). No global rate limiting or request-size caps (e.g., body-parser limits) are declared in route config — satisfying structural prerequisite for DoS/resource exhaustion vectors.",
+    "evidence": "Full auth lifecycle implemented: login (/rest/user/login), password reset (/rest/user/reset-password), change-password (/rest/user/change-password), 2FA setup/verify/disable, security question flow, session management (JWT tokens), rate limiting on login/reset endpoints, and credential validation logic (e.g., passwordRepeatChallenge, emptyUserRegistration). However, password policy enforcement appears weak (no visible complexity checks beyond non-empty), and /rest/user/authentication-details is unprotected — exposing auth state.",
+    "confidence": 0.99
+  },
+  {
+    "name": "A08: Software and Data Integrity Failures (OWASP Top 10 2021)",
+    "framework": "OWASP",
+    "verdict": "present",
+    "evidence": "Deserialization surfaces: YAML (js-yaml), XML (libxml2-wasm), ZIP archives — all handled in untrusted upload contexts. Webhook-like functionality exists (web3 contract exploit listener, walletNFTVerify), and auto-CRUD routes allow arbitrary model instantiation. Also, 'continue-code' restore endpoints (/rest/continue-code/apply/:continueCode) accept and process opaque codes — potential for integrity bypass if codes are not cryptographically signed or validated.",
+    "confidence": 0.96
+  },
+  {
+    "name": "A09: Security Logging and Monitoring Failures (OWASP Top 10 2021)",
+    "framework": "OWASP",
+    "verdict": "present",
+    "evidence": "Explicit logging infrastructure present: '/metrics' endpoint (Prometheus), '/support/logs' directory serving log files, 'metrics.observeFileUploadMetricsMiddleware()', audit logs implied by 'logs/audit.json' file, and structured logging via 'lib/logger.ts'. However, no evidence of intrusion detection, anomaly correlation, or alerting — only passive collection. Presence of logging modules satisfies structural prerequisite.",
     "confidence": 0.92
   },
   {
-    "name": "API5: Broken Function Level Authorization",
-    "framework": "API Security Top 10",
+    "name": "A10: Server-Side Request Forgery (SSRF) (OWASP Top 10 2021)",
+    "framework": "OWASP",
     "verdict": "present",
-    "evidence": "Function-level endpoints exist with inconsistent auth: /api/Products/:id DELETE uses security.denyAll(), while /api/Products POST uses security.isAuthorized(); /api/Challenges POST uses security.denyAll(), yet /api/Challenges/:id is auto-CRUD ALL — exposing read/update/delete to unprivileged users. Critical admin functions (e.g., /api/Quantitys/:id DELETE, /api/PrivacyRequests GET) are either unauthenticated or denyAll — indicating missing role-based function gating. Structural prerequisite confirmed.",
-    "confidence": 0.96
-  },
-  {
-    "name": "API6: Unrestricted Access to Sensitive Business Flows",
-    "framework": "API Security Top 10",
-    "verdict": "present",
-    "evidence": "Business-critical flows lack authorization: /rest/basket/:id/checkout (payment) has auth: null; /rest/user/data-export (GDPR export) requires only security.appendUserId() — no consent or scope validation; /rest/web3/walletExploitAddress accepts arbitrary payloads; and /b2b/v2/orders is protected only by security.isAuthorized() — no tenant isolation or B2B-specific auth. These are sensitive workflows exposed without contextual authorization — structural prerequisite met.",
-    "confidence": 0.95
-  },
-  {
-    "name": "API7: Server Side Request Forgery",
-    "framework": "API Security Top 10",
-    "verdict": "present",
-    "evidence": "Same SSRF surfaces as A10, but API-specific: /profile/image/url (arbitrary URL fetch), /rest/track-order/:id (likely resolves carrier URLs), and /rest/web3/* endpoints (connect to Ethereum RPC endpoints). All are REST API endpoints accepting untrusted URLs — satisfying API7’s structural definition.",
-    "confidence": 0.94
-  },
-  {
-    "name": "API8: Security Misconfiguration",
-    "framework": "API Security Top 10",
-    "verdict": "present",
-    "evidence": "API-specific misconfigurations: Swagger docs cover only 1 of 137+ API paths (massive documentation gap); /metrics endpoint exposed unauthenticated; /support/logs serves raw logs publicly; /encryptionkeys exposes keys without auth; and auto-CRUD routes lack input validation or output sanitization. These are API surface misconfigurations — distinct from A05 — confirmed by route metadata.",
-    "confidence": 0.98
-  },
-  {
-    "name": "API9: Improper Inventory Management",
-    "framework": "API Security Top 10",
-    "verdict": "present",
-    "evidence": "Swagger documents only 1 path; 109 hand-written and 28 auto-CRUD API routes are undocumented. Undocumented surfaces (e.g., /rest/memories, /rest/chat, /rest/web3/*, /b2b/v2/orders) create shadow APIs — classic inventory failure. File inventory shows extensive unclassified TypeScript/JSON assets, further indicating poor API asset tracking.",
-    "confidence": 0.99
-  },
-  {
-    "name": "API10: Unsafe Consumption of APIs",
-    "framework": "API Security Top 10",
-    "verdict": "uncertain",
-    "evidence": "No evidence of third-party API consumption in route definitions, dependencies, or LLM tooling (tools use local DB/Sequelize/MongoDB, not external APIs). LLM tools (searchProducts, getOrderById) call internal services. While /rest/country-mapping or /rest/track-order/:id may consume external APIs, architecture does not confirm outbound integrations — only potential endpoints. Insufficient evidence to confirm unsafe consumption.",
-    "confidence": 0.55
-  },
-  {
-    "name": "LLM01: Prompt Injection",
-    "framework": "LLM Top 10",
-    "verdict": "present",
-    "evidence": "Genuine tool-calling LLM system detected: four tools (searchProducts, getProductReviews, getOrderById, generateCoupon) are defined with Zod schemas and execute real side-effects. System prompt enforces tool usage (e.g., 'MUST use searchProducts whenever...'). This creates a direct prompt injection surface — malicious user input can manipulate tool selection or arguments — satisfying structural prerequisite.",
-    "confidence": 0.98
-  },
-  {
-    "name": "LLM02: Sensitive Information Disclosure",
-    "framework": "LLM Top 10",
-    "verdict": "present",
-    "evidence": "LLM tools execute database queries (Sequelize + MongoDB) and return raw results (e.g., getProductReviews, getOrderById). Tool schemas and execution logic are exposed in source (routes/*.ts), and no output filtering or PII redaction is indicated. Combined with frontend escape hatches (28 bypassSecurityTrustHtml instances), LLM output could be injected into DOM — creating disclosure risk. Structural prerequisite (LLM returning sensitive data without sanitization) is present.",
+    "evidence": "Dynamic HTTP outbound calls exist: /rest/web3/walletExploitAddress, /rest/web3/nftMintListen, /rest/web3/walletNFTVerify, and /b2b/v2/orders — all interacting with external services (blockchain nodes, payment gateways). Also, /rest/user/data-export and /rest/track-order/:id may involve backend HTTP calls. No SSRF mitigation (e.g., allowlist, URL validation, network segmentation) is evident in route definitions or middleware.",
     "confidence": 0.93
   },
   {
-    "name": "LLM03: Supply Chain",
-    "framework": "LLM Top 10",
-    "verdict": "absent",
-    "evidence": "No LLM-related supply chain components detected: no model weights, no Hugging Face/Transformers dependencies, no ONNX/Triton artifacts, no remote model hosting. LLM functionality is entirely built on @ai-sdk/openai-compatible (a lightweight SDK) and local tool functions — no external model binaries or pipelines. Architecture lacks any LLM model distribution or inference supply chain.",
-    "confidence": 0.99
+    "name": "API1: Broken Object Level Authorization (BOLA) (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "REST API surface is extensive (148 total routes, including 109 undocumented hand-written + 28 auto-CRUD). Many ID-based endpoints (e.g., GET /api/Users/:id, GET /api/Cards/:id, GET /api/Addresss/:id) rely solely on generic 'security.isAuthorized()' — which likely checks session validity but not ownership. Critical counterexamples: /api/Quantitys/:id uses 'security.isAccounting()' *and* 'IpFilter', suggesting role-based but not object-level checks. Absence of owner validation (e.g., userId === req.auth.userId) in route handlers confirms structural BOLA risk.",
+    "confidence": 0.98
   },
   {
-    "name": "LLM05: Improper Output Handling",
-    "framework": "LLM Top 10",
+    "name": "API2: Broken Authentication (API Security Top 10)",
+    "framework": "API Security",
     "verdict": "present",
-    "evidence": "Frontend uses 28 Angular innerHTML/bypassSecurityTrustHtml escape hatches — many in LLM-adjacent contexts (chatbot, search-result, feedback-details, track-result). LLM output is streamed and rendered unsafely, enabling XSS if tool responses contain HTML/script. This is improper output handling: LLM-generated content is inserted into DOM without sanitization — structural prerequisite confirmed.",
-    "confidence": 0.99
+    "evidence": "Authentication is API-centric: JWT tokens used (express-jwt, jsonwebtoken), token refresh absent, password reset lacks anti-automation (only rate-limited, no proof-of-possession), 2FA implementation incomplete (no backup codes, no recovery flow), and /rest/user/authentication-details is publicly accessible — leaking auth state. Also, login endpoint has no lockout or progressive delay.",
+    "confidence": 0.97
   },
   {
-    "name": "LLM06: Excessive Agency",
-    "framework": "LLM Top 10",
+    "name": "API3: Broken Object Property Level Authorization (API Security Top 10)",
+    "framework": "API Security",
     "verdict": "present",
-    "evidence": "LLM tools perform high-privilege actions: generateCoupon (financial impact), getOrderById (accesses order history), and searchProducts (may trigger expensive DB scans). System prompt grants broad authority ('MUST use...'), and no runtime agency limiting (e.g., max tool calls, cost caps, approval gates) is evident in route or tool definitions. Structural prerequisite — LLM authorized to perform impactful actions — is satisfied.",
+    "evidence": "Auto-CRUD routes (e.g., /api/Users) exclude 'password' and 'totpSecret', but other sensitive properties (e.g., email, lastLoginIp, delivery addresses) are exposed without field-level redaction or role-based filtering. For example, GET /api/Users returns full user objects (excluding only password/totpSecret), and GET /api/Addresss exposes all address fields — no evidence of property-level authorization logic per role or sensitivity.",
     "confidence": 0.94
   },
   {
-    "name": "LLM10: Unbounded Consumption",
-    "framework": "LLM Top 10",
+    "name": "API4: Unrestricted Resource Consumption (API Security Top 10)",
+    "framework": "API Security",
     "verdict": "present",
-    "evidence": "No rate limiting, token budgeting, or timeout controls visible on LLM endpoints (/rest/chat, /rest/web3/*). Tools like searchProducts and getProductReviews lack query limits or pagination enforcement in route definitions. Combined with unrestricted /metrics and /rest/basket/:id/checkout (auth: null), resource exhaustion via LLM-driven tool invocation is structurally possible.",
+    "evidence": "Rate limiting applied only selectively: /rest/user/reset-password, /rest/2fa/*, and /rest/user/login — but absent on high-risk endpoints like /file-upload, /profile/image/file, /rest/memories, /rest/chat, and search (/rest/products/search). Upload endpoints lack size limits beyond 'checkUploadSize' (no config shown), and auto-CRUD pagination is enabled but no max-limit enforced — enabling enumeration or DoS.",
+    "confidence": 0.95
+  },
+  {
+    "name": "API5: Broken Function Level Authorization (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "Inconsistent function-level auth: POST /api/Products requires 'security.isAuthorized()', but DELETE /api/Products/:id uses 'security.denyAll()' — correct, yet POST /api/Challenges, POST /api/Hints, and GET /api/SecurityAnswers all use 'security.denyAll()', while their corresponding CRUD routes (e.g., /api/Challenges/:id) are auto-generated and unprotected. Also, /api/PrivacyRequests has conflicting middleware: one route uses 'security.isAuthorized()', another 'security.denyAll()' — indicating authorization logic is fragmented and error-prone.",
+    "confidence": 0.96
+  },
+  {
+    "name": "API6: Unrestricted Access to Sensitive Business Flows (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "Sensitive flows exposed without gating: /rest/deluxe-membership (upgrade path), /rest/user/data-export (GDPR export), /rest/2fa/setup (2FA enrollment), /rest/web3/submitKey (crypto key submission), and /rest/memories (user-uploaded content) — all lack business logic authorization (e.g., payment verification, consent confirmation, tier eligibility checks). The presence of 'servePremiumContent' and 'serveEasterEgg' at hardcoded paths further indicates unprotected feature gates.",
+    "confidence": 0.93
+  },
+  {
+    "name": "API7: Server Side Request Forgery (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "Same as A10 — web3 endpoints (/rest/web3/*), /b2b/v2/orders, and /rest/track-order/:id imply outbound HTTP calls with user-controlled inputs (e.g., wallet addresses, order IDs, URLs). No SSRF mitigations observed in middleware or handler signatures.",
+    "confidence": 0.93
+  },
+  {
+    "name": "API8: Security Misconfiguration (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "API-specific misconfigs: Swagger docs cover only 1 of 148 routes (/b2b/v2/orders), leaving 109+ hand-written and 28 auto-CRUD endpoints undocumented — increasing attack surface. Debug endpoints exposed: /metrics, /rest/admin/application-configuration, /rest/admin/application-version, /rest/country-mapping. Also, /redirect accepts arbitrary URLs (no allowlist), and /snippets/* routes reflect challenge names directly.",
+    "confidence": 0.98
+  },
+  {
+    "name": "API9: Improper Inventory Management (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "present",
+    "evidence": "Massive undocumented API surface: 109 hand-written + 28 auto-CRUD routes are undocumented in Swagger. Endpoints like /api/Challenges, /api/SecurityAnswers, /api/Quantitys, and /rest/web3/* are hidden but functional. Also, legacy paths (/the/devs/are/so/funny/..., /this/page/is/hidden/...) indicate poor inventory hygiene and versioning discipline.",
+    "confidence": 1
+  },
+  {
+    "name": "API10: Unsafe Consumption of APIs (API Security Top 10)",
+    "framework": "API Security",
+    "verdict": "uncertain",
+    "evidence": "While the app consumes external APIs (web3, B2B, captcha), architecture summary provides no evidence of how those integrations are secured: no mention of certificate pinning, response validation, timeout configuration, or circuit breakers. Dependency list shows 'ai' and '@ai-sdk/openai-compatible', but LLM tool calling is separate — this category pertains to *third-party* API consumption, not LLM tooling.",
+    "confidence": 0.35
+  },
+  {
+    "name": "LLM01: Prompt Injection (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "Genuine tool-calling confirmed: four tools (searchProducts, getProductReviews, getOrderById, generateCoupon) defined with Zod schemas and real side-effects (DB queries, JWT decoding, auth validation). Tools are invoked via 'streamText({ tools })' and emit 'tool-call' events — meaning LLM output is parsed and executed. Without robust input sanitization and sandboxing, prompt injection could trigger arbitrary tool execution.",
+    "confidence": 0.99
+  },
+  {
+    "name": "LLM02: Sensitive Information Disclosure (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "Tools access sensitive data: 'getOrderById' retrieves orders (PII), 'getProductReviews' returns user-submitted content, 'generateCoupon' may leak business logic. LLM response stream includes tool-call results — if not filtered, PII or internal data could be disclosed. Also, 'authenticatedUsers()' and 'retrieveAppConfiguration()' endpoints exist and could be exposed via tool chaining.",
+    "confidence": 0.94
+  },
+  {
+    "name": "LLM03: Supply Chain (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "'@ai-sdk/openai-compatible' and 'ai' dependencies are security-relevant and listed. Version constraints (^2.0.35, ^6.0.116) indicate transitive supply chain risk. LLM tooling relies on these packages for parsing, streaming, and tool dispatch — making them critical supply chain components.",
+    "confidence": 0.92
+  },
+  {
+    "name": "LLM05: Improper Output Handling (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "Frontend escape hatches (28 angular bypassSecurityTrustHtml/innerHTML usages) combined with LLM-generated content (e.g., product reviews, chat responses, admin dashboard HTML) create XSS risk if LLM output is inserted unsafely. No evidence of output sanitization or context-aware escaping in LLM response rendering pipeline.",
+    "confidence": 0.96
+  },
+  {
+    "name": "LLM06: Excessive Agency (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "Tools perform high-privilege actions: 'generateCoupon' creates discounts, 'getOrderById' accesses PII, 'getProductReviews' reads user data, and 'searchProducts' executes DB queries. No evidence of guardrails (e.g., approval workflows, scope limiting, action confirmation) — granting LLM unchecked agency over business logic and data.",
+    "confidence": 0.97
+  },
+  {
+    "name": "LLM10: Unbounded Consumption (LLM Top 10)",
+    "framework": "LLM",
+    "verdict": "present",
+    "evidence": "No rate limiting, concurrency control, or cost monitoring observed on LLM endpoints. Tool execution (e.g., DB queries, JWT decoding, coupon generation) can be triggered repeatedly via crafted prompts. Dependencies include 'ai' and '@ai-sdk/openai-compatible' — but no usage caps or budget enforcement is indicated in architecture.",
     "confidence": 0.91
   }
 ]

@@ -163,6 +163,7 @@ interface FileInventoryResult {
     language: string
     count: number
     files: string[]
+    total_bytes: number
   }[]
   smart_contract_surface_detected: boolean
   smart_contract_files: string[]
@@ -237,12 +238,18 @@ function walkFileInventory(
     }
   }
 
-  const unclassifiedOutput: { language: string; count: number; files: string[] }[] = []
+  const unclassifiedOutput: { language: string; count: number; files: string[]; total_bytes: number }[] = []
   for (const [lang, files] of Object.entries(unclassifiedByLanguage)) {
+    const relPaths = files.map(f => f.path).sort()
+    let totalBytes = 0
+    for (const f of files) {
+      try { totalBytes += fs.statSync(path.join(targetDir, f.path)).size } catch { /* skip if unreadable */ }
+    }
     unclassifiedOutput.push({
       language: lang,
       count: files.length,
-      files: files.map(f => f.path).sort(),
+      files: relPaths,
+      total_bytes: totalBytes,
     })
   }
 

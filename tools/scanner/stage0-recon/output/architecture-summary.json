@@ -2847,8 +2847,8 @@
       "getOrderById",
       "generateCoupon"
     ],
-    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize + MongoDB), JWT-based user authentication, order ownership validation, and coupon generation. The tools are passed to `streamText({ tools })` and explicitly invoked by the LLM — evidenced by the 'tool-call' event handler that logs metrics and streams tool call payloads. Tool usage is enforced in the system prompt with explicit instructions (e.g., 'MUST use searchProducts whenever...').",
-    "confidence": 0.98
+    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize ORM and MongoDB), JWT decoding, user/auth validation, and coupon generation. The tools are passed to `streamText({ tools })`, and the response stream emits 'tool-call' events with structured tool invocation data — confirming LLM-driven, runtime tool dispatch with actual backend logic.",
+    "confidence": 1
   },
   "file_inventory": {
     "total_source_files": 918,
@@ -3480,7 +3480,8 @@
           "test/server/webhook.unit.test.ts",
           "test/server/xml.unit.test.ts",
           "views/themes/themes.ts"
-        ]
+        ],
+        "total_bytes": 1933594
       },
       {
         "language": "json",
@@ -3637,7 +3638,8 @@
           "test/files/validLocalBackup.json",
           "threat-model.json",
           "tsconfig.json"
-        ]
+        ],
+        "total_bytes": 12915453
       },
       {
         "language": "css",
@@ -3729,7 +3731,8 @@
           "frontend/src/styles.scss",
           "frontend/src/styles/_variables.scss",
           "frontend/src/styles/theme.scss"
-        ]
+        ],
+        "total_bytes": 129690
       },
       {
         "language": "html",
@@ -3817,7 +3820,8 @@
           "frontend/src/app/welcome/welcome.component.html",
           "frontend/src/assets/private/threejs-demo.html",
           "frontend/src/index.html"
-        ]
+        ],
+        "total_bytes": 224737
       },
       {
         "language": "yaml",
@@ -3869,7 +3873,8 @@
           "ftp/suspicious_errors.yml",
           "swagger.yml",
           "test/files/yamlBomb.yml"
-        ]
+        ],
+        "total_bytes": 177563
       },
       {
         "language": "javascript",
@@ -3885,7 +3890,8 @@
           "frontend/src/assets/private/dat.gui.min.js",
           "frontend/src/assets/private/stats.min.js",
           "frontend/src/assets/private/three.js"
-        ]
+        ],
+        "total_bytes": 931732
       },
       {
         "language": "solidity",
@@ -3896,7 +3902,8 @@
           "data/static/web3-snippets/ETHWalletBank.sol",
           "data/static/web3-snippets/HoneyPotNFT.sol",
           "data/static/web3-snippets/JuiceShopSBT.sol"
-        ]
+        ],
+        "total_bytes": 8512
       },
       {
         "language": "python",
@@ -3905,7 +3912,8 @@
           "test/files/decrypt.py",
           "test/files/decrypt_bruteforce.py",
           "test/files/encrypt.py"
-        ]
+        ],
+        "total_bytes": 2353
       },
       {
         "language": "docker",
@@ -3913,7 +3921,8 @@
         "files": [
           "Dockerfile",
           "test/smoke/Dockerfile"
-        ]
+        ],
+        "total_bytes": 1754
       },
       {
         "language": "shell",
@@ -3921,7 +3930,8 @@
         "files": [
           "test/smoke/smoke-test.sh",
           "vagrant/bootstrap.sh"
-        ]
+        ],
+        "total_bytes": 2221
       }
     ],
     "smart_contract_surface_detected": true,
