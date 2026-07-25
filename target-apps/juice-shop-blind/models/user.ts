@@ -58,7 +58,6 @@ const UserModelInit = (sequelize: Sequelize) => {
         unique: true,
         set (email: string) {
           if (utils.isChallengeEnabled(challenges.persistedXssUserChallenge)) {
-            challengeUtils.solveIf(challenges.persistedXssUserChallenge, () => false)
           } else {
             email = security.sanitizeSecure(email)
           }

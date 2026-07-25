@@ -28,7 +28,6 @@ export function updateUserProfile () {
         return
       }
 
-      challengeUtils.solveIf(challenges.csrfChallenge, () => false)
 
       const savedUser = await user.update({ username: req.body.username })
       const userWithStatus = utils.queryResultToJson(savedUser)

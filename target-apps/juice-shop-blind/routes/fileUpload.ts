@@ -29,7 +29,6 @@ async function extractZipBuffer (buffer: Buffer) {
   for (const entry of directory.files) {
     const fileName = entry.path
     const absolutePath = path.resolve('uploads/complaints/' + fileName)
-    challengeUtils.solveIf(challenges.fileWriteChallenge, () => false)
     if (absolutePath.includes(path.resolve('.'))) {
       await pipeline(entry.stream(), fs.createWriteStream('uploads/complaints/' + fileName))
     }
@@ -54,25 +53,21 @@ async function handleZipFileUpload ({ file }: Request, res: Response, next: Next
 
 function checkUploadSize ({ file }: Request, res: Response, next: NextFunction) {
   if (file != null) {
-    challengeUtils.solveIf(challenges.uploadSizeChallenge, () => false)
   }
   next()
 }
 
 function checkFileType ({ file }: Request, res: Response, next: NextFunction) {
   const fileType = file?.originalname.substr(file.originalname.lastIndexOf('.') + 1).toLowerCase()
-  challengeUtils.solveIf(challenges.uploadTypeChallenge, () => false)
   next()
 }
 
 async function handleXmlUpload ({ file }: Request, res: Response, next: NextFunction) {
   if (utils.endsWith(file?.originalname.toLowerCase(), '.xml')) {
-    challengeUtils.solveIf(challenges.deprecatedInterfaceChallenge, () => false)
     if (((file?.buffer) != null) && utils.isChallengeEnabled(challenges.deprecatedInterfaceChallenge)) { // XXE attacks in Docker/Heroku containers regularly cause "segfault" crashes
       const data = file.buffer.toString()
       try {
         const xmlString = await parseXmlString(data)
-        challengeUtils.solveIf(challenges.xxeFileDisclosureChallenge, () => false)
         res.status(410)
         next(new Error('B2B customer complaints via file upload have been deprecated for security reasons: ' + utils.trunc(xmlString, 400) + ' (' + file.originalname + ')'))
       } catch (err: unknown) {
@@ -95,7 +90,6 @@ async function handleXmlUpload ({ file }: Request, res: Response, next: NextFunc
 
 function handleYamlUpload ({ file }: Request, res: Response, next: NextFunction) {
   if (utils.endsWith(file?.originalname.toLowerCase(), '.yml') || utils.endsWith(file?.originalname.toLowerCase(), '.yaml')) {
-    challengeUtils.solveIf(challenges.deprecatedInterfaceChallenge, () => false)
     if (((file?.buffer) != null) && utils.isChallengeEnabled(challenges.deprecatedInterfaceChallenge)) {
       const data = file.buffer.toString()
       try {

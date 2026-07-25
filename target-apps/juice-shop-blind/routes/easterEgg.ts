@@ -10,7 +10,6 @@ import * as challengeUtils from '../lib/challengeUtils'
 
 export function serveEasterEgg () {
   return (req: Request, res: Response) => {
-    challengeUtils.solveIf(challenges.easterEggLevelTwoChallenge, () => false)
     res.sendFile(path.resolve('frontend/dist/frontend/assets/private/threejs-demo.html'))
   }
 }

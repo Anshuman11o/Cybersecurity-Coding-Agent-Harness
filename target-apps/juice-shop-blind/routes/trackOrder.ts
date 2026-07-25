@@ -14,10 +14,8 @@ export function trackOrder () {
     // Truncate id to avoid unintentional RCE
     const id = !utils.isChallengeEnabled(challenges.reflectedXssChallenge) ? String(req.params.id).replace(/[^\w-]+/g, '') : utils.trunc(req.params.id, 60)
 
-    challengeUtils.solveIf(challenges.reflectedXssChallenge, () => false)
     db.ordersCollection.find({ $where: `this.orderId === '${id}'` }).then((order: any) => {
       const result = utils.queryResultToJson(order)
-      challengeUtils.solveIf(challenges.noSqlOrdersChallenge, () => false)
       if (result.data[0] === undefined) {
         result.data[0] = { orderId: id }
       }

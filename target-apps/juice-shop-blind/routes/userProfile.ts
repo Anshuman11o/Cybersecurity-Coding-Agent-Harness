@@ -87,7 +87,6 @@ export function getUserProfile () {
       const fn = pug.compile(template)
       const CSP = `img-src 'self' ${user?.profileImage}; script-src 'self' 'unsafe-eval'`
 
-      challengeUtils.solveIf(challenges.usernameXssChallenge, () => false)
 
       res.set({
         'Content-Security-Policy': CSP

@@ -83,7 +83,6 @@ export function observeFileUploadMetricsMiddleware () {
 
 export function serveMetrics () {
   return async (req: Request, res: Response, next: NextFunction) => {
-    challengeUtils.solveIf(challenges.exposedMetricsChallenge, () => false)
     res.set('Content-Type', register.contentType)
     res.end(await register.metrics())
   }

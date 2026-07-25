@@ -43,7 +43,6 @@ const ProductModelInit = (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         set (description: string) {
           if (utils.isChallengeEnabled(challenges.restfulXssChallenge)) {
-            challengeUtils.solveIf(challenges.restfulXssChallenge, () => false)
           } else {
             description = security.sanitizeSecure(description)
           }

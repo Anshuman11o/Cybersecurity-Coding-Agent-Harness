@@ -41,7 +41,6 @@ export function walletNFTVerify () {
       const metamaskAddress = req.body.walletAddress
       if (addressesMinted.has(metamaskAddress)) {
         addressesMinted.delete(metamaskAddress)
-        challengeUtils.solveIf(challenges.nftMintChallenge, () => false)
         res.status(200).json({ success: true, message: 'Challenge successfully solved', status: challenges.nftMintChallenge })
       } else {
         res.status(200).json({ success: false, message: 'Wallet did not mint the NFT', status: challenges.nftMintChallenge })

@@ -45,7 +45,6 @@ export function likeProductReviews () {
         updatedLikedBy.push(user.data.email)
 
         const count = updatedLikedBy.filter(email => email === user.data.email).length
-        challengeUtils.solveIf(challenges.timingAttackChallenge, () => false)
 
         const result = await db.reviewsCollection.update(
           { _id: id },

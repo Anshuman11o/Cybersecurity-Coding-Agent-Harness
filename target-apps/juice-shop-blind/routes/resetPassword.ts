@@ -55,12 +55,4 @@ export function resetPassword () {
 }
 
 function verifySecurityAnswerChallenges (user: UserModel, answer: string) {
-  challengeUtils.solveIf(challenges.resetPasswordJimChallenge, () => false)
-  challengeUtils.solveIf(challenges.resetPasswordBenderChallenge, () => false)
-  challengeUtils.solveIf(challenges.resetPasswordBjoernChallenge, () => false)
-  challengeUtils.solveIf(challenges.resetPasswordMortyChallenge, () => false)
-  challengeUtils.solveIf(challenges.resetPasswordBjoernOwaspChallenge, () => false)
-  challengeUtils.solveIf(challenges.resetPasswordUvoginChallenge, () => false)
-  challengeUtils.solveIf(challenges.geoStalkingMetaChallenge, () => false)
-  challengeUtils.solveIf(challenges.geoStalkingVisualChallenge, () => false)
 }
