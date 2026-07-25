@@ -1,98 +1,98 @@
 [
   {
     "lane_id": "access-control",
-    "tokens_used": 25959,
-    "seconds_elapsed": 3.541,
+    "tokens_used": 25382,
+    "seconds_elapsed": 3.584,
     "ceiling_hit": false
   },
   {
     "lane_id": "injection-sql",
-    "tokens_used": 6067,
-    "seconds_elapsed": 9.375,
+    "tokens_used": 5996,
+    "seconds_elapsed": 7.957,
     "ceiling_hit": false
   },
   {
     "lane_id": "injection-nosql",
-    "tokens_used": 8224,
-    "seconds_elapsed": 16.164,
+    "tokens_used": 8281,
+    "seconds_elapsed": 22.965,
     "ceiling_hit": false
   },
   {
     "lane_id": "crypto-auth",
-    "tokens_used": 18986,
-    "seconds_elapsed": 35.224,
+    "tokens_used": 18144,
+    "seconds_elapsed": 31.114,
     "ceiling_hit": false
   },
   {
     "lane_id": "misconfiguration",
-    "tokens_used": 0,
-    "seconds_elapsed": 23.192,
+    "tokens_used": 15299,
+    "seconds_elapsed": 19.225,
     "ceiling_hit": false
   },
   {
     "lane_id": "vulnerable-components",
-    "tokens_used": 6063,
-    "seconds_elapsed": 26.977,
+    "tokens_used": 5904,
+    "seconds_elapsed": 24.645,
     "ceiling_hit": false
   },
   {
     "lane_id": "integrity-failures",
-    "tokens_used": 20021,
-    "seconds_elapsed": 28.169,
+    "tokens_used": 19518,
+    "seconds_elapsed": 29.603,
     "ceiling_hit": false
   },
   {
     "lane_id": "api-property-auth",
-    "tokens_used": 16487,
-    "seconds_elapsed": 2.249,
+    "tokens_used": 15910,
+    "seconds_elapsed": 2.341,
     "ceiling_hit": false
   },
   {
     "lane_id": "resource-consumption",
-    "tokens_used": 18820,
-    "seconds_elapsed": 28.55,
+    "tokens_used": 18643,
+    "seconds_elapsed": 25.125,
     "ceiling_hit": false
   },
   {
     "lane_id": "sensitive-business-flows",
-    "tokens_used": 23408,
-    "seconds_elapsed": 9.749,
+    "tokens_used": 22437,
+    "seconds_elapsed": 3.278,
     "ceiling_hit": false
   },
   {
     "lane_id": "client-side",
-    "tokens_used": 33887,
-    "seconds_elapsed": 4.124,
+    "tokens_used": 34246,
+    "seconds_elapsed": 9.511,
     "ceiling_hit": false
   },
   {
     "lane_id": "injection-code",
-    "tokens_used": 9079,
-    "seconds_elapsed": 15.623,
+    "tokens_used": 9300,
+    "seconds_elapsed": 19.52,
     "ceiling_hit": false
   },
   {
     "lane_id": "ai-llm-agency",
-    "tokens_used": 11473,
-    "seconds_elapsed": 58.87,
+    "tokens_used": 10446,
+    "seconds_elapsed": 25.008,
     "ceiling_hit": false
   },
   {
     "lane_id": "logging-monitoring",
-    "tokens_used": 15310,
-    "seconds_elapsed": 19.047,
+    "tokens_used": 13399,
+    "seconds_elapsed": 19.343,
     "ceiling_hit": false
   },
   {
     "lane_id": "insecure-design",
-    "tokens_used": 19519,
-    "seconds_elapsed": 2.884,
+    "tokens_used": 18942,
+    "seconds_elapsed": 3.83,
     "ceiling_hit": false
   },
   {
     "lane_id": "uncertain-api10-unsafe-consumption-of-apis",
     "tokens_used": 5191,
-    "seconds_elapsed": 2.31,
+    "seconds_elapsed": 3.054,
     "ceiling_hit": false
   }
 ]
