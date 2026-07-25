@@ -42,7 +42,6 @@ const FeedbackModelInit = (sequelize: Sequelize) => {
           let sanitizedComment: string
           if (utils.isChallengeEnabled(challenges.persistedXssFeedbackChallenge)) {
             sanitizedComment = security.sanitizeHtml(comment)
-            challengeUtils.solveIf(challenges.persistedXssFeedbackChallenge, () => false)
           } else {
             sanitizedComment = security.sanitizeSecure(comment)
           }
@@ -54,7 +53,6 @@ const FeedbackModelInit = (sequelize: Sequelize) => {
         allowNull: false,
         set (rating: number) {
           this.setDataValue('rating', rating)
-          challengeUtils.solveIf(challenges.zeroStarsChallenge, () => false)
         }
       }
     },

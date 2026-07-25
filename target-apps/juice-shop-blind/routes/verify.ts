@@ -4,93 +4,49 @@
  */
 
 import { type Request, type Response, type NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import jws from 'jws'
 
 import { challenges } from '../data/datacache'
-import { type Challenge } from '../data/types'
 import * as challengeUtils from '../lib/challengeUtils'
-import * as security from '../lib/insecurity'
 import * as utils from '../lib/utils'
 
 export const emptyUserRegistration = () => (req: Request, res: Response, next: NextFunction) => {
-  challengeUtils.solveIf(challenges.emptyUserRegistration, () => false)
   next()
 }
 
 export const forgedFeedbackChallenge = () => (req: Request, res: Response, next: NextFunction) => {
-  challengeUtils.solveIf(challenges.forgedFeedbackChallenge, () => false)
   next()
 }
 
 export const captchaBypassChallenge = () => (req: Request, res: Response, next: NextFunction) => {
-  if (challengeUtils.notSolved(challenges.captchaBypassChallenge)) {
-    req.app.locals.captchaBypassReqTimes[req.app.locals.captchaReqId - 1] = new Date().getTime()
-    req.app.locals.captchaReqId++
-  }
+  req.app.locals.captchaBypassReqTimes[req.app.locals.captchaReqId - 1] = new Date().getTime()
+  req.app.locals.captchaReqId++
   next()
 }
 
 export const registerAdminChallenge = () => (req: Request, res: Response, next: NextFunction) => {
-  challengeUtils.solveIf(challenges.registerAdminChallenge, () => false)
   next()
 }
 
 export const passwordRepeatChallenge = () => (req: Request, res: Response, next: NextFunction) => {
-  challengeUtils.solveIf(challenges.passwordRepeatChallenge, () => false)
   next()
 }
 
 export const accessControlChallenges = () => (req: Request, res: Response, next: NextFunction) => {
   const { url } = req
   const uiBypassed = req.header('sec-fetch-dest') === 'document' || !req.header('referer')
-  challengeUtils.solveIf(challenges.scoreBoardChallenge, () => false, false, uiBypassed)
-  challengeUtils.solveIf(challenges.web3SandboxChallenge, () => false, false, uiBypassed)
-  challengeUtils.solveIf(challenges.adminSectionChallenge, () => false, false, uiBypassed)
-  challengeUtils.solveIf(challenges.tokenSaleChallenge, () => false, false, uiBypassed)
-  challengeUtils.solveIf(challenges.privacyPolicyChallenge, () => false, false, uiBypassed)
-  challengeUtils.solveIf(challenges.extraLanguageChallenge, () => false)
-  challengeUtils.solveIf(challenges.retrieveBlueprintChallenge, () => false)
-  challengeUtils.solveIf(challenges.securityPolicyChallenge, () => false)
-  challengeUtils.solveIf(challenges.missingEncodingChallenge, () => false)
-  challengeUtils.solveIf(challenges.accessLogDisclosureChallenge, () => false)
   next()
 }
 
 export const errorHandlingChallenge = () => (err: unknown, req: Request, { statusCode }: Response, next: NextFunction) => {
-  challengeUtils.solveIf(challenges.errorHandlingChallenge, () => false)
   next(err)
 }
 
 export const jwtChallenges = () => (req: Request, res: Response, next: NextFunction) => {
-  if (challengeUtils.notSolved(challenges.jwtUnsignedChallenge)) {
-    jwtChallenge(challenges.jwtUnsignedChallenge, req, 'none', /jwtn3d@/)
-  }
-  if (utils.isChallengeEnabled(challenges.jwtForgedChallenge) && challengeUtils.notSolved(challenges.jwtForgedChallenge)) {
-    jwtChallenge(challenges.jwtForgedChallenge, req, 'HS256', /rsa_lord@/)
-  }
   next()
 }
 
 export const serverSideChallenges = () => (req: Request, res: Response, next: NextFunction) => {
   next()
-}
-
-function jwtChallenge (challenge: Challenge, req: Request, algorithm: string, email: string | RegExp) {
-  const token = utils.jwtFrom(req)
-  if (token) {
-    const decoded = jws.decode(token) ? jwt.decode(token) : null
-
-    if (decoded === null || typeof decoded === 'string') {
-      return
-    }
-
-    jwt.verify(token, security.publicKey, (err: jwt.VerifyErrors | null) => {
-      if (err === null) {
-        challengeUtils.solveIf(challenge, () => false)
-      }
-    })
-  }
 }
 
 export const databaseRelatedChallenges = () => (req: Request, res: Response, next: NextFunction) => {

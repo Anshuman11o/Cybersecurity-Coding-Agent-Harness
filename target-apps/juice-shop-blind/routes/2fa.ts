@@ -35,7 +35,6 @@ export async function verify (req: Request, res: Response) {
     if (!isValid) {
       return res.status(401).send()
     }
-    challengeUtils.solveIf(challenges.twoFactorAuthUnsafeSecretStorageChallenge, () => false)
 
     const [basket] = await BasketModel.findOrCreate({ where: { UserId: userId } })
 

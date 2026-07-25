@@ -1,0 +1,2825 @@
+{
+  "route_table": {
+    "hand_written_routes": [
+      {
+        "method": "POST",
+        "path": "/file-upload",
+        "handler": "handleYamlUpload",
+        "auth": null,
+        "middleware": [
+          "uploadToMemory.single('file')",
+          "ensureFileIsPassed",
+          "metrics.observeFileUploadMetricsMiddleware()",
+          "checkUploadSize",
+          "checkFileType",
+          "handleZipFileUpload",
+          "handleXmlUpload",
+          "handleYamlUpload"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 307
+      },
+      {
+        "method": "POST",
+        "path": "/profile/image/file",
+        "handler": "profileImageFileUpload(",
+        "auth": null,
+        "middleware": [
+          "uploadToMemory.single('file')",
+          "ensureFileIsPassed",
+          "metrics.observeFileUploadMetricsMiddleware()",
+          "utils.asyncHandler(profileImageFileUpload())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 308
+      },
+      {
+        "method": "POST",
+        "path": "/profile/image/url",
+        "handler": "profileImageUrlUpload(",
+        "auth": null,
+        "middleware": [
+          "uploadToMemory.single('file')",
+          "utils.asyncHandler(profileImageUrlUpload())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 309
+      },
+      {
+        "method": "POST",
+        "path": "/rest/memories",
+        "handler": "addMemory(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "uploadToDisk.single('image')",
+          "ensureFileIsPassed",
+          "security.appendUserId()",
+          "metrics.observeFileUploadMetricsMiddleware()",
+          "utils.asyncHandler(addMemory())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 310
+      },
+      {
+        "method": "GET",
+        "path": "/api/Users",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 358
+      },
+      {
+        "method": "GET",
+        "path": "/api/Users/:id",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 359
+      },
+      {
+        "method": "POST",
+        "path": "/api/Products",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 364
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Products/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 366
+      },
+      {
+        "method": "POST",
+        "path": "/api/Challenges",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 368
+      },
+      {
+        "method": "POST",
+        "path": "/api/Hints",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 371
+      },
+      {
+        "method": "GET",
+        "path": "/api/Hints/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 372
+      },
+      {
+        "method": "GET",
+        "path": "/api/Complaints",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 376
+      },
+      {
+        "method": "POST",
+        "path": "/api/Complaints",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 377
+      },
+      {
+        "method": "GET",
+        "path": "/api/Recycles",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "recycles.blockRecycleItems()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 380
+      },
+      {
+        "method": "POST",
+        "path": "/api/Recycles",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 381
+      },
+      {
+        "method": "GET",
+        "path": "/api/Recycles/:id",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "recycles.getRecycleItem()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 383
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Recycles/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 384
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Recycles/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 385
+      },
+      {
+        "method": "POST",
+        "path": "/api/SecurityQuestions",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 387
+      },
+      {
+        "method": "GET",
+        "path": "/api/SecurityAnswers",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 390
+      },
+      {
+        "method": "POST",
+        "path": "/api/Feedbacks",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "verify.forgedFeedbackChallenge()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 397
+      },
+      {
+        "method": "POST",
+        "path": "/api/Feedbacks",
+        "handler": "verifyCaptcha(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(verifyCaptcha())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 399
+      },
+      {
+        "method": "POST",
+        "path": "/api/Feedbacks",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "verify.captchaBypassChallenge()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 401
+      },
+      {
+        "method": "POST",
+        "path": "/api/Users",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "(req: Request, res: Response, next: NextFunction) => {\n    if (req.body.email !== undefined && req.body.password !== undefined && req.body.passwordRepeat !== undefined) {\n      if (req.body.email.length !== 0 && req.body.password.length !== 0) {\n        req.body.email = req.body.email.trim()\n        req.body.password = req.body.password.trim()\n        req.body.passwordRepeat = req.body.passwordRepeat.trim()\n      } else {\n        res.status(400).send(res.__('Invalid email/password cannot be empty'))\n      }\n    }\n    next()\n  }"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 403
+      },
+      {
+        "method": "POST",
+        "path": "/api/Users",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "verify.registerAdminChallenge()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 415
+      },
+      {
+        "method": "POST",
+        "path": "/api/Users",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "verify.passwordRepeatChallenge()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 416
+      },
+      {
+        "method": "POST",
+        "path": "/api/Users",
+        "handler": null,
+        "auth": null,
+        "middleware": [
+          "verify.emptyUserRegistration()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 417
+      },
+      {
+        "method": "PUT",
+        "path": "/api/BasketItems/:id",
+        "handler": "basketItems.quantityCheckBeforeBasketItemUpdate(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(basketItems.quantityCheckBeforeBasketItemUpdate())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 421
+      },
+      {
+        "method": "POST",
+        "path": "/api/BasketItems",
+        "handler": "basketItems.addBasketItem(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(basketItems.quantityCheckBeforeBasketItemAddition())",
+          "utils.asyncHandler(basketItems.addBasketItem())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 422
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Quantitys/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 424
+      },
+      {
+        "method": "POST",
+        "path": "/api/Quantitys",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 425
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Feedbacks/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 428
+      },
+      {
+        "method": "POST",
+        "path": "/api/Cards",
+        "handler": null,
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 433
+      },
+      {
+        "method": "GET",
+        "path": "/api/Cards",
+        "handler": "payment.getPaymentMethods(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(payment.getPaymentMethods())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 434
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Cards/:id",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 435
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Cards/:id",
+        "handler": "payment.delPaymentMethodById(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(payment.delPaymentMethodById())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 436
+      },
+      {
+        "method": "GET",
+        "path": "/api/Cards/:id",
+        "handler": "payment.getPaymentMethodById(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(payment.getPaymentMethodById())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 437
+      },
+      {
+        "method": "POST",
+        "path": "/api/PrivacyRequests",
+        "handler": null,
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 439
+      },
+      {
+        "method": "GET",
+        "path": "/api/PrivacyRequests",
+        "handler": null,
+        "auth": "security.denyAll()",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 440
+      },
+      {
+        "method": "POST",
+        "path": "/api/Addresss",
+        "handler": null,
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 443
+      },
+      {
+        "method": "GET",
+        "path": "/api/Addresss",
+        "handler": "address.getAddress(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(address.getAddress())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 444
+      },
+      {
+        "method": "PUT",
+        "path": "/api/Addresss/:id",
+        "handler": null,
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 445
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/Addresss/:id",
+        "handler": "address.delAddressById(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(address.delAddressById())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 446
+      },
+      {
+        "method": "GET",
+        "path": "/api/Addresss/:id",
+        "handler": "address.getAddressById(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(address.getAddressById())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 447
+      },
+      {
+        "method": "GET",
+        "path": "/api/Deliverys",
+        "handler": "delivery.getDeliveryMethods(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(delivery.getDeliveryMethods())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 448
+      },
+      {
+        "method": "GET",
+        "path": "/api/Deliverys/:id",
+        "handler": "delivery.getDeliveryMethod(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(delivery.getDeliveryMethod())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 449
+      },
+      {
+        "method": "POST",
+        "path": "/rest/2fa/verify",
+        "handler": "twoFactorAuth.verify",
+        "auth": null,
+        "middleware": [
+          "rateLimit({ windowMs: 5 * 60 * 1000, max: 100, validate: false })",
+          "utils.asyncHandler(twoFactorAuth.verify)"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 452
+      },
+      {
+        "method": "GET",
+        "path": "/rest/2fa/status",
+        "handler": "twoFactorAuth.status",
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()",
+          "utils.asyncHandler(twoFactorAuth.status)"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 457
+      },
+      {
+        "method": "POST",
+        "path": "/rest/2fa/setup",
+        "handler": "twoFactorAuth.setup",
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "rateLimit({ windowMs: 5 * 60 * 1000, max: 100, validate: false })",
+          "security.isAuthorized()",
+          "utils.asyncHandler(twoFactorAuth.setup)"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 459
+      },
+      {
+        "method": "POST",
+        "path": "/rest/2fa/disable",
+        "handler": "twoFactorAuth.disable",
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "rateLimit({ windowMs: 5 * 60 * 1000, max: 100, validate: false })",
+          "security.isAuthorized()",
+          "utils.asyncHandler(twoFactorAuth.disable)"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 465
+      },
+      {
+        "method": "POST",
+        "path": "/rest/user/login",
+        "handler": "login",
+        "auth": null,
+        "middleware": [
+          "login()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 588
+      },
+      {
+        "method": "GET",
+        "path": "/rest/user/change-password",
+        "handler": "changePassword(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(changePassword())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 589
+      },
+      {
+        "method": "POST",
+        "path": "/rest/user/reset-password",
+        "handler": "resetPassword(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(resetPassword())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 590
+      },
+      {
+        "method": "GET",
+        "path": "/rest/user/security-question",
+        "handler": "securityQuestion(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(securityQuestion())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 591
+      },
+      {
+        "method": "GET",
+        "path": "/rest/user/whoami",
+        "handler": "retrieveLoggedInUser(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(retrieveLoggedInUser())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 592
+      },
+      {
+        "method": "GET",
+        "path": "/rest/user/authentication-details",
+        "handler": "authenticatedUsers(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(authenticatedUsers())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 593
+      },
+      {
+        "method": "GET",
+        "path": "/rest/products/search",
+        "handler": "searchProducts(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(searchProducts())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 594
+      },
+      {
+        "method": "GET",
+        "path": "/rest/basket/:id",
+        "handler": "retrieveBasket(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(retrieveBasket())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 595
+      },
+      {
+        "method": "POST",
+        "path": "/rest/basket/:id/checkout",
+        "handler": "placeOrder",
+        "auth": null,
+        "middleware": [
+          "placeOrder()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 596
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/basket/:id/coupon/:coupon",
+        "handler": "applyCoupon(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(applyCoupon())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 597
+      },
+      {
+        "method": "GET",
+        "path": "/rest/admin/application-version",
+        "handler": "retrieveAppVersion(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(retrieveAppVersion())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 598
+      },
+      {
+        "method": "GET",
+        "path": "/rest/admin/application-configuration",
+        "handler": "retrieveAppConfiguration(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(retrieveAppConfiguration())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 599
+      },
+      {
+        "method": "GET",
+        "path": "/rest/repeat-notification",
+        "handler": "repeatNotification(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(repeatNotification())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 600
+      },
+      {
+        "method": "GET",
+        "path": "/rest/continue-code",
+        "handler": "continueCode(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(continueCode())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 601
+      },
+      {
+        "method": "GET",
+        "path": "/rest/continue-code-findIt",
+        "handler": "continueCodeFindIt(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(continueCodeFindIt())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 602
+      },
+      {
+        "method": "GET",
+        "path": "/rest/continue-code-fixIt",
+        "handler": "continueCodeFixIt(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(continueCodeFixIt())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 603
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/continue-code-findIt/apply/:continueCode",
+        "handler": "restoreProgress.restoreProgressFindIt(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(restoreProgress.restoreProgressFindIt())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 604
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/continue-code-fixIt/apply/:continueCode",
+        "handler": "restoreProgress.restoreProgressFixIt(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(restoreProgress.restoreProgressFixIt())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 605
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/continue-code/apply/:continueCode",
+        "handler": "restoreProgress.restoreProgress(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(restoreProgress.restoreProgress())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 606
+      },
+      {
+        "method": "GET",
+        "path": "/rest/captcha",
+        "handler": "captchas(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(captchas())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 607
+      },
+      {
+        "method": "GET",
+        "path": "/rest/image-captcha",
+        "handler": "imageCaptchas(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(imageCaptchas())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 608
+      },
+      {
+        "method": "GET",
+        "path": "/rest/track-order/:id",
+        "handler": "trackOrder",
+        "auth": null,
+        "middleware": [
+          "trackOrder()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 609
+      },
+      {
+        "method": "GET",
+        "path": "/rest/country-mapping",
+        "handler": "countryMapping(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(countryMapping())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 610
+      },
+      {
+        "method": "GET",
+        "path": "/rest/saveLoginIp",
+        "handler": "saveLoginIp(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(saveLoginIp())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 611
+      },
+      {
+        "method": "POST",
+        "path": "/rest/user/data-export",
+        "handler": "verifyImageCaptcha(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(verifyImageCaptcha())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 612
+      },
+      {
+        "method": "POST",
+        "path": "/rest/user/data-export",
+        "handler": "dataExport(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(dataExport())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 613
+      },
+      {
+        "method": "GET",
+        "path": "/rest/languages",
+        "handler": "getLanguageList(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(getLanguageList())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 614
+      },
+      {
+        "method": "GET",
+        "path": "/rest/order-history",
+        "handler": "orderHistory(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(orderHistory())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 615
+      },
+      {
+        "method": "GET",
+        "path": "/rest/order-history/orders",
+        "handler": "allOrders(",
+        "auth": "security.isAccounting()",
+        "middleware": [
+          "security.isAccounting()",
+          "utils.asyncHandler(allOrders())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 616
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/order-history/:id/delivery-status",
+        "handler": "toggleDeliveryStatus(",
+        "auth": "security.isAccounting()",
+        "middleware": [
+          "security.isAccounting()",
+          "utils.asyncHandler(toggleDeliveryStatus())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 617
+      },
+      {
+        "method": "GET",
+        "path": "/rest/wallet/balance",
+        "handler": "getWalletBalance(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(getWalletBalance())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 618
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/wallet/balance",
+        "handler": "addWalletBalance(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(addWalletBalance())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 619
+      },
+      {
+        "method": "GET",
+        "path": "/rest/deluxe-membership",
+        "handler": "deluxeMembershipStatus",
+        "auth": null,
+        "middleware": [
+          "deluxeMembershipStatus()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 620
+      },
+      {
+        "method": "POST",
+        "path": "/rest/deluxe-membership",
+        "handler": "upgradeToDeluxe(",
+        "auth": "security.appendUserId()",
+        "middleware": [
+          "security.appendUserId()",
+          "utils.asyncHandler(upgradeToDeluxe())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 621
+      },
+      {
+        "method": "GET",
+        "path": "/rest/memories",
+        "handler": "getMemories(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(getMemories())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 622
+      },
+      {
+        "method": "GET",
+        "path": "/rest/products/:id/reviews",
+        "handler": "showProductReviews",
+        "auth": null,
+        "middleware": [
+          "showProductReviews()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 624
+      },
+      {
+        "method": "PUT",
+        "path": "/rest/products/:id/reviews",
+        "handler": "createProductReviews(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(createProductReviews())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 625
+      },
+      {
+        "method": "PATCH",
+        "path": "/rest/products/reviews",
+        "handler": "updateProductReviews",
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()",
+          "updateProductReviews()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 626
+      },
+      {
+        "method": "POST",
+        "path": "/rest/products/reviews",
+        "handler": "likeProductReviews(",
+        "auth": "security.isAuthorized()",
+        "middleware": [
+          "security.isAuthorized()",
+          "utils.asyncHandler(likeProductReviews())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 627
+      },
+      {
+        "method": "POST",
+        "path": "/rest/chat",
+        "handler": "chat(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(chat())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 630
+      },
+      {
+        "method": "POST",
+        "path": "/rest/web3/submitKey",
+        "handler": "checkKeys(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(checkKeys())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 633
+      },
+      {
+        "method": "GET",
+        "path": "/rest/web3/nftUnlocked",
+        "handler": "nftUnlocked",
+        "auth": null,
+        "middleware": [
+          "nftUnlocked()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 634
+      },
+      {
+        "method": "GET",
+        "path": "/rest/web3/nftMintListen",
+        "handler": "nftMintListener(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(nftMintListener())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 635
+      },
+      {
+        "method": "POST",
+        "path": "/rest/web3/walletNFTVerify",
+        "handler": "walletNFTVerify",
+        "auth": null,
+        "middleware": [
+          "walletNFTVerify()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 636
+      },
+      {
+        "method": "POST",
+        "path": "/rest/web3/walletExploitAddress",
+        "handler": "contractExploitListener(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(contractExploitListener())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 637
+      },
+      {
+        "method": "POST",
+        "path": "/b2b/v2/orders",
+        "handler": "b2bOrder",
+        "auth": null,
+        "middleware": [
+          "b2bOrder()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 640
+      },
+      {
+        "method": "GET",
+        "path": "/the/devs/are/so/funny/they/hid/an/easter/egg/within/the/easter/egg",
+        "handler": "serveEasterEgg",
+        "auth": null,
+        "middleware": [
+          "serveEasterEgg()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 643
+      },
+      {
+        "method": "GET",
+        "path": "/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us",
+        "handler": "servePremiumContent",
+        "auth": null,
+        "middleware": [
+          "servePremiumContent()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 644
+      },
+      {
+        "method": "GET",
+        "path": "/we/may/also/instruct/you/to/refuse/all/reasonably/necessary/responsibility",
+        "handler": "servePrivacyPolicyProof",
+        "auth": null,
+        "middleware": [
+          "servePrivacyPolicyProof()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 645
+      },
+      {
+        "method": "GET",
+        "path": "/redirect",
+        "handler": "performRedirect",
+        "auth": null,
+        "middleware": [
+          "performRedirect()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 651
+      },
+      {
+        "method": "GET",
+        "path": "/promotion",
+        "handler": "promotionVideo",
+        "auth": null,
+        "middleware": [
+          "promotionVideo()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 654
+      },
+      {
+        "method": "GET",
+        "path": "/video",
+        "handler": "getVideo",
+        "auth": null,
+        "middleware": [
+          "getVideo()"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 655
+      },
+      {
+        "method": "GET",
+        "path": "/profile",
+        "handler": "getUserProfile(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(getUserProfile())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 658
+      },
+      {
+        "method": "POST",
+        "path": "/profile",
+        "handler": "updateUserProfile(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(updateUserProfile())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 659
+      },
+      {
+        "method": "GET",
+        "path": "/snippets/:challenge",
+        "handler": "serveCodeSnippet(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(serveCodeSnippet())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 662
+      },
+      {
+        "method": "POST",
+        "path": "/snippets/verdict",
+        "handler": "checkVulnLines(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(checkVulnLines())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 663
+      },
+      {
+        "method": "GET",
+        "path": "/snippets/fixes/:key",
+        "handler": "serveCodeFixes(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(serveCodeFixes())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 664
+      },
+      {
+        "method": "POST",
+        "path": "/snippets/fixes",
+        "handler": "checkCorrectFix(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(checkCorrectFix())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 665
+      },
+      {
+        "method": "GET",
+        "path": "/metrics",
+        "handler": "metrics.serveMetrics(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(metrics.serveMetrics())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 668
+      },
+      {
+        "method": "GET",
+        "path": "/metrics",
+        "handler": "metrics.serveMetrics(",
+        "auth": null,
+        "middleware": [
+          "utils.asyncHandler(metrics.serveMetrics())"
+        ],
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 720
+      }
+    ],
+    "middleware_routes": [
+      {
+        "method": "USE",
+        "path": "/.well-known/security.txt, /security.txt",
+        "middleware": [
+          "securityTxt({\n    contact: config.get('application.securityTxt.contact'),\n    encryption: config.get('application.securityTxt.encryption'),\n    acknowledgements: config.get('application.securityTxt.acknowledgements'),\n    'Preferred-Languages': [...new Set(locales.map((locale: { key: string }) => locale.key.substr(0, 2)))].join(', '),\n    hiring: config.get('application.securityTxt.hiring'),\n    csaf: config.get<string>('server.baseUrl') + config.get<string>('application.securityTxt.csaf'),\n    expires: securityTxtExpiration.toUTCString()\n  })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 215
+      },
+      {
+        "method": "USE",
+        "path": "/assets/public/images/padding",
+        "middleware": [
+          "verify.accessControlChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 232
+      },
+      {
+        "method": "USE",
+        "path": "/assets/public/images/products",
+        "middleware": [
+          "verify.accessControlChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 233
+      },
+      {
+        "method": "USE",
+        "path": "/assets/public/images/uploads",
+        "middleware": [
+          "verify.accessControlChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 234
+      },
+      {
+        "method": "USE",
+        "path": "/assets/i18n",
+        "middleware": [
+          "verify.accessControlChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 235
+      },
+      {
+        "method": "USE",
+        "path": "/solve/challenges/server-side",
+        "middleware": [
+          "verify.serverSideChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 238
+      },
+      {
+        "method": "USE",
+        "path": "/ftp",
+        "middleware": [
+          "serveIndexMiddleware",
+          "serveIndex('ftp', { icons: true })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 268
+      },
+      {
+        "method": "USE",
+        "path": "/ftp(?!/quarantine)/:file",
+        "middleware": [
+          "servePublicFiles()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 269
+      },
+      {
+        "method": "USE",
+        "path": "/ftp/quarantine/:file",
+        "middleware": [
+          "serveQuarantineFiles()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 270
+      },
+      {
+        "method": "USE",
+        "path": "/.well-known",
+        "middleware": [
+          "serveIndexMiddleware",
+          "serveIndex('.well-known', { icons: true, view: 'details' })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 272
+      },
+      {
+        "method": "USE",
+        "path": "/.well-known",
+        "middleware": [
+          "express.static('.well-known')"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 273
+      },
+      {
+        "method": "USE",
+        "path": "/encryptionkeys",
+        "middleware": [
+          "serveIndexMiddleware",
+          "serveIndex('encryptionkeys', { icons: true, view: 'details' })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 276
+      },
+      {
+        "method": "USE",
+        "path": "/encryptionkeys/:file",
+        "middleware": [
+          "serveKeyFiles()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 277
+      },
+      {
+        "method": "USE",
+        "path": "/support/logs",
+        "middleware": [
+          "serveIndexMiddleware",
+          "serveIndex('logs', { icons: true, view: 'details' })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 280
+      },
+      {
+        "method": "USE",
+        "path": "/support/logs",
+        "middleware": [
+          "verify.accessControlChallenges()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 281
+      },
+      {
+        "method": "USE",
+        "path": "/support/logs/:file",
+        "middleware": [
+          "serveLogFiles()"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 282
+      },
+      {
+        "method": "USE",
+        "path": "/api-docs",
+        "middleware": [
+          "swaggerUi.serve",
+          "swaggerUi.setup(swaggerDocument)"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 285
+      },
+      {
+        "method": "USE",
+        "path": "/vendor/beercss",
+        "middleware": [
+          "express.static(path.resolve('node_modules/beercss/dist/cdn'))"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 291
+      },
+      {
+        "method": "USE",
+        "path": "/vendor/material-icons",
+        "middleware": [
+          "express.static(path.resolve('node_modules/material-icons/iconfont'))"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 292
+      },
+      {
+        "method": "USE",
+        "path": "/vendor/fontsource-roboto",
+        "middleware": [
+          "express.static(path.resolve('node_modules/@fontsource/roboto'))"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 293
+      },
+      {
+        "method": "USE",
+        "path": "/rest/user/reset-password",
+        "middleware": [
+          "rateLimit({\n    windowMs: 5 * 60 * 1000,\n    max: 100,\n    keyGenerator ({ headers, ip }: { headers: any, ip: any }) { return headers['X-Forwarded-For'] ?? ip }\n  })"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 340
+      },
+      {
+        "method": "USE",
+        "path": "/rest/basket",
+        "middleware": [
+          "security.isAuthorized()",
+          "security.appendUserId()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 351
+      },
+      {
+        "method": "USE",
+        "path": "/api/BasketItems",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 353
+      },
+      {
+        "method": "USE",
+        "path": "/api/BasketItems/:id",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 354
+      },
+      {
+        "method": "USE",
+        "path": "/api/Feedbacks/:id",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 356
+      },
+      {
+        "method": "USE",
+        "path": "/api/Challenges/:id",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "auth": "security.denyAll()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 369
+      },
+      {
+        "method": "USE",
+        "path": "/api/Complaints/:id",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "auth": "security.denyAll()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 378
+      },
+      {
+        "method": "USE",
+        "path": "/api/SecurityQuestions/:id",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "auth": "security.denyAll()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 388
+      },
+      {
+        "method": "USE",
+        "path": "/api/SecurityAnswers/:id",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "auth": "security.denyAll()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 391
+      },
+      {
+        "method": "USE",
+        "path": "/rest/user/authentication-details",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 393
+      },
+      {
+        "method": "USE",
+        "path": "/rest/basket/:id",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 394
+      },
+      {
+        "method": "USE",
+        "path": "/rest/basket/:id/order",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 395
+      },
+      {
+        "method": "USE",
+        "path": "/b2b/v2",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 419
+      },
+      {
+        "method": "USE",
+        "path": "/api/Quantitys/:id",
+        "middleware": [
+          "security.isAccounting()",
+          "IpFilter(['123.456.789'], { mode: 'allow' })"
+        ],
+        "auth": "security.isAccounting()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 426
+      },
+      {
+        "method": "USE",
+        "path": "/api/PrivacyRequests",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 430
+      },
+      {
+        "method": "USE",
+        "path": "/api/PrivacyRequests/:id",
+        "middleware": [
+          "security.isAuthorized()"
+        ],
+        "auth": "security.isAuthorized()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 431
+      },
+      {
+        "method": "USE",
+        "path": "/api/PrivacyRequests/:id",
+        "middleware": [
+          "security.denyAll()"
+        ],
+        "auth": "security.denyAll()",
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 441
+      },
+      {
+        "method": "USE",
+        "path": "/dataerasure",
+        "middleware": [
+          "dataErasure"
+        ],
+        "auth": null,
+        "file": "target-apps/juice-shop-blind/server.ts",
+        "line": 648
+      }
+    ],
+    "auto_crud_routes": [
+      {
+        "pathPattern": "/api/Users",
+        "model": "User",
+        "excludeAttributes": [
+          "password",
+          "totpSecret"
+        ],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Users/:id",
+        "model": "User",
+        "excludeAttributes": [
+          "password",
+          "totpSecret"
+        ],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Products",
+        "model": "Product",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Products/:id",
+        "model": "Product",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Feedbacks",
+        "model": "Feedback",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Feedbacks/:id",
+        "model": "Feedback",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/BasketItems",
+        "model": "BasketItem",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/BasketItems/:id",
+        "model": "BasketItem",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Challenges",
+        "model": "Challenge",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Challenges/:id",
+        "model": "Challenge",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Complaints",
+        "model": "Complaint",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Complaints/:id",
+        "model": "Complaint",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Recycles",
+        "model": "Recycle",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Recycles/:id",
+        "model": "Recycle",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/SecurityQuestions",
+        "model": "SecurityQuestion",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/SecurityQuestions/:id",
+        "model": "SecurityQuestion",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/SecurityAnswers",
+        "model": "SecurityAnswer",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/SecurityAnswers/:id",
+        "model": "SecurityAnswer",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Addresss",
+        "model": "Address",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Addresss/:id",
+        "model": "Address",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/PrivacyRequests",
+        "model": "PrivacyRequest",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/PrivacyRequests/:id",
+        "model": "PrivacyRequest",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Cards",
+        "model": "Card",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Cards/:id",
+        "model": "Card",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Quantitys",
+        "model": "Quantity",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Quantitys/:id",
+        "model": "Quantity",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Hints",
+        "model": "Hint",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      },
+      {
+        "pathPattern": "/api/Hints/:id",
+        "model": "Hint",
+        "excludeAttributes": [],
+        "hasPagination": true,
+        "hasCustomHooks": false
+      }
+    ],
+    "total_routes": 148,
+    "total_auto_crud": 28
+  },
+  "persistence_layer": {
+    "orm": "sequelize",
+    "database": "sqlite/mysql/postgres",
+    "models": [
+      "User",
+      "Card",
+      "Hint",
+      "Wallet",
+      "Product",
+      "Recycle",
+      "Address",
+      "Quantity",
+      "Feedback",
+      "Complaint",
+      "Challenge",
+      "ChallengeDependency",
+      "BasketItem",
+      "SecurityAnswer",
+      "PrivacyRequest",
+      "SecurityQuestion"
+    ],
+    "raw_queries": false,
+    "raw_query_files": [],
+    "mongodb_detected": false
+  },
+  "dependencies": {
+    "total": 117,
+    "security_relevant": [
+      {
+        "name": "@ai-sdk/openai-compatible",
+        "version": "^2.0.35"
+      },
+      {
+        "name": "ai",
+        "version": "^6.0.116"
+      },
+      {
+        "name": "compression",
+        "version": "^1.8.1"
+      },
+      {
+        "name": "cors",
+        "version": "^2.8.5"
+      },
+      {
+        "name": "express-ipfilter",
+        "version": "^1.3.2"
+      },
+      {
+        "name": "express-jwt",
+        "version": "0.1.3"
+      },
+      {
+        "name": "express-rate-limit",
+        "version": "^7.5.1"
+      },
+      {
+        "name": "feature-policy",
+        "version": "^0.6.0"
+      },
+      {
+        "name": "helmet",
+        "version": "^4.6.0"
+      },
+      {
+        "name": "js-yaml",
+        "version": "^3.14.0"
+      },
+      {
+        "name": "jsonwebtoken",
+        "version": "0.4.0"
+      },
+      {
+        "name": "libxml2-wasm",
+        "version": "^0.7.1"
+      },
+      {
+        "name": "multer",
+        "version": "^1.4.5-lts.1"
+      },
+      {
+        "name": "sanitize-filename",
+        "version": "^1.6.3"
+      },
+      {
+        "name": "sanitize-html",
+        "version": "1.4.2"
+      },
+      {
+        "name": "sequelize",
+        "version": "^6.37.3"
+      },
+      {
+        "name": "@types/compression",
+        "version": "^1.8.1"
+      },
+      {
+        "name": "@types/cors",
+        "version": "^2.8.19"
+      },
+      {
+        "name": "@types/express-jwt",
+        "version": "^6.0.4"
+      },
+      {
+        "name": "@types/js-yaml",
+        "version": "^3.12.10"
+      },
+      {
+        "name": "@types/jsonwebtoken",
+        "version": "^8.5.9"
+      },
+      {
+        "name": "@types/multer",
+        "version": "^1.4.12"
+      },
+      {
+        "name": "@types/sanitize-html",
+        "version": "^1.27.2"
+      },
+      {
+        "name": "@types/sequelize",
+        "version": "^4.28.20"
+      }
+    ]
+  },
+  "api_documentation": {
+    "swagger_paths": [
+      "/b2b/v2/orders"
+    ],
+    "undocumented_surfaces": [
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/file-upload"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/profile/image/file"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/profile/image/url"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/memories"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Users"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Users/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Products"
+      },
+      {
+        "type": "hand-written",
+        "method": "DELETE",
+        "path": "/api/Products/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Challenges"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Hints"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Hints/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Complaints"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Complaints"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Recycles"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Recycles"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Recycles/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/api/Recycles/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "DELETE",
+        "path": "/api/Recycles/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/SecurityQuestions"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/SecurityAnswers"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Feedbacks"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Feedbacks"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Feedbacks"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Users"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Users"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Users"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Users"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/api/BasketItems/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/BasketItems"
+      },
+      {
+        "type": "hand-written",
+        "method": "DELETE",
+        "path": "/api/Quantitys/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Quantitys"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/api/Feedbacks/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Cards"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Cards"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/api/Cards/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "DELETE",
+        "path": "/api/Cards/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Cards/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/PrivacyRequests"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/PrivacyRequests"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/api/Addresss"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Addresss"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/api/Addresss/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "DELETE",
+        "path": "/api/Addresss/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Addresss/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Deliverys"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/api/Deliverys/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/2fa/verify"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/2fa/status"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/2fa/setup"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/2fa/disable"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/user/login"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/user/change-password"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/user/reset-password"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/user/security-question"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/user/whoami"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/user/authentication-details"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/products/search"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/basket/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/basket/:id/checkout"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/basket/:id/coupon/:coupon"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/admin/application-version"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/admin/application-configuration"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/repeat-notification"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/continue-code"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/continue-code-findIt"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/continue-code-fixIt"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/continue-code-findIt/apply/:continueCode"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/continue-code-fixIt/apply/:continueCode"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/continue-code/apply/:continueCode"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/captcha"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/image-captcha"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/track-order/:id"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/country-mapping"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/saveLoginIp"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/user/data-export"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/user/data-export"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/languages"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/order-history"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/order-history/orders"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/order-history/:id/delivery-status"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/wallet/balance"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/wallet/balance"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/deluxe-membership"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/deluxe-membership"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/memories"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/products/:id/reviews"
+      },
+      {
+        "type": "hand-written",
+        "method": "PUT",
+        "path": "/rest/products/:id/reviews"
+      },
+      {
+        "type": "hand-written",
+        "method": "PATCH",
+        "path": "/rest/products/reviews"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/products/reviews"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/chat"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/web3/submitKey"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/web3/nftUnlocked"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/rest/web3/nftMintListen"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/web3/walletNFTVerify"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/rest/web3/walletExploitAddress"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/the/devs/are/so/funny/they/hid/an/easter/egg/within/the/easter/egg"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/we/may/also/instruct/you/to/refuse/all/reasonably/necessary/responsibility"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/redirect"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/promotion"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/video"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/profile"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/profile"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/snippets/:challenge"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/snippets/verdict"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/snippets/fixes/:key"
+      },
+      {
+        "type": "hand-written",
+        "method": "POST",
+        "path": "/snippets/fixes"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/metrics"
+      },
+      {
+        "type": "hand-written",
+        "method": "GET",
+        "path": "/metrics"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Users"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Users/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Products"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Products/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Feedbacks"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Feedbacks/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/BasketItems"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/BasketItems/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Challenges"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Challenges/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Complaints"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Complaints/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Recycles"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Recycles/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/SecurityQuestions"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/SecurityQuestions/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/SecurityAnswers"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/SecurityAnswers/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Addresss"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Addresss/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/PrivacyRequests"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/PrivacyRequests/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Cards"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Cards/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Quantitys"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Quantitys/:id"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Hints"
+      },
+      {
+        "type": "auto-crud",
+        "method": "ALL",
+        "path": "/api/Hints/:id"
+      }
+    ],
+    "coverage_note": "Swagger documents 1 path(s). 109 hand-written route(s) are undocumented. 28 auto-CRUD route(s) are undocumented. "
+  },
+  "client_side": {
+    "escape_hatch_findings": [
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/about/about.component.html",
+        "line": 51,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/about/about.component.ts",
+        "line": 119,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.html",
+        "line": 26,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.html",
+        "line": 60,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.html",
+        "line": 113,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.ts",
+        "line": 73,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.ts",
+        "line": 91,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.html",
+        "line": 29,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.ts",
+        "line": 57,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/feedback-details/feedback-details.component.html",
+        "line": 18,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.html",
+        "line": 10,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.ts",
+        "line": 39,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/nft-unlock/nft-unlock.component.html",
+        "line": 38,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/payment/payment.component.html",
+        "line": 54,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/product-details/product-details.component.html",
+        "line": 16,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenge-card/challenge-card.component.html",
+        "line": 9,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html",
+        "line": 11,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html",
+        "line": 13,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/score-board/score-board.component.ts",
+        "line": 82,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.html",
+        "line": 11,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.ts",
+        "line": 109,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.ts",
+        "line": 140,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/token-sale/token-sale.component.html",
+        "line": 13,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/token-sale/token-sale.component.html",
+        "line": 96,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.html",
+        "line": 9,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.html",
+        "line": 80,
+        "type": "innerHTML"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.ts",
+        "line": 48,
+        "type": "bypassSecurityTrustHtml"
+      },
+      {
+        "file": "target-apps/juice-shop-blind/frontend/src/app/welcome-banner/welcome-banner.component.html",
+        "line": 7,
+        "type": "innerHTML"
+      }
+    ],
+    "total_escape_hatch_count": 28
+  },
+  "llm_ai": {
+    "has_genuine_tool_calling": true,
+    "tools_detected": [
+      "searchProducts",
+      "getProductReviews",
+      "getOrderById",
+      "generateCoupon"
+    ],
+    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize + MongoDB), authentication checks, business logic (e.g., order ownership validation), and coupon generation with security challenge handling. The tools are passed to `streamText({ tools })` and explicitly invoked during streaming via `case 'tool-call'`, with metrics and logging confirming actual invocation.",
+    "confidence": 1
+  }
+}

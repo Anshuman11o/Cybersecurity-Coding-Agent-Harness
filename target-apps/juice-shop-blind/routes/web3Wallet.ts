@@ -26,7 +26,6 @@ export function contractExploitListener () {
         void contract.on('ContractExploited', (exploiter: string) => {
           if (walletsConnected.has(exploiter)) {
             walletsConnected.delete(exploiter)
-            challengeUtils.solveIf(challenges.web3WalletChallenge, () => false)
           }
         })
         isEventListenerCreated = true

@@ -48,13 +48,10 @@ export function retrieveLoggedInUser () {
     } catch (err) {
       response = { user: emptyUser }
     }
-    // Solve passwordHashLeakChallenge when password field is included in response
-    challengeUtils.solveIf(challenges.passwordHashLeakChallenge, () => false)
 
     if (req.query.callback === undefined) {
       res.json(response)
     } else {
-      challengeUtils.solveIf(challenges.emailLeakChallenge, () => false)
       res.jsonp(response)
     }
   }

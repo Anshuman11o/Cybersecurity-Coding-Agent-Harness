@@ -41,7 +41,6 @@ export function upgradeToDeluxe () {
 
       try {
         const updatedUser = await user.update({ role: security.roles.deluxe, deluxeToken: security.deluxeToken(user.email) })
-        challengeUtils.solveIf(challenges.freeDeluxeChallenge, () => false)
         const userWithStatus = utils.queryResultToJson(updatedUser)
         const updatedToken = security.authorize(userWithStatus)
         security.authenticatedUsers.put(updatedToken, userWithStatus)

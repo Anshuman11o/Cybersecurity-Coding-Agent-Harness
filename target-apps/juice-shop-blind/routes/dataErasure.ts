@@ -113,7 +113,6 @@ router.post('/', (req: Request<Record<string, unknown>, Record<string, unknown>,
             } else {
               const sendlfrResponse: string = html.slice(0, 100) + '......'
               res.send(sendlfrResponse)
-              challengeUtils.solveIf(challenges.lfrChallenge, () => false)
             }
           })
         } else {

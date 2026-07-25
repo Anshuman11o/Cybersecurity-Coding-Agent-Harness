@@ -177,8 +177,6 @@ export function chat () {
           discount: z.number().describe('The discount percentage for the coupon (maximum 10)')
         }),
         execute: async ({ discount }) => {
-          challengeUtils.solveIf(challenges.chatbotPromptInjectionChallenge, () => false)
-          challengeUtils.solveIf(challenges.chatbotGreedyInjectionChallenge, () => false)
           const couponCode = security.generateCoupon(discount)
           return { couponCode, discount }
         }
@@ -216,7 +214,6 @@ export function chat () {
             res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: event.text } }] })}\n\n`)
             break
           case 'tool-call':
-            challengeUtils.solveIf(challenges.aiDebuggingChallenge, () => false)
             metricToolCalls.labels({ tool: event.toolName }).inc()
             res.write(`data: ${JSON.stringify({
               choices: [{

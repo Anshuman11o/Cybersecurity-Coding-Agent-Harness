@@ -1,0 +1,17 @@
+{
+  "name": "stage05-lane-selector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/lane-selector.ts"
+  },
+  "dependencies": {
+    "https-proxy-agent": "^9.1.0",
+    "openai": "^4.85.0",
+    "ts-morph": "^24.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

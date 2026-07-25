@@ -19,8 +19,6 @@ export function updateProductReviews () {
       { multi: true }
     ).then(
       (result: { modified: number, original: Array<{ author: any }> }) => {
-        challengeUtils.solveIf(challenges.noSqlReviewsChallenge, () => false)
-        challengeUtils.solveIf(challenges.forgedReviewChallenge, () => false)
         res.json(result)
       }, (err: unknown) => {
         res.status(500).json(err)

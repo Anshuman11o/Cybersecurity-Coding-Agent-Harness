@@ -103,7 +103,6 @@ export function dataExport () {
 
         const emailHash = security.hash(email).slice(0, 4)
         for (const order of userData.orders) {
-          challengeUtils.solveIf(challenges.dataExportChallenge, () => false)
         }
         res.status(200).send({ userData: JSON.stringify(userData, null, 2), confirmation: 'Your data export will open in a new Browser window.' })
       } else {

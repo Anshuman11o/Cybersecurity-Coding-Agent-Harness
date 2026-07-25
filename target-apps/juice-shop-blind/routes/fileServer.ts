@@ -27,7 +27,6 @@ export function servePublicFiles () {
     if (file && (endsWithAllowlistedFileType(file) || (file === 'incident-support.kdbx'))) {
       file = security.cutOffPoisonNullByte(file)
 
-      challengeUtils.solveIf(challenges.directoryListingChallenge, () => false)
       verifySuccessfulPoisonNullByteExploit(file)
 
       res.sendFile(path.resolve('ftp/', file))
@@ -38,12 +37,7 @@ export function servePublicFiles () {
   }
 
   function verifySuccessfulPoisonNullByteExploit (file: string) {
-    challengeUtils.solveIf(challenges.easterEggLevelOneChallenge, () => false)
-    challengeUtils.solveIf(challenges.forgottenDevBackupChallenge, () => false)
-    challengeUtils.solveIf(challenges.forgottenBackupChallenge, () => false)
-    challengeUtils.solveIf(challenges.misplacedSignatureFileChallenge, () => false)
 
-    challengeUtils.solveIf(challenges.nullByteChallenge, () => false)
   }
 
   function endsWithAllowlistedFileType (param: string) {

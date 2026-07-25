@@ -14,7 +14,6 @@ import * as utils from '../lib/utils'
 export function createProductReviews () {
   return async (req: Request, res: Response) => {
     const user = security.authenticatedUsers.from(req)
-    challengeUtils.solveIf(challenges.forgedReviewChallenge, () => false)
 
     try {
       await reviewsCollection.insert({

@@ -12,7 +12,6 @@ export function checkKeys () {
       const privateKey = mnemonicWallet.privateKey
       const publicKey = mnemonicWallet.publicKey
       const address = mnemonicWallet.address
-      challengeUtils.solveIf(challenges.nftUnlockChallenge, () => false)
       if (req.body.privateKey === privateKey) {
         res.status(200).json({ success: true, message: 'Challenge successfully solved', status: challenges.nftUnlockChallenge })
       } else {

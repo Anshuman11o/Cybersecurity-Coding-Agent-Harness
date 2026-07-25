@@ -42,7 +42,6 @@ export function addBasketItem () {
         BasketId: basketIds[basketIds.length - 1],
         quantity: quantities[quantities.length - 1]
       }
-      challengeUtils.solveIf(challenges.basketManipulateChallenge, () => false) // eslint-disable-line eqeqeq
 
       const basketItemInstance = BasketItemModel.build(basketItem)
       try {
@@ -67,7 +66,6 @@ export function quantityCheckBeforeBasketItemUpdate () {
     try {
       const item = await BasketItemModel.findOne({ where: { id: req.params.id } })
       const user = security.authenticatedUsers.from(req)
-      challengeUtils.solveIf(challenges.basketManipulateChallenge, () => false) // eslint-disable-line eqeqeq
       if (req.body.quantity) {
         if (item == null) {
           throw new Error('No such item found!')

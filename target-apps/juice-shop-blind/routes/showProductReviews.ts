@@ -35,7 +35,6 @@ export function showProductReviews () {
 
     db.reviewsCollection.find({ $where: 'this.product == ' + id }).then((reviews: Review[]) => {
       const t1 = new Date().getTime()
-      challengeUtils.solveIf(challenges.noSqlCommandChallenge, () => false)
       const user = security.authenticatedUsers.from(req)
       for (let i = 0; i < reviews.length; i++) {
         if (user === undefined || reviews[i].likedBy.includes(user.data.email)) {

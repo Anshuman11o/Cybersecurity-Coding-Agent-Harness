@@ -1,0 +1,33 @@
+export const playbook = `
+Playbook for AI/LLM Security Issues (OWASP LLM01-LLM10)
+=======================================================
+
+Scope: Detect prompt injection, sensitive disclosure, excessive agency, and consumption issues in LLM-integrated applications.
+
+## OWASP Categories Covered
+- OWASP LLM01: Prompt Injection
+- OWASP LLM02: Sensitive Information Disclosure
+- OWASP LLM03: Supply Chain
+- OWASP LLM06: Excessive Agency
+- OWASP LLM10: Unbounded Consumption
+
+## Sink Patterns to Hunt For
+1. System prompts built by concatenating user-provided content without proper fencing/separation from the system instructions. The user content should be delimited or escaped so the LLM cannot interpret it as instructions.
+2. Tool handlers that execute privileged actions (send emails, modify databases, make purchases, access APIs) based solely on LLM decisions without independently verifying the user's authorization for that specific action.
+3. Tool return values containing sensitive data (internal system state, other users' data, credentials, PII) passed back to the user or into the LLM context without filtering or redaction.
+4. Unbounded tool-calling loops: the LLM can call tools repeatedly without step/turn caps, enabling excessive token consumption, runaway API calls, or resource exhaustion.
+5. Training data or fine-tuning pipelines that incorporate unfiltered user input, enabling data poisoning or sensitive data leakage in model outputs.
+
+## Distinguishing Real Findings from False Positives
+- "The model could be tricked" is not a finding. The finding must name the specific boundary crossed and the capability an attacker gains beyond what the human user already has.
+- A tool call that the user could perform manually through the UI is not excessive agency. A tool call that performs an action the user cannot normally do (e.g., accessing another user's data, executing admin operations) is.
+- System prompt injection is a finding when the injected content causes the LLM to perform an action the application did not intend — not merely when the LLM's output changes.
+- Sensitive data in tool returns is a finding only when that data reaches the user or an untrusted context. Internal logging of tool returns with sensitive data is a separate finding (logging/monitoring).
+
+## Hunting Discipline
+Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+1. The LLM integration point (chat, tool handler, agent loop)
+2. The injection vector or agency boundary
+3. The specific unintended action or data exposure
+4. The attacker's gained capability beyond normal user permissions.
+`;

@@ -14,8 +14,6 @@ export function performRedirect () {
   return ({ query }: Request, res: Response, next: NextFunction) => {
     const toUrl: string = query.to as string
     if (security.isRedirectAllowed(toUrl)) {
-      challengeUtils.solveIf(challenges.redirectCryptoCurrencyChallenge, () => false)
-      challengeUtils.solveIf(challenges.redirectChallenge, () => false)
       res.redirect(toUrl)
     } else {
       res.status(406)

@@ -49,7 +49,6 @@ export function changePassword () {
       }
 
       await user.update({ password: newPasswordInString })
-      challengeUtils.solveIf(challenges.changePasswordBenderChallenge, () => false)
       res.json({ user })
     } catch (error) {
       next(error)

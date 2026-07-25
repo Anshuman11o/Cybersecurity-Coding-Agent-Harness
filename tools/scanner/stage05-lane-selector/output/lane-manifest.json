@@ -1,0 +1,312 @@
+[
+  {
+    "lane_id": "access-control",
+    "categories": [
+      "A01: Broken Access Control",
+      "API1: Broken Object Level Authorization",
+      "API5: Broken Function Level Authorization"
+    ],
+    "subsystem_scope": "Route-level authorization checks across all authenticated endpoints (auth middleware column: isAuthorized/denyAll/appendUserId/isAccounting)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/2fa.ts",
+      "target-apps/juice-shop-blind/routes/address.ts",
+      "target-apps/juice-shop-blind/routes/basketItems.ts",
+      "target-apps/juice-shop-blind/routes/dataExport.ts",
+      "target-apps/juice-shop-blind/routes/deluxe.ts",
+      "target-apps/juice-shop-blind/routes/fileUpload.ts",
+      "target-apps/juice-shop-blind/routes/imageCaptcha.ts",
+      "target-apps/juice-shop-blind/routes/likeProductReviews.ts",
+      "target-apps/juice-shop-blind/routes/memory.ts",
+      "target-apps/juice-shop-blind/routes/metrics.ts",
+      "target-apps/juice-shop-blind/routes/orderHistory.ts",
+      "target-apps/juice-shop-blind/routes/payment.ts",
+      "target-apps/juice-shop-blind/routes/updateProductReviews.ts",
+      "target-apps/juice-shop-blind/routes/wallet.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "access-control"
+  },
+  {
+    "lane_id": "injection-sql",
+    "categories": [
+      "A03: Injection (SQL)"
+    ],
+    "subsystem_scope": "SQL injection via raw sequelize.query() calls with string-interpolated user input (e.g. routes/search.ts SELECT ... LIKE)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/routes/search.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "injection-sql"
+  },
+  {
+    "lane_id": "injection-nosql",
+    "categories": [
+      "A03: Injection (NoSQL)"
+    ],
+    "subsystem_scope": "NoSQL operator injection via marsdb-style collection.update() with user-controlled $where/$set (e.g. routes/updateProductReviews.ts)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/data/mongodb.ts",
+      "target-apps/juice-shop-blind/routes/createProductReviews.ts",
+      "target-apps/juice-shop-blind/routes/likeProductReviews.ts",
+      "target-apps/juice-shop-blind/routes/showProductReviews.ts",
+      "target-apps/juice-shop-blind/routes/updateProductReviews.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "injection-nosql"
+  },
+  {
+    "lane_id": "crypto-auth",
+    "categories": [
+      "A02: Cryptographic Failures",
+      "A07: Identification and Authentication Failures",
+      "API2: Broken Authentication"
+    ],
+    "subsystem_scope": "JWT handling, password hashing, 2FA/TOTP, security questions, and session management across auth endpoints",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/2fa.ts",
+      "target-apps/juice-shop-blind/routes/authenticatedUsers.ts",
+      "target-apps/juice-shop-blind/routes/changePassword.ts",
+      "target-apps/juice-shop-blind/routes/currentUser.ts",
+      "target-apps/juice-shop-blind/routes/login.ts",
+      "target-apps/juice-shop-blind/routes/resetPassword.ts",
+      "target-apps/juice-shop-blind/routes/securityQuestion.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "crypto-auth"
+  },
+  {
+    "lane_id": "misconfiguration",
+    "categories": [
+      "A05: Security Misconfiguration",
+      "API8: Security Misconfiguration",
+      "API9: Improper Inventory Management"
+    ],
+    "subsystem_scope": "Exposed directories (ftp, encryptionkeys, logs), missing security headers, outdated dependency versions, Swagger coverage gap (1/148 paths documented)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/config.schema.ts",
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/xml.ts",
+      "target-apps/juice-shop-blind/routes/fileServer.ts",
+      "target-apps/juice-shop-blind/routes/fileUpload.ts",
+      "target-apps/juice-shop-blind/routes/keyServer.ts",
+      "target-apps/juice-shop-blind/routes/logfileServer.ts",
+      "target-apps/juice-shop-blind/routes/quarantineServer.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "misconfiguration"
+  },
+  {
+    "lane_id": "vulnerable-components",
+    "categories": [
+      "A06: Vulnerable and Outdated Components"
+    ],
+    "subsystem_scope": "Dependency version audit: jsonwebtoken v0.4.0, js-yaml v3.14.0, helmet v4.6.0, libxml2-wasm v0.7.1, express-jwt v0.1.3, sanitize-html v1.4.2",
+    "seed_files": [
+      "target-apps/juice-shop-blind/package.json"
+    ],
+    "playbook_reference": "vulnerable-components"
+  },
+  {
+    "lane_id": "integrity-failures",
+    "categories": [
+      "A08: Software and Data Integrity Failures"
+    ],
+    "subsystem_scope": "Unsafe deserialization (YAML/XML parsing), file upload processing (ZIP/XML/YAML), web3 contract listeners accepting untrusted inputs",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
+      "target-apps/juice-shop-blind/routes/checkKeys.ts",
+      "target-apps/juice-shop-blind/routes/fileUpload.ts",
+      "target-apps/juice-shop-blind/routes/metrics.ts",
+      "target-apps/juice-shop-blind/routes/nftMint.ts",
+      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "integrity-failures"
+  },
+  {
+    "lane_id": "api-property-auth",
+    "categories": [
+      "API3: Broken Object Property Level Authorization"
+    ],
+    "subsystem_scope": "Auto-CRUD field-level exposure: excludeAttributes lists on finale-rest models (Users exclude password/totpSecret but expose email/lastLoginIp/isAdmin; Products exclude nothing)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/address.ts",
+      "target-apps/juice-shop-blind/routes/basketItems.ts",
+      "target-apps/juice-shop-blind/routes/captcha.ts",
+      "target-apps/juice-shop-blind/routes/delivery.ts",
+      "target-apps/juice-shop-blind/routes/payment.ts",
+      "target-apps/juice-shop-blind/routes/recycles.ts",
+      "target-apps/juice-shop-blind/routes/verify.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "api-property-auth"
+  },
+  {
+    "lane_id": "resource-consumption",
+    "categories": [
+      "API4: Unrestricted Resource Consumption"
+    ],
+    "subsystem_scope": "Endpoints missing rate limiting (search, file-upload, user list, metrics) and pagination on list endpoints",
+    "seed_files": [
+      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
+      "target-apps/juice-shop-blind/routes/basket.ts",
+      "target-apps/juice-shop-blind/routes/basketItems.ts",
+      "target-apps/juice-shop-blind/routes/coupon.ts",
+      "target-apps/juice-shop-blind/routes/dataExport.ts",
+      "target-apps/juice-shop-blind/routes/deluxe.ts",
+      "target-apps/juice-shop-blind/routes/fileUpload.ts",
+      "target-apps/juice-shop-blind/routes/order.ts",
+      "target-apps/juice-shop-blind/routes/orderHistory.ts",
+      "target-apps/juice-shop-blind/routes/resetPassword.ts",
+      "target-apps/juice-shop-blind/routes/search.ts",
+      "target-apps/juice-shop-blind/routes/wallet.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "resource-consumption"
+  },
+  {
+    "lane_id": "sensitive-business-flows",
+    "categories": [
+      "API6: Unrestricted Access to Sensitive Business Flows"
+    ],
+    "subsystem_scope": "Sensitive flows lacking safeguards: data-export without CAPTCHA, 2FA setup without re-auth, wallet balance manipulation, deluxe membership upgrade",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/2fa.ts",
+      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
+      "target-apps/juice-shop-blind/routes/coupon.ts",
+      "target-apps/juice-shop-blind/routes/dataExport.ts",
+      "target-apps/juice-shop-blind/routes/deluxe.ts",
+      "target-apps/juice-shop-blind/routes/imageCaptcha.ts",
+      "target-apps/juice-shop-blind/routes/nftMint.ts",
+      "target-apps/juice-shop-blind/routes/order.ts",
+      "target-apps/juice-shop-blind/routes/orderHistory.ts",
+      "target-apps/juice-shop-blind/routes/trackOrder.ts",
+      "target-apps/juice-shop-blind/routes/wallet.ts",
+      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "sensitive-business-flows"
+  },
+  {
+    "lane_id": "client-side",
+    "categories": [
+      "LLM05: Improper Output Handling"
+    ],
+    "subsystem_scope": "Angular DOM XSS: 28 escape-hatch occurrences (bypassSecurityTrustHtml/innerHTML) across frontend components, fed by dynamic API content (search results, product reviews, feedback)",
+    "seed_files": [
+      "target-apps/juice-shop-blind/frontend/src/app/about/about.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/about/about.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/feedback-details/feedback-details.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/nft-unlock/nft-unlock.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/payment/payment.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/product-details/product-details.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenge-card/challenge-card.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/score-board/score-board.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/token-sale/token-sale.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.html",
+      "target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.ts",
+      "target-apps/juice-shop-blind/frontend/src/app/welcome-banner/welcome-banner.component.html",
+      "target-apps/juice-shop-blind/routes/search.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "client-side"
+  },
+  {
+    "lane_id": "injection-code",
+    "categories": [
+      "A03: Injection (Code Execution/SSTI)"
+    ],
+    "subsystem_scope": "Code injection via eval()/Function()/pug.compile() with user-controlled input (e.g. routes/userProfile.ts eval(username-derived code), routes/captcha.ts eval(expression))",
+    "seed_files": [
+      "target-apps/juice-shop-blind/routes/captcha.ts",
+      "target-apps/juice-shop-blind/routes/userProfile.ts",
+      "target-apps/juice-shop-blind/routes/videoHandler.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "injection-code"
+  },
+  {
+    "lane_id": "ai-llm-agency",
+    "categories": [
+      "LLM01: Prompt Injection",
+      "LLM02: Sensitive Information Disclosure",
+      "LLM03: Supply Chain",
+      "LLM06: Excessive Agency",
+      "LLM10: Unbounded Consumption"
+    ],
+    "subsystem_scope": "LLM tool-calling surface: chat.ts with genuine tool handlers (searchProducts, getOrderById, generateCoupon, getProductReviews) — prompt injection, sensitive info disclosure, supply chain, excessive agency, unbounded consumption",
+    "seed_files": [
+      "target-apps/juice-shop-blind/routes/chat.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "ai-llm-agency"
+  },
+  {
+    "lane_id": "logging-monitoring",
+    "categories": [
+      "A09: Security Logging and Monitoring Failures"
+    ],
+    "subsystem_scope": "Metrics endpoint (public), log file server (indexed, public), absence of audit logging for failed logins/privilege changes/data exports",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/logfileServer.ts",
+      "target-apps/juice-shop-blind/routes/metrics.ts",
+      "target-apps/juice-shop-blind/routes/verify.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "logging-monitoring"
+  },
+  {
+    "lane_id": "insecure-design",
+    "categories": [
+      "A04: Insecure Design"
+    ],
+    "subsystem_scope": "Business logic design gaps: wallet balance manipulation, deluxe membership upgrade, coupon generation, order flow integrity",
+    "seed_files": [
+      "target-apps/juice-shop-blind/lib/insecurity.ts",
+      "target-apps/juice-shop-blind/lib/utils.ts",
+      "target-apps/juice-shop-blind/routes/b2bOrder.ts",
+      "target-apps/juice-shop-blind/routes/basket.ts",
+      "target-apps/juice-shop-blind/routes/coupon.ts",
+      "target-apps/juice-shop-blind/routes/deluxe.ts",
+      "target-apps/juice-shop-blind/routes/nftMint.ts",
+      "target-apps/juice-shop-blind/routes/order.ts",
+      "target-apps/juice-shop-blind/routes/orderHistory.ts",
+      "target-apps/juice-shop-blind/routes/trackOrder.ts",
+      "target-apps/juice-shop-blind/routes/wallet.ts",
+      "target-apps/juice-shop-blind/routes/web3Wallet.ts",
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "insecure-design"
+  },
+  {
+    "lane_id": "uncertain-api10-unsafe-consumption-of-apis",
+    "categories": [
+      "API10: Unsafe Consumption of APIs"
+    ],
+    "subsystem_scope": "Dedicated lane for uncertain category: API10: Unsafe Consumption of APIs",
+    "seed_files": [
+      "target-apps/juice-shop-blind/server.ts"
+    ],
+    "playbook_reference": "general-catchall"
+  }
+]

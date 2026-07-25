@@ -20,7 +20,6 @@ export function saveLoginIp () {
         lastLoginIp = lastLoginIp[0]
       }
       if (utils.isChallengeEnabled(challenges.httpHeaderXssChallenge)) {
-        challengeUtils.solveIf(challenges.httpHeaderXssChallenge, () => false)
       } else {
         lastLoginIp = security.sanitizeSecure(lastLoginIp ?? '')
       }

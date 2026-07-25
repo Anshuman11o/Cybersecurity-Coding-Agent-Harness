@@ -54,19 +54,8 @@ export function login () {
   }
 
   function verifyPreLoginChallenges (req: Request) {
-    challengeUtils.solveIf(challenges.weakPasswordChallenge, () => false)
-    challengeUtils.solveIf(challenges.loginSupportChallenge, () => false)
-    challengeUtils.solveIf(challenges.loginRapperChallenge, () => false)
-    challengeUtils.solveIf(challenges.loginAmyChallenge, () => false)
-    challengeUtils.solveIf(challenges.dlpPasswordSprayingChallenge, () => false)
-    challengeUtils.solveIf(challenges.oauthUserPasswordChallenge, () => false)
-    challengeUtils.solveIf(challenges.exposedCredentialsChallenge, () => false)
   }
 
   function verifyPostLoginChallenges (user: User) {
-    challengeUtils.solveIf(challenges.loginAdminChallenge, () => false)
-    challengeUtils.solveIf(challenges.loginJimChallenge, () => false)
-    challengeUtils.solveIf(challenges.loginBenderChallenge, () => false)
-    challengeUtils.solveIf(challenges.ghostLoginChallenge, () => false)
   }
 }

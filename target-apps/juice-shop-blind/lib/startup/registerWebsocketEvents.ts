@@ -38,16 +38,12 @@ const registerWebsocketEvents = (server: any) => {
     })
 
     socket.on('verifyLocalXssChallenge', (data: any) => {
-      challengeUtils.solveIf(challenges.localXssChallenge, () => false)
-      challengeUtils.solveIf(challenges.xssBonusChallenge, () => false)
     })
 
     socket.on('verifySvgInjectionChallenge', (data: any) => {
-      challengeUtils.solveIf(challenges.svgInjectionChallenge, () => false)
     })
 
     socket.on('verifyCloseNotificationsChallenge', (data: any) => {
-      challengeUtils.solveIf(challenges.closeNotificationsChallenge, () => false)
     })
   })
 }

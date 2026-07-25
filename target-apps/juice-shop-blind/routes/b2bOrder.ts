@@ -24,11 +24,9 @@ export function b2bOrder () {
         res.json({ cid: body.cid, orderNo: uniqueOrderNumber(), paymentDue: dateTwoWeeksFromNow() })
       } catch (err) {
         if (utils.getErrorMessage(err).match(/Script execution timed out.*/) != null) {
-          challengeUtils.solveIf(challenges.rceOccupyChallenge, () => false)
           res.status(503)
           next(new Error('Sorry, we are temporarily not available! Please try again later.'))
         } else {
-          challengeUtils.solveIf(challenges.rceChallenge, () => false)
           next(err)
         }
       }
