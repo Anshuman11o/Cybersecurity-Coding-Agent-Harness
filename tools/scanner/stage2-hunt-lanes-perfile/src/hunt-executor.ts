@@ -12,6 +12,9 @@
  * - Line numbers are REAL file line numbers in every chunk
  * - Per-finding categories: model names the class actually found
  * - Budget tracking is measurement-only (no enforcement, no cutoff)
+ * - **Bounded concurrency**: lanes run in parallel up to a configurable
+ *   ceiling (default 8, env HUNT_CONCURRENCY). Each lane is isolated
+ *   with its own error boundary so one failure does not abort the pool.
  *
  * Outputs: output/candidate-findings.json, output/budget-consumption.json
  *
@@ -40,6 +43,47 @@ const REPO_ROOT = join(__dirname, '../../../..')
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
 export const SINGLE_PASS_LINE_BUDGET = 2000
+
+// ── Bounded concurrency ───────────────────────────────────────────────────
+// Cap on how many lanes run concurrently.  Default 8; override via env var
+// HUNT_CONCURRENCY.  Running too many simultaneous calls against the same
+// upstream endpoint increases 429 risk — keep this modest.
+const DEFAULT_MAX_CONCURRENT_LANES = 8
+const MAX_CONCURRENT_LANES = (() => {
+  const env = process.env.HUNT_CONCURRENCY
+  if (env) {
+    const n = parseInt(env, 10)
+    if (Number.isFinite(n) && n > 0) return n
+    console.warn(`  [WARN] HUNT_CONCURRENCY=${env} not a positive integer, using default ${DEFAULT_MAX_CONCURRENT_LANES}`)
+  }
+  return DEFAULT_MAX_CONCURRENT_LANES
+})()
+
+class Semaphore {
+  private permits: number
+  private queue: (() => void)[] = []
+
+  constructor(max: number) {
+    this.permits = max
+  }
+
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--
+      return
+    }
+    return new Promise(resolve => this.queue.push(resolve))
+  }
+
+  release(): void {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift()!
+      next()
+    } else {
+      this.permits++
+    }
+  }
+}
 
 // ── Category code → playbook module mapping ───────────────────────────────
 const CATEGORY_CODE_TO_PLAYBOOKS: Record<string, string[]> = {
@@ -269,57 +313,88 @@ Each finding must have:
   return prompt
 }
 
-// ── LLM call with token tracking ──────────────────────────────────────────
+// ── LLM call with token tracking and retry ────────────────────────────────
 
 interface LlmCallResult {
   text: string
   tokensUsed: number
 }
 
+/**
+ * Return true if the error looks transient and worth retrying:
+ * rate-limit (429), gateway timeouts (502/503/504), network ECONNRESET, etc.
+ */
+function isTransientError(err: any): boolean {
+  const msg = String(err.message ?? '').toLowerCase()
+  const status = err.status ?? err.statusCode ?? err.response?.status
+  if (status === 429 || status === 502 || status === 503 || status === 504) return true
+  if (msg.includes('rate limit')) return true
+  if (msg.includes('econnreset')) return true
+  if (msg.includes('etimedout')) return true
+  if (msg.includes('timeout')) return true
+  return false
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 async function callLlm(
   client: OpenAI,
   prompt: string,
+  laneId: string,
 ): Promise<LlmCallResult | null> {
-  try {
-    const response = await client.chat.completions.create({
-      model: 'qwen-plus',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: 8000,
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'hunt_output',
-          schema: HUNT_RESPONSE_SCHEMA,
-          strict: true,
+  const maxRetries = 3
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model: 'qwen-plus',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 8000,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'hunt_output',
+            schema: HUNT_RESPONSE_SCHEMA,
+            strict: true,
+          },
         },
-      },
-    })
-    const text = response.choices[0]?.message?.content
-    if (!text) return null
-    return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
-  } catch (err: any) {
-    if (err.message?.includes('json_schema') || err.message?.includes('strict') ||
-        err.message?.includes('response_format')) {
-      console.log('  [INFO] json_schema not supported, falling back to json_object')
-      try {
-        const response = await client.chat.completions.create({
-          model: 'qwen-plus',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1,
-          max_tokens: 8000,
-          response_format: { type: 'json_object' },
-        })
-        const text = response.choices[0]?.message?.content
-        if (!text) return null
-        return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
-      } catch (err2: any) {
-        console.error(`  [ERROR] Free-text fallback also failed: ${err2.message}`)
-        return null
+      })
+      const text = response.choices[0]?.message?.content
+      if (!text) return null
+      return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
+    } catch (err: any) {
+      const isSchema = err.message?.includes('json_schema') || err.message?.includes('strict') || err.message?.includes('response_format')
+      if (isSchema) {
+        try {
+          const response = await client.chat.completions.create({
+            model: 'qwen-plus',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            max_tokens: 8000,
+            response_format: { type: 'json_object' },
+          })
+          const text = response.choices[0]?.message?.content
+          if (!text) return null
+          return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
+        } catch (err2: any) {
+          console.error(`  [${laneId}] [ERROR] json_schema + fallback both failed: ${err2.message}`)
+          return null
+        }
       }
+      if (isTransientError(err) && attempt < maxRetries) {
+        const backoff = Math.min(2000 * Math.pow(2, attempt), 15000)
+        const jitter = Math.random() * 1000
+        const wait = Math.round(backoff + jitter)
+        console.log(`  [${laneId}] [RETRY] Transient error (attempt ${attempt + 1}/${maxRetries}), backing off ${wait}ms: ${err.message ?? err}`)
+        await sleep(wait)
+        continue
+      }
+      throw err
     }
-    throw err
   }
+  return null
 }
 
 // ── Hunt a single lane (one file, possibly multiple chunks) ───────────────
@@ -333,7 +408,7 @@ async function huntLane(
 ): Promise<{ findings: CandidateFinding[]; tokensUsed: number }> {
   const targetPath = join(targetDir, lane.target_file)
   if (!existsSync(targetPath)) {
-    console.error(`  [ERROR] Target file not found: ${targetPath}`)
+    console.error(`  [${lane.lane_id}] [ERROR] Target file not found: ${targetPath}`)
     return { findings: [], tokensUsed: 0 }
   }
 
@@ -345,7 +420,7 @@ async function huntLane(
 
   const chunks = lane.chunk_plan.chunks
   if (chunks.length === 0 && lane.disposition === 'hunt') {
-    console.warn(`  [WARN] Lane ${lane.lane_id} has no chunks but disposition is "hunt"`)
+    console.warn(`  [${lane.lane_id}] [WARN] No chunks but disposition is "hunt"`)
     return { findings: [], tokensUsed: 0 }
   }
 
@@ -366,11 +441,11 @@ async function huntLane(
     )
 
     const t0 = Date.now()
-    const result = await callLlm(client, prompt)
+    const result = await callLlm(client, prompt, lane.lane_id)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
-      console.error(`  [ERROR] Lane ${lane.lane_id} chunk ${chunk.index} LLM call failed`)
+      console.error(`  [${lane.lane_id}] [ERROR] chunk ${chunk.index} LLM call failed`)
       continue
     }
 
@@ -382,22 +457,22 @@ async function huntLane(
       const jsonStr = extractJson(result.text)
       parsed = JSON.parse(jsonStr) as LaneHuntResponse
     } catch {
-      console.log(`  [WARN] Lane ${lane.lane_id} chunk ${chunk.index} returned unparseable content`)
+      console.log(`  [${lane.lane_id}] [WARN] chunk ${chunk.index} returned unparseable content`)
       continue
     }
 
     if (parsed.findings && Array.isArray(parsed.findings)) {
       for (const f of parsed.findings) {
         if (!f.trace || !Array.isArray(f.trace) || f.trace.length === 0) {
-          console.log(`  [WARN] Finding "${f.title}" has empty trace — dropping`)
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty trace — dropping`)
           continue
         }
         if (f.trace[0].kind !== 'entrypoint') {
-          console.log(`  [WARN] Finding "${f.title}" trace doesn't start with entrypoint — dropping`)
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't start with entrypoint — dropping`)
           continue
         }
         if (f.trace[f.trace.length - 1].kind !== 'sink') {
-          console.log(`  [WARN] Finding "${f.title}" trace doesn't end with sink — dropping`)
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't end with sink — dropping`)
           continue
         }
 
@@ -604,34 +679,58 @@ async function main() {
     console.log(`[RESUME] Skipping ${beforeCount - huntLanes.length} completed lanes, ${huntLanes.length} lanes remaining`)
   }
 
-  // Hunt each lane
+  console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)
+
+  // ── Bounded concurrency executor ────────────────────────────────────────
+  const sem = new Semaphore(MAX_CONCURRENT_LANES)
+  const lanePromises: Promise<void>[] = []
+
   for (const lane of huntLanes) {
-    console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Categories: ${lane.categories.map(c => c.code).join(', ')}`)
-    console.log(`  ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
-    console.log(`  Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
+    const p = (async () => {
+      await sem.acquire()
+      try {
+        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Categories: ${lane.categories.map(c => c.code).join(', ')}`)
+        console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
+        console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
 
-    const assignedCodes = lane.categories.map(c => c.code)
-    const playbooks = await loadPlaybooksForCategories(assignedCodes)
-    console.log(`  Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
+        const assignedCodes = lane.categories.map(c => c.code)
+        const playbooks = await loadPlaybooksForCategories(assignedCodes)
+        console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
 
-    const t0 = Date.now()
-    const result = await huntLane(client, lane, assignments.target_dir, playbooks, archSnippet)
-    const elapsed = (Date.now() - t0) / 1000
+        const t0 = Date.now()
+        const result = await huntLane(client, lane, assignments.target_dir, playbooks, archSnippet)
+        const elapsed = (Date.now() - t0) / 1000
 
-    allFindings.push(...result.findings)
+        allFindings.push(...result.findings)
 
-    consumptionReport.push({
-      lane_id: lane.lane_id,
-      tokens_used: result.tokensUsed,
-      seconds_elapsed: elapsed,
-      ceiling_hit: false,
-    })
+        consumptionReport.push({
+          lane_id: lane.lane_id,
+          tokens_used: result.tokensUsed,
+          seconds_elapsed: elapsed,
+          ceiling_hit: false,
+        })
 
-    console.log(`  → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens`)
+        console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
-    // ── Checkpoint: write results immediately after each lane ─────────────
-    writeCheckpoint(outDir, allFindings, consumptionReport)
+        // ── Checkpoint: write results immediately after each lane ─────────
+        writeCheckpoint(outDir, allFindings, consumptionReport)
+      } catch (err: any) {
+        console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
+        consumptionReport.push({
+          lane_id: lane.lane_id,
+          tokens_used: 0,
+          seconds_elapsed: 0,
+          ceiling_hit: false,
+        })
+        writeCheckpoint(outDir, allFindings, consumptionReport)
+      } finally {
+        sem.release()
+      }
+    })()
+    lanePromises.push(p)
   }
+
+  await Promise.all(lanePromises)
 
   // Also report skip lanes with zero consumption
   for (const lane of skipLanes) {
