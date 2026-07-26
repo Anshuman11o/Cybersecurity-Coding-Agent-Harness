@@ -14,9 +14,14 @@
  * - Budget tracking is measurement-only (no enforcement, no cutoff)
  *
  * Outputs: output/candidate-findings.json, output/budget-consumption.json
+ *
+ * Checkpointing: after EACH lane completes, results are written to disk
+ * immediately. On startup, existing partial results are detected and the
+ * run RESUMES from where it stopped, skipping already-completed lanes.
+ * Partial files are always valid, parseable JSON.
  */
 import OpenAI from 'openai'
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
@@ -34,18 +39,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '../../../..')
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
-// Files up to this many lines fit in one LLM pass. Beyond this, the Stage 0.5
-// component splits them into overlapping chunks. This constant is here for
-// validation; the actual chunk plan comes from the lane-assignments input.
 export const SINGLE_PASS_LINE_BUDGET = 2000
 
 // ── Category code → playbook module mapping ───────────────────────────────
-// Maps each OWASP category code to the playbook module(s) that cover it.
-// Multiple codes may map to the same module (e.g., A02 and A07 both use
-// crypto-auth). When a lane has multiple categories, we deduplicate modules.
-//
-// IMPORTANT: This mapping must stay in sync with the playbooks/ directory.
-// When adding a new playbook, register its codes here.
 const CATEGORY_CODE_TO_PLAYBOOKS: Record<string, string[]> = {
   'A01': ['access-control'],
   'A02': ['crypto-auth'],
@@ -126,12 +122,6 @@ function nextFindingId(): string {
   return `FIND-${String(findingCounter).padStart(4, '0')}`
 }
 
-/**
- * Sanitize PEM-formatted private-key material to avoid upstream content-safety
- * filters that flag long base64 blobs inside BEGIN/END PRIVATE KEY markers.
- * Structural markers are preserved so the model can still identify hardcoded
- * keys as misconfiguration findings.
- */
 function sanitizePemPrivateKey(content: string): string {
   return content.replace(
     /(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z0-9 ]*PRIVATE KEY-----)/g,
@@ -141,11 +131,6 @@ function sanitizePemPrivateKey(content: string): string {
   )
 }
 
-/**
- * Prefix every line with its REAL 1-indexed line number.
- * The offset parameter lets us number lines that start at line N > 1,
- * so citations remain correct across chunks.
- */
 function lineNumberContent(content: string, startLine: number): string {
   const lines = content.split('\n')
   const totalLines = startLine + lines.length - 1
@@ -158,11 +143,6 @@ function lineNumberContent(content: string, startLine: number): string {
 
 // ── Playbook loading and validation ───────────────────────────────────────
 
-/**
- * Load playbooks for the given category codes. Deduplicates so each module
- * is loaded at most once even if multiple categories reference it.
- * Assumes validateAllPlaybooks() has already confirmed all modules exist.
- */
 async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, string>> {
   const moduleNames = new Set<string>()
   for (const code of codes) {
@@ -180,11 +160,6 @@ async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, 
   return loaded
 }
 
-/**
- * Hard startup validation: assert every category code in the mapping resolves
- * to a real module that loads successfully. Fails loudly with a list of all
- * unresolved codes — never degrades silently.
- */
 async function validateAllPlaybooks(): Promise<void> {
   const allModuleNames = new Set<string>()
   const codeToModules = new Map<string, string[]>()
@@ -236,7 +211,6 @@ function buildHuntPrompt(
   chunkInfo: { chunkIndex: number; totalChunks: number },
   archSummarySnippet?: string,
 ): string {
-  // Use c.name directly (the name already contains the code, e.g. "A03: Injection")
   const categoryList = categories.map(c => c.name).join(', ')
 
   let prompt = `You are a security analyst hunting for vulnerabilities in a single source file.
@@ -376,12 +350,10 @@ async function huntLane(
   }
 
   for (const chunk of chunks) {
-    // Extract lines for this chunk (1-indexed)
     const allLines = sanitized.split('\n')
     const chunkLines = allLines.slice(chunk.start_line - 1, chunk.end_line)
     const chunkContent = chunkLines.join('\n')
 
-    // Line-number with REAL line numbers
     const lineNumbered = lineNumberContent(chunkContent, chunk.start_line)
 
     const prompt = buildHuntPrompt(
@@ -405,7 +377,6 @@ async function huntLane(
     totalTokens += result.tokensUsed
     console.log(`  [${lane.lane_id}] chunk ${chunk.index}: ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s`)
 
-    // Parse findings
     let parsed: LaneHuntResponse
     try {
       const jsonStr = extractJson(result.text)
@@ -417,7 +388,6 @@ async function huntLane(
 
     if (parsed.findings && Array.isArray(parsed.findings)) {
       for (const f of parsed.findings) {
-        // Validity checks (carried forward from v1)
         if (!f.trace || !Array.isArray(f.trace) || f.trace.length === 0) {
           console.log(`  [WARN] Finding "${f.title}" has empty trace — dropping`)
           continue
@@ -431,7 +401,6 @@ async function huntLane(
           continue
         }
 
-        // Use the model's reported category; fall back to first assigned if missing
         const findingCat = (f as any).finding_category
         const assignedCodes = lane.categories.map(c => c.code)
         const finalCategories: string[] = []
@@ -490,18 +459,72 @@ function loadArchSummarySnippet(archPath: string): string | undefined {
   }
 }
 
+// ── Checkpoint helpers ────────────────────────────────────────────────────
+
+/**
+ * Write findings and consumption reports atomically.
+ * Writes to a temp file first, then renames — so a reader (or a crash)
+ * never sees a truncated JSON file.
+ */
+function writeCheckpoint(
+  outDir: string,
+  findings: CandidateFinding[],
+  consumption: BudgetConsumption[],
+): void {
+  const findingsPath = join(outDir, 'candidate-findings.json')
+  const consumptionPath = join(outDir, 'budget-consumption.json')
+
+  const findingsTmp = findingsPath + '.tmp'
+  writeFileSync(findingsTmp, JSON.stringify(findings, null, 2) + '\n')
+  renameSync(findingsTmp, findingsPath)
+
+  const consumptionTmp = consumptionPath + '.tmp'
+  writeFileSync(consumptionTmp, JSON.stringify(consumption, null, 2) + '\n')
+  renameSync(consumptionTmp, consumptionPath)
+}
+
+/**
+ * Load an existing checkpoint from the output directory.
+ * Returns { findings, consumption, completedLaneIds } if a valid checkpoint
+ * exists, or null if there is nothing to resume from.
+ */
+function loadCheckpoint(outDir: string): {
+  findings: CandidateFinding[]
+  consumption: BudgetConsumption[]
+  completedLaneIds: Set<string>
+} | null {
+  const findingsPath = join(outDir, 'candidate-findings.json')
+  const consumptionPath = join(outDir, 'budget-consumption.json')
+
+  if (!existsSync(findingsPath) || !existsSync(consumptionPath)) {
+    return null
+  }
+
+  try {
+    const findings: CandidateFinding[] = JSON.parse(readFileSync(findingsPath, 'utf-8'))
+    const consumption: BudgetConsumption[] = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
+
+    if (!Array.isArray(findings) || !Array.isArray(consumption)) {
+      return null
+    }
+
+    const completedLaneIds = new Set(consumption.map(c => c.lane_id))
+    return { findings, consumption, completedLaneIds }
+  } catch {
+    return null
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log('=== Stage 2 (Per-File v2): Hunt Lanes ===')
   console.log()
 
-  // FIX 2: Validate all playbooks before any lane runs
   await validateAllPlaybooks()
   console.log(`All 16 playbook modules validated (covering all 26 category codes)`)
   console.log()
 
-  // Load lane assignments
   const assignmentsPath = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
   if (!existsSync(assignmentsPath)) {
     console.error(`ERROR: Lane assignments not found at ${assignmentsPath}`)
@@ -513,7 +536,6 @@ async function main() {
   console.log(`Loaded ${assignments.lanes.length} lane assignments`)
   console.log(`Target directory: ${assignments.target_dir}`)
 
-  // Validate coverage ledger
   const ledger = assignments.coverage_ledger
   if (ledger.unaccounted !== 0) {
     console.error(`ERROR: Coverage ledger has ${ledger.unaccounted} unaccounted files — MUST be 0`)
@@ -525,7 +547,6 @@ async function main() {
     process.exit(1)
   }
 
-  // Validate chunk plans
   for (const lane of assignments.lanes) {
     if (lane.disposition === 'skip') continue
     const chunks = lane.chunk_plan.chunks
@@ -533,7 +554,6 @@ async function main() {
       console.error(`ERROR: Lane ${lane.lane_id} is "hunt" but has no chunks`)
       process.exit(1)
     }
-    // Verify tiling: first chunk starts at 1, last ends at file_lines
     if (chunks[0].start_line !== 1) {
       console.error(`ERROR: Lane ${lane.lane_id} first chunk starts at line ${chunks[0].start_line}, expected 1`)
       process.exit(1)
@@ -545,36 +565,51 @@ async function main() {
     }
   }
 
-  // Count hunt vs skip
-  const huntLanes = assignments.lanes.filter(l => l.disposition === 'hunt')
+  let huntLanes = assignments.lanes.filter(l => l.disposition === 'hunt')
   const skipLanes = assignments.lanes.filter(l => l.disposition === 'skip')
   console.log(`Hunt lanes: ${huntLanes.length}, Skip lanes: ${skipLanes.length}`)
 
-  // Log skip lanes
   for (const lane of skipLanes) {
     console.log(`  [SKIP] ${lane.lane_id}: ${lane.target_file} — ${lane.skip_reason}`)
   }
 
-  // Load architecture summary snippet
   const archPath = join(REPO_ROOT, assignments.source_stage0_run)
   const archSnippet = loadArchSummarySnippet(archPath)
   if (archSnippet) {
     console.log('\nArchitecture summary loaded (context for lanes)')
   }
 
-  // Initialize LLM client
   const client = createClient()
 
-  // Hunt each lane
-  const allFindings: CandidateFinding[] = []
+  const outDir = join(__dirname, '..', 'output')
+  mkdirSync(outDir, { recursive: true })
+
+  // ── Checkpoint resume ───────────────────────────────────────────────────
+  let allFindings: CandidateFinding[] = []
   const consumptionReport: BudgetConsumption[] = []
 
+  const checkpoint = loadCheckpoint(outDir)
+  if (checkpoint) {
+    allFindings = checkpoint.findings
+    consumptionReport.push(...checkpoint.consumption)
+    const maxId = allFindings.reduce((max, f) => {
+      const num = parseInt(f.finding_id.split('-')[1], 10)
+      return num > max ? num : max
+    }, 0)
+    findingCounter = maxId
+
+    const beforeCount = huntLanes.length
+    huntLanes = huntLanes.filter(l => !checkpoint.completedLaneIds.has(l.lane_id))
+    console.log(`\n[RESUME] Found checkpoint: ${checkpoint.findings.length} findings, ${checkpoint.completedLaneIds.size} lanes done`)
+    console.log(`[RESUME] Skipping ${beforeCount - huntLanes.length} completed lanes, ${huntLanes.length} lanes remaining`)
+  }
+
+  // Hunt each lane
   for (const lane of huntLanes) {
     console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Categories: ${lane.categories.map(c => c.code).join(', ')}`)
     console.log(`  ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
     console.log(`  Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
 
-    // Load only the playbooks for this lane's assigned categories
     const assignedCodes = lane.categories.map(c => c.code)
     const playbooks = await loadPlaybooksForCategories(assignedCodes)
     console.log(`  Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
@@ -589,10 +624,13 @@ async function main() {
       lane_id: lane.lane_id,
       tokens_used: result.tokensUsed,
       seconds_elapsed: elapsed,
-      ceiling_hit: false,  // measurement only — no enforcement
+      ceiling_hit: false,
     })
 
     console.log(`  → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens`)
+
+    // ── Checkpoint: write results immediately after each lane ─────────────
+    writeCheckpoint(outDir, allFindings, consumptionReport)
   }
 
   // Also report skip lanes with zero consumption
@@ -605,12 +643,8 @@ async function main() {
     })
   }
 
-  // Write outputs
-  const outDir = join(__dirname, '..', 'output')
-  mkdirSync(outDir, { recursive: true })
-
-  writeFileSync(join(outDir, 'candidate-findings.json'), JSON.stringify(allFindings, null, 2) + '\n')
-  writeFileSync(join(outDir, 'budget-consumption.json'), JSON.stringify(consumptionReport, null, 2) + '\n')
+  // Final write (includes skip lanes in consumption)
+  writeCheckpoint(outDir, allFindings, consumptionReport)
 
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Total candidate findings: ${allFindings.length}`)
