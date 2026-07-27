@@ -8,9 +8,10 @@
   },
   "dependencies": {
     "https-proxy-agent": "^9.1.0",
-    "openai": "^4.85.0"
+    "openai": "^6.49.0"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "tsx": "^4.19.0"
   }
 }

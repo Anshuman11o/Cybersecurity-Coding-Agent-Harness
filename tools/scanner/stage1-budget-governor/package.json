@@ -7,9 +7,8 @@
     "run": "tsx src/budget-governor.ts",
     "test": "tsx src/test-harness.ts"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "tsx": "^4.19.0"
   }
 }

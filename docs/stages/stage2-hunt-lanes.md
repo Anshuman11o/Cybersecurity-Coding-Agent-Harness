@@ -44,7 +44,7 @@ categories, loading only those playbooks.
 Architecture summary + lane assignments + playbooks + line-numbered file content.
 
 ## Output
-`output/candidate-findings.json` — per finding: `finding_id`, `lane_id`,
+`runs/<provider>/stage2-hunt-lanes/candidate-findings.json` — per finding: `finding_id`, `lane_id`,
 `finding_classes`, `categories`, `title`, `description`, `trace[]` of
 `{kind: entrypoint|propagation|sink, file, line, description}`,
 `severity_estimate`, `confidence`. A finding is dropped unless its trace is
@@ -56,7 +56,7 @@ that establishes it. `categories` is the union of those classes' OWASP alias
 codes and always holds code strings, never class ids — see
 `docs/architecture/vulnerability-class-model.md`.
 
-`output/budget-consumption.json` — per lane tokens, seconds, `ceiling_hit`.
+`runs/<provider>/stage2-hunt-lanes/budget-consumption.json` — per lane tokens, seconds, `ceiling_hit`.
 
 ## Prompt construction
 Assembled in `buildHuntPrompt()`. Playbook guidance describes vulnerability

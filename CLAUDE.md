@@ -63,6 +63,10 @@ result.
 
 - `tools/scanner/` contains hardcoded inter-stage paths. Do not move or rename
   anything under it without updating every reference.
+- v1 stage artifacts are addressed through `runPath(provider, stage)` in
+  `tools/scanner/shared/run-paths.ts`, never a path literal. The v2 `-perfile`
+  components still use literals and are not provider-isolated. See
+  `docs/architecture/dual-model-architecture.md` before touching either.
 - v1 and v2 components live side by side (`stage2-hunt-lanes` and
   `stage2-hunt-lanes-perfile`). Both are load-bearing. Preserve v1 exactly when
   building a v2 alternative.
@@ -71,9 +75,9 @@ result.
 
 ## After a scan run
 
-Invoke the `archive-run` skill. Stage outputs are gitignored and the next run
-overwrites them, so an unarchived run is unrecoverable. One run has already been
-lost this way (~3 million tokens).
+Invoke the `archive-run` skill. The next run overwrites stage outputs in place,
+so an unarchived run is unrecoverable. One run has already been lost this way
+(~3 million tokens).
 
 ## Long-running work
 

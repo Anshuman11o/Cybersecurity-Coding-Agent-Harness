@@ -25,6 +25,9 @@ import { diff as swaggerDiff } from './swagger-diff.js'
 import { scan as frontendGrep, detectFrontendFrameworks, type FrameworkType, type EscapeHatchFinding } from './frontend-grep.js'
 import { detectToolCalling, probeCategoryApplicability } from './llm-probe.js'
 import { detectAllSignalsFromList, collectRouteHandlerNames } from './signal-detector.js'
+import { runPath } from '../../shared/run-paths.js'
+import { resolveProvider, modelFor } from '../../shared/provider.js'
+import { writeMeta, failIfDegraded } from '../../shared/meta.js'
 
 // ---------------------------------------------------------------------------
 // Target resolution: CLI arg > env var > hardcoded default
@@ -53,7 +56,7 @@ function resolveTargetDir(): string {
 
 const TARGET_DIR = resolveTargetDir()
 const PROJECT_ROOT = path.resolve(TARGET_DIR, '../../../..')
-const OUTPUT_DIR = path.join(import.meta.dirname, '..', 'output')
+const OUTPUT_DIR = runPath(resolveProvider('stage0'), 'stage0-recon')
 
 // Derived paths (relative to TARGET_DIR, not hardcoded absolute)
 const SERVER_TS = path.join(TARGET_DIR, 'server.ts')
@@ -447,11 +450,15 @@ async function main() {
   // ---- Write output files ----
   const archSummaryPath = path.join(OUTPUT_DIR, 'architecture-summary.json')
   const catApplicPath = path.join(OUTPUT_DIR, 'category-applicability.json')
+  const __provider = resolveProvider('stage0')
+  const __started = new Date().toISOString()
 
   fs.writeFileSync(archSummaryPath, JSON.stringify(archSummary, null, 2))
   console.log(`Written: ${archSummaryPath}`)
 
   fs.writeFileSync(catApplicPath, JSON.stringify(categoryVerdicts, null, 2))
+  writeMeta(__provider, 'stage0-recon', modelFor(__provider), __started)
+  failIfDegraded('stage0', 'stage0-recon')
   console.log(`Written: ${catApplicPath}`)
 
   console.log()

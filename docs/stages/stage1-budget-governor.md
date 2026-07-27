@@ -8,7 +8,7 @@ Arithmetic only — no model call.
 `lane-manifest.json` plus on-disk sizes of each lane's seed files.
 
 ## Output
-`output/budget-plan.json`: per lane `token_ceiling`, `wall_clock_ceiling`,
+`runs/<provider>/stage1-budget-governor/budget-plan.json`: per lane `token_ceiling`, `wall_clock_ceiling`,
 `model_tier`, `escalation_flag` and the reason it was set. Ceilings derive from
 each lane's own seed footprint; escalation flags when a lane sits in the top
 quartile by bytes or file count.

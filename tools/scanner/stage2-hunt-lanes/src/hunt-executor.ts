@@ -17,6 +17,10 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient } from './llm-client.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { runPath, type Provider } from '../../shared/run-paths.js'
+import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
+import { writeMeta, readUpstreamArtifact, assertUpstream, failIfDegraded } from '../../shared/meta.js'
 import { BudgetTracker } from '../../stage1-budget-governor/src/budget-governor.js'
 import type {
   LaneManifestEntry,
@@ -29,6 +33,9 @@ import type {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '../../../..')
+const PROVIDER: Provider = resolveProvider('stage2')
+const MODEL = modelFor(PROVIDER)
+const STARTED = new Date().toISOString()
 
 // ── Structured output schema (FIX 2) ───────────────────────────────────────
 
@@ -128,12 +135,8 @@ function nextFindingId(): string {
 function readSeedFiles(paths: string[]): Record<string, string> {
   const result: Record<string, string> = {}
   for (const p of paths) {
-    const full = join(REPO_ROOT, p)
-    if (existsSync(full)) {
-      result[p] = readFileSync(full, 'utf-8')
-    } else {
-      console.warn(`  [WARN] seed file not found: ${full}`)
-    }
+    const content = readCorpusFile(p)
+    if (content !== null) result[p] = content
   }
   return result
 }
@@ -261,8 +264,8 @@ async function callWithStructuredOutput(
     const response = await client.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: maxTokens,
+      ...samplingParams(PROVIDER),
+      ...tokenLimitParam(PROVIDER, maxTokens),
       response_format: {
         type: 'json_schema',
         json_schema: {
@@ -284,8 +287,8 @@ async function callWithStructuredOutput(
         const response = await client.chat.completions.create({
           model,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1,
-          max_tokens: maxTokens,
+          ...samplingParams(PROVIDER),
+          ...tokenLimitParam(PROVIDER, maxTokens),
           response_format: { type: 'json_object' },
         })
         const text = response.choices[0]?.message?.content
@@ -330,7 +333,7 @@ async function huntLane(
   const t0 = Date.now()
   try {
     // FIX 2: Use structured output instead of free-text JSON parsing
-    const result = await callWithStructuredOutput(client, 'qwen-plus', prompt, HUNT_RESPONSE_SCHEMA, 8000)
+    const result = await callWithStructuredOutput(client, MODEL, prompt, HUNT_RESPONSE_SCHEMA, 8000)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
@@ -549,7 +552,7 @@ Respond as a structured JSON object:
 {"scope_decisions": [{"lane_id": "...", "file": "...", "approved": true/false, "reason": "..."}], "escalation_passes": [{"lane_id": "...", "approved": true/false, "reason": "..."}]}`
 
   try {
-    const result = await callWithStructuredOutput(client, 'qwen-plus', prompt, ORCHESTRATOR_SCHEMA, 4000)
+    const result = await callWithStructuredOutput(client, MODEL, prompt, ORCHESTRATOR_SCHEMA, 4000)
     if (!result) throw new Error('Structured output returned null')
 
     const parsed = JSON.parse(result.text)
@@ -615,10 +618,10 @@ async function main() {
   console.log()
 
   const laneManifest: LaneManifestEntry[] = JSON.parse(
-    readFileSync(join(REPO_ROOT, 'tools/scanner/stage05-lane-selector/output/lane-manifest.json'), 'utf-8')
+    readUpstreamArtifact(PROVIDER, 'stage05-lane-selector', 'lane-manifest.json')
   )
   const budgetPlan: BudgetPlanEntry[] = JSON.parse(
-    readFileSync(join(REPO_ROOT, 'tools/scanner/stage1-budget-governor/output/budget-plan.json'), 'utf-8')
+    readUpstreamArtifact(PROVIDER, 'stage1-budget-governor', 'budget-plan.json')
   )
 
   console.log(`Loaded ${laneManifest.length} lanes from manifest`)
@@ -626,7 +629,10 @@ async function main() {
 
   const budgetMap = new Map(budgetPlan.map(e => [e.lane_id, e]))
   const tracker = new BudgetTracker(budgetPlan)
-  const client = createClient()
+  console.log(`[PROVIDER] ${PROVIDER} / ${MODEL}`)
+  assertUpstream(PROVIDER, 'stage05-lane-selector')
+  assertUpstream(PROVIDER, 'stage1-budget-governor')
+  const client = createClient(PROVIDER)
 
   // Task D: Semgrep availability
   const semgrepAvailable = await checkSemgrepAvailable()
@@ -696,7 +702,7 @@ async function main() {
   console.log(`Scope requests: ${totalScopeRequests} from ${allScopeRequests.size} lanes`)
   console.log(`Escalation-flagged lanes for review: ${escalationLanes.length}`)
 
-  const archSummaryPath = join(REPO_ROOT, 'tools/scanner/stage0-recon/output/architecture-summary.json')
+  const archSummaryPath = join(runPath(PROVIDER, 'stage0-recon'), 'architecture-summary.json')
   const archSummary = existsSync(archSummaryPath)
     ? readFileSync(archSummaryPath, 'utf-8')
     : '(architecture summary not available)'
@@ -755,8 +761,8 @@ async function main() {
     console.log(`  [EXPAND] Lane ${laneId}: adding ${extraFiles.length} files`)
     const expandedSeeds = readSeedFiles(lane.seed_files)
     for (const f of extraFiles) {
-      const full = join(REPO_ROOT, f)
-      if (existsSync(full)) expandedSeeds[f] = readFileSync(full, 'utf-8')
+      const content = readCorpusFile(f)
+      if (content !== null) expandedSeeds[f] = content
     }
 
     const hints = semgrepCache.get(laneId) ?? ''
@@ -791,7 +797,7 @@ async function main() {
   const allConsolidated = [...allFindings, ...phase3Findings]
   const deduplicated = deduplicateFindings(allConsolidated)
 
-  const outDir = join(__dirname, '..', 'output')
+  const outDir = runPath(PROVIDER, 'stage2-hunt-lanes')
   mkdirSync(outDir, { recursive: true })
 
   writeFileSync(join(outDir, 'candidate-findings.json'), JSON.stringify(deduplicated, null, 2) + '\n')
@@ -816,6 +822,8 @@ async function main() {
   console.log(`Escalation second passes: ${approvedEscalationPasses.size} approved of ${escalationLanes.length} reviewed`)
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)
+  writeMeta(PROVIDER, 'stage2-hunt-lanes', MODEL, STARTED, 0, guardStats().blocked)
+  failIfDegraded('stage2', 'stage2-hunt-lanes')
 }
 
 function trackerGetLaneTotals(

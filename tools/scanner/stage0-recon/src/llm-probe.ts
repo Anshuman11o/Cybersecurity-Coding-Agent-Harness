@@ -7,9 +7,13 @@
  * Falls back to deterministic analysis when API is unreachable.
  */
 import OpenAI from 'openai'
-import { HttpsProxyAgent } from 'https-proxy-agent'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { markDegraded } from '../../shared/degraded.js'
+
+const PROVIDER = resolveProvider('stage0')
+const MODEL = modelFor(PROVIDER)
 
 export interface ToolCallingVerdict {
   hasGenuineToolCalling: boolean
@@ -31,20 +35,19 @@ export interface CategoryVerdict {
  * DashScope provides an OpenAI-compatible endpoint.
  */
 function createClient(): OpenAI | null {
+  if (PROVIDER === 'openai') {
+    const key = process.env.OPENAI_API_KEY
+    if (!key) return null
+    // Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
+    return new OpenAI({ apiKey: key })
+  }
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) return null
   const baseURL = process.env.DASHSCOPE_BASE_URL
     ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  // The proxy at 127.0.0.1:39707 requires HttpsProxyAgent to work correctly
   // for DashScope endpoints. Without it, node-fetch goes through the proxy
   // but gets a 403 'Host not in allowlist'.
-  const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
-  const httpAgent = new HttpsProxyAgent(proxyUrl)
-  return new OpenAI({
-    apiKey,
-    baseURL,
-    httpAgent,
-  })
+  return new OpenAI({ apiKey, baseURL })
 }
 
 /**
@@ -55,20 +58,23 @@ export async function detectToolCalling(chatTsPath: string): Promise<ToolCalling
   const content = fs.readFileSync(chatTsPath, 'utf-8')
 
   const client = createClient()
+  if (!client) {
+    markDegraded('tool-calling probe: no API key for provider — used deterministic analysis')
+  }
   if (client) {
     try {
       const response = await client.chat.completions.create({
-        model: 'qwen-plus',
+        model: MODEL,
         messages: [{ role: 'user', content: buildToolCallingPrompt(content) }],
-        temperature: 0.1,
-        max_tokens: 500,
+        ...samplingParams(PROVIDER),
+        ...tokenLimitParam(PROVIDER, 500),
       })
       const text = response.choices[0]?.message?.content ?? '{}'
       const jsonStr = extractJson(text)
       console.log('  [LLM OK] Tool-calling detection received a real API response')
       return JSON.parse(jsonStr) as ToolCallingVerdict
     } catch (err: any) {
-      console.error('LLM tool-calling detection failed, falling back to deterministic:', err.message)
+      markDegraded(`tool-calling probe: LLM call failed (${err.message}) — used deterministic analysis`)
     }
   }
 
@@ -146,11 +152,14 @@ export async function probeCategoryApplicability(
   swaggerDiffNote: string,
 ): Promise<CategoryVerdict[] | null> {
   const client = createClient()
+  if (!client) {
+    markDegraded('category probe: no API key for provider — used deterministic analysis')
+  }
   if (client) {
     try {
       const result = await probeViaLLM(client, JSON.stringify(architectureSummary), toolCallingVerdict, escapeHatchFindings, swaggerDiffNote)
       if (result !== null) return result
-      console.error('  LLM returned null (JSON parse error), falling back to deterministic')
+      markDegraded('category probe: LLM returned unparseable JSON — used deterministic analysis')
     } catch (err: any) {
       console.error('LLM category probe failed:', err.message)
     }
@@ -210,10 +219,10 @@ Respond in JSON array:
 [{"name":"category name","framework":"framework name","verdict":"present|absent|uncertain","evidence":"brief evidence","confidence":0.0-1.0}]`
 
   const response = await client.chat.completions.create({
-    model: 'qwen-plus',
+    model: MODEL,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.1,
-    max_tokens: 5000,
+    ...samplingParams(PROVIDER),
+    ...tokenLimitParam(PROVIDER, 5000),
   })
 
   console.log('  [LLM OK] Category applicability probe received a real API response')

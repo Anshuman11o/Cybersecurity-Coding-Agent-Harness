@@ -13,7 +13,7 @@ Overlapping candidates are consolidated first, using the same 15-line slack the
 scorer uses so consolidation and scoring agree on what counts as one finding.
 
 ## Output
-`output/validated-findings.json`: `consolidated_id`, `original_finding_ids[]`,
+`runs/<provider>/stage3-validate/validated-findings.json`: `consolidated_id`, `original_finding_ids[]`,
 `original_lane_ids[]`, `verdict`, `validator_evidence`, plus carried-through
 title, trace and severity.
 

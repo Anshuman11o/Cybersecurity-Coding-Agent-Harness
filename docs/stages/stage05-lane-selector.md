@@ -6,7 +6,7 @@ Decides what gets hunted and by whom. Two implementations, both live.
 `tools/scanner/stage05-lane-selector/src/lane-selector.ts`
 
 One lane per applicable category, each seeded with many files. Output:
-`output/lane-manifest.json` (`lane_id`, `categories[]`, `subsystem_scope`,
+`runs/<provider>/stage05-lane-selector/lane-manifest.json` (`lane_id`, `categories[]`, `subsystem_scope`,
 `seed_files[]`, `playbook_reference`).
 
 Deterministic instantiation plus one LLM "orchestrator review" pass that can

@@ -1,0 +1,10 @@
+{
+  "provider": "openai",
+  "model": "seeded",
+  "stage": "stage2-hunt-lanes",
+  "git_sha": "9350a27",
+  "started": "2026-07-27T20:44:11Z",
+  "ended": "2026-07-27T20:44:11Z",
+  "exit_code": 0,
+  "seeded_from": "qwen"
+}

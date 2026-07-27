@@ -5,15 +5,22 @@ description: Archive a completed scanner run before its outputs are overwritten.
 
 # Archive a scanner run
 
-Stage outputs are gitignored and the next run overwrites them in place. A run
-that is not archived is unrecoverable. One run has already been lost this way
-(~3 million tokens of completed work).
+The next run overwrites stage outputs in place. A run that is not archived is
+unrecoverable. One run has already been lost this way (~3 million tokens of
+completed work).
 
 Run every step. Skipping a step silently loses something.
 
+> **Two output locations.** The v1 stages (`stage0-recon`, `stage05-lane-selector`,
+> `stage1-budget-governor`, `stage2-hunt-lanes`, `stage3-validate`) write to
+> `tools/scanner/runs/<provider>/<stage>/` and those artifacts are **committed**,
+> not gitignored — see `docs/architecture/dual-model-architecture.md`. The v2 `-perfile`
+> stages still write to their own `output/` directories, which are gitignored.
+> Archive both.
+
 ## 0. Before launching a run: clear the previous checkpoint
 
-Stage 2 resumes from whatever is in its `output/` directory. If the previous
+Stage 2 resumes from whatever is in its output directory. If the previous
 run's `candidate-findings.json` is still there, the new run **skips every lane
 it already has and returns the old findings**, reporting success. Nothing warns
 you: the log looks normal, the output is well-formed, and the results are stale.
@@ -38,15 +45,19 @@ and pin the commit, so any number can be traced back to reproducible inputs.
 
 ## 2. Snapshot every stage output
 
-Copy `tools/scanner/*/output/` into `$RUN/<stage>/`, one subdirectory per stage.
+Copy `tools/scanner/runs/<provider>/*/` (v1) and `tools/scanner/*-perfile/output/`
+(v2) into `$RUN/<stage>/`, one subdirectory per stage. Keep each stage's
+`meta.json` — it names the provider, model and commit the artifacts came from.
 Include stages that did not run in this pass but whose outputs were consumed as
 inputs — the run is not reproducible without them. Label carried-over outputs as
 such in the manifest.
 
 ## 3. Copy the run logs
 
-Scan logs live in `/tmp` and die with the container. Copy every log the run
-produced. If a run was restarted, copy each segment; they are the only record of
+Runs launched through `tools/scanner/run.sh` tee their logs into
+`tools/scanner/runs/<provider>/<stage>/logs/`, which is gitignored; anything
+launched by hand leaves logs in `/tmp`, which dies with the container. Either
+way they are not durable — copy every log the run produced. If a run was restarted, copy each segment; they are the only record of
 retries, rate limits and partial failures.
 
 ## 4. Copy eval detail

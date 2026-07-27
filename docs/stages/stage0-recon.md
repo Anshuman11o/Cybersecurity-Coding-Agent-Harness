@@ -20,7 +20,7 @@ defaulting to `target-apps/juice-shop-blind`. Nothing else — no answer key, no
 category hints.
 
 ## Output
-`output/architecture-summary.json`
+`runs/<provider>/stage0-recon/architecture-summary.json`
 - `route_table` — hand-written routes, middleware routes, auto-CRUD resources
   (with per-model exclude lists, the mass-assignment signal)
 - `persistence_layer` — ORM, database, models, raw-query files
@@ -31,7 +31,7 @@ category hints.
   and `smart_contract_surface_detected`
 - `framework_detection`
 
-`output/category-applicability.json` — one row per OWASP / API Security / LLM
+`runs/<provider>/stage0-recon/category-applicability.json` — one row per OWASP / API Security / LLM
 Top 10 category: `verdict` (present/absent/uncertain), `evidence`, `confidence`.
 
 ## What is code and what is an LLM call

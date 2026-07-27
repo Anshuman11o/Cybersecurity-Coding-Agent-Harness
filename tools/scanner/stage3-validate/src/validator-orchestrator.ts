@@ -22,10 +22,17 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient } from './llm-client.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { runPath, type Provider } from '../../shared/run-paths.js'
+import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
+import { writeMeta, readUpstreamArtifact, assertUpstream, failIfDegraded } from '../../shared/meta.js'
 import { BudgetTracker } from '../../stage1-budget-governor/src/budget-governor.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '../../../..')
+const PROVIDER: Provider = resolveProvider('stage3')
+const MODEL = modelFor(PROVIDER)
+const STARTED = new Date().toISOString()
 const LINE_SLACK = 15  // same constant as tools/scan-benchmark/score.py
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -199,12 +206,8 @@ function readCitedFiles(trace: TraceStep[]): Record<string, string> {
     const norm = normalizePath(step.file)
     if (seen.has(norm)) continue
     seen.add(norm)
-    const fullPath = join(REPO_ROOT, norm)
-    if (existsSync(fullPath)) {
-      result[norm] = readFileSync(fullPath, 'utf-8')
-    } else {
-      console.warn(`  [WARN] cited file not found: ${fullPath}`)
-    }
+    const content = readCorpusFile(norm)
+    if (content !== null) result[norm] = content
   }
   return result
 }
@@ -246,8 +249,8 @@ async function callWithSchema(
     const response = await client.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: maxTokens,
+      ...samplingParams(PROVIDER),
+      ...tokenLimitParam(PROVIDER, maxTokens),
       response_format: {
         type: 'json_schema',
         json_schema: {
@@ -267,8 +270,8 @@ async function callWithSchema(
         const response = await client.chat.completions.create({
           model,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1,
-          max_tokens: maxTokens,
+          ...samplingParams(PROVIDER),
+          ...tokenLimitParam(PROVIDER, maxTokens),
           response_format: { type: 'json_object' },
         })
         const text = response.choices[0]?.message?.content
@@ -352,7 +355,7 @@ async function validateCandidate(
   // First attempt
   const prompt1 = buildValidatorPrompt(candidate, citedFiles, false)
   const t0 = Date.now()
-  const result1 = await callWithSchema(client, 'qwen-plus', prompt1, VALIDATOR_SCHEMA, 4000)
+  const result1 = await callWithSchema(client, MODEL, prompt1, VALIDATOR_SCHEMA, 4000)
   const elapsed1 = (Date.now() - t0) / 1000
 
   if (!result1) {
@@ -410,7 +413,7 @@ async function validateCandidate(
   console.log(`  [RETRY] ${candidate.consolidated_id} was UNCERTAIN, retrying with forced binary`)
   const prompt2 = buildValidatorPrompt(candidate, citedFiles, true)
   const t1 = Date.now()
-  const result2 = await callWithSchema(client, 'qwen-plus', prompt2, FORCE_SCHEMA, 4000)
+  const result2 = await callWithSchema(client, MODEL, prompt2, FORCE_SCHEMA, 4000)
   const elapsed2 = (Date.now() - t1) / 1000
 
   if (!result2) {
@@ -525,10 +528,10 @@ async function main() {
 
   // Load inputs
   const candidateFindings: CandidateFinding[] = JSON.parse(
-    readFileSync(join(REPO_ROOT, 'tools/scanner/stage2-hunt-lanes/output/candidate-findings.json'), 'utf-8')
+    readUpstreamArtifact(PROVIDER, 'stage2-hunt-lanes', 'candidate-findings.json')
   )
   const budgetPlan = JSON.parse(
-    readFileSync(join(REPO_ROOT, 'tools/scanner/stage1-budget-governor/output/budget-plan.json'), 'utf-8')
+    readUpstreamArtifact(PROVIDER, 'stage1-budget-governor', 'budget-plan.json')
   )
 
   console.log(`Loaded ${candidateFindings.length} candidate findings from Stage 2`)
@@ -562,7 +565,10 @@ async function main() {
 
   // ── Task C: Budget setup ────────────────────────────────────────────────
   const { tracker: budgetTracker } = buildValidationBudgetTracker(consolidated, budgetPlan)
-  const client = createClient()
+  console.log(`[PROVIDER] ${PROVIDER} / ${MODEL}`)
+  assertUpstream(PROVIDER, 'stage2-hunt-lanes')
+  assertUpstream(PROVIDER, 'stage1-budget-governor')
+  const client = createClient(PROVIDER)
 
   // ── Task B: Validate ────────────────────────────────────────────────────
   console.log('\n--- Task B: Blind Validation ---')
@@ -653,7 +659,7 @@ async function main() {
   }
 
   // ── Write outputs ───────────────────────────────────────────────────────
-  const outDir = join(__dirname, '..', 'output')
+  const outDir = runPath(PROVIDER, 'stage3-validate')
   mkdirSync(outDir, { recursive: true })
 
   const validatedOutput = verdicts.map(v => ({
@@ -687,6 +693,8 @@ async function main() {
 
   writeFileSync(join(outDir, 'budget-consumption.json'), JSON.stringify(accurateBudgetConsumption, null, 2) + '\n')
   console.log(`Budget consumption written to ${join(outDir, 'budget-consumption.json')}`)
+  writeMeta(PROVIDER, 'stage3-validate', MODEL, STARTED, 0, guardStats().blocked)
+  failIfDegraded('stage3', 'stage3-validate')
 
   // Detailed per-candidate verdict table
   console.log('\n--- Per-Candidate Verdict Table ---')
