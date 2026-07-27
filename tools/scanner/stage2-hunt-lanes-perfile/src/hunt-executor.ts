@@ -36,6 +36,14 @@ import type {
   CandidateFinding,
   LaneHuntResponse,
   BudgetConsumption,
+  BudgetConsumptionV2,
+  PromptBreakdown,
+  PromptSegment,
+  MeasuredTokens,
+  DerivedSegmentAttribution,
+  ChunkTokenRecord,
+  LaneTokenRecordV2,
+  RunLevelRollupV2,
   VulnClassRegistry,
   FindingClassRef,
 } from './types.js'
@@ -289,7 +297,12 @@ async function validateAllPlaybooks(): Promise<void> {
 
 // ── Prompt assembly ───────────────────────────────────────────────────────
 
-function buildHuntPrompt(
+interface HuntPromptResult {
+  prompt: string;
+  breakdown: PromptBreakdown;
+}
+
+export function buildHuntPrompt(
   targetFile: string,
   lineNumberedContent: string,
   classes: string[],
@@ -297,21 +310,24 @@ function buildHuntPrompt(
   chunkInfo: { chunkIndex: number; totalChunks: number },
   archSummarySnippet?: string,
   routeContextSection?: string,
-): string {
+): HuntPromptResult {
+  const segments: PromptSegment[] = []
+  const parts: string[] = []
   const classList = classes.join(', ')
 
-  let prompt = `You are a security analyst hunting for vulnerabilities in a single source file.
+  // Segment 1: boilerplate (headings, assigned-classes list, output-format)
+  let boilerplate = `You are a security analyst hunting for vulnerabilities in a single source file.
 
 ## Target File
 File: ${targetFile}
 `
 
   if (chunkInfo.totalChunks > 1) {
-    prompt += `Chunk ${chunkInfo.chunkIndex} of ${chunkInfo.totalChunks}. Analyze ALL lines shown below — do not skip any.
+    boilerplate += `Chunk ${chunkInfo.chunkIndex} of ${chunkInfo.totalChunks}. Analyze ALL lines shown below — do not skip any.
 `
   }
 
-  prompt += `
+  boilerplate += `
 ## Assigned Classes
 You are hunting ONLY for these vulnerability classes in this file: ${classList}.
 Do NOT look for vulnerability classes outside this list.
@@ -319,26 +335,38 @@ Do NOT look for vulnerability classes outside this list.
 ## Playbook Guidance — How to detect each assigned class
 Below is the technical guidance for the vulnerability classes you are hunting. This guidance explains what these vulnerability classes look like in general — what shapes of code create them, what to trace, what distinguishes a real instance from a false positive. It does NOT describe this particular codebase.
 `
+  segments.push({ segment_type: 'boilerplate', chars: boilerplate.length })
+  parts.push(boilerplate)
 
+  // Segments 2+: playbook:<class-id> — one per class
   for (const [modName, playbookText] of playbooks) {
-    prompt += `\n### Playbook: ${modName}\n${playbookText}`
+    const playbookBlock = `\n### Playbook: ${modName}\n${playbookText}`
+    segments.push({ segment_type: `playbook:${modName}`, chars: playbookBlock.length })
+    parts.push(playbookBlock)
   }
 
+  // Arch context segment (when present)
   if (archSummarySnippet) {
-    prompt += `
+    const archBlock = `
 ## Architecture Context
 The following is a summary of the target application's architecture. Use it to understand the application's structure, routing, and data flow — not to limit your search.
 ${archSummarySnippet}
 `
+    segments.push({ segment_type: 'arch_context', chars: archBlock.length })
+    parts.push(archBlock)
   }
 
+  // Route context segment (when present)
   if (routeContextSection) {
-    prompt += `
+    const routeBlock = `
 ${routeContextSection}
 `
+    segments.push({ segment_type: 'route_context', chars: routeBlock.length })
+    parts.push(routeBlock)
   }
 
-  prompt += `
+  // File content segment
+  const fileContentBlock = `
 ## Target File Content
 Every line is prefixed with its REAL 1-indexed line number from the original source file. When citing a location in your trace, use these line numbers EXACTLY.
 
@@ -364,15 +392,27 @@ Each finding must have:
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
 - "severity_estimate": "low" | "medium" | "high" | "critical"
 - "confidence": number 0-1`
+  segments.push({ segment_type: 'file_content', chars: fileContentBlock.length })
+  parts.push(fileContentBlock)
 
-  return prompt
+  const prompt = parts.join('')
+
+  // Reconciliation assertion: segment chars MUST sum to prompt length
+  const charsSum = segments.reduce((s, seg) => s + seg.chars, 0)
+  if (charsSum !== prompt.length) {
+    throw new Error(
+      `Prompt breakdown does not reconcile: segments sum to ${charsSum} but prompt length is ${prompt.length}`
+    )
+  }
+
+  return { prompt, breakdown: { segments, total_chars: prompt.length } }
 }
 
 // ── LLM call with token tracking and retry ────────────────────────────────
 
 interface LlmCallResult {
   text: string
-  tokensUsed: number
+  measured: MeasuredTokens
 }
 
 /**
@@ -419,7 +459,7 @@ async function callLlm(
       })
       const text = response.choices[0]?.message?.content
       if (!text) return null
-      return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
+      return { text, measured: captureMeasuredTokens(response.usage) }
     } catch (err: any) {
       const isSchema = err.message?.includes('json_schema') || err.message?.includes('strict') || err.message?.includes('response_format')
       if (isSchema) {
@@ -433,7 +473,7 @@ async function callLlm(
           })
           const text = response.choices[0]?.message?.content
           if (!text) return null
-          return { text, tokensUsed: response.usage?.total_tokens ?? 0 }
+          return { text, measured: captureMeasuredTokens(response.usage) }
         } catch (err2: any) {
           console.error(`  [${laneId}] [ERROR] json_schema + fallback both failed: ${err2.message}`)
           return null
@@ -451,6 +491,18 @@ async function callLlm(
     }
   }
   return null
+}
+
+/**
+ * Extract measured token counts from the API usage object.
+ * Missing fields are recorded as null — never substituted.
+ */
+function captureMeasuredTokens(usage: OpenAI.Completions.CompletionUsage | undefined): MeasuredTokens {
+  return {
+    prompt_tokens: usage?.prompt_tokens ?? null,
+    completion_tokens: usage?.completion_tokens ?? null,
+    total_tokens: usage?.total_tokens ?? null,
+  }
 }
 
 // ── Hunt a single lane (one file, possibly multiple chunks) ───────────────
@@ -483,11 +535,15 @@ async function huntLane(
   playbooks: Map<string, string>,
   archSummarySnippet?: string,
   archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[] } },
-): Promise<{ findings: CandidateFinding[]; tokensUsed: number }> {
+): Promise<{
+  findings: CandidateFinding[];
+  tokensUsed: number;
+  chunkRecords: ChunkTokenRecord[];
+}> {
   const targetPath = join(targetDir, lane.target_file)
   if (!existsSync(targetPath)) {
     console.error(`  [${lane.lane_id}] [ERROR] Target file not found: ${targetPath}`)
-    return { findings: [], tokensUsed: 0 }
+    return { findings: [], tokensUsed: 0, chunkRecords: [] }
   }
 
   const rawContent = readFileSync(targetPath, 'utf-8')
@@ -501,11 +557,12 @@ async function huntLane(
 
   const allFindings: CandidateFinding[] = []
   let totalTokens = 0
+  const chunkRecords: ChunkTokenRecord[] = []
 
   const chunks = lane.chunk_plan.chunks
   if (chunks.length === 0 && lane.disposition === 'hunt') {
     console.warn(`  [${lane.lane_id}] [WARN] No chunks but disposition is "hunt"`)
-    return { findings: [], tokensUsed: 0 }
+    return { findings: [], tokensUsed: 0, chunkRecords: [] }
   }
 
   const schema = buildHuntSchema(classIds)
@@ -517,7 +574,7 @@ async function huntLane(
 
     const lineNumbered = lineNumberContent(chunkContent, chunk.start_line)
 
-    const prompt = buildHuntPrompt(
+    const huntResult = buildHuntPrompt(
       lane.target_file,
       lineNumbered,
       classIds,
@@ -528,16 +585,39 @@ async function huntLane(
     )
 
     const t0 = Date.now()
-    const result = await callLlm(client, prompt, schema, lane.lane_id)
+    const result = await callLlm(client, huntResult.prompt, schema, lane.lane_id)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
       console.error(`  [${lane.lane_id}] [ERROR] chunk ${chunk.index} LLM call failed`)
+      // Still record the chunk with null measurements
+      chunkRecords.push({
+        chunk_index: chunk.index,
+        start_line: chunk.start_line,
+        end_line: chunk.end_line,
+        prompt_breakdown: huntResult.breakdown,
+        segment_attribution: deriveSegmentAttribution(huntResult.breakdown, { prompt_tokens: null, completion_tokens: null, total_tokens: null }),
+        measured: { prompt_tokens: null, completion_tokens: null, total_tokens: null },
+      })
       continue
     }
 
-    totalTokens += result.tokensUsed
-    console.log(`  [${lane.lane_id}] chunk ${chunk.index}: ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s`)
+    totalTokens += result.measured.total_tokens ?? 0
+    const totalLabel = result.measured.total_tokens != null
+      ? result.measured.total_tokens.toLocaleString()
+      : 'null'
+    console.log(`  [${lane.lane_id}] chunk ${chunk.index}: ${totalLabel} tokens, ${elapsed.toFixed(1)}s`)
+
+    // Derive per-segment attribution for this chunk
+    const segmentAttribution = deriveSegmentAttribution(huntResult.breakdown, result.measured)
+    chunkRecords.push({
+      chunk_index: chunk.index,
+      start_line: chunk.start_line,
+      end_line: chunk.end_line,
+      prompt_breakdown: huntResult.breakdown,
+      segment_attribution: segmentAttribution,
+      measured: result.measured,
+    })
 
     let parsed: LaneHuntResponse
     try {
@@ -618,7 +698,64 @@ async function huntLane(
     }
   }
 
-  return { findings: allFindings, tokensUsed: totalTokens }
+  return { findings: allFindings, tokensUsed: totalTokens, chunkRecords }
+}
+
+/**
+ * Derive per-segment token attribution by distributing prompt_tokens
+ * across segments in proportion to their character share.
+ * Returns null for each segment when prompt_tokens was not measured.
+ */
+function deriveSegmentAttribution(
+  breakdown: PromptBreakdown,
+  measured: MeasuredTokens,
+): DerivedSegmentAttribution[] {
+  const { segments } = breakdown
+  const promptTokens = measured.prompt_tokens
+
+  if (promptTokens == null || promptTokens === 0) {
+    return segments.map(seg => ({
+      segment_type: seg.segment_type,
+      chars: seg.chars,
+      derived_prompt_tokens: null,
+    }))
+  }
+
+  const totalChars = segments.reduce((s, seg) => s + seg.chars, 0)
+  if (totalChars === 0) {
+    return segments.map(seg => ({
+      segment_type: seg.segment_type,
+      chars: seg.chars,
+      derived_prompt_tokens: null,
+    }))
+  }
+
+  // Distribute proportionally by character share
+  let distributed = 0
+  const attributions: DerivedSegmentAttribution[] = []
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    const share = seg.chars / totalChars
+    // For the last segment, use remainder to avoid rounding drift
+    if (i === segments.length - 1) {
+      const remainder = promptTokens - distributed
+      attributions.push({
+        segment_type: seg.segment_type,
+        chars: seg.chars,
+        derived_prompt_tokens: Math.round(remainder),
+      })
+    } else {
+      const tokens = Math.round(promptTokens * share)
+      distributed += tokens
+      attributions.push({
+        segment_type: seg.segment_type,
+        chars: seg.chars,
+        derived_prompt_tokens: tokens,
+      })
+    }
+  }
+
+  return attributions
 }
 
 // ── Exported-symbol extraction (regex-based, no parser dep) ─────────────
@@ -962,6 +1099,158 @@ function loadCheckpoint(outDir: string): {
   }
 }
 
+// ── v2 budget consumption writer ─────────────────────────────────────────
+
+/**
+ * Build the run-level rollup from per-lane v2 records.
+ */
+function buildRunLevelRollup(
+  lanes: LaneTokenRecordV2[],
+  totalSourceBytes: number,
+): RunLevelRollupV2 {
+  // Aggregate totals across all lanes
+  let sumPrompt = 0
+  let sumCompletion = 0
+  let sumTotal = 0
+  let allMeasured = true
+
+  const segmentKindTokens: Record<string, number> = {}
+  const playbookClassTokens: Record<string, number> = {}
+
+  for (const lane of lanes) {
+    const lt = lane.lane_totals
+    if (lt.prompt_tokens != null) sumPrompt += lt.prompt_tokens
+    else allMeasured = false
+    if (lt.completion_tokens != null) sumCompletion += lt.completion_tokens
+    if (lt.total_tokens != null) sumTotal += lt.total_tokens
+
+    for (const chunk of lane.chunks) {
+      for (const attr of chunk.segment_attribution) {
+        if (attr.derived_prompt_tokens != null) {
+          segmentKindTokens[attr.segment_type] = (segmentKindTokens[attr.segment_type] || 0) + attr.derived_prompt_tokens
+          // Extract playbook class from "playbook:<class-id>" segment type
+          if (attr.segment_type.startsWith('playbook:')) {
+            const classId = attr.segment_type.slice('playbook:'.length)
+            playbookClassTokens[classId] = (playbookClassTokens[classId] || 0) + attr.derived_prompt_tokens
+          }
+        }
+      }
+    }
+  }
+
+  const totalInput = allMeasured ? sumPrompt : null
+
+  // Input by segment kind
+  const inputBySegmentKind: Record<string, { tokens: number | null; share_of_input: number | null }> = {}
+  for (const [kind, tokens] of Object.entries(segmentKindTokens)) {
+    inputBySegmentKind[kind] = {
+      tokens,
+      share_of_input: totalInput && totalInput > 0 ? tokens / totalInput : null,
+    }
+  }
+
+  // Input by playbook class, ranked
+  const inputByPlaybookClass = Object.entries(playbookClassTokens)
+    .sort((a, b) => b[1] - a[1])
+    .map(([classId, tokens]) => ({
+      class_id: classId,
+      tokens,
+      share_of_input: totalInput && totalInput > 0 ? tokens / totalInput : null,
+    }))
+
+  // Top 20 expensive lanes by total input tokens
+  const sortedLanes = [...lanes]
+    .filter(l => l.lane_totals.prompt_tokens != null)
+    .sort((a, b) => (b.lane_totals.prompt_tokens ?? 0) - (a.lane_totals.prompt_tokens ?? 0))
+    .slice(0, 20)
+
+  const top20 = sortedLanes.map(l => {
+    const segBreakdown: Record<string, number | null> = {}
+    for (const chunk of l.chunks) {
+      for (const attr of chunk.segment_attribution) {
+        segBreakdown[attr.segment_type] = (segBreakdown[attr.segment_type] ?? 0) + (attr.derived_prompt_tokens ?? 0)
+      }
+    }
+    return {
+      lane_id: l.lane_id,
+      target_file: l.target_file,
+      file_bytes: l.file_bytes,
+      chunk_count: l.chunk_count,
+      total_input_tokens: l.lane_totals.prompt_tokens,
+      total_output_tokens: l.lane_totals.completion_tokens,
+      total_tokens: l.lane_totals.total_tokens,
+      segment_breakdown: segBreakdown,
+    }
+  })
+
+  // Lane chunk distribution
+  const chunkDistribution: Record<string, number> = {}
+  for (const lane of lanes) {
+    const key = String(lane.chunk_count)
+    chunkDistribution[key] = (chunkDistribution[key] || 0) + 1
+  }
+
+  // Repeated boilerplate cost: for lanes with >1 chunk, boilerplate is sent multiple times
+  let totalExtraPromptTokens = 0
+  let measuredBoilerplate = true
+  for (const lane of lanes) {
+    if (lane.chunk_count <= 1) continue
+    const extraChunks = lane.chunk_count - 1
+    let boilerplateTokens = 0
+    for (const chunk of lane.chunks) {
+      for (const attr of chunk.segment_attribution) {
+        if (attr.segment_type === 'boilerplate' && attr.derived_prompt_tokens != null) {
+          boilerplateTokens = attr.derived_prompt_tokens
+          break
+        }
+      }
+      if (boilerplateTokens > 0) break
+    }
+    if (boilerplateTokens > 0) {
+      totalExtraPromptTokens += boilerplateTokens * extraChunks
+    } else {
+      measuredBoilerplate = false
+    }
+  }
+
+  // Currency cost (only if env vars set)
+  const costInfo: { input_cost: number | null; output_cost: number | null; total_cost: number | null; currency: string } = {
+    input_cost: null,
+    output_cost: null,
+    total_cost: null,
+    currency: '',
+  }
+  const inputPrice = process.env.TOKEN_PRICE_INPUT_PER_MILLION
+  const outputPrice = process.env.TOKEN_PRICE_OUTPUT_PER_MILLION
+  if (inputPrice && outputPrice) {
+    const inputRate = parseFloat(inputPrice)
+    const outputRate = parseFloat(outputPrice)
+    if (Number.isFinite(inputRate) && Number.isFinite(outputRate) && allMeasured) {
+      costInfo.input_cost = (sumPrompt / 1_000_000) * inputRate
+      costInfo.output_cost = (sumCompletion / 1_000_000) * outputRate
+      costInfo.total_cost = costInfo.input_cost + costInfo.output_cost
+      costInfo.currency = 'USD'
+    }
+  }
+
+  return {
+    total_input_tokens: totalInput,
+    total_output_tokens: allMeasured ? sumCompletion : null,
+    total_tokens: allMeasured ? sumTotal : null,
+    input_by_segment_kind: inputBySegmentKind,
+    input_by_playbook_class: inputByPlaybookClass,
+    top_20_expensive_lanes: top20,
+    tokens_per_byte: totalSourceBytes > 0 && totalInput != null ? totalInput / totalSourceBytes : null,
+    lane_chunk_distribution: chunkDistribution,
+    repeated_boilerplate_cost: {
+      total_extra_prompt_tokens: measuredBoilerplate ? totalExtraPromptTokens : null,
+      description: measuredBoilerplate
+        ? `Total extra prompt tokens from re-sending boilerplate across multi-chunk lanes (${totalExtraPromptTokens.toLocaleString()})`
+        : 'Could not compute: boilerplate tokens not measured in some lanes',
+    },
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1048,6 +1337,7 @@ async function main() {
   // ── Checkpoint resume ───────────────────────────────────────────────────
   let allFindings: CandidateFinding[] = []
   const consumptionReport: BudgetConsumption[] = []
+  const laneRecordsV2: LaneTokenRecordV2[] = []
 
   const checkpoint = loadCheckpoint(outDir)
   if (checkpoint) {
@@ -1113,6 +1403,29 @@ async function main() {
           ceiling_hit: false,
         })
 
+        // Build per-lane v2 record
+        const laneTotalsPrompt = result.chunkRecords.reduce(
+          (s, c) => s + (c.measured.prompt_tokens ?? 0), 0)
+        const laneTotalsCompletion = result.chunkRecords.reduce(
+          (s, c) => s + (c.measured.completion_tokens ?? 0), 0)
+        const laneTotalsTotal = result.chunkRecords.reduce(
+          (s, c) => s + (c.measured.total_tokens ?? 0), 0)
+        const hasAllMeasured = result.chunkRecords.length > 0 &&
+          result.chunkRecords.every(c => c.measured.prompt_tokens != null && c.measured.completion_tokens != null && c.measured.total_tokens != null)
+
+        laneRecordsV2.push({
+          lane_id: lane.lane_id,
+          target_file: lane.target_file,
+          file_bytes: lane.file_bytes,
+          chunk_count: result.chunkRecords.length,
+          chunks: result.chunkRecords,
+          lane_totals: {
+            prompt_tokens: hasAllMeasured ? laneTotalsPrompt : null,
+            completion_tokens: hasAllMeasured ? laneTotalsCompletion : null,
+            total_tokens: hasAllMeasured ? laneTotalsTotal : null,
+          },
+        })
+
         console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
         // ── Checkpoint: write results immediately after each lane ─────────
@@ -1145,8 +1458,25 @@ async function main() {
     })
   }
 
-  // Final write (includes skip lanes in consumption)
+  // Final legacy write (includes skip lanes in consumption)
   writeCheckpoint(outDir, allFindings, consumptionReport)
+
+  // ── v2 budget consumption output ────────────────────────────────────────
+  const totalSourceBytes = laneRecordsV2.reduce((s, l) => s + l.file_bytes, 0)
+  const rollup = buildRunLevelRollup(laneRecordsV2, totalSourceBytes)
+
+  const v2Output: BudgetConsumptionV2 = {
+    generated_at: new Date().toISOString(),
+    model: process.env.DASHSCOPE_API_KEY ? 'qwen-plus' : null,
+    lanes: laneRecordsV2,
+    rollup,
+    legacy_entries: consumptionReport,
+  }
+
+  const v2Path = join(outDir, 'budget-consumption.json')
+  const v2Tmp = v2Path + '.tmp'
+  writeFileSync(v2Tmp, JSON.stringify(v2Output, null, 2) + '\n')
+  renameSync(v2Tmp, v2Path)
 
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Total candidate findings: ${allFindings.length}`)
