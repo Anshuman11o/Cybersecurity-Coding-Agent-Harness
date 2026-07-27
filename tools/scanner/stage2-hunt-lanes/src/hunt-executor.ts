@@ -20,7 +20,7 @@ import { createClient } from './llm-client.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
-import { writeMeta, readUpstreamArtifact, assertUpstream } from '../../shared/meta.js'
+import { writeMeta, readUpstreamArtifact, assertUpstream, failIfDegraded } from '../../shared/meta.js'
 import { BudgetTracker } from '../../stage1-budget-governor/src/budget-governor.js'
 import type {
   LaneManifestEntry,
@@ -807,6 +807,7 @@ async function main() {
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)
   writeMeta(PROVIDER, 'stage2-hunt-lanes', MODEL, STARTED, 0, guardStats().blocked)
+  failIfDegraded('stage2', 'stage2-hunt-lanes')
 }
 
 function trackerGetLaneTotals(

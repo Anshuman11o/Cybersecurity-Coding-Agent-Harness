@@ -9,29 +9,26 @@
  *   openai -> OPENAI_API_KEY, api.openai.com (no baseURL override)
  */
 import OpenAI from 'openai'
-import { HttpsProxyAgent } from 'https-proxy-agent'
 import { resolveProvider, type Provider } from '../../shared/provider.js'
 
 export function createClient(provider: Provider): OpenAI {
-  // NOTE: openai SDK v5+ routes through fetch/undici, which IGNORES httpAgent.
-  // Proxying is actually handled by NODE_USE_ENV_PROXY=1 (exported by run.sh),
-  // which makes Node honour HTTPS_PROXY. httpAgent is retained only so this
-  // still works if the SDK is ever pinned back to v4.
-  const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
-  const httpAgent = new HttpsProxyAgent(proxyUrl)
+  // Proxying is handled by NODE_USE_ENV_PROXY=1 (exported by run.sh), which
+  // makes Node honour HTTPS_PROXY natively. openai SDK v6 routes through
+  // fetch/undici and has no httpAgent option at all -- passing one was inert
+  // and does not even typecheck.
 
   if (provider === 'openai') {
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) throw new Error('OPENAI_API_KEY is not set')
     // No baseURL — defaults to https://api.openai.com/v1
-    return new OpenAI({ apiKey, httpAgent })
+    return new OpenAI({ apiKey })
   }
 
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) throw new Error('DASHSCOPE_API_KEY is not set')
   const baseURL = process.env.DASHSCOPE_BASE_URL
     ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  return new OpenAI({ apiKey, baseURL, httpAgent })
+  return new OpenAI({ apiKey, baseURL })
 }
 
 export { resolveProvider }

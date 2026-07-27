@@ -13,12 +13,12 @@
  */
 import { fileURLToPath } from 'node:url'
 import OpenAI from 'openai'
-import { HttpsProxyAgent } from 'https-proxy-agent'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
-import { writeMeta } from '../../shared/meta.js'
+import { writeMeta, failIfDegraded } from '../../shared/meta.js'
+import { markDegraded } from '../../shared/degraded.js'
 import { SEED_DENYLIST } from '../../shared/read-guard.js'
 
 const PROVIDER: Provider = resolveProvider('stage05')
@@ -118,17 +118,15 @@ function createClient(): OpenAI | null {
   if (PROVIDER === 'openai') {
     const key = process.env.OPENAI_API_KEY
     if (!key) return null
-    const proxy = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
-    return new OpenAI({ apiKey: key, httpAgent: new HttpsProxyAgent(proxy) })
+    // Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
+    return new OpenAI({ apiKey: key })
   }
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) return null
   const baseURL =
     process.env.DASHSCOPE_BASE_URL ??
     'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
-  const httpAgent = new HttpsProxyAgent(proxyUrl)
-  return new OpenAI({ apiKey, baseURL, httpAgent })
+  return new OpenAI({ apiKey, baseURL })
 }
 
 // ---------------------------------------------------------------------------
@@ -738,7 +736,7 @@ async function runOrchestratorReview(
 ): Promise<OrchestratorReview> {
   const client = createClient()
   if (!client) {
-    console.log('[TASK C] No DASHSCOPE_API_KEY — skipping LLM verification')
+    markDegraded('orchestrator review: no API key for provider — skipped LLM verification')
     return { disputed_verdicts: [], uncertain_routing: [] }
   }
 
@@ -769,7 +767,7 @@ async function runOrchestratorReview(
     const jsonStr = extractJson(text)
     return JSON.parse(jsonStr) as OrchestratorReview
   } catch (err: any) {
-    console.error('[TASK C] Orchestrator review failed:', err.message)
+    markDegraded(`orchestrator review: LLM call failed (${err.message}) — returned empty review`)
     return { disputed_verdicts: [], uncertain_routing: [] }
   }
 }
@@ -988,6 +986,7 @@ async function main() {
 
   console.log('\n[Stage 0.5] Lane manifest written to ' + manifestPath)
   writeMeta(PROVIDER, 'stage05-lane-selector', MODEL, STARTED)
+  failIfDegraded('stage05', 'stage05-lane-selector')
   console.log('[Stage 0.5] Total lanes: ' + lanes.length)
 
   console.log('\n========== LANE SUMMARY ==========')

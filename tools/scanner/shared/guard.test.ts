@@ -50,6 +50,32 @@ try { resolveProvider('x'); process.env.SCANNER_PROVIDER='bogus'; resolveProvide
 catch { check('rejects unknown provider', true) }
 delete process.env.SCANNER_PROVIDER
 
+console.log('\n-- degraded tracking --')
+{
+  const { markDegraded, isDegraded, degradedReasons, resetDegraded } = await import('./degraded.js')
+  const { isProviderExplicit } = await import('./provider.js')
+  resetDegraded()
+  check('clean run is not degraded', !isDegraded())
+  markDegraded('unit-test reason')
+  check('markDegraded sets the flag', isDegraded())
+  check('reason is recorded', degradedReasons().includes('unit-test reason'))
+  // globalThis backing: survives a second import of the same module
+  const again = await import('./degraded.js')
+  check('state shared across module instances', again.isDegraded())
+  resetDegraded()
+  check('reset clears state', !isDegraded())
+
+  delete process.env.SCANNER_PROVIDER
+  delete process.env.SCANNER_PROVIDER_STAGE0
+  check('defaulted provider is not explicit', !isProviderExplicit('stage0'))
+  process.env.SCANNER_PROVIDER = 'openai'
+  check('SCANNER_PROVIDER makes it explicit', isProviderExplicit('stage0'))
+  delete process.env.SCANNER_PROVIDER
+  process.env.SCANNER_PROVIDER_STAGE0 = 'openai'
+  check('per-stage var makes it explicit', isProviderExplicit('stage0'))
+  delete process.env.SCANNER_PROVIDER_STAGE0
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

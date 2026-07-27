@@ -13,6 +13,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join } from 'path'
 import { runPath, REPO_ROOT, type Provider, type Stage } from './run-paths.js'
+import { isDegraded, degradedReasons } from './degraded.js'
+import { isProviderExplicit } from './provider.js'
 
 export interface RunMeta {
   provider: Provider
@@ -23,6 +25,9 @@ export interface RunMeta {
   ended: string
   exit_code: number
   blocked_reads?: number
+  /** True if any LLM call fell back to deterministic analysis. */
+  degraded: boolean
+  degraded_reasons?: string[]
 }
 
 function gitSha(): string {
@@ -56,6 +61,8 @@ export function writeMeta(
     ended: new Date().toISOString(),
     exit_code: exitCode,
     blocked_reads: blockedReads,
+    degraded: isDegraded(),
+    ...(isDegraded() ? { degraded_reasons: degradedReasons() } : {}),
   }
   writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
 }
@@ -105,4 +112,34 @@ export function assertUpstream(provider: Provider, stage: Stage): void {
         `code ${meta.exit_code}. Refusing to build on a failed run.`,
     )
   }
+}
+
+/**
+ * Exit non-zero if the run degraded AND the provider was chosen explicitly.
+ * Call at the very end of a stage, after writeMeta().
+ *
+ * Rationale: a degraded run under the default provider is the historical
+ * safety-net behaviour and stays non-fatal. A degraded run under an explicitly
+ * selected provider means the model someone is evaluating never actually ran —
+ * that must not be reportable as a success.
+ */
+export function failIfDegraded(stageKey: string, stage: Stage): void {
+  if (!isDegraded()) return
+  const reasons = degradedReasons()
+  console.error(
+    `\n[DEGRADED] ${stage} fell back to deterministic analysis ` +
+      `${reasons.length} time(s):`,
+  )
+  for (const r of reasons) console.error(`  - ${r}`)
+  if (isProviderExplicit(stageKey)) {
+    console.error(
+      `\nFAILING: provider was selected explicitly, so a deterministic ` +
+        `substitute would misrepresent it. See meta.json "degraded": true.`,
+    )
+    process.exit(1)
+  }
+  console.error(
+    `\n(not failing: provider was defaulted, so fallback is the intended ` +
+      `safety net. meta.json records "degraded": true.)`,
+  )
 }

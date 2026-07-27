@@ -188,6 +188,36 @@ The rewritten `meta.json` carries `seeded_from`, so the artifacts stay honestly
 labelled. **Results from a seeded run are not an end-to-end comparison** — say
 so when reporting them.
 
+### Degraded runs
+
+Stage 0 and Stage 0.5 catch LLM failures and fall back to deterministic
+analysis. That is a safety net, but it means a stage can exit 0 with
+normal-looking artifacts while the model never ran.
+
+Every fallback path now calls `markDegraded()` (`shared/degraded.ts`). The
+result lands in `meta.json`:
+
+```json
+{ "degraded": true,
+  "degraded_reasons": ["category probe: no API key for provider — used deterministic analysis"] }
+```
+
+`failIfDegraded()` then decides the exit code:
+
+| Provider chosen | Degraded | Exit |
+|---|---|---|
+| defaulted (no env var) | yes | **0** — fallback is the intended safety net |
+| explicit (`SCANNER_PROVIDER…`) | yes | **1** — the model being evaluated never ran |
+| either | no | 0 |
+
+Check before trusting any result: `jq '.degraded' runs/<provider>/<stage>/meta.json`
+
+> `shared/degraded.ts` keeps its state on `globalThis`, not in a module-level
+> variable. tsx can load one file into both the CJS and ESM graphs of a single
+> process, giving two module instances with separate state — which silently
+> broke the first implementation. `shared/package.json` (`"type": "module"`)
+> also forces consistent ESM resolution.
+
 ### Lock semantics
 
 The lock is a **directory** (`mkdir` is atomic on POSIX), so no `flock` is

@@ -15,7 +15,7 @@ import { scan as frontendGrep } from './frontend-grep.js'
 import { detectToolCalling, probeCategoryApplicability } from './llm-probe.js'
 import { runPath } from '../../shared/run-paths.js'
 import { resolveProvider, modelFor } from '../../shared/provider.js'
-import { writeMeta } from '../../shared/meta.js'
+import { writeMeta, failIfDegraded } from '../../shared/meta.js'
 
 // Resolve paths relative to the project root
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '../../../../')
@@ -114,6 +114,7 @@ async function main() {
 
   fs.writeFileSync(catApplicPath, JSON.stringify(categoryVerdicts, null, 2))
   writeMeta(__provider, 'stage0-recon', modelFor(__provider), __started)
+  failIfDegraded('stage0', 'stage0-recon')
   console.log(`Written: ${catApplicPath}`)
 
   console.log()

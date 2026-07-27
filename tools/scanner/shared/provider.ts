@@ -38,6 +38,19 @@ export function resolveProvider(stageKey: string): Provider {
   return raw as Provider
 }
 
+/**
+ * True when the provider was chosen explicitly via env, rather than defaulted
+ * to qwen. Used to decide whether a degraded run should be a hard failure:
+ * if someone deliberately selected a provider, silently substituting
+ * deterministic analysis would corrupt their results.
+ */
+export function isProviderExplicit(stageKey: string): boolean {
+  return Boolean(
+    process.env[`SCANNER_PROVIDER_${stageKey.toUpperCase()}`] ??
+      process.env.SCANNER_PROVIDER,
+  )
+}
+
 /** Model id for a provider. Overridable for pinning a specific snapshot. */
 export function modelFor(provider: Provider): string {
   return provider === 'openai'

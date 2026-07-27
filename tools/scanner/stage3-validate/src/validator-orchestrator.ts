@@ -25,7 +25,7 @@ import { createClient } from './llm-client.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
-import { writeMeta, readUpstreamArtifact, assertUpstream } from '../../shared/meta.js'
+import { writeMeta, readUpstreamArtifact, assertUpstream, failIfDegraded } from '../../shared/meta.js'
 import { BudgetTracker } from '../../stage1-budget-governor/src/budget-governor.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -694,6 +694,7 @@ async function main() {
   writeFileSync(join(outDir, 'budget-consumption.json'), JSON.stringify(accurateBudgetConsumption, null, 2) + '\n')
   console.log(`Budget consumption written to ${join(outDir, 'budget-consumption.json')}`)
   writeMeta(PROVIDER, 'stage3-validate', MODEL, STARTED, 0, guardStats().blocked)
+  failIfDegraded('stage3', 'stage3-validate')
 
   // Detailed per-candidate verdict table
   console.log('\n--- Per-Candidate Verdict Table ---')
