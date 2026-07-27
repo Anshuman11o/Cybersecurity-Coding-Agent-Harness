@@ -250,10 +250,20 @@ baseline predates the mechanism.
 - **The committed `runs/qwen/` baseline is stale.** Stage 0/1 artifacts were
   produced on 2026-07-24 (`9d5d631`); commit `9a98041` on 2026-07-25 stripped
   content from `target-apps/juice-shop-blind`, so re-running Stage 1 today
-  produces smaller seed-byte totals. The baseline is internally coherent
-  (Stage 2/3 were produced against the Stage 1 plan that is committed), so it
-  has been left as-is. Regenerate the whole pipeline under `qwen` before using
-  it as a comparison point.
+  produces smaller seed-byte totals.
+
+  **It is also internally incoherent.** The committed
+  `runs/qwen/stage3-validate/validated-findings.json` was produced from a
+  *different* `candidate-findings.json` than the one committed alongside it:
+  re-running stage 3 on the committed stage-2 output yields 37 consolidated
+  candidates, while the committed stage-3 output has 39, and 34 of the 37
+  shared `CONS-xxxx` ids refer to different findings. Consolidation is
+  deterministic (union-find, no model call), so identical input must yield
+  identical ids — the mismatch proves the two files came from different runs.
+
+  Consequence: **do not compare anything against the committed qwen stage-3
+  baseline.** `diff.sh` now detects this and aborts. Regenerate the whole
+  pipeline under `qwen` before using it as a comparison point.
 - **`api.openai.com` is not in the Claude Code web environment's egress
   allowlist.** The OpenAI path cannot be exercised from a web session until the
   host is added to the environment's network settings

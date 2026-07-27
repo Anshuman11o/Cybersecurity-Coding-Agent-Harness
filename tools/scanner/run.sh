@@ -14,6 +14,11 @@
 
 set -uo pipefail
 
+# openai SDK v5+ uses fetch/undici, which ignores the `httpAgent` option and
+# does not honour HTTPS_PROXY on its own. Without this, requests are
+# transparently intercepted and rejected with "Host not in allowlist".
+export NODE_USE_ENV_PROXY=1
+
 SCANNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_DIR="$SCANNER_DIR/.run.lock"
 LOCK_META="$LOCK_DIR/meta"

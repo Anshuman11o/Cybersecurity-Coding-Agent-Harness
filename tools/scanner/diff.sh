@@ -32,6 +32,26 @@ case "$STAGE" in
       [ -f "$f" ] || { echo "error: missing $f" >&2; exit 1; }
     done
 
+    # Consolidated IDs are positional, not stable across differing stage-2
+    # input. Comparing verdicts across runs whose IDs mean different things
+    # produces a plausible-looking but meaningless diff. Verify alignment.
+    aligned=$(join -t'|' \
+      <(jq -r '.[]|"\(.consolidated_id)|\(.title)"' "$fa" | sort) \
+      <(jq -r '.[]|"\(.consolidated_id)|\(.title)"' "$fb" | sort) \
+      | awk -F'|' '$2==$3' | wc -l | xargs)
+    common=$(join -t'|' \
+      <(jq -r '.[].consolidated_id' "$fa" | sort) \
+      <(jq -r '.[].consolidated_id' "$fb" | sort) | wc -l | xargs)
+    if [ "$common" -eq 0 ] || [ "$aligned" -lt $(( common * 9 / 10 )) ]; then
+      echo "ABORT: candidate IDs are not aligned between these two runs." >&2
+      echo "       $aligned of $common shared IDs refer to the same finding." >&2
+      echo "       The runs consumed different stage-2 input, so a verdict diff" >&2
+      echo "       would be meaningless. Re-run both providers against the same" >&2
+      echo "       candidate-findings.json (see seed-upstream.sh) first." >&2
+      exit 1
+    fi
+    echo "  (ID alignment verified: $aligned/$common shared candidates match)"
+    echo
     echo "--- verdict counts ---"
     printf '%-8s ' "$A"; jq -r '[.[].verdict]|group_by(.)|map("\(.[0])=\(length)")|join(" ")' "$fa"
     printf '%-8s ' "$B"; jq -r '[.[].verdict]|group_by(.)|map("\(.[0])=\(length)")|join(" ")' "$fb"

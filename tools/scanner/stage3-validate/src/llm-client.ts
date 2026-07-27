@@ -13,6 +13,10 @@ import { HttpsProxyAgent } from 'https-proxy-agent'
 import { resolveProvider, type Provider } from '../../shared/provider.js'
 
 export function createClient(provider: Provider): OpenAI {
+  // NOTE: openai SDK v5+ routes through fetch/undici, which IGNORES httpAgent.
+  // Proxying is actually handled by NODE_USE_ENV_PROXY=1 (exported by run.sh),
+  // which makes Node honour HTTPS_PROXY. httpAgent is retained only so this
+  // still works if the SDK is ever pinned back to v4.
   const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
   const httpAgent = new HttpsProxyAgent(proxyUrl)
 

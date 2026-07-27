@@ -1,0 +1,261 @@
+[
+  {
+    "consolidated_id": "CONS-0001",
+    "tokens_used": 1933,
+    "seconds_elapsed": 8.002,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0002",
+    "tokens_used": 1760,
+    "seconds_elapsed": 8.288,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0003",
+    "tokens_used": 1763,
+    "seconds_elapsed": 7.36,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0004",
+    "tokens_used": 1814,
+    "seconds_elapsed": 6.492,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0005",
+    "tokens_used": 2166,
+    "seconds_elapsed": 8.333,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0006",
+    "tokens_used": 4723,
+    "seconds_elapsed": 3.937,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0007",
+    "tokens_used": 3643,
+    "seconds_elapsed": 12.138,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0008",
+    "tokens_used": 4204,
+    "seconds_elapsed": 4.716,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0009",
+    "tokens_used": 4173,
+    "seconds_elapsed": 2.986,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0010",
+    "tokens_used": 4269,
+    "seconds_elapsed": 3.872,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0011",
+    "tokens_used": 4296,
+    "seconds_elapsed": 3.835,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0012",
+    "tokens_used": 4067,
+    "seconds_elapsed": 15.486,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0013",
+    "tokens_used": 2927,
+    "seconds_elapsed": 5.769,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0014",
+    "tokens_used": 3200,
+    "seconds_elapsed": 7.832,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0015",
+    "tokens_used": 3671,
+    "seconds_elapsed": 17.184,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0016",
+    "tokens_used": 1625,
+    "seconds_elapsed": 4.584,
+    "ceiling_hit": false,
+    "was_retry": true
+  },
+  {
+    "consolidated_id": "CONS-0017",
+    "tokens_used": 3216,
+    "seconds_elapsed": 7.995,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0018",
+    "tokens_used": 2460,
+    "seconds_elapsed": 7.692,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0019",
+    "tokens_used": 3409,
+    "seconds_elapsed": 7.457,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0020",
+    "tokens_used": 4886,
+    "seconds_elapsed": 8.193,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0021",
+    "tokens_used": 3982,
+    "seconds_elapsed": 3.733,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0022",
+    "tokens_used": 4640,
+    "seconds_elapsed": 5.631,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0023",
+    "tokens_used": 4723,
+    "seconds_elapsed": 6.793,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0024",
+    "tokens_used": 4939,
+    "seconds_elapsed": 4.468,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0025",
+    "tokens_used": 3369,
+    "seconds_elapsed": 6.246,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0026",
+    "tokens_used": 4984,
+    "seconds_elapsed": 5.119,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0027",
+    "tokens_used": 1735,
+    "seconds_elapsed": 4.767,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0028",
+    "tokens_used": 2879,
+    "seconds_elapsed": 9.17,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0029",
+    "tokens_used": 4815,
+    "seconds_elapsed": 7.156,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0030",
+    "tokens_used": 4674,
+    "seconds_elapsed": 5.293,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0031",
+    "tokens_used": 4771,
+    "seconds_elapsed": 5.531,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0032",
+    "tokens_used": 4500,
+    "seconds_elapsed": 4.723,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0033",
+    "tokens_used": 5984,
+    "seconds_elapsed": 11.554,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0034",
+    "tokens_used": 7811,
+    "seconds_elapsed": 7.252,
+    "ceiling_hit": false,
+    "was_retry": false
+  },
+  {
+    "consolidated_id": "CONS-0035",
+    "tokens_used": 5342,
+    "seconds_elapsed": 7.191,
+    "ceiling_hit": false,
+    "was_retry": true
+  },
+  {
+    "consolidated_id": "CONS-0036",
+    "tokens_used": 7368,
+    "seconds_elapsed": 7.503,
+    "ceiling_hit": false,
+    "was_retry": true
+  },
+  {
+    "consolidated_id": "CONS-0037",
+    "tokens_used": 1633,
+    "seconds_elapsed": 3.856,
+    "ceiling_hit": false,
+    "was_retry": false
+  }
+]
