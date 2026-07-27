@@ -11,6 +11,21 @@ that is not archived is unrecoverable. One run has already been lost this way
 
 Run every step. Skipping a step silently loses something.
 
+## 0. Before launching a run: clear the previous checkpoint
+
+Stage 2 resumes from whatever is in its `output/` directory. If the previous
+run's `candidate-findings.json` is still there, the new run **skips every lane
+it already has and returns the old findings**, reporting success. Nothing warns
+you: the log looks normal, the output is well-formed, and the results are stale.
+
+Archive the previous run first, confirm the archive is complete, then move the
+output directory aside before launching. Do not delete it until the archived
+copy has been verified — a resume that silently reuses old work and a delete
+that destroys it are the same mistake in opposite directions.
+
+This has been caught once, with 309 findings from a prior run sitting in place
+at launch time.
+
 ## 1. Gather run identity
 
     SHA=$(git rev-parse --short HEAD)
