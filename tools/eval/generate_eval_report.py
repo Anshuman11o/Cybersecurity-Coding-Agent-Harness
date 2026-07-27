@@ -7,7 +7,7 @@ To record a new run: append one JSON object per line to the relevant
 history file, then re-run this script. Nothing here is hand-edited.
 
 Usage:  python3 tools/eval/generate_eval_report.py
-Output: results/scanner-architecture-and-eval-report.pdf
+Output: results/reports/scanner-architecture-and-eval-report.pdf
 """
 import json
 import os
@@ -24,7 +24,7 @@ from reportlab.platypus import (
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HIST = os.path.join(REPO, "results", "eval-history")
-OUT = os.path.join(REPO, "results", "scanner-architecture-and-eval-report.pdf")
+OUT = os.path.join(REPO, "results", "reports", "scanner-architecture-and-eval-report.pdf")
 
 INK = colors.HexColor("#1a1a1a")
 MUTED = colors.HexColor("#5b5b5b")
