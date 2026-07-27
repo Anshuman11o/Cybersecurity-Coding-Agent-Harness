@@ -29,6 +29,10 @@ export interface LaneAssignmentEntry {
   skip_reason: string | null;   // non-null when disposition="skip"
   categories: CategoryRef[];
   category_basis: string | null;
+  // NEW (Stage 0.5 v3): signal-based narrowing
+  signals?: string[];           // per-file signals from Stage 0
+  classes?: string[];           // narrowed class ids (union of signal classes + floor)
+  class_basis?: Record<string, string[]>; // which signal contributed which classes
   file_bytes: number;
   file_lines: number;
   estimated_prompt_tokens: number;

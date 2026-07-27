@@ -1067,6 +1067,15 @@ async function main() {
 
   console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)
 
+  // ── Class resolution path banner ────────────────────────────────────────
+  let lanesWithClasses = 0
+  let lanesWithCategories = 0
+  for (const lane of huntLanes) {
+    if (lane.classes && lane.classes.length > 0) lanesWithClasses++
+    else lanesWithCategories++
+  }
+  console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
+
   // ── Bounded concurrency executor ────────────────────────────────────────
   const sem = new Semaphore(MAX_CONCURRENT_LANES)
   const lanePromises: Promise<void>[] = []
@@ -1075,8 +1084,15 @@ async function main() {
     const p = (async () => {
       await sem.acquire()
       try {
-        const assignedCodes = lane.categories.map(c => c.code)
-        const laneClasses = codesToClasses(assignedCodes)
+        // Class resolution: prefer lane.classes (signal-based) when present,
+        // otherwise fall back to collapsing lane.categories through the code→class index
+        let laneClasses: string[]
+        if (lane.classes && lane.classes.length > 0) {
+          laneClasses = lane.classes
+        } else {
+          const assignedCodes = lane.categories.map(c => c.code)
+          laneClasses = codesToClasses(assignedCodes)
+        }
         console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Classes: ${laneClasses.join(', ')}`)
         console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
         console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)

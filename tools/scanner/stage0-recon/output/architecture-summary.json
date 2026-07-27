@@ -2847,8 +2847,8 @@
       "getOrderById",
       "generateCoupon"
     ],
-    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize ORM and MongoDB), JWT decoding, user authentication checks, and coupon generation. The tools are passed to `streamText({ tools })`, and tool calls are explicitly handled in the SSE stream (case 'tool-call'), with metrics instrumentation confirming actual invocation. The system prompt mandates their use for specific user intents, and the execute logic contains no stubs or mocks — all operations interact with live models/collections.",
-    "confidence": 0.98
+    "evidence": "The file defines four tools using the `tool()` function from '@ai-sdk/openai-compatible', each with a Zod input schema and an `execute` async function that performs real side-effects: database queries (Sequelize + MongoDB), authentication checks, and business logic (e.g., coupon generation via `security.generateCoupon`). The tools are passed to `streamText({ tools })`, and tool calls are explicitly handled in the SSE stream (case 'tool-call'), with metrics instrumentation (`metricToolCalls.labels({ tool: event.toolName }).inc()`). The system prompt mandates their use for specific user intents, confirming intentional agentic tool-calling.",
+    "confidence": 1
   },
   "file_inventory": {
     "total_source_files": 918,
