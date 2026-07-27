@@ -19,6 +19,19 @@ Scope: Identify dependencies with known vulnerabilities via lockfile analysis an
 - Consider reachability: a vulnerable package that is imported but never called in a security-relevant path is lower priority, though still worth flagging for remediation.
 - Development-only dependencies (test frameworks, linters, build tools) are typically not exploitable in production unless they leak into the deployed artifact.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the dependency is current and the defect is in how this codebase calls it — use the
+  class matching that defect
+- the dependency is current and an option passed to it is unsafe — that is
+  misconfiguration
+- the concern is that the dependency was fetched or updated without verification — that
+  is integrity-failures
+
+Choose vulnerable-components when the defect is the version of third-party code present,
+and the remedy is to upgrade, replace, or remove that dependency rather than to change
+this codebase's own logic.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The vulnerable package name and exact version in use
