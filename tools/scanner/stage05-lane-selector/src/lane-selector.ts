@@ -80,6 +80,21 @@ interface EscapeHatchFinding {
   type: string
 }
 
+interface UnclassifiedSurfaceGroup {
+  language: string
+  count: number
+  files: string[]
+  total_bytes: number
+}
+
+interface FileInventory {
+  total_source_files: number
+  by_language: Record<string, { count: number; sample_paths: string[] }>
+  unclassified_surface: UnclassifiedSurfaceGroup[]
+  smart_contract_surface_detected: boolean
+  smart_contract_files: string[]
+}
+
 interface CategoryVerdict {
   name: string
   framework: string
@@ -722,6 +737,171 @@ function instantiateLanes(
     console.log(`[LANE] general-catchall: ${uncertainCategories.length} uncertain categories (${uncertainCategories.map((c) => c.name).join(', ')}), ${uncertainSeeds.length} seed files`)
   }
 
+  // --- Unclassified surface routing (from Stage 0 file inventory) ---
+  // Stage 0 walks the entire target and produces an unclassified_surface list
+  // of files that no framework-specific extraction touched. These are filtered
+  // to keep only executable code (no pure config/style/markup), then directory-
+  // grouped and bin-packed into right-sized sharded lanes so no single lane
+  // dwarfs the rest of the pipeline.
+  const fileInv = arch.file_inventory as FileInventory | undefined
+  if (fileInv && fileInv.unclassified_surface && fileInv.unclassified_surface.length > 0) {
+
+    // FILTER 1: Languages that are pure declarative config/style/markup with no
+    // independently-executable logic — there is no traceable entrypoint→sink
+    // vulnerability path in a raw config, stylesheet, or template file alone.
+    const NON_EXECUTABLE_LANGUAGES = new Set([
+      'json', 'yaml', 'html', 'css', 'toml', 'docker', 'shell',
+      'graphql', 'protobuf', 'sql',
+    ])
+
+    // FILTER 2: Solidity is handled by its own dedicated smart-contract lane below.
+    const EXCLUDED_LANGUAGES = new Set([...NON_EXECUTABLE_LANGUAGES, 'solidity'])
+
+    // Collect code files that survive the filter (typescript, javascript, python, etc.)
+    const codeFiles: string[] = []
+    let totalFilteredBytes = 0
+    let totalFilteredCount = 0
+    let totalExcludedFiles = 0
+
+    for (const group of fileInv.unclassified_surface) {
+      if (EXCLUDED_LANGUAGES.has(group.language)) {
+        totalExcludedFiles += group.count
+        continue
+      }
+      for (const f of group.files) {
+        // Convert target-relative to repo-relative path
+        const repoRel = f.startsWith('target-apps/')
+          ? f
+          : path.join(repoRoot, 'target-apps/juice-shop-blind', f).replace(repoRoot + '/', '')
+        codeFiles.push(repoRel)
+      }
+      totalFilteredCount += group.count
+      totalFilteredBytes += (group as any).total_bytes ?? 0
+    }
+
+    console.log(`[FILTER] Unclassified surface: ${totalFilteredCount + totalExcludedFiles} total files → ${totalExcludedFiles} filtered (non-executable) + ${totalFilteredCount} code files (${(totalFilteredBytes / 1024).toFixed(1)} KB)`)
+
+    // SHARD: directory-grouped first-fit-decreasing bin-packing
+    // Named constant: target max bytes per shard, calibrated to keep shards
+    // in the same order-of-magnitude as the largest legitimate hunting lane
+    // (client-side lane on this run: ~122 KB).
+    const SHARD_BYTE_BUDGET = 150_000  // ~150 KB per shard
+
+    // Group files by shared parent directory (relative to target root)
+    const dirGroups = new Map<string, { files: string[]; bytes: number }>()
+    for (const f of codeFiles) {
+      // Determine directory group: everything up to and including the first
+      // component under the target root. For 'frontend/src/app/foo.ts' →
+      // group is 'frontend/src/app'; for 'routes/foo.ts' → 'routes'.
+      // Use the full relative directory as the group key.
+      const dir = path.dirname(f)
+      if (!dirGroups.has(dir)) {
+        dirGroups.set(dir, { files: [], bytes: 0 })
+      }
+      const grp = dirGroups.get(dir)!
+      grp.files.push(f)
+      try {
+        const fullPath = path.isAbsolute(f) ? f : path.join(repoRoot, f)
+        grp.bytes += fs.statSync(fullPath).size
+      } catch { /* file unreadable, skip size */ }
+    }
+
+    // Sort directory groups by total bytes descending (first-fit-decreasing)
+    const sortedGroups = [...dirGroups.entries()].sort((a, b) => b[1].bytes - a[1].bytes)
+
+    // Bin-pack: first-fit into shards capped at SHARD_BYTE_BUDGET
+    interface Shard { files: string[]; bytes: number; dirs: Set<string> }
+    const shards: Shard[] = []
+
+    for (const [dir, grp] of sortedGroups) {
+      // If a single directory group exceeds the budget, split it into sub-shards
+      // by individual files — no directory-group should blow a shard budget.
+      // A single file that exceeds the budget on its own becomes its own shard
+      // (we cannot split a file).
+      if (grp.bytes > SHARD_BYTE_BUDGET && grp.files.length > 1) {
+        // Split this oversized directory group across multiple shards
+        let remainingFiles = [...grp.files]
+        while (remainingFiles.length > 0) {
+          // Create a new shard with as many files from this group as fit
+          const newShard: Shard = { files: [], bytes: 0, dirs: new Set() }
+          newShard.dirs.add(dir)
+          for (const rf of remainingFiles) {
+            let fsize = 0
+            try {
+              const fp = path.isAbsolute(rf) ? rf : path.join(repoRoot, rf)
+              fsize = fs.statSync(fp).size
+            } catch {}
+            if (newShard.bytes + fsize > SHARD_BYTE_BUDGET && newShard.files.length > 0) break
+            newShard.files.push(rf)
+            newShard.bytes += fsize
+          }
+          // Remove consumed files from remainingFiles
+          const consumed = new Set(newShard.files)
+          remainingFiles = remainingFiles.filter(f => !consumed.has(f))
+          shards.push(newShard)
+        }
+      } else {
+        // Normal first-fit placement for this directory group
+        let placed = false
+        for (const s of shards) {
+          if (s.bytes + grp.bytes <= SHARD_BYTE_BUDGET) {
+            s.files.push(...grp.files)
+            s.bytes += grp.bytes
+            s.dirs.add(dir)
+            placed = true
+            break
+          }
+        }
+        if (!placed) {
+          shards.push({
+            files: [...grp.files],
+            bytes: grp.bytes,
+            dirs: new Set([dir]),
+          })
+        }
+      }
+    }
+
+    // Create sharded lanes from the bin-packed results
+    const TARGET_PREFIX = 'target-apps/juice-shop-blind/'
+    for (let i = 0; i < shards.length; i++) {
+      const shard = shards[i]
+      const dominantDir = [...shard.dirs].sort((a, b) => {
+        // Pick the directory with the most files as the dominant one for naming
+        const aCount = shard.files.filter(f => path.dirname(f) === a).length
+        const bCount = shard.files.filter(f => path.dirname(f) === b).length
+        return bCount - aCount
+      })[0] ?? 'root'
+      const laneId = `unclassified-code-${i + 1}`
+      lanes.push({
+        lane_id: laneId,
+        categories: [],
+        subsystem_scope: `Sharded lane ${i + 1}/${shards.length} for unclassified code files — dominant directory: ${dominantDir} (${shard.files.length} files, ${(shard.bytes / 1024).toFixed(1)} KB)`,
+        seed_files: [...shard.files].sort(),
+        playbook_reference: 'general-catchall',
+      })
+      console.log(`[LANE] ${laneId}: ${shard.files.length} files, ${(shard.bytes / 1024).toFixed(1)} KB, dominant dir: ${dominantDir}`)
+    }
+    console.log(`[SHARD] Created ${shards.length} sharded lanes for ${totalFilteredCount} unclassified code files`)
+  }
+
+  // --- Smart contract surface lane ---
+  if (fileInv && fileInv.smart_contract_surface_detected && fileInv.smart_contract_files.length > 0) {
+    // Convert target-relative paths to repo-relative paths for consistency
+    const solSeedFiles = fileInv.smart_contract_files.map((f) =>
+      f.startsWith('target-apps/') ? f : path.join(repoRoot, 'target-apps/juice-shop-blind', f).replace(repoRoot + '/', ''),
+    )
+    lanes.push({
+      lane_id: 'smart-contract',
+      categories: [],
+      subsystem_scope:
+        'Solidity smart contract files detected via file inventory: ' + fileInv.smart_contract_files.map((f) => f.split('/').pop()).join(', ') + ' — vulnerability classes: reentrancy, integer overflow, access control, oracle manipulation',
+      seed_files: solSeedFiles,
+      playbook_reference: 'general-catchall',
+    })
+    console.log(`[LANE] smart-contract: ${fileInv.smart_contract_files.length} .sol file(s) seeded`)
+  }
+
   return lanes
 }
 
@@ -924,8 +1104,16 @@ function applyOrchestratorReview(
 
     const catchall = lanes.find((l) => l.lane_id === 'general-catchall')
     if (catchall && catchall.categories.length === 0) {
-      lanes.splice(lanes.indexOf(catchall), 1)
-      console.log('[ORCHESTRATOR] Removed empty general-catchall lane')
+      // Keep the lane if it has unclassified surface seed files — it serves
+      // as a pure catch-all for files that no framework-specific extraction
+      // touched. Only remove if truly empty.
+      if (catchall.seed_files.length === 0) {
+        lanes.splice(lanes.indexOf(catchall), 1)
+        console.log('[ORCHESTRATOR] Removed empty general-catchall lane')
+      } else {
+        catchall.subsystem_scope = 'Catch-all lane for unclassified source files from Stage 0 file inventory (all uncertain categories promoted to dedicated lanes)'
+        console.log(`[ORCHESTRATOR] Kept general-catchall with ${catchall.seed_files.length} unclassified surface files`)
+      }
     }
   }
 

@@ -29,7 +29,7 @@ So the repo is mechanically split into two things that never mix:
   out, used exactly once at final scoring, never touched during harness
   development.
 
-See [`docs/BLIND_DEVELOPMENT.md`](docs/BLIND_DEVELOPMENT.md) for exactly
+See [`docs/protocols/blind-development.md`](docs/protocols/blind-development.md) for exactly
 what was stripped, how, and the guardrail for future sessions: **no
 harness-development session may open, read, or reference the answer-key
 repo.**

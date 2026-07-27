@@ -142,6 +142,21 @@ function readSeedFiles(paths: string[]): Record<string, string> {
 }
 
 /**
+ * Sanitize PEM-formatted private key material to avoid upstream content-safety
+ * filters that flag long base64 blobs inside BEGIN/END PRIVATE KEY markers as
+ * credential exfiltration. The structural markers are preserved so the LLM can
+ * still identify hardcoded keys as misconfiguration findings.
+ */
+function sanitizePemPrivateKey(content: string): string {
+  return content.replace(
+    /(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z0-9 ]*PRIVATE KEY-----)/g,
+    (_match, beginMarker, endMarker) => {
+      return beginMarker + '\n[REDACTED: private key material]\n' + endMarker;
+    }
+  );
+}
+
+/**
  * FIX 1: Prefix every line with its real 1-indexed line number.
  * Format: "41: export const hash = ..." (same as cat -n or IDE gutter).
  */
@@ -159,7 +174,8 @@ function buildSeedFileSection(files: Record<string, string>): string {
   if (entries.length === 0) return '(no seed files available)'
   return entries.map(([relPath, content]) => {
     const MAX = 15000
-    const numbered = lineNumberFile(content)
+    const sanitized = sanitizePemPrivateKey(content)
+    const numbered = lineNumberFile(sanitized)
     const display = numbered.length > MAX
       ? numbered.slice(0, MAX) + '\n\n... [truncated, file is ' + content.length.toLocaleString() + ' bytes] ...'
       : numbered

@@ -2,12 +2,12 @@
   {
     "lane_id": "access-control",
     "seed_file_count": 17,
-    "seed_bytes_total": 93813,
-    "token_ceiling": 93813,
-    "wall_clock_ceiling_seconds": 625,
+    "seed_bytes_total": 92577,
+    "token_ceiling": 92577,
+    "wall_clock_ceiling_seconds": 617,
     "model_tier": "mid",
-    "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (93,813 B, Q75=76,382 B); seed footprint in top quartile by file count (17 files, Q75=13 files)"
+    "escalation_flag": false,
+    "escalation_reason": ""
   },
   {
     "lane_id": "injection-sql",
@@ -22,9 +22,9 @@
   {
     "lane_id": "injection-nosql",
     "seed_file_count": 6,
-    "seed_bytes_total": 43334,
-    "token_ceiling": 43334,
-    "wall_clock_ceiling_seconds": 289,
+    "seed_bytes_total": 42950,
+    "token_ceiling": 42950,
+    "wall_clock_ceiling_seconds": 286,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -32,9 +32,9 @@
   {
     "lane_id": "crypto-auth",
     "seed_file_count": 10,
-    "seed_bytes_total": 68733,
-    "token_ceiling": 68733,
-    "wall_clock_ceiling_seconds": 458,
+    "seed_bytes_total": 66876,
+    "token_ceiling": 66876,
+    "wall_clock_ceiling_seconds": 446,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -42,9 +42,9 @@
   {
     "lane_id": "misconfiguration",
     "seed_file_count": 9,
-    "seed_bytes_total": 63037,
-    "token_ceiling": 63037,
-    "wall_clock_ceiling_seconds": 420,
+    "seed_bytes_total": 62109,
+    "token_ceiling": 62109,
+    "wall_clock_ceiling_seconds": 414,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -62,9 +62,9 @@
   {
     "lane_id": "integrity-failures",
     "seed_file_count": 9,
-    "seed_bytes_total": 73275,
-    "token_ceiling": 73275,
-    "wall_clock_ceiling_seconds": 489,
+    "seed_bytes_total": 72367,
+    "token_ceiling": 72367,
+    "wall_clock_ceiling_seconds": 482,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -72,9 +72,9 @@
   {
     "lane_id": "api-property-auth",
     "seed_file_count": 10,
-    "seed_bytes_total": 68030,
-    "token_ceiling": 68030,
-    "wall_clock_ceiling_seconds": 454,
+    "seed_bytes_total": 65565,
+    "token_ceiling": 65565,
+    "wall_clock_ceiling_seconds": 437,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -82,22 +82,22 @@
   {
     "lane_id": "resource-consumption",
     "seed_file_count": 13,
-    "seed_bytes_total": 73495,
-    "token_ceiling": 73495,
-    "wall_clock_ceiling_seconds": 490,
+    "seed_bytes_total": 71490,
+    "token_ceiling": 71490,
+    "wall_clock_ceiling_seconds": 477,
     "model_tier": "mid",
-    "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by file count (13 files, Q75=13 files)"
+    "escalation_flag": false,
+    "escalation_reason": ""
   },
   {
     "lane_id": "sensitive-business-flows",
     "seed_file_count": 15,
-    "seed_bytes_total": 85877,
-    "token_ceiling": 85877,
-    "wall_clock_ceiling_seconds": 573,
+    "seed_bytes_total": 84857,
+    "token_ceiling": 84857,
+    "wall_clock_ceiling_seconds": 566,
     "model_tier": "mid",
-    "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (85,877 B, Q75=76,382 B); seed footprint in top quartile by file count (15 files, Q75=13 files)"
+    "escalation_flag": false,
+    "escalation_reason": ""
   },
   {
     "lane_id": "client-side",
@@ -106,25 +106,15 @@
     "token_ceiling": 122128,
     "wall_clock_ceiling_seconds": 814,
     "model_tier": "mid",
-    "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (122,128 B, Q75=76,382 B); seed footprint in top quartile by file count (23 files, Q75=13 files)"
-  },
-  {
-    "lane_id": "injection-code",
-    "seed_file_count": 4,
-    "seed_bytes_total": 45601,
-    "token_ceiling": 45601,
-    "wall_clock_ceiling_seconds": 304,
-    "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
   },
   {
-    "lane_id": "ai-llm-agency",
-    "seed_file_count": 2,
-    "seed_bytes_total": 48633,
-    "token_ceiling": 48633,
-    "wall_clock_ceiling_seconds": 324,
+    "lane_id": "injection-code",
+    "seed_file_count": 4,
+    "seed_bytes_total": 45454,
+    "token_ceiling": 45454,
+    "wall_clock_ceiling_seconds": 303,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -132,9 +122,179 @@
   {
     "lane_id": "logging-monitoring",
     "seed_file_count": 5,
-    "seed_bytes_total": 58370,
-    "token_ceiling": 58370,
-    "wall_clock_ceiling_seconds": 389,
+    "seed_bytes_total": 56049,
+    "token_ceiling": 56049,
+    "wall_clock_ceiling_seconds": 374,
+    "model_tier": "mid",
+    "escalation_flag": false,
+    "escalation_reason": ""
+  },
+  {
+    "lane_id": "general-catchall",
+    "seed_file_count": 9,
+    "seed_bytes_total": 60601,
+    "token_ceiling": 60601,
+    "wall_clock_ceiling_seconds": 404,
+    "model_tier": "mid",
+    "escalation_flag": false,
+    "escalation_reason": ""
+  },
+  {
+    "lane_id": "unclassified-code-1",
+    "seed_file_count": 24,
+    "seed_bytes_total": 139560,
+    "token_ceiling": 139560,
+    "wall_clock_ceiling_seconds": 930,
+    "model_tier": "mid",
+    "escalation_flag": false,
+    "escalation_reason": ""
+  },
+  {
+    "lane_id": "unclassified-code-2",
+    "seed_file_count": 1,
+    "seed_bytes_total": 853037,
+    "token_ceiling": 853037,
+    "wall_clock_ceiling_seconds": 5687,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (853,037 B, Q75=149,836 B)"
+  },
+  {
+    "lane_id": "unclassified-code-3",
+    "seed_file_count": 30,
+    "seed_bytes_total": 149903,
+    "token_ceiling": 149903,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,903 B, Q75=149,836 B)"
+  },
+  {
+    "lane_id": "unclassified-code-4",
+    "seed_file_count": 40,
+    "seed_bytes_total": 149958,
+    "token_ceiling": 149958,
+    "wall_clock_ceiling_seconds": 1000,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,958 B, Q75=149,836 B); seed footprint in top quartile by file count (40 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-5",
+    "seed_file_count": 58,
+    "seed_bytes_total": 149899,
+    "token_ceiling": 149899,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,899 B, Q75=149,836 B); seed footprint in top quartile by file count (58 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-6",
+    "seed_file_count": 50,
+    "seed_bytes_total": 116312,
+    "token_ceiling": 116312,
+    "wall_clock_ceiling_seconds": 775,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by file count (50 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-7",
+    "seed_file_count": 63,
+    "seed_bytes_total": 149778,
+    "token_ceiling": 149778,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by file count (63 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-8",
+    "seed_file_count": 38,
+    "seed_bytes_total": 149816,
+    "token_ceiling": 149816,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by file count (38 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-9",
+    "seed_file_count": 21,
+    "seed_bytes_total": 149824,
+    "token_ceiling": 149824,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": false,
+    "escalation_reason": ""
+  },
+  {
+    "lane_id": "unclassified-code-10",
+    "seed_file_count": 48,
+    "seed_bytes_total": 149836,
+    "token_ceiling": 149836,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,836 B, Q75=149,836 B); seed footprint in top quartile by file count (48 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-11",
+    "seed_file_count": 17,
+    "seed_bytes_total": 149943,
+    "token_ceiling": 149943,
+    "wall_clock_ceiling_seconds": 1000,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,943 B, Q75=149,836 B)"
+  },
+  {
+    "lane_id": "unclassified-code-12",
+    "seed_file_count": 21,
+    "seed_bytes_total": 149920,
+    "token_ceiling": 149920,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,920 B, Q75=149,836 B)"
+  },
+  {
+    "lane_id": "unclassified-code-13",
+    "seed_file_count": 28,
+    "seed_bytes_total": 149783,
+    "token_ceiling": 149783,
+    "wall_clock_ceiling_seconds": 999,
+    "model_tier": "mid",
+    "escalation_flag": false,
+    "escalation_reason": ""
+  },
+  {
+    "lane_id": "unclassified-code-14",
+    "seed_file_count": 47,
+    "seed_bytes_total": 149994,
+    "token_ceiling": 149994,
+    "wall_clock_ceiling_seconds": 1000,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by bytes (149,994 B, Q75=149,836 B); seed footprint in top quartile by file count (47 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "unclassified-code-15",
+    "seed_file_count": 53,
+    "seed_bytes_total": 66195,
+    "token_ceiling": 66195,
+    "wall_clock_ceiling_seconds": 441,
+    "model_tier": "mid",
+    "escalation_flag": true,
+    "escalation_reason": "seed footprint in top quartile by file count (53 files, Q75=38 files)"
+  },
+  {
+    "lane_id": "smart-contract",
+    "seed_file_count": 5,
+    "seed_bytes_total": 8512,
+    "token_ceiling": 8512,
+    "wall_clock_ceiling_seconds": 57,
     "model_tier": "mid",
     "escalation_flag": false,
     "escalation_reason": ""
@@ -142,15 +302,15 @@
   {
     "lane_id": "insecure-design",
     "seed_file_count": 13,
-    "seed_bytes_total": 76382,
-    "token_ceiling": 76382,
-    "wall_clock_ceiling_seconds": 509,
+    "seed_bytes_total": 75458,
+    "token_ceiling": 75458,
+    "wall_clock_ceiling_seconds": 503,
     "model_tier": "mid",
-    "escalation_flag": true,
-    "escalation_reason": "seed footprint in top quartile by bytes (76,382 B, Q75=76,382 B); seed footprint in top quartile by file count (13 files, Q75=13 files)"
+    "escalation_flag": false,
+    "escalation_reason": ""
   },
   {
-    "lane_id": "uncertain-api10-unsafe-consumption-of-apis",
+    "lane_id": "uncertain-api10-unsafe-consumption-of-apis-api-security-top-10-",
     "seed_file_count": 1,
     "seed_bytes_total": 37164,
     "token_ceiling": 37164,

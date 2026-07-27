@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-07-26T12:00:00.000Z",
+  "target_dir": "/home/user/harness-worktrees/task3-hunt-lanes/tools/scanner/stage2-hunt-lanes-perfile/fixtures",
+  "source_stage0_run": "/home/user/harness-worktrees/task3-hunt-lanes/tools/scanner/stage0-recon/output/architecture-summary.json",
+
+  "coverage_ledger": {
+    "total_files_in_inventory": 4,
+    "assigned_hunt": 2,
+    "assigned_skip": 2,
+    "unaccounted": 0
+  },
+
+  "category_universe": [
+    { "code": "A03", "name": "A03: Injection", "framework": "OWASP Top 10 2021" },
+    { "code": "A05", "name": "A05: Security Misconfiguration", "framework": "OWASP Top 10 2021" },
+    { "code": "A02", "name": "A02: Cryptographic Failures", "framework": "OWASP Top 10 2021" },
+    { "code": "A07", "name": "A07: Identification and Authentication Failures", "framework": "OWASP Top 10 2021" }
+  ],
+
+  "lanes": [
+    {
+      "lane_id": "file-0001",
+      "target_file": "handlers.ts",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "categories": [
+        { "code": "A03", "name": "A03: Injection", "framework": "OWASP Top 10 2021" },
+        { "code": "A05", "name": "A05: Security Misconfiguration", "framework": "OWASP Top 10 2021" }
+      ],
+      "category_basis": "route_table",
+      "file_bytes": 1853,
+      "file_lines": 57,
+      "estimated_prompt_tokens": 2400,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [ { "index": 1, "start_line": 1, "end_line": 57 } ]
+      }
+    },
+    {
+      "lane_id": "file-0002",
+      "target_file": "routes.ts",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "categories": [
+        { "code": "A03", "name": "A03: Injection", "framework": "OWASP Top 10 2021" },
+        { "code": "A05", "name": "A05: Security Misconfiguration", "framework": "OWASP Top 10 2021" },
+        { "code": "A02", "name": "A02: Cryptographic Failures", "framework": "OWASP Top 10 2021" },
+        { "code": "A07", "name": "A07: Identification and Authentication Failures", "framework": "OWASP Top 10 2021" }
+      ],
+      "category_basis": "route_table",
+      "file_bytes": 10886,
+      "file_lines": 236,
+      "estimated_prompt_tokens": 14200,
+      "chunk_plan": {
+        "required": true,
+        "total_chunks": 3,
+        "chunks": [
+          { "index": 1, "start_line": 1, "end_line": 100 },
+          { "index": 2, "start_line": 81, "end_line": 180 },
+          { "index": 3, "start_line": 161, "end_line": 236 }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0003",
+      "target_file": "styles.css",
+      "disposition": "skip",
+      "skip_reason": "stylesheet — no executable logic or traceable entrypoint-to-sink path",
+      "categories": [],
+      "category_basis": null,
+      "file_bytes": 278,
+      "file_lines": 18,
+      "estimated_prompt_tokens": 0,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 0,
+        "chunks": []
+      }
+    },
+    {
+      "lane_id": "file-0004",
+      "target_file": "middleware.ts",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "categories": [
+        { "code": "A05", "name": "A05: Security Misconfiguration", "framework": "OWASP Top 10 2021" }
+      ],
+      "category_basis": "persistence",
+      "file_bytes": 728,
+      "file_lines": 20,
+      "estimated_prompt_tokens": 1100,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [ { "index": 1, "start_line": 1, "end_line": 20 } ]
+      }
+    }
+  ]
+}

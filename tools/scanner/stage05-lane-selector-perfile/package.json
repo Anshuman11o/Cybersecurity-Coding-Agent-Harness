@@ -1,0 +1,16 @@
+{
+  "name": "stage05-lane-selector-perfile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/lane-selector-perfile.ts"
+  },
+  "dependencies": {
+    "https-proxy-agent": "^9.1.0",
+    "ts-morph": "^24.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

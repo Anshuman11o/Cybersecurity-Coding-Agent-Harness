@@ -1,0 +1,20 @@
+{
+  "floor": ["insecure-design", "logging-monitoring", "general-catchall", "misconfiguration"],
+  "signals": {
+    "route_handler":  ["access-control", "api-property-auth", "resource-consumption", "injection", "crypto-auth"],
+    "db_query":       ["injection", "api-property-auth", "resource-consumption"],
+    "model_schema":   ["api-property-auth", "access-control", "injection"],
+    "model_write":    ["injection", "integrity-failures"],
+    "http_outbound":  ["ssrf", "resource-consumption"],
+    "auth_check":     ["access-control", "crypto-auth"],
+    "crypto_op":      ["crypto-auth"],
+    "html_sink":      ["client-side", "injection"],
+    "dynamic_exec":   ["injection"],
+    "deserialize":    ["integrity-failures", "injection", "resource-consumption"],
+    "file_io":        ["injection", "access-control", "ssrf", "resource-consumption"],
+    "llm_call":       ["ai-llm-agency", "client-side"],
+    "logging":        ["logging-monitoring"],
+    "config_file":    ["misconfiguration", "vulnerable-components"],
+    "dep_manifest":   ["vulnerable-components"]
+  }
+}

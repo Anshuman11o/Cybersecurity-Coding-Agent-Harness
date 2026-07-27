@@ -1,0 +1,62 @@
+{
+  "access-control": {
+    "playbook": "access-control",
+    "codes": ["A01", "API1", "API5"]
+  },
+  "crypto-auth": {
+    "playbook": "crypto-auth",
+    "codes": ["A02", "A07", "API2"]
+  },
+  "injection": {
+    "playbook": "injection",
+    "codes": ["A03"]
+  },
+  "insecure-design": {
+    "playbook": "insecure-design",
+    "codes": ["A04"]
+  },
+  "misconfiguration": {
+    "playbook": "misconfiguration",
+    "codes": ["A05", "API8", "API9"]
+  },
+  "vulnerable-components": {
+    "playbook": "vulnerable-components",
+    "codes": ["A06"]
+  },
+  "integrity-failures": {
+    "playbook": "integrity-failures",
+    "codes": ["A08"]
+  },
+  "logging-monitoring": {
+    "playbook": "logging-monitoring",
+    "codes": ["A09"]
+  },
+  "ssrf": {
+    "playbook": "ssrf",
+    "codes": ["A10", "API7"]
+  },
+  "api-property-auth": {
+    "playbook": "api-property-auth",
+    "codes": ["API3"]
+  },
+  "resource-consumption": {
+    "playbook": "resource-consumption",
+    "codes": ["API4"]
+  },
+  "sensitive-business-flows": {
+    "playbook": "sensitive-business-flows",
+    "codes": ["API6"]
+  },
+  "general-catchall": {
+    "playbook": "general-catchall",
+    "codes": ["API10"]
+  },
+  "ai-llm-agency": {
+    "playbook": "ai-llm-agency",
+    "codes": ["LLM01", "LLM02", "LLM03", "LLM06", "LLM10"]
+  },
+  "client-side": {
+    "playbook": "client-side",
+    "codes": ["LLM05"]
+  }
+}

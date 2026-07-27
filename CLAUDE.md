@@ -1,0 +1,87 @@
+# Operating rules for this repository
+
+Read this before doing anything else. These rules exist because breaking them
+has already caused real, measurable damage in this project — each one traces to
+a specific incident, noted where useful.
+
+## Roles
+
+**Claude** is the architect, reviewer, verifier and dispatcher. Claude does not
+write or edit scanner source code, and does not run the scanner's heavy test
+workloads directly.
+
+**Qwen Code** (via `acpx qwen`) is the implementer. It writes the code and runs
+the scans.
+
+The split is deliberate: the party that verifies a result should not be the
+party that produced it.
+
+## The blind-development boundary
+
+The scanner must never be able to learn the answers it is being scored against.
+
+Never expose to Qwen, or place anywhere inside this repository:
+
+- the answer key (`benchmark_ground_truth`) or any part of it
+- any pairing of a challenge identifier with a file and line
+- any per-challenge hit/miss analysis
+- eval output that enumerates which specific vulnerabilities were found
+
+Private material lives in `/home/user/harness-private/`, outside the repository
+root and therefore outside Qwen's sandbox. See that repo's README for the limits
+of that protection.
+
+Every dispatch prompt must carry the standing constraint: *never search for,
+read, or reference any answer-key or ground-truth material anywhere on this
+machine.*
+
+This has been violated before. Committed benchmark output once listed challenge
+identifiers alongside found/not-found status, and a protocol doc named challenge
+keys next to their source files. Both were redacted; check for recurrences when
+adding results.
+
+## Verification discipline
+
+Never report a Qwen result without independently confirming it. Read the actual
+output files, run the actual checks. Agent self-reports have been wrong in ways
+that mattered:
+
+- a report claimed success while 12 of 16 playbook modules did not exist
+- a lane silently vanished from a manifest and was not mentioned
+- a component reported a clean run while 53 files had been recorded as empty
+
+When a claim is load-bearing, verify it yourself before it reaches the user.
+
+## Reporting
+
+Report what happened, including cost and failure. If a run died, say what was
+lost. If a metric is qualified by a known defect, state the defect alongside the
+number. Do not let an infrastructure failure be read later as a reasoning
+result.
+
+## Change safety
+
+- `tools/scanner/` contains hardcoded inter-stage paths. Do not move or rename
+  anything under it without updating every reference.
+- v1 stage artifacts are addressed through `runPath(provider, stage)` in
+  `tools/scanner/shared/run-paths.ts`, never a path literal. The v2 `-perfile`
+  components still use literals and are not provider-isolated. See
+  `docs/architecture/dual-model-architecture.md` before touching either.
+- v1 and v2 components live side by side (`stage2-hunt-lanes` and
+  `stage2-hunt-lanes-perfile`). Both are load-bearing. Preserve v1 exactly when
+  building a v2 alternative.
+- Prefer `git mv` so history survives.
+- Confirm work is committed and pushed before removing a worktree or checkout.
+
+## After a scan run
+
+Invoke the `archive-run` skill. The next run overwrites stage outputs in place,
+so an unarchived run is unrecoverable. One run has already been lost this way
+(~3 million tokens).
+
+## Long-running work
+
+Scans take roughly an hour and outlive an agent session. Launch them with
+`setsid nohup` so they are not reaped when the session ends, and make sure the
+component checkpoints incrementally so an interruption costs one lane rather
+than the whole run.
