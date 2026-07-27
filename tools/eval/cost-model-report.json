@@ -1,0 +1,70 @@
+{
+  "total_files": 1035,
+  "total_hunt_files": 713,
+  "total_skip_files": 322,
+  "scenario_narrow_tokens": 14212842,
+  "scenario_broad_tokens": 24973400,
+  "narrow_breakdown": {
+    "fixed_overhead": 746169,
+    "content_variable": 7995231,
+    "playbook_category": 827735,
+    "chunking_overhead": 1969744,
+    "output_findings": 2673964
+  },
+  "broad_breakdown": {
+    "fixed_overhead": 746169,
+    "content_variable": 7995231,
+    "playbook_category": 11588293,
+    "chunking_overhead": 1969744,
+    "output_findings": 2673964
+  },
+  "skip_savings_tokens": 11198294,
+  "category_universe_count": 21,
+  "buckets": [
+    {
+      "label": "under 2 KB",
+      "file_count": 311,
+      "skip_count": 149,
+      "total_hunt_bytes": 307173,
+      "total_input_tokens": 807873,
+      "total_output_tokens": 1166343,
+      "chunking_overhead_tokens": 0
+    },
+    {
+      "label": "2-3 KB",
+      "file_count": 65,
+      "skip_count": 26,
+      "total_hunt_bytes": 166842,
+      "total_input_tokens": 209284,
+      "total_output_tokens": 243770,
+      "chunking_overhead_tokens": 0
+    },
+    {
+      "label": "3-8 KB",
+      "file_count": 160,
+      "skip_count": 44,
+      "total_hunt_bytes": 794596,
+      "total_input_tokens": 666189,
+      "total_output_tokens": 600048,
+      "chunking_overhead_tokens": 0
+    },
+    {
+      "label": "8-24 KB",
+      "file_count": 106,
+      "skip_count": 10,
+      "total_hunt_bytes": 1480425,
+      "total_input_tokens": 816558,
+      "total_output_tokens": 397532,
+      "chunking_overhead_tokens": 0
+    },
+    {
+      "label": "over 24 KB",
+      "file_count": 71,
+      "skip_count": 93,
+      "total_hunt_bytes": 15638345,
+      "total_input_tokens": 7069231,
+      "total_output_tokens": 266271,
+      "chunking_overhead_tokens": 1969744
+    }
+  ]
+}

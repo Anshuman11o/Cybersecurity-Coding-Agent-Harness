@@ -78,7 +78,7 @@ def main():
     )
     md = md.replace("## Ground truth reference", vvah_section + "\n## Ground truth reference")
 
-    out_path = "/home/user/Cybersecurity-Coding-Agent-Harness/results/scan-benchmark-summary.md"
+    out_path = "/home/user/Cybersecurity-Coding-Agent-Harness/results/archive/2026-07-five-tool-benchmark/summary.md"
     with open(out_path, "w") as f:
         f.write(md)
     print(f"Wrote {out_path}", file=sys.stderr)

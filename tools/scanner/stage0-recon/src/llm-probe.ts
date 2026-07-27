@@ -185,9 +185,9 @@ ${architectureSummary}
 Swagger API coverage note: ${swaggerDiffNote}
 
 ${escapeHatchFindings.length > 0 ?
-  `Angular escape-hatch usage (${escapeHatchFindings.length} occurrences): ` +
-  escapeHatchFindings.map(f => `${f.file}:${f.line} - ${f.type}`).join('; ')
-  : 'No Angular escape-hatch usage detected.'}
+  `Frontend escape-hatch usage (${escapeHatchFindings.length} occurrences, frameworks: ${[...new Set(escapeHatchFindings.map(f => f.framework))].join(', ')}): ` +
+  escapeHatchFindings.map(f => `${f.file}:${f.line} - ${f.type} [${f.framework}]`).join('; ')
+  : 'No frontend escape-hatch usage detected.'}
 
 Evaluate:
 ${categoryListStr}
@@ -580,7 +580,7 @@ function probeDeterministic(
       framework: 'LLM Top 10',
       verdict: hasClientSideRendering ? 'present' : 'uncertain',
       evidence: hasClientSideRendering
-        ? `LLM tool-calling detected AND ${escapeHatchFindings.length} Angular escape-hatch usage points found. LLM output reaching HTML rendering sinks without sanitization is a concrete concern.`
+        ? `LLM tool-calling detected AND ${escapeHatchFindings.length} frontend escape-hatch usage points found (${[...new Set(escapeHatchFindings.map(f => f.framework))].join(', ')}). LLM output reaching HTML rendering sinks without sanitization is a concrete concern.`
         : 'LLM tool-calling detected but client-side rendering sinks not identified from architecture alone.',
       confidence: hasClientSideRendering ? 0.8 : 0.5,
     })

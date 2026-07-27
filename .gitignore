@@ -1,0 +1,8 @@
+# Editor / tooling backup artifacts
+*.bak
+*.orig
+*~
+
+# Python bytecode
+__pycache__/
+*.pyc
