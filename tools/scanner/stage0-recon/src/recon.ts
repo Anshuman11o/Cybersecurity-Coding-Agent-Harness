@@ -24,6 +24,7 @@ import { extract, extractDependencies } from './ast-extractor.js'
 import { diff as swaggerDiff } from './swagger-diff.js'
 import { scan as frontendGrep, detectFrontendFrameworks, type FrameworkType, type EscapeHatchFinding } from './frontend-grep.js'
 import { detectToolCalling, probeCategoryApplicability } from './llm-probe.js'
+import { detectAllSignalsFromList, collectRouteHandlerNames } from './signal-detector.js'
 
 // ---------------------------------------------------------------------------
 // Target resolution: CLI arg > env var > hardcoded default
@@ -158,6 +159,7 @@ interface FileInventoryEntry {
 
 interface FileInventoryResult {
   total_source_files: number
+  all_files: string[]
   by_language: Record<string, { count: number; sample_paths: string[] }>
   unclassified_surface: {
     language: string
@@ -255,6 +257,7 @@ function walkFileInventory(
 
   return {
     total_source_files: allFiles.length,
+    all_files: allFiles.map(f => f.path).sort(),
     by_language: byLangOutput,
     unclassified_surface: unclassifiedOutput.sort((a, b) => b.count - a.count),
     smart_contract_surface_detected: smartContractFiles.length > 0,
@@ -426,6 +429,19 @@ async function main() {
   const absentCount = categoryVerdicts.filter(c => c.verdict === 'absent').length
   const uncertainCount = categoryVerdicts.filter(c => c.verdict === 'uncertain').length
   console.log(`  Present: ${presentCount}, Absent: ${absentCount}, Uncertain: ${uncertainCount}`)
+  console.log()
+
+  // ---- Step 7: Per-file signal extraction (deterministic, no LLM) ----
+  console.log('[7/7] Extracting per-file signals...')
+  const rhNames = collectRouteHandlerNames(archSummary.route_table)
+  console.log(`  Route handler names from route table: ${rhNames.size}`)
+  const fileSignals = detectAllSignalsFromList(TARGET_DIR, fileInventory.all_files, rhNames)
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'file-signals.json'), JSON.stringify(fileSignals, null, 2))
+  const signalCounts = Object.values(fileSignals.files).map(s => s.length)
+  const signalDist: Record<number, number> = {}
+  for (const n of signalCounts) signalDist[n] = (signalDist[n] || 0) + 1
+  console.log(`  ${Object.keys(fileSignals.files).length} files scanned (inventory total: ${fileInventory.total_source_files})`)
+  console.log(`  Signal distribution (signals-per-file): ${JSON.stringify(signalDist)}`)
   console.log()
 
   // ---- Write output files ----

@@ -21,7 +21,7 @@ Scope: Detect business-critical operations that lack anti-automation safeguards.
 - The finding should name the specific business impact: "enables automated purchase of limited inventory," "allows unlimited discount stacking," "permits bulk data exfiltration."
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The business-critical entrypoint
 2. The missing anti-automation control(s)
 3. The attack scenario: how automated abuse operates

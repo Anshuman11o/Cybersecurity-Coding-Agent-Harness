@@ -58,6 +58,30 @@ mode). Resist adding a metric unless it would change a real decision.
 | False positives (in-scope) | in-scope findings that are wrong | Overall — precision's raw numerator gap |
 | Out-of-scope findings (informational) | real findings outside the fixed ground-truth set | Tracked, not scored — signals whether the scanner finds real bugs beyond the fixed benchmark |
 
+### Class-model metrics (mandatory for the scanner from 2026-07-27)
+
+Findings name a *vulnerability class* and carry that class's OWASP alias codes, and may name up to
+two classes (`docs/architecture/vulnerability-class-model.md`). Three metrics exist because that
+change makes a bare recall number uninterpretable on its own.
+
+| Metric | Definition | Why it is mandatory, not diagnostic |
+|---|---|---|
+| **Hedging rate** | mean vulnerability classes emitted per finding | Emitting more labels matches more ground truth partly by widening the net. Before the class model this was exactly `1.000`. A recall gain with a flat hedging rate is detection; a recall gain that tracks it is a wider net. Reporting recall without it overstates the result. |
+| **Per-class recall** | recall broken down by vulnerability class | A single scanner-wide number says something regressed; this says *which playbook*. An entry spanning two classes counts toward both — either playbook finding it is that playbook's success. |
+| **Precision proxy, category-aware** | findings landing within line-slack of a ground-truth entry **and** agreeing on category / all findings | The category-blind proxy cannot see hedging at all. Reported alongside it, not instead of it. |
+
+**Comparability across the class-model boundary.** A run predating the class model emitted one code
+per finding and cannot be compared directly against one that postdates it — the newer run wins
+partly by labelling consistently rather than by finding more. `score_scanner.py --alias-expand`
+re-scores both sides under the same alias semantics, which splits the delta into *found more* vs.
+*labelled better*. Any comparison spanning that boundary reports both numbers or it is not a
+comparison.
+
+**Guard.** `categories` holds OWASP code strings, never class ids. If that ever inverts, every
+intersection empties and the run reports a collapse indistinguishable from a reasoning regression.
+The scorer refuses to run when fewer than 95% of findings yield a code, rather than reporting a
+plausible-looking zero.
+
 Two **optional, diagnostic-only** sub-metrics, useful while developing recon/lane-selection/
 validation specifically but not part of the mandatory top-line report:
 - **Category-applicability accuracy** — did recon's present/absent/uncertain call match the

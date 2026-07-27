@@ -24,7 +24,7 @@ Scope: Detect dangerous default configurations, exposed internals, missing secur
 - For undocumented or hidden endpoints: confirm the endpoint actually functions and carries a security-relevant operation before flagging.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The misconfigured resource, endpoint, or setting
 2. The dangerous default or missing control
 3. How an attacker discovers and exploits it

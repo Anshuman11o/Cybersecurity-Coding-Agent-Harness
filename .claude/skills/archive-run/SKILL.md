@@ -52,14 +52,49 @@ Make the run self-describing without opening any JSON:
   re-read later as a clean measurement
 - provenance notes: restarts, what was lost, what was resumed
 
-## 6. Append to eval history
+## 6. Score the run
+
+    python3 tools/scan-benchmark/score_scanner.py \
+        --findings <stage output>/candidate-findings.json \
+        --answer-key <path> \
+        --label "<run label>" \
+        --json-out <scratch>/metrics.json
+
+The answer-key path is a required argument and must never be written into this
+repository — not in a script default, a Makefile, a doc, or a committed command
+line. Pass it at the prompt.
+
+If the scorer refuses to run because too few findings yield an OWASP code, that
+is a schema fault, not a bad scan: `categories` has stopped holding code strings.
+Fix that before recording anything — a run scored through that fault reports a
+collapse that reads like a reasoning regression.
+
+## 7. Append to eval history
 
 Add one line to `results/eval-history/scanner.jsonl` with the universal fields
 from `docs/protocols/eval-framework.md`: run_id, timestamp, component, version,
 ground_truth_set, models_used, tokens, wall_clock_time, metrics, notes.
 
+The metrics block must carry the class-model fields alongside the headline
+numbers, or the headline numbers cannot be read:
+
+- `hedging_mean_classes_per_finding` and `hedging_class_count_distribution` —
+  recall rises when findings carry more labels, so a recall delta without this
+  beside it overstates the result
+- `recall_category_blind_pct` / `localization_category_blind_pct` — the ceiling
+  the run would reach if category never mismatched, which separates a detection
+  gap from a labelling gap
+- `precision_proxy_category_aware_pct` as well as the category-blind figure
+
+**Comparisons spanning the vulnerability-class model** (anything before
+`2026-07-27` versus anything after) must re-score the older run with
+`--alias-expand` and cite that line as the baseline. Otherwise the newer run
+wins partly by labelling consistently and the two effects cannot be separated.
+See `docs/architecture/vulnerability-class-model.md`.
+
 Never rewrite a historical record. If a run is later found invalid, annotate it
-in `notes` — do not edit or delete it.
+in `notes` — do not edit or delete it. A re-score is a new line marked as a
+re-score, not an edit to the original.
 
 ## 7. Regenerate the report
 

@@ -29,6 +29,10 @@ export interface LaneAssignmentEntry {
   skip_reason: string | null;   // non-null when disposition="skip"
   categories: CategoryRef[];
   category_basis: string | null;
+  // NEW (Stage 0.5 v3): signal-based narrowing
+  signals?: string[];           // per-file signals from Stage 0
+  classes?: string[];           // narrowed class ids (union of signal classes + floor)
+  class_basis?: Record<string, string[]>; // which signal contributed which classes
   file_bytes: number;
   file_lines: number;
   estimated_prompt_tokens: number;
@@ -51,6 +55,20 @@ export interface LaneAssignments {
   lanes: LaneAssignmentEntry[];
 }
 
+// ── Vulnerability class registry types ───────────────────────────────────
+
+export interface VulnClassEntry {
+  playbook: string;
+  codes: string[];
+}
+
+export type VulnClassRegistry = Record<string, VulnClassEntry>;
+
+export interface FindingClassRef {
+  class: string;                  // class id, e.g. "access-control"
+  justified_by_step: number;      // 0-based index into the finding's trace array
+}
+
 // ── Finding / output types (same shapes as v1) ───────────────────────────
 
 export interface TraceStep {
@@ -63,7 +81,8 @@ export interface TraceStep {
 export interface CandidateFinding {
   finding_id: string;
   lane_id: string;
-  categories: string[];         // the specific vulnerability class(es) found
+  finding_classes: FindingClassRef[];  // vulnerability class(es) with justification
+  categories: string[];                // OWASP code strings (A01, API1, …) — union of all class codes
   title: string;
   description: string;
   trace: TraceStep[];

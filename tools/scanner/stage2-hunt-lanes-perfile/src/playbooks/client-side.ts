@@ -24,7 +24,7 @@ Scope: Detect client-side cross-site scripting where unsanitized dynamic content
 - Sanitization must be context-appropriate: HTML sanitization does not protect against script context injection (e.g., inserting into a script tag or event handler attribute).
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (source of user-controlled data)
 2. The data-flow path through the application to the client
 3. The DOM sink (HTML insertion, security bypass, dynamic eval)

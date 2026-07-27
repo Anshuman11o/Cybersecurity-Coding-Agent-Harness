@@ -36,6 +36,8 @@ import type {
   CandidateFinding,
   LaneHuntResponse,
   BudgetConsumption,
+  VulnClassRegistry,
+  FindingClassRef,
 } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -85,77 +87,91 @@ class Semaphore {
   }
 }
 
-// ── Category code → playbook module mapping ───────────────────────────────
-const CATEGORY_CODE_TO_PLAYBOOKS: Record<string, string[]> = {
-  'A01': ['access-control'],
-  'A02': ['crypto-auth'],
-  'A03': ['injection'],
-  'A04': ['insecure-design'],
-  'A05': ['misconfiguration'],
-  'A06': ['vulnerable-components'],
-  'A07': ['crypto-auth'],
-  'A08': ['integrity-failures'],
-  'A09': ['logging-monitoring'],
-  'A10': ['ssrf'],
-  'API1': ['access-control'],
-  'API2': ['crypto-auth'],
-  'API3': ['api-property-auth'],
-  'API4': ['resource-consumption'],
-  'API5': ['access-control'],
-  'API6': ['sensitive-business-flows'],
-  'API7': ['ssrf-api'],
-  'API8': ['misconfiguration'],
-  'API9': ['misconfiguration'],
-  'API10': ['general-catchall'],
-  'LLM01': ['ai-llm-agency'],
-  'LLM02': ['ai-llm-agency'],
-  'LLM03': ['ai-llm-agency'],
-  'LLM05': ['client-side'],
-  'LLM06': ['ai-llm-agency'],
-  'LLM10': ['ai-llm-agency'],
+// ── Vulnerability class registry ─────────────────────────────────────────
+
+const SHARED_DIR = join(REPO_ROOT, 'tools/scanner/shared')
+
+let registry: VulnClassRegistry | null = null
+let codeToClass: Record<string, string> = {}
+
+function loadRegistry(): VulnClassRegistry {
+  if (registry) return registry
+  const raw = readFileSync(join(SHARED_DIR, 'vuln-classes.json'), 'utf-8')
+  registry = JSON.parse(raw) as VulnClassRegistry
+
+  // Build reverse index: code → classId
+  for (const [classId, entry] of Object.entries(registry)) {
+    for (const code of entry.codes) {
+      codeToClass[code] = classId
+    }
+  }
+
+  return registry
 }
 
-// ── Structured output schema ──────────────────────────────────────────────
+/** Given a list of CategoryRef codes, return the deduplicated set of class ids. */
+function codesToClasses(codes: string[]): string[] {
+  const classSet = new Set<string>()
+  for (const code of codes) {
+    const classId = codeToClass[code]
+    if (classId) classSet.add(classId)
+  }
+  return [...classSet]
+}
 
-const HUNT_RESPONSE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    findings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          finding_category: {
-            type: 'string',
-            description: 'The specific vulnerability class code (e.g., A03, A05) from your assigned categories that this finding belongs to.',
-          },
-          title: { type: 'string' },
-          description: { type: 'string' },
-          trace: {
-            type: 'array',
-            minItems: 1,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                kind: { type: 'string', enum: ['entrypoint', 'propagation', 'sink'] },
-                file: { type: 'string' },
-                line: { type: 'integer' },
-                description: { type: 'string' },
+// ── Structured output schema (per-lane, built dynamically) ──────────────
+
+function buildHuntSchema(classIds: string[]): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      findings: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            finding_classes: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 2,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  class: { type: 'string', enum: classIds },
+                  justified_by_step: { type: 'integer' },
+                },
+                required: ['class', 'justified_by_step'],
               },
-              required: ['kind', 'file', 'line', 'description'],
             },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            trace: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  kind: { type: 'string', enum: ['entrypoint', 'propagation', 'sink'] },
+                  file: { type: 'string' },
+                  line: { type: 'integer' },
+                  description: { type: 'string' },
+                },
+                required: ['kind', 'file', 'line', 'description'],
+              },
+            },
+            severity_estimate: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+            confidence: { type: 'number', minimum: 0, maximum: 1 },
           },
-          severity_estimate: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
-          confidence: { type: 'number', minimum: 0, maximum: 1 },
+          required: ['finding_classes', 'title', 'description', 'trace', 'severity_estimate', 'confidence'],
         },
-        required: ['finding_category', 'title', 'description', 'trace', 'severity_estimate', 'confidence'],
       },
     },
-  },
-  required: ['findings'],
+    required: ['findings'],
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -187,17 +203,13 @@ function lineNumberContent(content: string, startLine: number): string {
 
 // ── Playbook loading and validation ───────────────────────────────────────
 
-async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, string>> {
-  const moduleNames = new Set<string>()
-  for (const code of codes) {
-    const refs = CATEGORY_CODE_TO_PLAYBOOKS[code]
-    if (refs) {
-      for (const ref of refs) moduleNames.add(ref)
-    }
-  }
-
+async function loadPlaybooksForClasses(classIds: string[]): Promise<Map<string, string>> {
   const loaded = new Map<string, string>()
-  for (const modName of moduleNames) {
+  for (const classId of classIds) {
+    const entry = registry![classId]
+    if (!entry) continue
+    const modName = entry.playbook
+    if (loaded.has(modName)) continue
     const mod = await import(`./playbooks/${modName}.js`)
     loaded.set(modName, (mod as { playbook: string }).playbook)
   }
@@ -205,44 +217,74 @@ async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, 
 }
 
 async function validateAllPlaybooks(): Promise<void> {
-  const allModuleNames = new Set<string>()
-  const codeToModules = new Map<string, string[]>()
+  loadRegistry()  // ensures registry and codeToClass are populated
 
-  for (const [code, refs] of Object.entries(CATEGORY_CODE_TO_PLAYBOOKS)) {
-    codeToModules.set(code, refs)
-    for (const ref of refs) allModuleNames.add(ref)
-  }
+  const reg = registry!
 
+  // 1. Every class resolves to a loadable playbook module
   const loadErrors = new Map<string, string>()
-  for (const modName of allModuleNames) {
+  for (const [classId, entry] of Object.entries(reg)) {
     try {
-      await import(`./playbooks/${modName}.js`)
+      await import(`./playbooks/${entry.playbook}.js`)
     } catch (err: any) {
-      loadErrors.set(modName, err.message)
+      loadErrors.set(classId, err.message)
     }
   }
 
-  if (loadErrors.size > 0) {
-    const unresolvedCodes = new Set<string>()
-    for (const [code, refs] of codeToModules) {
-      for (const ref of refs) {
-        if (loadErrors.has(ref)) unresolvedCodes.add(code)
+  // 2. All 26 codes covered exactly once
+  const allCodes = Object.values(reg).flatMap(e => e.codes)
+  const codeCounts = new Map<string, number>()
+  for (const code of allCodes) {
+    codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1)
+  }
+  const duplicatedCodes = [...codeCounts.entries()].filter(([, c]) => c > 1).map(([c]) => c)
+  const missingCodes = (() => {
+    const expected = new Set([
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
+      'API1','API2','API3','API4','API5','API6','API7','API8','API9','API10',
+      'LLM01','LLM02','LLM03','LLM05','LLM06','LLM10',
+    ])
+    return [...expected].filter(c => !codeCounts.has(c))
+  })()
+
+  // 3. No two classes share a playbook
+  const playbookToClasses = new Map<string, string[]>()
+  for (const [classId, entry] of Object.entries(reg)) {
+    const existing = playbookToClasses.get(entry.playbook) ?? []
+    existing.push(classId)
+    playbookToClasses.set(entry.playbook, existing)
+  }
+  const sharedPlaybooks = [...playbookToClasses.entries()].filter(([, classes]) => classes.length > 1)
+
+  if (loadErrors.size > 0 || duplicatedCodes.length > 0 || missingCodes.length > 0 || sharedPlaybooks.length > 0) {
+    console.error('\n=== PLAYBOOK VALIDATION FAILED ===')
+    if (loadErrors.size > 0) {
+      console.error(`Unloadable playbook modules (${loadErrors.size}):`)
+      for (const [classId, msg] of loadErrors) {
+        console.error(`  - ${classId} → ${msg}`)
       }
     }
-    console.error('\n=== PLAYBOOK VALIDATION FAILED ===')
-    console.error(`Unresolved playbook modules (${loadErrors.size}):`)
-    for (const [modName, msg] of loadErrors) {
-      console.error(`  - ${modName}: ${msg}`)
+    if (duplicatedCodes.length > 0) {
+      console.error(`Codes appearing in more than one class: ${duplicatedCodes.join(', ')}`)
     }
-    console.error(`\nAffected category codes (${[...unresolvedCodes].sort().join(', ')}):`)
-    for (const code of [...unresolvedCodes].sort()) {
-      console.error(`  - ${code} → ${codeToModules.get(code)?.join(', ')}`)
+    if (missingCodes.length > 0) {
+      console.error(`Codes not covered by any class: ${missingCodes.join(', ')}`)
     }
-    console.error('\nA missing playbook means lanes for these categories will run with NO')
-    console.error('technical guidance. Fix the missing module(s) before running.')
+    if (sharedPlaybooks.length > 0) {
+      console.error(`Playbook modules shared by multiple classes:`)
+      for (const [mod, classes] of sharedPlaybooks) {
+        console.error(`  - ${mod}: ${classes.join(', ')}`)
+      }
+    }
+    console.error('\nFix the issues above before running.')
     console.error('=== END VALIDATION FAILURE ===\n')
     process.exit(1)
   }
+
+  const numClasses = Object.keys(reg).length
+  const numCodes = allCodes.length
+  const numPlaybooks = new Set(Object.values(reg).map(e => e.playbook)).size
+  console.log(`All ${numPlaybooks} playbook modules validated across ${numClasses} classes (covering all ${numCodes} category codes)`)
 }
 
 // ── Prompt assembly ───────────────────────────────────────────────────────
@@ -250,12 +292,13 @@ async function validateAllPlaybooks(): Promise<void> {
 function buildHuntPrompt(
   targetFile: string,
   lineNumberedContent: string,
-  categories: CategoryRef[],
+  classes: string[],
   playbooks: Map<string, string>,
   chunkInfo: { chunkIndex: number; totalChunks: number },
   archSummarySnippet?: string,
+  routeContextSection?: string,
 ): string {
-  const categoryList = categories.map(c => c.name).join(', ')
+  const classList = classes.join(', ')
 
   let prompt = `You are a security analyst hunting for vulnerabilities in a single source file.
 
@@ -269,8 +312,8 @@ File: ${targetFile}
   }
 
   prompt += `
-## Assigned Categories
-You are hunting ONLY for these vulnerability classes in this file: ${categoryList}.
+## Assigned Classes
+You are hunting ONLY for these vulnerability classes in this file: ${classList}.
 Do NOT look for vulnerability classes outside this list.
 
 ## Playbook Guidance — How to detect each assigned class
@@ -289,6 +332,12 @@ ${archSummarySnippet}
 `
   }
 
+  if (routeContextSection) {
+    prompt += `
+${routeContextSection}
+`
+  }
+
   prompt += `
 ## Target File Content
 Every line is prefixed with its REAL 1-indexed line number from the original source file. When citing a location in your trace, use these line numbers EXACTLY.
@@ -298,12 +347,18 @@ ${lineNumberedContent}
 \`\`\`
 
 ## Output Format
-Respond with a structured JSON object containing a "findings" array. Only include findings where you can construct a complete entrypoint-to-sink trace. If you find nothing exploitable, return an empty array — being conservative is correct.
+Respond with a structured JSON object containing a "findings" array.
 
-For each finding, you MUST specify "finding_category" as one of the category codes from your assigned categories list above (e.g., "A03", "A05"). Choose the code that best matches the vulnerability class you found. Do NOT assign a category that is not in your assigned list.
+You are seeing one file. The attacker-facing entrypoint is often in a different file — a route handler, a caller, a framework hook — and you will not be able to see it. That does not make a defect in this file unreportable. When the entrypoint is outside this file, begin the trace where this file receives data from outside it: an exported function's parameter, a setter, a handler argument. Say in that step's description that the caller is outside this file.
+
+Report a defect when the code in front of you is wrong on its own terms — a check that is absent, a weaker control chosen where a stronger one sits beside it, input reaching a dangerous operation without validation — even if you cannot see who calls it. Use "confidence" to express how sure you are: a defect you can see clearly but whose reachability you cannot confirm from this file is a real finding at moderate confidence, not something to withhold.
+
+Do not invent findings. An empty array is right for a file that genuinely has no defect. But do not stay silent about something you can see merely because the surrounding context is missing.
+
+List every class this finding genuinely belongs to. A single line can legitimately be more than one class — a render sink reached by attacker-controlled data is both an injection and a client-side finding. Only list a second class if the **same trace** establishes it; if a second class would need a different entrypoint or a different sink, it is a separate finding, not a second label. For each class you list, give the index of the trace step that establishes it.
 
 Each finding must have:
-- "finding_category": the category CODE (e.g., "A03") that this finding belongs to — chosen from your assigned categories
+- "finding_classes": array of { "class": one of the class ids from your assigned classes list above, "justified_by_step": 0-based index into this finding's trace array }
 - "title": concise vulnerability title
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
@@ -342,6 +397,7 @@ function sleep(ms: number): Promise<void> {
 async function callLlm(
   client: OpenAI,
   prompt: string,
+  schema: Record<string, unknown>,
   laneId: string,
 ): Promise<LlmCallResult | null> {
   const maxRetries = 3
@@ -356,7 +412,7 @@ async function callLlm(
           type: 'json_schema',
           json_schema: {
             name: 'hunt_output',
-            schema: HUNT_RESPONSE_SCHEMA,
+            schema: schema,
             strict: true,
           },
         },
@@ -399,12 +455,34 @@ async function callLlm(
 
 // ── Hunt a single lane (one file, possibly multiple chunks) ───────────────
 
+/**
+ * Build the union of OWASP codes from a list of finding classes,
+ * deduplicated and order-stable (sorted by first appearance).
+ */
+function unionCodesForClasses(classes: FindingClassRef[], reg: VulnClassRegistry): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const fc of classes) {
+    const entry = reg[fc.class]
+    if (!entry) continue
+    for (const code of entry.codes) {
+      if (!seen.has(code)) {
+        seen.add(code)
+        result.push(code)
+      }
+    }
+  }
+  return result
+}
+
 async function huntLane(
   client: OpenAI,
   lane: LaneAssignmentEntry,
   targetDir: string,
+  classIds: string[],
   playbooks: Map<string, string>,
   archSummarySnippet?: string,
+  archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[] } },
 ): Promise<{ findings: CandidateFinding[]; tokensUsed: number }> {
   const targetPath = join(targetDir, lane.target_file)
   if (!existsSync(targetPath)) {
@@ -415,6 +493,12 @@ async function huntLane(
   const rawContent = readFileSync(targetPath, 'utf-8')
   const sanitized = sanitizePemPrivateKey(rawContent)
 
+  // Compute per-lane route context (once, not per-chunk)
+  const routeContext = archSummary
+    ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
+    : { handWritten: [], autoCrud: [] }
+  const routeContextSection = renderRouteContext(routeContext)
+
   const allFindings: CandidateFinding[] = []
   let totalTokens = 0
 
@@ -423,6 +507,8 @@ async function huntLane(
     console.warn(`  [${lane.lane_id}] [WARN] No chunks but disposition is "hunt"`)
     return { findings: [], tokensUsed: 0 }
   }
+
+  const schema = buildHuntSchema(classIds)
 
   for (const chunk of chunks) {
     const allLines = sanitized.split('\n')
@@ -434,14 +520,15 @@ async function huntLane(
     const prompt = buildHuntPrompt(
       lane.target_file,
       lineNumbered,
-      lane.categories,
+      classIds,
       playbooks,
       { chunkIndex: chunk.index, totalChunks: lane.chunk_plan.total_chunks },
       archSummarySnippet,
+      routeContextSection,
     )
 
     const t0 = Date.now()
-    const result = await callLlm(client, prompt, lane.lane_id)
+    const result = await callLlm(client, prompt, schema, lane.lane_id)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
@@ -476,19 +563,50 @@ async function huntLane(
           continue
         }
 
-        const findingCat = (f as any).finding_category
-        const assignedCodes = lane.categories.map(c => c.code)
-        const finalCategories: string[] = []
-        if (findingCat && assignedCodes.includes(findingCat)) {
-          finalCategories.push(findingCat)
-        } else if (assignedCodes.length > 0) {
-          finalCategories.push(assignedCodes[0])
+        // Validate and normalize finding_classes
+        const rawClasses = (f as any).finding_classes
+        if (!rawClasses || !Array.isArray(rawClasses) || rawClasses.length === 0) {
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty or missing finding_classes — dropping`)
+          continue
+        }
+
+        // Filter to only classes that are in this lane's assigned set
+        const assignedClassSet = new Set(classIds)
+        const validFindingClasses: FindingClassRef[] = []
+        for (const fc of rawClasses) {
+          if (!assignedClassSet.has(fc.class)) {
+            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has off-list class "${fc.class}" — skipping that class`)
+            continue
+          }
+          // Validate justified_by_step is within trace range
+          const stepIdx = fc.justified_by_step
+          if (typeof stepIdx !== 'number' || stepIdx < 0 || stepIdx >= f.trace.length) {
+            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" class "${fc.class}" justified_by_step=${stepIdx} out of range (trace length ${f.trace.length}) — clamping to 0`)
+            validFindingClasses.push({ class: fc.class, justified_by_step: 0 })
+          } else {
+            validFindingClasses.push({ class: fc.class, justified_by_step: stepIdx })
+          }
+        }
+
+        if (validFindingClasses.length === 0) {
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has no valid finding_classes after filtering — dropping`)
+          continue
+        }
+
+        // Expand to OWASP code strings
+        const categories = unionCodesForClasses(validFindingClasses, registry!)
+
+        // Runtime assertion: every emitted finding must have at least one code
+        if (categories.length === 0) {
+          console.error(`  [${lane.lane_id}] [FATAL] Finding "${f.title}" has empty categories after class expansion — this is a bug`)
+          process.exit(1)
         }
 
         const finding: CandidateFinding = {
           finding_id: nextFindingId(),
           lane_id: lane.lane_id,
-          categories: finalCategories,
+          finding_classes: validFindingClasses,
+          categories: categories,
           title: f.title,
           description: f.description,
           trace: f.trace,
@@ -503,10 +621,263 @@ async function huntLane(
   return { findings: allFindings, tokensUsed: totalTokens }
 }
 
+// ── Exported-symbol extraction (regex-based, no parser dep) ─────────────
+
+/**
+ * Extract exported symbol names from a TypeScript/JavaScript source file.
+ * Matches:
+ *   export function X
+ *   export const X
+ *   export class X
+ *   export async function X
+ *   export { X, Y, Z }
+ *   export { X as A, Y as B }
+ * Returns a deduplicated Set of symbol names.
+ */
+export function extractExportedSymbols(source: string): Set<string> {
+  const symbols = new Set<string>()
+
+  // export function X, export async function X, export const X, export class X
+  const reDecl = /\bexport\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g
+  let m: RegExpExecArray | null
+  while ((m = reDecl.exec(source)) !== null) {
+    symbols.add(m[1])
+  }
+
+  // export { X, Y, Z }  — handles multi-line
+  const reNamed = /\bexport\s*\{([^}]*)\}/g
+  while ((m = reNamed.exec(source)) !== null) {
+    const items = m[1].split(',')
+    for (const item of items) {
+      const trimmed = item.trim()
+      // "X as A" → export name is A; bare "X" → export name is X
+      const asMatch = trimmed.match(/\b([A-Za-z_$][A-Za-z0-9_$]*)\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)/)
+      if (asMatch) {
+        symbols.add(asMatch[2])
+      } else {
+        const bareMatch = trimmed.match(/\b([A-Za-z_$][A-Za-z0-9_$]*)/)
+        if (bareMatch) {
+          symbols.add(bareMatch[1])
+        }
+      }
+    }
+  }
+
+  return symbols
+}
+
+// ── Per-lane route matching ─────────────────────────────────────────────
+
+interface HandWrittenRoute {
+  method: string
+  path: string
+  handler: string
+  auth: string | null | undefined
+  middleware: string[]
+  file: string
+  line: number
+}
+
+interface AutoCrudRoute {
+  pathPattern: string
+  model: string
+  excludeAttributes: string[]
+  hasPagination: boolean
+  hasCustomHooks: boolean
+}
+
+export interface RouteContext {
+  handWritten: HandWrittenRoute[]
+  autoCrud: AutoCrudRoute[]
+}
+
+/**
+ * Match route-table entries to a lane's target file by exported symbols.
+ * Returns { handWritten, autoCrud } — the subset of routes belonging to
+ * this file.
+ */
+export function matchRoutesForFile(
+  targetFileRel: string,
+  fileContent: string,
+  archSummary: {
+    route_table: {
+      hand_written_routes: any[]
+      auto_crud_routes: any[]
+    }
+  },
+): RouteContext {
+  const symbols = extractExportedSymbols(fileContent)
+  if (symbols.size === 0) return { handWritten: [], autoCrud: [] }
+
+  // Build a basename map from the target file path (e.g. "basketItems.ts" → "basketItems")
+  const basename = targetFileRel.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
+
+  // Match hand-written routes
+  const matchedHW: HandWrittenRoute[] = []
+  for (const route of archSummary.route_table.hand_written_routes ?? []) {
+    // Check handler field: look for any symbol as whole word
+    if (route.handler && symbolMatchesAny(route.handler, symbols)) {
+      matchedHW.push(route)
+      continue
+    }
+    // Check middleware list: any middleware string containing any symbol as whole word
+    if (route.middleware && Array.isArray(route.middleware)) {
+      const anyMatch = route.middleware.some((mw: string) => symbolMatchesAny(mw, symbols))
+      if (anyMatch) {
+        matchedHW.push(route)
+      }
+    }
+  }
+
+  // Match auto-CRUD routes: by model name matching an exported symbol OR
+  // case-insensitive basename (model files export XModel not X, and use lowercase filenames)
+  const matchedAC: AutoCrudRoute[] = []
+  for (const route of archSummary.route_table.auto_crud_routes ?? []) {
+    if (route.model && symbols.has(route.model)) {
+      matchedAC.push(route)
+    } else if (route.model && basename.toLowerCase() === route.model.toLowerCase()) {
+      matchedAC.push(route)
+    }
+  }
+
+  return { handWritten: matchedHW, autoCrud: matchedAC }
+}
+
+/**
+ * Check if any symbol in the set appears as a whole-word token inside `text`.
+ * Handles qualified names like `basketItems.addBasketItem(` by matching
+ * the symbol against word boundaries.
+ */
+function symbolMatchesAny(text: string, symbols: Set<string>): boolean {
+  for (const sym of symbols) {
+    // Use a word-boundary regex — \b works for identifiers containing word chars
+    const re = new RegExp('\\b' + escapeRegex(sym) + '\\b')
+    if (re.test(text)) return true
+  }
+  return false
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// ── Route context rendering ──────────────────────────────────────────────
+
+/**
+ * Render the "How This File Is Reached" section from matched routes.
+ * Returns the complete section string, or undefined if no routes matched.
+ */
+export function renderRouteContext(context: RouteContext, cap = 15): string | undefined {
+  if (context.handWritten.length === 0 && context.autoCrud.length === 0) {
+    return undefined
+  }
+
+  const lines: string[] = []
+
+  // Hand-written routes block — emit only when there are matches
+  if (context.handWritten.length > 0) {
+    lines.push('## How This File Is Reached')
+    lines.push("This file's exported handlers are registered as the following routes. Auth middleware is listed")
+    lines.push('exactly as the application declares it; "none" means no authentication or authorization middleware')
+    lines.push('is applied to that route.')
+    lines.push('')
+
+    // Sort hand-written routes: auth:none first, then the rest
+    const sortedHW = [...context.handWritten].sort((a, b) => {
+      const aNone = isAuthNone(a.auth) ? 0 : 1
+      const bNone = isAuthNone(b.auth) ? 0 : 1
+      return aNone - bNone
+    })
+
+    // Apply cap across hand-written routes only
+    const dropped = sortedHW.length > cap ? sortedHW.length - cap : 0
+    const shown = sortedHW.slice(0, cap)
+
+    for (const route of shown) {
+      const method = (route.method ?? '?').padEnd(6)
+      const path = (route.path ?? '?').padEnd(4)
+      const handlerRaw = route.handler ?? '?'
+      const handler = handlerRaw.replace(/\([^)]*\)$/, '').replace(/\($/, '') + '()'
+      const authDisplay = isAuthNone(route.auth) ? 'none' : route.auth
+      lines.push(`  ${method} ${path} ->  ${handler.padEnd(30)} auth: ${authDisplay}`)
+
+      // Middleware sub-line: show only middleware beyond the handler call itself
+      const extraMiddleware = getExtraMiddleware(route.middleware, handlerRaw)
+      if (extraMiddleware.length > 0) {
+        lines.push(`    middleware: ${extraMiddleware.join(', ')}`)
+      }
+    }
+
+    if (dropped > 0) {
+      lines.push('')
+      lines.push(`(${dropped} further routes not shown)`)
+    }
+  }
+
+  // Auto-CRUD block — emit only when there are matches
+  if (context.autoCrud.length > 0) {
+    if (context.handWritten.length === 0) {
+      // No hand-written block above, so add the section heading here
+      lines.push('## How This File Is Reached')
+    }
+    lines.push('')
+    lines.push("Auto-generated CRUD surface for this file's model:")
+    for (const ac of context.autoCrud) {
+      const excludes = ac.excludeAttributes?.length > 0
+        ? `excludes: ${ac.excludeAttributes.join(', ')}`
+        : ''
+      const pagination = ac.hasPagination ? 'pagination: yes' : 'pagination: no'
+      const parts = [excludes, pagination].filter(Boolean)
+      lines.push(`  ${ac.pathPattern}  ${parts.join('  ')}`)
+    }
+  }
+
+  // Closing paragraph — appears whenever either block did
+  lines.push('')
+  lines.push('Consider whether each route\'s protection matches what the handler actually does and what it')
+  lines.push('exposes. A handler that is correct in isolation can still be a finding if it is reachable without')
+  lines.push('the authorization its behaviour requires.')
+
+  return lines.join('\n')
+}
+
+function isAuthNone(auth: string | null | undefined): boolean {
+  return auth == null || auth === '' || auth === 'null'
+}
+
+/**
+ * Return middleware entries that are NOT just the handler call itself.
+ * E.g. if middleware = ['security.appendUserId()', 'utils.asyncHandler(basketItems.addBasketItem())']
+ * and handler = 'basketItems.addBasketItem(', the second middleware is the handler
+ * wrapper, so only 'security.appendUserId()' is "extra".
+ */
+function getExtraMiddleware(middleware: string[] | undefined, handler: string): string[] {
+  if (!middleware || middleware.length === 0) return []
+  // Extract the bare handler name from the handler field
+  const bareHandler = handler.replace(/\([^)]*\)$/, '').replace(/\($/, '').trim()
+  if (!bareHandler) return middleware
+
+  return middleware.filter(mw => {
+    // If the middleware is just asyncHandler(handlerName()), it's the handler itself
+    const cleanedMw = mw.replace(/^utils\.asyncHandler\(/, '').replace(/\)$/, '').trim()
+    if (cleanedMw === bareHandler || mw.includes(bareHandler + '(')) return false
+    // Also check if the middleware is just the handler name itself
+    if (mw.trim() === bareHandler) return false
+    // Check for qualified handler: e.g. "basketItems.addBasketItem(" inside the middleware
+    const parts = bareHandler.split('.')
+    const lastPart = parts[parts.length - 1]
+    if (lastPart && (mw.includes(lastPart + '(') || mw === lastPart)) return false
+    return true
+  })
+}
+
 // ── Load architecture summary (optional context) ──────────────────────────
 
 function loadArchSummarySnippet(archPath: string): string | undefined {
-  if (!existsSync(archPath)) return undefined
+  if (!existsSync(archPath)) {
+    console.warn(`  [loadArchSummarySnippet] File not found: ${archPath}`)
+    return undefined
+  }
   try {
     const summary = JSON.parse(readFileSync(archPath, 'utf-8'))
     const snippets: string[] = []
@@ -529,7 +900,8 @@ function loadArchSummarySnippet(archPath: string): string | undefined {
       snippets.push(`Data models: ${Object.keys(summary.data_models).join(', ')}`)
     }
     return snippets.join('\n')
-  } catch {
+  } catch (err: any) {
+    console.warn(`  [loadArchSummarySnippet] Failed to parse: ${archPath} — ${err.message}`)
     return undefined
   }
 }
@@ -597,7 +969,6 @@ async function main() {
   console.log()
 
   await validateAllPlaybooks()
-  console.log(`All 16 playbook modules validated (covering all 26 category codes)`)
   console.log()
 
   const assignmentsPath = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
@@ -648,10 +1019,25 @@ async function main() {
     console.log(`  [SKIP] ${lane.lane_id}: ${lane.target_file} — ${lane.skip_reason}`)
   }
 
-  const archPath = join(REPO_ROOT, assignments.source_stage0_run)
+  const archPathRaw = assignments.source_stage0_run
+  const archPath = archPathRaw.startsWith('/') ? archPathRaw : join(REPO_ROOT, archPathRaw)
   const archSnippet = loadArchSummarySnippet(archPath)
   if (archSnippet) {
-    console.log('\nArchitecture summary loaded (context for lanes)')
+    console.log('\nArchitecture summary context loaded from: ' + archPath)
+  } else {
+    console.warn('\n[WARN] Architecture summary not found or failed to parse: ' + archPath)
+    console.warn('  All lanes will run without architecture context.')
+  }
+
+  // Load full architecture summary for per-lane route matching
+  let archSummaryFull: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[] } } | undefined
+  try {
+    if (existsSync(archPath)) {
+      const full = JSON.parse(readFileSync(archPath, 'utf-8'))
+      archSummaryFull = full.route_table ? { route_table: full.route_table } : undefined
+    }
+  } catch {
+    // Non-fatal — per-lane route context will simply be omitted
   }
 
   const client = createClient()
@@ -681,6 +1067,15 @@ async function main() {
 
   console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)
 
+  // ── Class resolution path banner ────────────────────────────────────────
+  let lanesWithClasses = 0
+  let lanesWithCategories = 0
+  for (const lane of huntLanes) {
+    if (lane.classes && lane.classes.length > 0) lanesWithClasses++
+    else lanesWithCategories++
+  }
+  console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
+
   // ── Bounded concurrency executor ────────────────────────────────────────
   const sem = new Semaphore(MAX_CONCURRENT_LANES)
   const lanePromises: Promise<void>[] = []
@@ -689,16 +1084,24 @@ async function main() {
     const p = (async () => {
       await sem.acquire()
       try {
-        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Categories: ${lane.categories.map(c => c.code).join(', ')}`)
+        // Class resolution: prefer lane.classes (signal-based) when present,
+        // otherwise fall back to collapsing lane.categories through the code→class index
+        let laneClasses: string[]
+        if (lane.classes && lane.classes.length > 0) {
+          laneClasses = lane.classes
+        } else {
+          const assignedCodes = lane.categories.map(c => c.code)
+          laneClasses = codesToClasses(assignedCodes)
+        }
+        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Classes: ${laneClasses.join(', ')}`)
         console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
         console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
 
-        const assignedCodes = lane.categories.map(c => c.code)
-        const playbooks = await loadPlaybooksForCategories(assignedCodes)
+        const playbooks = await loadPlaybooksForClasses(laneClasses)
         console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
 
         const t0 = Date.now()
-        const result = await huntLane(client, lane, assignments.target_dir, playbooks, archSnippet)
+        const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet, archSummaryFull)
         const elapsed = (Date.now() - t0) / 1000
 
         allFindings.push(...result.findings)
@@ -753,7 +1156,9 @@ async function main() {
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)
 }
 
-main().catch(err => {
-  console.error('Stage 2 (Per-File v2) failed:', err)
-  process.exit(1)
-})
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch(err => {
+    console.error('Stage 2 (Per-File v2) failed:', err)
+    process.exit(1)
+  })
+}

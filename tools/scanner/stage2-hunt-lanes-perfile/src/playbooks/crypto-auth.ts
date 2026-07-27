@@ -30,7 +30,7 @@ Scope: Detect weak or incorrect implementations of cryptography, authentication,
 - A validation layer that explicitly rejects weak configurations before they take effect is a valid control.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The specific cryptographic/auth operation
 2. The weakness (algorithm, missing check, predictable generation, exposed secret)
 3. The attack path: how an attacker exploits the weakness

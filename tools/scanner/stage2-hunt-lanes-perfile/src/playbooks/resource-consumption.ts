@@ -22,7 +22,7 @@ Scope: Detect endpoints vulnerable to denial-of-service through excessive resour
 - Infrastructure-level protections (WAF, reverse proxy rate limiting, load balancer limits) may mitigate the application-level gap — note them but do not dismiss the finding.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)
 2. The resource that can be consumed excessively (memory, CPU, disk, connections)
 3. The missing control (rate limit, pagination, size cap, timeout)

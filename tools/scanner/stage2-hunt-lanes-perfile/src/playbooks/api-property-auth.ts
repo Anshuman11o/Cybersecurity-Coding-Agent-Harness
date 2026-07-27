@@ -20,7 +20,7 @@ Scope: Detect automatic field binding that exposes sensitive model properties to
 - Read-only fields that are validated but never persisted are not a mass assignment risk.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)
 2. The request body field that maps to a sensitive model property
 3. The create/update call that persists it

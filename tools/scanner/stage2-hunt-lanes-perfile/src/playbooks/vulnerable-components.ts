@@ -20,7 +20,7 @@ Scope: Identify dependencies with known vulnerabilities via lockfile analysis an
 - Development-only dependencies (test frameworks, linters, build tools) are typically not exploitable in production unless they leak into the deployed artifact.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The vulnerable package name and exact version in use
 2. The CVE identifier(s) and CVSS score
 3. The affected function or module within the package
