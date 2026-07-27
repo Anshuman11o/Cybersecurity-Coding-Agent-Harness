@@ -1,0 +1,5 @@
+# Run mutex — process-local, never committed
+.run.lock/
+
+# Verbose per-run logs: results are durable, logs are not
+runs/*/*/logs/

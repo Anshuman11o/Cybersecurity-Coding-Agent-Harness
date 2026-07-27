@@ -16,6 +16,14 @@ import OpenAI from 'openai'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+import { runPath, type Provider } from '../../shared/run-paths.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { writeMeta } from '../../shared/meta.js'
+import { SEED_DENYLIST } from '../../shared/read-guard.js'
+
+const PROVIDER: Provider = resolveProvider('stage05')
+const MODEL = modelFor(PROVIDER)
+const STARTED = new Date().toISOString()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -107,6 +115,12 @@ interface OrchestratorReview {
 // ---------------------------------------------------------------------------
 
 function createClient(): OpenAI | null {
+  if (PROVIDER === 'openai') {
+    const key = process.env.OPENAI_API_KEY
+    if (!key) return null
+    const proxy = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
+    return new OpenAI({ apiKey: key, httpAgent: new HttpsProxyAgent(proxy) })
+  }
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) return null
   const baseURL =
@@ -745,10 +759,10 @@ async function runOrchestratorReview(
 
   try {
     const response = await client.chat.completions.create({
-      model: 'qwen-plus',
+      model: MODEL,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: 3000,
+      ...samplingParams(PROVIDER),
+      ...tokenLimitParam(PROVIDER, 3000),
     })
     const text = response.choices[0]?.message?.content ?? '{}'
     console.log('[TASK C] Orchestrator review received a real API response')
@@ -926,8 +940,8 @@ function applyOrchestratorReview(
 
 async function main() {
   const repoRoot = path.resolve(__dirname, '../../../..')
-  const stage0OutputDir = path.join(repoRoot, 'tools/scanner/stage0-recon/output')
-  const outputDir = path.join(repoRoot, 'tools/scanner/stage05-lane-selector/output')
+  const stage0OutputDir = runPath(PROVIDER, 'stage0-recon')
+  const outputDir = runPath(PROVIDER, 'stage05-lane-selector')
 
   console.log('[Stage 0.5] Loading architecture summary...')
   const arch = JSON.parse(
@@ -961,11 +975,8 @@ async function main() {
 
   // Permanent seed-file denylist: internal bookkeeping files that must never
   // appear in any lane's seed_files, regardless of recon or orchestrator output.
-  const SEED_DENYLIST = [
-    'target-apps/juice-shop-blind/models/challenge.ts',
-    'target-apps/juice-shop-blind/lib/antiCheat.ts',
-    'target-apps/juice-shop-blind/data/datacreator.ts',
-  ]
+  // SEED_DENYLIST now lives in shared/read-guard.ts so it also covers the
+  // model-controlled read paths in stage2/stage3, not just manifest writes.
   for (const lane of lanes) {
     lane.seed_files = lane.seed_files.filter((f) => !SEED_DENYLIST.includes(f))
   }
@@ -976,6 +987,7 @@ async function main() {
   fs.writeFileSync(manifestPath, JSON.stringify(lanes, null, 2) + '\n')
 
   console.log('\n[Stage 0.5] Lane manifest written to ' + manifestPath)
+  writeMeta(PROVIDER, 'stage05-lane-selector', MODEL, STARTED)
   console.log('[Stage 0.5] Total lanes: ' + lanes.length)
 
   console.log('\n========== LANE SUMMARY ==========')

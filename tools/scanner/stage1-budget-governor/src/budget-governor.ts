@@ -5,9 +5,14 @@
 import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { runPath, type Provider } from "../../shared/run-paths.js";
+import { resolveProvider } from "../../shared/provider.js";
+import { writeMeta, assertUpstream } from "../../shared/meta.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../../../..");
+const PROVIDER: Provider = resolveProvider("stage1");
+const STARTED = new Date().toISOString();
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -355,18 +360,19 @@ export class BudgetTracker {
 // ── CLI entry point: generate budget-plan.json ─────────────────────────────
 
 async function main() {
-  const manifestPath = join(REPO_ROOT, "tools/scanner/stage05-lane-selector/output/lane-manifest.json");
+  const manifestPath = join(runPath(PROVIDER, "stage05-lane-selector"), "lane-manifest.json");
   const manifest: LaneManifestEntry[] = JSON.parse(readFileSync(manifestPath, "utf-8"));
 
   console.log(`Computing budget plan for ${manifest.length} lanes…`);
   const plan = computeBudgetPlan(manifest, REPO_ROOT);
 
-  const outDir = join(__dirname, "..", "output");
+  const outDir = runPath(PROVIDER, "stage1-budget-governor");
   mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, "budget-plan.json");
   writeFileSync(outPath, JSON.stringify(plan, null, 2) + "\n");
 
   console.log(`\nBudget plan written to ${outPath}`);
+  writeMeta(PROVIDER, "stage1-budget-governor", "deterministic", STARTED);
   console.log("─".repeat(90));
   console.log(
     "Lane".padEnd(30) +

@@ -13,11 +13,14 @@ import { extract, extractDependencies } from './ast-extractor.js'
 import { diff as swaggerDiff } from './swagger-diff.js'
 import { scan as frontendGrep } from './frontend-grep.js'
 import { detectToolCalling, probeCategoryApplicability } from './llm-probe.js'
+import { runPath } from '../../shared/run-paths.js'
+import { resolveProvider, modelFor } from '../../shared/provider.js'
+import { writeMeta } from '../../shared/meta.js'
 
 // Resolve paths relative to the project root
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '../../../../')
 const TARGET_DIR = path.join(PROJECT_ROOT, 'target-apps', 'juice-shop-blind')
-const OUTPUT_DIR = path.join(import.meta.dirname, '..', 'output')
+const OUTPUT_DIR = runPath(resolveProvider('stage0'), 'stage0-recon')
 
 const SERVER_TS = path.join(TARGET_DIR, 'server.ts')
 const SWAGGER_YML = path.join(TARGET_DIR, 'swagger.yml')
@@ -103,11 +106,14 @@ async function main() {
   // ---- Write output files ----
   const archSummaryPath = path.join(OUTPUT_DIR, 'architecture-summary.json')
   const catApplicPath = path.join(OUTPUT_DIR, 'category-applicability.json')
+  const __provider = resolveProvider('stage0')
+  const __started = new Date().toISOString()
 
   fs.writeFileSync(archSummaryPath, JSON.stringify(archSummary, null, 2))
   console.log(`Written: ${archSummaryPath}`)
 
   fs.writeFileSync(catApplicPath, JSON.stringify(categoryVerdicts, null, 2))
+  writeMeta(__provider, 'stage0-recon', modelFor(__provider), __started)
   console.log(`Written: ${catApplicPath}`)
 
   console.log()

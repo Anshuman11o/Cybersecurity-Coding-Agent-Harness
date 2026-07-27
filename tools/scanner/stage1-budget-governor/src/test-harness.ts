@@ -4,6 +4,8 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { runPath } from "../../shared/run-paths.js";
+import { resolveProvider } from "../../shared/provider.js";
 import { BudgetTracker, BudgetPlanEntry, ConsumptionReport, TrackerResult } from "./budget-governor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -19,7 +21,7 @@ function assert(cond: boolean, msg: string): void {
 }
 
 function loadPlan(): BudgetPlanEntry[] {
-  const planPath = join(REPO_ROOT, "tools/scanner/stage1-budget-governor/output/budget-plan.json");
+  const planPath = join(runPath(resolveProvider("stage1"), "stage1-budget-governor"), "budget-plan.json");
   return JSON.parse(readFileSync(planPath, "utf-8"));
 }
 

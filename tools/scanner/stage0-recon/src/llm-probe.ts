@@ -10,6 +10,10 @@ import OpenAI from 'openai'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+
+const PROVIDER = resolveProvider('stage0')
+const MODEL = modelFor(PROVIDER)
 
 export interface ToolCallingVerdict {
   hasGenuineToolCalling: boolean
@@ -31,6 +35,12 @@ export interface CategoryVerdict {
  * DashScope provides an OpenAI-compatible endpoint.
  */
 function createClient(): OpenAI | null {
+  if (PROVIDER === 'openai') {
+    const key = process.env.OPENAI_API_KEY
+    if (!key) return null
+    const proxy = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
+    return new OpenAI({ apiKey: key, httpAgent: new HttpsProxyAgent(proxy) })
+  }
   const apiKey = process.env.DASHSCOPE_API_KEY
   if (!apiKey) return null
   const baseURL = process.env.DASHSCOPE_BASE_URL
@@ -58,10 +68,10 @@ export async function detectToolCalling(chatTsPath: string): Promise<ToolCalling
   if (client) {
     try {
       const response = await client.chat.completions.create({
-        model: 'qwen-plus',
+        model: MODEL,
         messages: [{ role: 'user', content: buildToolCallingPrompt(content) }],
-        temperature: 0.1,
-        max_tokens: 500,
+        ...samplingParams(PROVIDER),
+        ...tokenLimitParam(PROVIDER, 500),
       })
       const text = response.choices[0]?.message?.content ?? '{}'
       const jsonStr = extractJson(text)
@@ -210,10 +220,10 @@ Respond in JSON array:
 [{"name":"category name","framework":"framework name","verdict":"present|absent|uncertain","evidence":"brief evidence","confidence":0.0-1.0}]`
 
   const response = await client.chat.completions.create({
-    model: 'qwen-plus',
+    model: MODEL,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.1,
-    max_tokens: 5000,
+    ...samplingParams(PROVIDER),
+    ...tokenLimitParam(PROVIDER, 5000),
   })
 
   console.log('  [LLM OK] Category applicability probe received a real API response')
