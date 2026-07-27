@@ -421,7 +421,26 @@ for r in ext:
 
 sc = load_jsonl("scanner.jsonl")
 story += [P("5.2 This harness's scanner &mdash; dataset juice-shop-benchmark-v2 (98 challenges)", "h2")]
-rows = [["Run", "Version", "Recall (exact line)", "Localization (15 lines)", "File match", "Precision proxy", "Findings"]]
+def _pp(m):
+    """Precision proxy. Runs before the class model recorded one figure;
+    runs after record a category-blind and a category-aware one. Show the
+    blind figure so the column stays comparable, and mark the newer runs."""
+    if "precision_proxy_pct" in m:
+        return f"{m['precision_proxy_pct']}% ({m['precision_proxy_fraction']})"
+    if "precision_proxy_category_blind_pct" in m:
+        return (f"{m['precision_proxy_category_blind_pct']}% "
+                f"({m['precision_proxy_category_blind_fraction']})*")
+    return "n/a"
+
+
+def _hedge(m):
+    """Mean classes per finding. Absent before the class model, when every
+    finding carried exactly one label by construction."""
+    v = m.get("hedging_mean_classes_per_finding")
+    return "1.000" if v is None else f"{v:.3f}"
+
+
+rows = [["Run", "Version", "Recall (exact line)", "Localization (15 lines)", "File match", "Precision proxy", "Classes/finding", "Findings"]]
 for r in sc:
     m = r["metrics"]
     rows.append([
@@ -429,10 +448,20 @@ for r in sc:
         f"{m['recall_pct']}% ({m['recall_fraction']})",
         f"{m['localization_pct']}% ({m['localization_fraction']})",
         f"{m['file_match_any_line_pct']}% ({m['file_match_fraction']})",
-        f"{m['precision_proxy_pct']}% ({m['precision_proxy_fraction']})",
+        _pp(m),
+        _hedge(m),
         str(m["candidate_findings"]),
     ])
-story.append(table(rows, [24 * mm, 17 * mm, 27 * mm, 29 * mm, 26 * mm, 26 * mm, 17 * mm]))
+story.append(table(rows, [22 * mm, 15 * mm, 25 * mm, 26 * mm, 23 * mm, 24 * mm, 20 * mm, 15 * mm]))
+story.append(P(
+    "* category-blind figure. Runs from 2026-07-27 onward also record a "
+    "category-aware precision proxy, and their recall is not directly comparable "
+    "to earlier runs &mdash; findings now carry a vulnerability class and all of "
+    "that class's OWASP alias codes, so category matching succeeds where it "
+    "previously failed on a naming disagreement. Compare against the "
+    "<i>-aliasexpanded</i> re-score, which applies the same alias semantics to "
+    "the older findings. The classes-per-finding column is the control: a recall "
+    "gain that tracks it is a wider net rather than better detection.", "note"))
 
 rows = [["Run", "Stage 2 tokens", "Lane seconds (summed)", "Lanes", "Ceiling hits"]]
 for r in sc:

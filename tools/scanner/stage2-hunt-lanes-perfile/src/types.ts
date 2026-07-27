@@ -100,3 +100,113 @@ export interface BudgetConsumption {
   seconds_elapsed: number;
   ceiling_hit: boolean;
 }
+
+// ── v2 itemized token accounting types ───────────────────────────────────
+
+/**
+ * One contributing segment of a built prompt.
+ * `chars` is exact character count (string length).
+ * `segment_type` is one of: "boilerplate", "playbook:<class-id>",
+ *   "route_context", "arch_context", "file_content".
+ */
+export interface PromptSegment {
+  segment_type: string;  // "boilerplate" | "playbook:<class-id>" | "route_context" | "arch_context" | "file_content"
+  chars: number;
+}
+
+/**
+ * Character breakdown of a prompt. The sum of all `chars` fields MUST
+ * equal the prompt string's `.length`.
+ */
+export interface PromptBreakdown {
+  segments: PromptSegment[];
+  total_chars: number;
+}
+
+/**
+ * Measured token counts from the API response.
+ * Fields are `null` when the provider omits them — never inferred.
+ */
+export interface MeasuredTokens {
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+}
+
+/**
+ * Per-segment attribution of prompt_tokens, derived by distributing
+ * the measured prompt_tokens in proportion to each segment's character
+ * share. This is an approximation, NOT a measurement.
+ */
+export interface DerivedSegmentAttribution {
+  segment_type: string;
+  chars: number;
+  derived_prompt_tokens: number | null;  // null when prompt_tokens was not measured
+}
+
+/**
+ * Measured + derived token data for one chunk of a lane.
+ */
+export interface ChunkTokenRecord {
+  chunk_index: number;
+  start_line: number;
+  end_line: number;
+  prompt_breakdown: PromptBreakdown;
+  segment_attribution: DerivedSegmentAttribution[];
+  measured: MeasuredTokens;
+}
+
+/**
+ * Per-lane token record (v2 enriched).
+ */
+export interface LaneTokenRecordV2 {
+  lane_id: string;
+  target_file: string;
+  file_bytes: number;
+  chunk_count: number;
+  chunks: ChunkTokenRecord[];
+  lane_totals: {
+    prompt_tokens: number | null;
+    completion_tokens: number | null;
+    total_tokens: number | null;
+  };
+}
+
+/**
+ * Run-level rollup of v2 token accounting.
+ */
+export interface RunLevelRollupV2 {
+  total_input_tokens: number | null;
+  total_output_tokens: number | null;
+  total_tokens: number | null;
+  input_by_segment_kind: Record<string, { tokens: number | null; share_of_input: number | null }>;
+  input_by_playbook_class: Array<{ class_id: string; tokens: number | null; share_of_input: number | null }>;
+  top_20_expensive_lanes: Array<{
+    lane_id: string;
+    target_file: string;
+    file_bytes: number;
+    chunk_count: number;
+    total_input_tokens: number | null;
+    total_output_tokens: number | null;
+    total_tokens: number | null;
+    segment_breakdown: Record<string, number | null>;
+  }>;
+  tokens_per_byte: number | null;
+  lane_chunk_distribution: Record<string, number>;  // chunk_count → lane_count
+  repeated_boilerplate_cost: {
+    total_extra_prompt_tokens: number | null;
+    description: string;
+  };
+}
+
+/**
+ * Full v2 budget consumption output.
+ */
+export interface BudgetConsumptionV2 {
+  generated_at: string;
+  model: string | null;
+  lanes: LaneTokenRecordV2[];
+  rollup: RunLevelRollupV2;
+  // Legacy array preserved for backward compatibility
+  legacy_entries: BudgetConsumption[];
+}
