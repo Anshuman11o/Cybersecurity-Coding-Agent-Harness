@@ -36,6 +36,8 @@ import type {
   CandidateFinding,
   LaneHuntResponse,
   BudgetConsumption,
+  VulnClassRegistry,
+  FindingClassRef,
 } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -85,77 +87,91 @@ class Semaphore {
   }
 }
 
-// ── Category code → playbook module mapping ───────────────────────────────
-const CATEGORY_CODE_TO_PLAYBOOKS: Record<string, string[]> = {
-  'A01': ['access-control'],
-  'A02': ['crypto-auth'],
-  'A03': ['injection'],
-  'A04': ['insecure-design'],
-  'A05': ['misconfiguration'],
-  'A06': ['vulnerable-components'],
-  'A07': ['crypto-auth'],
-  'A08': ['integrity-failures'],
-  'A09': ['logging-monitoring'],
-  'A10': ['ssrf'],
-  'API1': ['access-control'],
-  'API2': ['crypto-auth'],
-  'API3': ['api-property-auth'],
-  'API4': ['resource-consumption'],
-  'API5': ['access-control'],
-  'API6': ['sensitive-business-flows'],
-  'API7': ['ssrf-api'],
-  'API8': ['misconfiguration'],
-  'API9': ['misconfiguration'],
-  'API10': ['general-catchall'],
-  'LLM01': ['ai-llm-agency'],
-  'LLM02': ['ai-llm-agency'],
-  'LLM03': ['ai-llm-agency'],
-  'LLM05': ['client-side'],
-  'LLM06': ['ai-llm-agency'],
-  'LLM10': ['ai-llm-agency'],
+// ── Vulnerability class registry ─────────────────────────────────────────
+
+const SHARED_DIR = join(REPO_ROOT, 'tools/scanner/shared')
+
+let registry: VulnClassRegistry | null = null
+let codeToClass: Record<string, string> = {}
+
+function loadRegistry(): VulnClassRegistry {
+  if (registry) return registry
+  const raw = readFileSync(join(SHARED_DIR, 'vuln-classes.json'), 'utf-8')
+  registry = JSON.parse(raw) as VulnClassRegistry
+
+  // Build reverse index: code → classId
+  for (const [classId, entry] of Object.entries(registry)) {
+    for (const code of entry.codes) {
+      codeToClass[code] = classId
+    }
+  }
+
+  return registry
 }
 
-// ── Structured output schema ──────────────────────────────────────────────
+/** Given a list of CategoryRef codes, return the deduplicated set of class ids. */
+function codesToClasses(codes: string[]): string[] {
+  const classSet = new Set<string>()
+  for (const code of codes) {
+    const classId = codeToClass[code]
+    if (classId) classSet.add(classId)
+  }
+  return [...classSet]
+}
 
-const HUNT_RESPONSE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    findings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          finding_category: {
-            type: 'string',
-            description: 'The specific vulnerability class code (e.g., A03, A05) from your assigned categories that this finding belongs to.',
-          },
-          title: { type: 'string' },
-          description: { type: 'string' },
-          trace: {
-            type: 'array',
-            minItems: 1,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                kind: { type: 'string', enum: ['entrypoint', 'propagation', 'sink'] },
-                file: { type: 'string' },
-                line: { type: 'integer' },
-                description: { type: 'string' },
+// ── Structured output schema (per-lane, built dynamically) ──────────────
+
+function buildHuntSchema(classIds: string[]): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      findings: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            finding_classes: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 2,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  class: { type: 'string', enum: classIds },
+                  justified_by_step: { type: 'integer' },
+                },
+                required: ['class', 'justified_by_step'],
               },
-              required: ['kind', 'file', 'line', 'description'],
             },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            trace: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  kind: { type: 'string', enum: ['entrypoint', 'propagation', 'sink'] },
+                  file: { type: 'string' },
+                  line: { type: 'integer' },
+                  description: { type: 'string' },
+                },
+                required: ['kind', 'file', 'line', 'description'],
+              },
+            },
+            severity_estimate: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+            confidence: { type: 'number', minimum: 0, maximum: 1 },
           },
-          severity_estimate: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
-          confidence: { type: 'number', minimum: 0, maximum: 1 },
+          required: ['finding_classes', 'title', 'description', 'trace', 'severity_estimate', 'confidence'],
         },
-        required: ['finding_category', 'title', 'description', 'trace', 'severity_estimate', 'confidence'],
       },
     },
-  },
-  required: ['findings'],
+    required: ['findings'],
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -187,17 +203,13 @@ function lineNumberContent(content: string, startLine: number): string {
 
 // ── Playbook loading and validation ───────────────────────────────────────
 
-async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, string>> {
-  const moduleNames = new Set<string>()
-  for (const code of codes) {
-    const refs = CATEGORY_CODE_TO_PLAYBOOKS[code]
-    if (refs) {
-      for (const ref of refs) moduleNames.add(ref)
-    }
-  }
-
+async function loadPlaybooksForClasses(classIds: string[]): Promise<Map<string, string>> {
   const loaded = new Map<string, string>()
-  for (const modName of moduleNames) {
+  for (const classId of classIds) {
+    const entry = registry![classId]
+    if (!entry) continue
+    const modName = entry.playbook
+    if (loaded.has(modName)) continue
     const mod = await import(`./playbooks/${modName}.js`)
     loaded.set(modName, (mod as { playbook: string }).playbook)
   }
@@ -205,44 +217,74 @@ async function loadPlaybooksForCategories(codes: string[]): Promise<Map<string, 
 }
 
 async function validateAllPlaybooks(): Promise<void> {
-  const allModuleNames = new Set<string>()
-  const codeToModules = new Map<string, string[]>()
+  loadRegistry()  // ensures registry and codeToClass are populated
 
-  for (const [code, refs] of Object.entries(CATEGORY_CODE_TO_PLAYBOOKS)) {
-    codeToModules.set(code, refs)
-    for (const ref of refs) allModuleNames.add(ref)
-  }
+  const reg = registry!
 
+  // 1. Every class resolves to a loadable playbook module
   const loadErrors = new Map<string, string>()
-  for (const modName of allModuleNames) {
+  for (const [classId, entry] of Object.entries(reg)) {
     try {
-      await import(`./playbooks/${modName}.js`)
+      await import(`./playbooks/${entry.playbook}.js`)
     } catch (err: any) {
-      loadErrors.set(modName, err.message)
+      loadErrors.set(classId, err.message)
     }
   }
 
-  if (loadErrors.size > 0) {
-    const unresolvedCodes = new Set<string>()
-    for (const [code, refs] of codeToModules) {
-      for (const ref of refs) {
-        if (loadErrors.has(ref)) unresolvedCodes.add(code)
+  // 2. All 26 codes covered exactly once
+  const allCodes = Object.values(reg).flatMap(e => e.codes)
+  const codeCounts = new Map<string, number>()
+  for (const code of allCodes) {
+    codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1)
+  }
+  const duplicatedCodes = [...codeCounts.entries()].filter(([, c]) => c > 1).map(([c]) => c)
+  const missingCodes = (() => {
+    const expected = new Set([
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
+      'API1','API2','API3','API4','API5','API6','API7','API8','API9','API10',
+      'LLM01','LLM02','LLM03','LLM05','LLM06','LLM10',
+    ])
+    return [...expected].filter(c => !codeCounts.has(c))
+  })()
+
+  // 3. No two classes share a playbook
+  const playbookToClasses = new Map<string, string[]>()
+  for (const [classId, entry] of Object.entries(reg)) {
+    const existing = playbookToClasses.get(entry.playbook) ?? []
+    existing.push(classId)
+    playbookToClasses.set(entry.playbook, existing)
+  }
+  const sharedPlaybooks = [...playbookToClasses.entries()].filter(([, classes]) => classes.length > 1)
+
+  if (loadErrors.size > 0 || duplicatedCodes.length > 0 || missingCodes.length > 0 || sharedPlaybooks.length > 0) {
+    console.error('\n=== PLAYBOOK VALIDATION FAILED ===')
+    if (loadErrors.size > 0) {
+      console.error(`Unloadable playbook modules (${loadErrors.size}):`)
+      for (const [classId, msg] of loadErrors) {
+        console.error(`  - ${classId} → ${msg}`)
       }
     }
-    console.error('\n=== PLAYBOOK VALIDATION FAILED ===')
-    console.error(`Unresolved playbook modules (${loadErrors.size}):`)
-    for (const [modName, msg] of loadErrors) {
-      console.error(`  - ${modName}: ${msg}`)
+    if (duplicatedCodes.length > 0) {
+      console.error(`Codes appearing in more than one class: ${duplicatedCodes.join(', ')}`)
     }
-    console.error(`\nAffected category codes (${[...unresolvedCodes].sort().join(', ')}):`)
-    for (const code of [...unresolvedCodes].sort()) {
-      console.error(`  - ${code} → ${codeToModules.get(code)?.join(', ')}`)
+    if (missingCodes.length > 0) {
+      console.error(`Codes not covered by any class: ${missingCodes.join(', ')}`)
     }
-    console.error('\nA missing playbook means lanes for these categories will run with NO')
-    console.error('technical guidance. Fix the missing module(s) before running.')
+    if (sharedPlaybooks.length > 0) {
+      console.error(`Playbook modules shared by multiple classes:`)
+      for (const [mod, classes] of sharedPlaybooks) {
+        console.error(`  - ${mod}: ${classes.join(', ')}`)
+      }
+    }
+    console.error('\nFix the issues above before running.')
     console.error('=== END VALIDATION FAILURE ===\n')
     process.exit(1)
   }
+
+  const numClasses = Object.keys(reg).length
+  const numCodes = allCodes.length
+  const numPlaybooks = new Set(Object.values(reg).map(e => e.playbook)).size
+  console.log(`All ${numPlaybooks} playbook modules validated across ${numClasses} classes (covering all ${numCodes} category codes)`)
 }
 
 // ── Prompt assembly ───────────────────────────────────────────────────────
@@ -250,12 +292,12 @@ async function validateAllPlaybooks(): Promise<void> {
 function buildHuntPrompt(
   targetFile: string,
   lineNumberedContent: string,
-  categories: CategoryRef[],
+  classes: string[],
   playbooks: Map<string, string>,
   chunkInfo: { chunkIndex: number; totalChunks: number },
   archSummarySnippet?: string,
 ): string {
-  const categoryList = categories.map(c => c.name).join(', ')
+  const classList = classes.join(', ')
 
   let prompt = `You are a security analyst hunting for vulnerabilities in a single source file.
 
@@ -269,8 +311,8 @@ File: ${targetFile}
   }
 
   prompt += `
-## Assigned Categories
-You are hunting ONLY for these vulnerability classes in this file: ${categoryList}.
+## Assigned Classes
+You are hunting ONLY for these vulnerability classes in this file: ${classList}.
 Do NOT look for vulnerability classes outside this list.
 
 ## Playbook Guidance — How to detect each assigned class
@@ -300,10 +342,10 @@ ${lineNumberedContent}
 ## Output Format
 Respond with a structured JSON object containing a "findings" array. Only include findings where you can construct a complete entrypoint-to-sink trace. If you find nothing exploitable, return an empty array — being conservative is correct.
 
-For each finding, you MUST specify "finding_category" as one of the category codes from your assigned categories list above (e.g., "A03", "A05"). Choose the code that best matches the vulnerability class you found. Do NOT assign a category that is not in your assigned list.
+List every class this finding genuinely belongs to. A single line can legitimately be more than one class — a render sink reached by attacker-controlled data is both an injection and a client-side finding. Only list a second class if the **same trace** establishes it; if a second class would need a different entrypoint or a different sink, it is a separate finding, not a second label. For each class you list, give the index of the trace step that establishes it.
 
 Each finding must have:
-- "finding_category": the category CODE (e.g., "A03") that this finding belongs to — chosen from your assigned categories
+- "finding_classes": array of { "class": one of the class ids from your assigned classes list above, "justified_by_step": 0-based index into this finding's trace array }
 - "title": concise vulnerability title
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
@@ -342,6 +384,7 @@ function sleep(ms: number): Promise<void> {
 async function callLlm(
   client: OpenAI,
   prompt: string,
+  schema: Record<string, unknown>,
   laneId: string,
 ): Promise<LlmCallResult | null> {
   const maxRetries = 3
@@ -356,7 +399,7 @@ async function callLlm(
           type: 'json_schema',
           json_schema: {
             name: 'hunt_output',
-            schema: HUNT_RESPONSE_SCHEMA,
+            schema: schema,
             strict: true,
           },
         },
@@ -399,10 +442,31 @@ async function callLlm(
 
 // ── Hunt a single lane (one file, possibly multiple chunks) ───────────────
 
+/**
+ * Build the union of OWASP codes from a list of finding classes,
+ * deduplicated and order-stable (sorted by first appearance).
+ */
+function unionCodesForClasses(classes: FindingClassRef[], reg: VulnClassRegistry): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const fc of classes) {
+    const entry = reg[fc.class]
+    if (!entry) continue
+    for (const code of entry.codes) {
+      if (!seen.has(code)) {
+        seen.add(code)
+        result.push(code)
+      }
+    }
+  }
+  return result
+}
+
 async function huntLane(
   client: OpenAI,
   lane: LaneAssignmentEntry,
   targetDir: string,
+  classIds: string[],
   playbooks: Map<string, string>,
   archSummarySnippet?: string,
 ): Promise<{ findings: CandidateFinding[]; tokensUsed: number }> {
@@ -424,6 +488,8 @@ async function huntLane(
     return { findings: [], tokensUsed: 0 }
   }
 
+  const schema = buildHuntSchema(classIds)
+
   for (const chunk of chunks) {
     const allLines = sanitized.split('\n')
     const chunkLines = allLines.slice(chunk.start_line - 1, chunk.end_line)
@@ -434,14 +500,14 @@ async function huntLane(
     const prompt = buildHuntPrompt(
       lane.target_file,
       lineNumbered,
-      lane.categories,
+      classIds,
       playbooks,
       { chunkIndex: chunk.index, totalChunks: lane.chunk_plan.total_chunks },
       archSummarySnippet,
     )
 
     const t0 = Date.now()
-    const result = await callLlm(client, prompt, lane.lane_id)
+    const result = await callLlm(client, prompt, schema, lane.lane_id)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
@@ -476,19 +542,50 @@ async function huntLane(
           continue
         }
 
-        const findingCat = (f as any).finding_category
-        const assignedCodes = lane.categories.map(c => c.code)
-        const finalCategories: string[] = []
-        if (findingCat && assignedCodes.includes(findingCat)) {
-          finalCategories.push(findingCat)
-        } else if (assignedCodes.length > 0) {
-          finalCategories.push(assignedCodes[0])
+        // Validate and normalize finding_classes
+        const rawClasses = (f as any).finding_classes
+        if (!rawClasses || !Array.isArray(rawClasses) || rawClasses.length === 0) {
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty or missing finding_classes — dropping`)
+          continue
+        }
+
+        // Filter to only classes that are in this lane's assigned set
+        const assignedClassSet = new Set(classIds)
+        const validFindingClasses: FindingClassRef[] = []
+        for (const fc of rawClasses) {
+          if (!assignedClassSet.has(fc.class)) {
+            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has off-list class "${fc.class}" — skipping that class`)
+            continue
+          }
+          // Validate justified_by_step is within trace range
+          const stepIdx = fc.justified_by_step
+          if (typeof stepIdx !== 'number' || stepIdx < 0 || stepIdx >= f.trace.length) {
+            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" class "${fc.class}" justified_by_step=${stepIdx} out of range (trace length ${f.trace.length}) — clamping to 0`)
+            validFindingClasses.push({ class: fc.class, justified_by_step: 0 })
+          } else {
+            validFindingClasses.push({ class: fc.class, justified_by_step: stepIdx })
+          }
+        }
+
+        if (validFindingClasses.length === 0) {
+          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has no valid finding_classes after filtering — dropping`)
+          continue
+        }
+
+        // Expand to OWASP code strings
+        const categories = unionCodesForClasses(validFindingClasses, registry!)
+
+        // Runtime assertion: every emitted finding must have at least one code
+        if (categories.length === 0) {
+          console.error(`  [${lane.lane_id}] [FATAL] Finding "${f.title}" has empty categories after class expansion — this is a bug`)
+          process.exit(1)
         }
 
         const finding: CandidateFinding = {
           finding_id: nextFindingId(),
           lane_id: lane.lane_id,
-          categories: finalCategories,
+          finding_classes: validFindingClasses,
+          categories: categories,
           title: f.title,
           description: f.description,
           trace: f.trace,
@@ -597,7 +694,6 @@ async function main() {
   console.log()
 
   await validateAllPlaybooks()
-  console.log(`All 16 playbook modules validated (covering all 26 category codes)`)
   console.log()
 
   const assignmentsPath = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
@@ -689,16 +785,17 @@ async function main() {
     const p = (async () => {
       await sem.acquire()
       try {
-        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Categories: ${lane.categories.map(c => c.code).join(', ')}`)
+        const assignedCodes = lane.categories.map(c => c.code)
+        const laneClasses = codesToClasses(assignedCodes)
+        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Classes: ${laneClasses.join(', ')}`)
         console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
         console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
 
-        const assignedCodes = lane.categories.map(c => c.code)
-        const playbooks = await loadPlaybooksForCategories(assignedCodes)
+        const playbooks = await loadPlaybooksForClasses(laneClasses)
         console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
 
         const t0 = Date.now()
-        const result = await huntLane(client, lane, assignments.target_dir, playbooks, archSnippet)
+        const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet)
         const elapsed = (Date.now() - t0) / 1000
 
         allFindings.push(...result.findings)
