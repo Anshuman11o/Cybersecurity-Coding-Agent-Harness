@@ -160,6 +160,34 @@ the lock and the log capture. It will still work and still write to the right
 provider directory (the path helper does not depend on the runner), but two
 providers could then run concurrently.
 
+### Preflight
+
+Before spending money on a stage run, verify credentials, model access, and
+parameter shape:
+
+```bash
+cd tools/scanner/stage3-validate
+SCANNER_PROVIDER=openai npx tsx ../shared/preflight.ts
+```
+
+Checks the key is present, makes one tiny completion call, and probes
+`json_schema` strict mode. Exits non-zero on failure.
+
+### Seeding upstream artifacts
+
+`assertUpstream()` refuses to run a stage whose upstream artifacts belong to a
+different provider. For a **validator-only** comparison (same candidates,
+different judge), copy the upstream across:
+
+```bash
+./tools/scanner/seed-upstream.sh qwen openai stage1-budget-governor stage2-hunt-lanes
+./tools/scanner/run.sh openai stage3-validate
+```
+
+The rewritten `meta.json` carries `seeded_from`, so the artifacts stay honestly
+labelled. **Results from a seeded run are not an end-to-end comparison** — say
+so when reporting them.
+
 ### Lock semantics
 
 The lock is a **directory** (`mkdir` is atomic on POSIX), so no `flock` is
@@ -226,6 +254,11 @@ baseline predates the mechanism.
   (Stage 2/3 were produced against the Stage 1 plan that is committed), so it
   has been left as-is. Regenerate the whole pipeline under `qwen` before using
   it as a comparison point.
+- **`api.openai.com` is not in the Claude Code web environment's egress
+  allowlist.** The OpenAI path cannot be exercised from a web session until the
+  host is added to the environment's network settings
+  (https://code.claude.com/docs/en/claude-code-on-the-web), or the run is done
+  on a local machine. The qwen path works from either.
 - **`tsc` on `stage0-recon` reports 15 pre-existing errors** in
   `ast-extractor.ts` (ts-morph typing) and `recon.ts` (strict-null). These were
   previously masked because `tsc` aborted on a config error. The other four
