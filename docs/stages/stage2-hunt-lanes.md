@@ -45,10 +45,16 @@ Architecture summary + lane assignments + playbooks + line-numbered file content
 
 ## Output
 `output/candidate-findings.json` — per finding: `finding_id`, `lane_id`,
-`categories`, `title`, `description`, `trace[]` of
+`finding_classes`, `categories`, `title`, `description`, `trace[]` of
 `{kind: entrypoint|propagation|sink, file, line, description}`,
 `severity_estimate`, `confidence`. A finding is dropped unless its trace is
 non-empty, starts with an entrypoint and ends with a sink.
+
+`finding_classes` is one or two `{class, justified_by_step}` entries naming the
+vulnerability classes the finding belongs to, each pointing at the trace step
+that establishes it. `categories` is the union of those classes' OWASP alias
+codes and always holds code strings, never class ids — see
+`docs/architecture/vulnerability-class-model.md`.
 
 `output/budget-consumption.json` — per lane tokens, seconds, `ceiling_hit`.
 
@@ -62,8 +68,15 @@ Seed content is sanitized for PEM private-key material before prompt assembly;
 a raw key blob once tripped an upstream content filter and silently zeroed an
 entire lane.
 
-## Known open issue
-Findings emit exactly one category each, while ground-truth entries often carry
-several and a single line can genuinely be two classes. This is the largest
-single contributor to the recall gap — recall ignoring category is 53.1% versus
-31.6% with it.
+## Category model
+Lanes are assigned OWASP codes; the executor collapses those to vulnerability
+classes before loading playbooks or building the prompt, so the model chooses
+among ~15 classes rather than 26 partly-synonymous codes. The class enum is built
+per lane, which makes an off-list label unrepresentable rather than silently
+rewritten.
+
+This replaced a defect that was the largest single contributor to the recall gap:
+findings emitted exactly one code each, while ground-truth entries often carry
+several and a single line can genuinely be two classes. Recall ignoring category
+was 53.1% versus 31.6% with it. Full rationale, the two axes of multiplicity, and
+why the class cap is two: `docs/architecture/vulnerability-class-model.md`.
