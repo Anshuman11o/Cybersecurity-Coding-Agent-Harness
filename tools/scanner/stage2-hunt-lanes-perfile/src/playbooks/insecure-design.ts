@@ -21,7 +21,7 @@ Scope: Detect business-logic-level design flaws that cannot be fixed by adding a
 - The fix for an insecure design finding typically requires architectural changes, not a single line of code.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The business process or workflow
 2. The logical gap or inconsistency
 3. The step-by-step attack scenario

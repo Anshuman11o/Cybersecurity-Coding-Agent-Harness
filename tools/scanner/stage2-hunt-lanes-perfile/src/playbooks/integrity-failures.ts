@@ -20,7 +20,7 @@ Scope: Detect unsafe deserialization, file handling, and supply chain integrity 
 - Signed and verified updates or plugins are not a finding.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint accepting untrusted data
 2. The deserialization/parsing call and its configuration
 3. The code execution or control flow alteration that results

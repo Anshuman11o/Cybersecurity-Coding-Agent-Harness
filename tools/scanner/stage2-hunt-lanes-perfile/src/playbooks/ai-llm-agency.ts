@@ -25,7 +25,7 @@ Scope: Detect prompt injection, sensitive disclosure, excessive agency, and cons
 - Sensitive data in tool returns is a finding only when that data reaches the user or an untrusted context.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The model integration point (chat, tool handler, agent loop)
 2. The injection vector or agency boundary
 3. The specific unintended action or data exposure

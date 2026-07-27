@@ -20,7 +20,7 @@ Scope: Detect authorization gaps where a user can access, modify, or delete reso
 - A false positive occurs when the lookup itself is scoped to the current user (e.g., WHERE user_id = ? AND id = ?) or when the resource is intentionally public.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route path + HTTP method, or function name)
 2. The parameter carrying the target resource identifier
 3. The lookup call (query, ORM method, or service call)

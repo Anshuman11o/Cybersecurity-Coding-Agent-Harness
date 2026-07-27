@@ -34,7 +34,7 @@ Scope: Detect any form of injection where untrusted input is interpreted as code
 - A finding requires demonstrating that user-influenced input reaches a code-interpreting sink without an intervening parameterization, allow-list, or other effective control.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route, handler, or function accepting external input)
 2. The tainted input source (query parameter, body field, header, path parameter, etc.)
 3. The data-flow path showing how the input is assembled into executable structure

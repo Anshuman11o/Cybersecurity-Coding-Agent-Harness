@@ -21,7 +21,7 @@ Scope: Detect absence of security-relevant logging, exposure of log data, and lo
 - Structured logging without sensitive fields is the expected pattern; the finding is the presence of sensitive data in log entries.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The security-relevant event that is not logged (or is logged inadequately)
 2. The code path where logging should occur but does not
 3. For sensitive data in logs: the specific log statement and the sensitive field

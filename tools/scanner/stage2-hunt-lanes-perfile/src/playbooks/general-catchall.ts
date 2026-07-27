@@ -20,7 +20,7 @@ Scope: Detect any vulnerability that does not fit the specialized playbook categ
 - For uncategorized findings: the finding must still meet the standard rigor — a named vulnerability class, a concrete trace, and a clear impact statement.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint accepting external input or making external calls
 2. The missing validation or control
 3. The downstream exploitation path

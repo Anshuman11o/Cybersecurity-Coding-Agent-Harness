@@ -29,7 +29,7 @@ Scope: Detect outbound network requests where the destination is controlled by t
 - API gateway or WAF-level URL filtering may mitigate the application-level gap — note it but do not dismiss the finding.
 
 ## Hunting Discipline
-Only report what you can construct a concrete entrypoint-to-sink trace for. Identify:
+Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)
 2. The user-controlled parameter carrying the target URL/hostname/service name/callback
 3. The outbound network call or service discovery mechanism
