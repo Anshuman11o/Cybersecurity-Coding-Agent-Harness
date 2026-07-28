@@ -194,8 +194,34 @@ worth about +7. **Total plausible gain ≈ +8 to +12 points of recall**, not the
 - **H2 — confidence used as a gate.** The model may treat the confidence field
   as a reporting threshold rather than an annotation, suppressing anything it
   would score below ~0.7 instead of emitting it with a low number.
-- **H3 — single pass.** One call per lane, no iterative deepening, so whatever
-  the first pass surfaces is the whole output.
+- **H3 — single pass.** *(demoted — see below.)* One call per lane, no
+  iterative deepening, so whatever the first pass surfaces is the whole output.
+
+**H3 was mislabelled and its evidence does not hold up.** H1 and H2 are
+hypotheses about *why* the model under-emits; H3 is a proposed *remedy*
+(second-look elicitation), not a cause. Listing it alongside them was a category
+error.
+
+Its supporting evidence was the findings-density table above, and that table has
+a confound. The 2–3-finding bucket's 54.9% is substantially one file:
+`routes/login.ts` produced 2 findings and carries **11 ground-truth entries at a
+single line**, all 11 recalled. Excluding it:
+
+| bucket | recall |
+|---|---:|
+| 1 finding | 31.0% (n=29) |
+| 2–3 findings, as reported | 54.9% (n=51) |
+| 2–3 findings, excluding `routes/login.ts` | **42.5% (n=40)** |
+
+The gap shrinks from 23.9 points to **11.5**. Still directional, but weak at
+these sample sizes, and it no longer supports "more shots on goal" strongly
+enough to justify the cost — a second pass per lane roughly **doubles Stage 2
+spend, ~$4.64 → ~$9.3**.
+
+**Disposition:** H3 is a fallback, attempted only if I1/I2 (free prompt edits
+that test the same emission problem) fail to lift the confidence floor. It also
+does nothing for D3's 34-entry line-attribution pool, which is both larger and
+better evidenced.
 
 #### Interventions — one per iteration, never bundled
 
