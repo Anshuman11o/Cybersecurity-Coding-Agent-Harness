@@ -31,6 +31,83 @@ unemittable. No ground-truth entry carries API10, so recall is unaffected — bu
 `vuln-classes.json` and `signal-classes.json` must both be updated or the
 selector's validation will fail on a dangling reference.
 
+### C2 — Remove the per-finding class cap
+
+**File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:160`
+
+```diff
+  finding_classes: {
+    type: 'array',
+    minItems: 1,
+-   maxItems: 2,
+    items: { ... }
+```
+
+A lane must be free to emit as many classes as genuinely fit. The cap is
+arbitrary and **46.2% of findings (114/247) sit exactly at it**, which is what a
+binding constraint looks like. The natural bound is already the lane's own
+assigned list — the schema `enum` restricts `class` to the classes Stage 0.5
+assigned, so the ceiling is the lane's 4–13, not 15, and not 2.
+
+v1 (`stage2-hunt-lanes`) has no `maxItems` and no class model at all, so this is
+a v2-only change and v1 stays byte-identical.
+
+### C3 — Rewrite the class-selection prompt
+
+**File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:400`
+
+Remove the "second class / separate finding" rule. The lane's job is to pick
+which of its assigned classes fit the defect — not to ration labels.
+
+**Current:**
+
+> List every class this finding genuinely belongs to. A single line can
+> legitimately be more than one class — a render sink reached by
+> attacker-controlled data is both an injection and a client-side finding. **Only
+> list a second class if the same trace establishes it; if a second class would
+> need a different entrypoint or a different sink, it is a separate finding, not
+> a second label.** For each class you list, give the index of the trace step
+> that establishes it.
+
+**Proposed replacement — ready to drop in:**
+
+> List every class from your assigned classes list that this finding genuinely
+> belongs to. There is no limit on how many. A single defect often spans several
+> classes: a render sink reached by attacker-controlled data is both an injection
+> and a client-side finding; a hardcoded key used to sign session tokens is both
+> a crypto-auth and a misconfiguration finding.
+>
+> For each class you list, set `justified_by_step` to the 0-based index of the
+> trace step that establishes that class. If you cannot point to a step in this
+> finding's own trace that establishes a class, do not list it — a label you
+> cannot tie to the trace is noise, not coverage.
+
+Justification per class is deliberately kept. It is the non-arbitrary constraint
+— a class must be tied to a specific trace step — and it replaces the cap as the
+thing preventing indiscriminate labelling.
+
+#### ⚠ This changes how the next run must be scored
+
+`eval-framework.md` makes hedging rate mandatory precisely for this case:
+"emitting more labels matches more ground truth partly by widening the net."
+Scored recall requires a **category intersection**, and a finding's `categories`
+is the union of its classes' OWASP codes. A finding naming 6 classes could carry
+~12 codes, at which point intersecting with any ground-truth entry is close to
+automatic.
+
+So a recall jump after C2+C3 is **not** by itself evidence of better detection.
+The comparison must lead with:
+
+- **category-blind recall** (40.8% baseline) — immune to hedging, this is the
+  real detection signal
+- **hedging rate** (1.462 baseline) — if it rises in step with recall, the gain
+  is labelling, not finding
+- **precision proxy, category-aware** (15.4% baseline) — the direct cost
+
+If scored recall rises while category-blind recall is flat, the change improved
+labelling and found nothing new. That is still a legitimate result, but it must
+be reported as such.
+
 ---
 
 ## CANDIDATES — evidence gathered, decision pending
