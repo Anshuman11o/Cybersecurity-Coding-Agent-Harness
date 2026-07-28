@@ -245,31 +245,119 @@ Per `dev-loop-protocol.md`: **max 3 iterations**; stop early if a round gains
 <3 points on recall while still below target; stop immediately if any round
 regresses against the 37.8% baseline.
 
-### D3 — Exact-line attribution *(user has flagged this as the next focus)*
+### D3 — Exact-line attribution  *(plan below)*
 
-Where the 61 misses actually go:
+#### The problem
 
-| cause | share of misses |
-|---|---:|
-| **Line precision** — right class, right file, wrong line | **55.7%** |
-| Category mislabelling — right place, wrong label | 23.0% |
-| Wrong place entirely (file-only) | 13.1% |
-| Genuinely not found | 8.2% |
+34 of the 61 misses are **right file, right class, wrong line** — 55.7% of all
+misses and the largest recoverable pool. **26 of the 34 are within ±5 lines.**
 
-Only **5 of 98** entries had no finding anywhere in their file. 93 were located
-to the right file. Recall would be **66.3%** at ±15 lines instead of exact, and
-**80.6%** if labelling were also perfect.
+D3's ceiling is today's localization: **65/98 = 66.3%**. It converts *localized*
+into *recalled*; it cannot find anything new.
 
-Worst offenders on line precision specifically:
+#### It is not an off-by-one bug — checked
 
-| class | localized | recalled | lost to line alone |
-|---|---:|---:|---:|
-| `access-control` | 12/16 | 4/16 | 10 |
-| `crypto-auth` | 23/25 | 11/25 | 12 |
-| `api-property-auth` | 4/4 | 1/4 | 3 |
-| `ai-llm-agency` | 3/4 | 0/4 | 4 |
+Signed delta (`model_line − gt_line`) of the closest category-matching step:
 
-This is the single largest recoverable pool in the run.
+```
+ -20:1   -11:1   -7:1   -4:1   -3:3   -2:3   -1:6
+  +1:3    +2:1   +3:9         |delta|>20: 5  (-53,-47,-38,-25,+42)
+median -1   mean -4.5   earlier 20 / later 14   within +-5: 26/34
+```
+
+No dominant offset and no directional bias, so line numbering is sound. The
+`+3:9` spike is a single location carrying 8 entries, not nine independent
+errors. Closest step was a `sink` in 22 of 34, `propagation` in 9, `entrypoint`
+in 3.
+
+#### Root causes, from reading the actual lines
+
+**1. Sink-vs-control.** The model cites where the damage lands; ground truth
+marks where the control is missing or weak.
+
+```
+routes/resetPassword.ts   (8 entries, +3)
+  GT    L41: if ((data != null) && security.hmac(answer) === data.answer) {
+  model L44: const updatedUser = await user.update({ password: newPassword })
+```
+
+Both are defensible readings. Ground truth consistently marks the **weak check**,
+not the consequence.
+
+**2. Container-vs-element.** The model cites the enclosing declaration, ground
+truth the specific line inside it.
+
+```
+server.ts                 (2 entries, -1)
+  GT    L477: { name: 'User', exclude: ['password', 'totpSecret'], model: UserModel },
+  model L476: const autoModels = [
+```
+
+**3. Signature-vs-body.** The model cites the function signature, ground truth a
+statement within.
+
+```
+routes/fileUpload.ts      (-1)
+  GT    L55: if (file != null) {
+  model L54: function checkUploadSize ({ file }: Request, ...)
+routes/metrics.ts         (-1)
+  GT    L86: res.set('Content-Type', register.contentType)
+  model L85: return async (req: Request, res: Response, next: NextFunction) => {
+```
+
+#### Where the leverage is — six lines are worth 18 points
+
+The 98 entries occupy only **67 distinct (file, line) locations**; 44 entries
+share a location with another. Six multi-entry locations are near-misses:
+
+| location | entries | delta |
+|---|---:|---:|
+| `routes/resetPassword.ts:41` | 8 | +3 |
+| `routes/chat.ts:182` | 2 | −2 |
+| `server.ts:477` | 2 | −1 |
+| `lib/insecurity.ts:55` | 2 | +1 |
+| `routes/b2bOrder.ts:25` | 2 | −2 |
+| `lib/insecurity.ts:135` | 2 | no category match |
+
+Landing those six moves recall **37.8% → 56.1%** (+18.3 points) with no new
+detection at all.
+
+#### Interventions
+
+| # | Change | Targets |
+|---|---|---|
+| E1 | Prompt rule: cite the line where the control is **absent or weak**, not where the consequence occurs | cause 1 (largest) |
+| E2 | Prompt rule: cite the **most specific** line — never an enclosing declaration, array literal, or function signature when a statement inside carries the defect | causes 2, 3 |
+| E3 | Require the `sink` step's description to quote the exact expression at the line it cites | forces specificity, makes E1/E2 checkable |
+
+E1 and E2 are one prompt edit and should ship together — they are the same
+instruction from two directions and cannot be attributed apart anyway.
+
+#### Verification
+
+Stage 2 only, reusing the committed Stage 0/0.5/1 artifacts. ~$4.64, ~25 min.
+
+Primary gate: **recall**, against 37.8%. Ceiling is 66.3%.
+
+The decisive diagnostic is **the signed-delta distribution collapsing toward
+zero** — recompute it and compare against the histogram above. Recall can move
+for unrelated reasons; the delta histogram cannot.
+
+**Localization must not fall.** D3 converts localized→recalled, so localization
+should hold near 66.3% while recall climbs toward it. Localization dropping
+means the change moved lines without improving them.
+
+Precision proxy should be roughly flat — this changes *where* a finding points,
+not how many are emitted.
+
+#### Measurement note that applies to every future run
+
+98 entries across **67 locations**, with `routes/login.ts:33` carrying 11,
+`routes/resetPassword.ts:41` carrying 8, and `routes/fileServer.ts:27` carrying
+5 — **24 entries at 3 lines**. Recall is location-weighted, not
+challenge-weighted, so a single line landing or slipping swings the headline by
+up to 11 points. Report the distinct-location count alongside recall, and treat
+small deltas between runs as noise unless the delta histogram moved too.
 
 ### D4 — Revisit the three zero-recall classes
 
