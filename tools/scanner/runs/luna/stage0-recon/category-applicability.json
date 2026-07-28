@@ -3,182 +3,182 @@
     "name": "A01: Broken Access Control",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "Authenticated routes expose resource-scoped identifiers such as /api/Users/:id, /api/Cards/:id, /api/Addresss/:id, and /rest/basket/:id.",
-    "confidence": 0.98
+    "evidence": "Authenticated resource-scoped routes with ID parameters exist, including users, cards, addresses, baskets, and other objects.",
+    "confidence": 0.99
   },
   {
     "name": "A02: Cryptographic Failures",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "The application has password login, password reset/change flows, JWT-related dependencies, 2FA, cards, wallet data, and encryption-key serving functionality.",
+    "evidence": "The application includes password handling, JWT authentication, 2FA, cryptographic key-serving routes, and encryption-related dependencies.",
     "confidence": 0.99
   },
   {
     "name": "A03: Injection",
     "framework": "OWASP Top 10 2021",
     "verdict": "absent",
-    "evidence": "The summary reports no raw SQL queries, no MongoDB usage, and no identified eval/exec or interpolated query construction.",
-    "confidence": 0.86
+    "evidence": "The architecture reports no raw SQL queries, no raw-query files, and no MongoDB/NoSQL usage or explicit eval/exec mechanisms.",
+    "confidence": 0.88
   },
   {
     "name": "A04: Insecure Design",
     "framework": "OWASP Top 10 2021",
     "verdict": "uncertain",
-    "evidence": "The architecture contains sensitive business flows and numerous public or weakly protected routes, but design-level security flaws cannot be established reliably from route inventory alone.",
-    "confidence": 0.88
+    "evidence": "The architecture exposes many sensitive business flows and intentionally insecure challenge routes, but design-level weaknesses cannot be reliably determined from route inventory alone.",
+    "confidence": 0.93
   },
   {
     "name": "A05: Security Misconfiguration",
     "framework": "OWASP Top 10 2021",
-    "verdict": "uncertain",
-    "evidence": "XML parsing, CORS, static file serving, public FTP, API documentation, and security-header dependencies are present, but parser hardening, CORS policy, and effective header configuration are not shown.",
-    "confidence": 0.82
+    "verdict": "present",
+    "evidence": "XML parsing, YAML parsing, CORS, static file serving, directory indexes, public metrics, and multiple unauthenticated sensitive-looking surfaces are present.",
+    "confidence": 0.97
   },
   {
     "name": "A06: Vulnerable and Outdated Components",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "The application has 117 dependencies, including security-sensitive components such as express-jwt, jsonwebtoken, multer, js-yaml, libxml2-wasm, and Sequelize.",
+    "evidence": "The application has 117 dependencies, including security-relevant components such as old JWT, Helmet, js-yaml, multer, and sanitize-html packages.",
     "confidence": 0.99
   },
   {
     "name": "A07: Identification and Authentication Failures",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "Login, password change/reset, security-question, JWT authorization, 2FA, and rate-limited authentication-related endpoints are present.",
+    "evidence": "Login, password change/reset, security-question, JWT authentication, 2FA, and rate-limited authentication endpoints are present.",
     "confidence": 0.99
   },
   {
     "name": "A08: Software and Data Integrity Failures",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "The application processes uploaded YAML/XML files and includes webhook handling, deserialization/parsing libraries, and restore-progress/data-import style functionality.",
-    "confidence": 0.93
+    "evidence": "The application processes uploaded YAML/XML/ZIP files, handles webhooks, performs data restoration, and exposes deserialization-like file-processing flows.",
+    "confidence": 0.95
   },
   {
     "name": "A09: Security Logging and Monitoring Failures",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "A logging module, metrics middleware, and public /metrics endpoints are present, establishing logging and monitoring functionality that requires security assessment.",
-    "confidence": 0.96
+    "evidence": "A logging module, log-serving routes, metrics middleware, and public metrics endpoints are present.",
+    "confidence": 0.99
   },
   {
     "name": "A10: Server-Side Request Forgery (SSRF)",
     "framework": "OWASP Top 10 2021",
     "verdict": "present",
-    "evidence": "The application exposes a profile image URL upload route, indicating server-side retrieval of caller-supplied URLs.",
-    "confidence": 0.91
+    "evidence": "A profile image URL upload route and corresponding profileImageUrlUpload handler indicate server-side retrieval of user-supplied URLs.",
+    "confidence": 0.98
   },
   {
     "name": "API1: Broken Object Level Authorization (BOLA)",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The REST/API surface contains many ID-based resources, including users, baskets, cards, addresses, products, memories, and orders.",
-    "confidence": 0.98
+    "evidence": "The REST/API surface contains numerous ID-based object routes, including users, baskets, cards, addresses, reviews, and orders.",
+    "confidence": 0.99
   },
   {
     "name": "API2: Broken Authentication",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The API includes login, reset-password, change-password, JWT authorization, 2FA, and user identity endpoints.",
+    "evidence": "The API exposes login, password reset, JWT-based authorization, 2FA verification, and authenticated user flows.",
     "confidence": 0.99
   },
   {
     "name": "API3: Broken Object Property Level Authorization",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "Twenty-eight auto-CRUD routes expose model objects with broad property sets and no custom hooks; only limited attributes are explicitly excluded for users.",
-    "confidence": 0.96
+    "evidence": "Twenty-eight auto-CRUD routes expose model properties, with only limited exclusions such as password and totpSecret on User.",
+    "confidence": 0.98
   },
   {
     "name": "API4: Unrestricted Resource Consumption",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The API supports file uploads, pagination, search, AI chat, image processing, bulk-style CRUD operations, and resource-intensive flows; rate limiting is only visible on selected endpoints.",
-    "confidence": 0.94
+    "evidence": "The API includes file uploads, pagination-enabled auto-CRUD, data export, AI chat, Web3 operations, and many endpoints without visible rate limiting.",
+    "confidence": 0.96
   },
   {
     "name": "API5: Broken Function Level Authorization",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The API contains administrative, accounting, wallet, order, user, and CRUD functions with inconsistent authorization coverage, including many routes marked auth:null.",
-    "confidence": 0.98
+    "evidence": "The API contains administrative, accounting, product, user, order, wallet, and challenge functions with varied or absent authorization middleware.",
+    "confidence": 0.99
   },
   {
     "name": "API6: Unrestricted Access to Sensitive Business Flows",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "Sensitive flows include password reset, checkout, coupon application, wallet funding, deluxe membership, file uploads, data export, and order operations.",
-    "confidence": 0.98
+    "evidence": "Sensitive flows include registration, password reset, checkout, coupon application, wallet funding, deluxe membership, data export, and order tracking.",
+    "confidence": 0.99
   },
   {
     "name": "API7: Server Side Request Forgery",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The profile image URL upload route provides a structural server-side URL-fetching capability.",
-    "confidence": 0.91
+    "evidence": "The profile image URL upload functionality provides an apparent server-side URL-fetching capability.",
+    "confidence": 0.98
   },
   {
     "name": "API8: Security Misconfiguration",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The API has extensive undocumented hand-written and auto-CRUD routes, public file-serving surfaces, public metrics, and inconsistent authorization declarations.",
-    "confidence": 0.98
+    "evidence": "Only one Swagger path is documented while 109 hand-written and 28 auto-CRUD routes are undocumented; numerous public static and operational surfaces also exist.",
+    "confidence": 0.99
   },
   {
     "name": "API9: Improper Inventory Management",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "Swagger documents only one path while 109 hand-written routes and 28 auto-CRUD routes are undocumented.",
+    "evidence": "The architecture explicitly identifies 109 undocumented hand-written routes and 28 undocumented auto-CRUD routes.",
     "confidence": 1
   },
   {
     "name": "API10: Unsafe Consumption of APIs",
     "framework": "API Security Top 10",
     "verdict": "present",
-    "evidence": "The system consumes external or provider-backed capabilities through the AI SDK/OpenAI-compatible integration, web3 functionality, and URL-based image handling.",
-    "confidence": 0.87
+    "evidence": "The application integrates OpenAI-compatible AI services, Web3/blockchain functionality, webhooks, and URL-based resource retrieval.",
+    "confidence": 0.92
   },
   {
     "name": "LLM01: Prompt Injection",
     "framework": "LLM Top 10",
     "verdict": "present",
-    "evidence": "A chatbot endpoint uses a genuine LLM with user-supplied prompts and multi-step tool execution.",
+    "evidence": "A chat endpoint uses an LLM with user-provided conversational input and tool-calling enabled.",
     "confidence": 0.99
   },
   {
     "name": "LLM02: Sensitive Information Disclosure",
     "framework": "LLM Top 10",
     "verdict": "present",
-    "evidence": "LLM tools can query products, reviews, and orders and perform authentication checks against real application data.",
-    "confidence": 0.94
+    "evidence": "LLM tools can query products, reviews, and orders and perform authenticated database operations, creating a data-disclosure capability.",
+    "confidence": 0.95
   },
   {
     "name": "LLM03: Supply Chain",
     "framework": "LLM Top 10",
     "verdict": "present",
-    "evidence": "The application depends on AI SDK and OpenAI-compatible provider components that participate in production LLM functionality.",
-    "confidence": 0.98
+    "evidence": "The application depends on AI SDK and OpenAI-compatible provider components and delegates tool-enabled behavior to external model infrastructure.",
+    "confidence": 0.97
   },
   {
     "name": "LLM05: Improper Output Handling",
     "framework": "LLM Top 10",
     "verdict": "uncertain",
-    "evidence": "The application has extensive Angular innerHTML and bypassSecurityTrustHtml usage, but the summary does not establish that LLM output reaches these sinks without validation.",
+    "evidence": "LLM responses and tool results are consumed by the chat frontend, but the architecture does not establish whether output validation, encoding, or authorization checks are inadequate.",
     "confidence": 0.84
   },
   {
     "name": "LLM06: Excessive Agency",
     "framework": "LLM Top 10",
     "verdict": "present",
-    "evidence": "The LLM has multi-step tool calling with real capabilities including database queries, authentication checks, order retrieval, and coupon generation.",
+    "evidence": "The LLM can invoke executable tools that query data, perform authentication-aware operations, retrieve orders, and generate coupons.",
     "confidence": 1
   },
   {
     "name": "LLM10: Unbounded Consumption",
     "framework": "LLM Top 10",
     "verdict": "present",
-    "evidence": "A public chat endpoint supports streaming and multi-step tool execution, with no explicit chat-specific rate, token, step, or cost limits shown.",
-    "confidence": 0.92
+    "evidence": "A public chat endpoint enables LLM interaction and tool invocation, while no dedicated chat/LLM rate limit or token/resource bound is shown.",
+    "confidence": 0.93
   }
 ]

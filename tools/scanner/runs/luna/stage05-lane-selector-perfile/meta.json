@@ -2,9 +2,9 @@
   "provider": "luna",
   "model": "deterministic",
   "stage": "stage05-lane-selector-perfile",
-  "git_sha": "db5becd",
-  "started": "2026-07-28T18:20:38.958Z",
-  "ended": "2026-07-28T18:20:39.142Z",
+  "git_sha": "c9e3e94",
+  "started": "2026-07-28T23:05:58.527Z",
+  "ended": "2026-07-28T23:05:58.669Z",
   "exit_code": 0,
   "blocked_reads": 0,
   "degraded": false
