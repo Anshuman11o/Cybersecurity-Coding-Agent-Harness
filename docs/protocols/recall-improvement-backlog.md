@@ -108,6 +108,87 @@ If scored recall rises while category-blind recall is flat, the change improved
 labelling and found nothing new. That is still a legitimate result, but it must
 be reported as such.
 
+### C4 — Resolve the instruction conflict *(addresses H1)*
+
+**File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:398`
+
+The emission-suppressing sentence and the emission-encouraging sentence sit two
+lines apart, and the suppressing one comes last:
+
+**Current (line 398):**
+
+> **Do not invent findings. An empty array is right for a file that genuinely has
+> no defect.** But do not stay silent about something you can see merely because
+> the surrounding context is missing.
+
+66.4% of lanes returned an empty array. Whether or not that instruction caused
+it, it is the last word the model reads on the subject and it authorises
+silence.
+
+**Proposed replacement — ready to drop in:**
+
+> Do not fabricate. Every finding must point at code that is actually present in
+> the file in front of you, and every trace step must cite a real line.
+>
+> Subject to that, report what you see. An empty array is a strong claim — it
+> says this file contains no weak control, no unvalidated input reaching a
+> dangerous operation, and no defect of any assigned class. Most files in a real
+> application do contain something. If you are about to return an empty array,
+> re-read the file once against your assigned class list before you do.
+
+The distinction being drawn is between *fabricating* (forbidden) and *reporting
+something uncertain* (wanted). The current text collapses the two.
+
+### C5 — Confidence is an annotation, not a gate *(addresses H2)*
+
+**File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:396`
+
+**Current (line 396), second half:**
+
+> Use "confidence" to express how sure you are: a defect you can see clearly but
+> whose reachability you cannot confirm from this file is a real finding at
+> moderate confidence, not something to withhold.
+
+Luna emitted **nothing below 0.7** across 247 findings, so this sentence did not
+take. It describes the scale but never says the low end is usable.
+
+**Proposed replacement — ready to drop in:**
+
+> Set "confidence" to how sure you are, and use the whole range. It is a label on
+> the finding, not a threshold for reporting it:
+>
+> - **0.8–1.0** — you can see the defect and the path to it in this file.
+> - **0.4–0.7** — the defect is visible but something is unconfirmable from here:
+>   the caller, the reachability, whether a control exists elsewhere.
+> - **0.1–0.3** — the shape is suspicious and you would want a second opinion,
+>   but you cannot establish it from this file alone.
+>
+> Report findings in all three bands. A 0.2 finding is useful output; a withheld
+> one is not. Do not raise a number to make a finding look more solid, and do not
+> suppress a finding because its number would be low.
+
+Explicit bands are used rather than a general encouragement, because the general
+encouragement is what is already in the prompt and it produced a hard floor at
+0.7.
+
+#### ⚠ Precision exposure — unresolved
+
+C4 and C5 raise emission by design, and **v2 has no validator**: Stage 3 reads
+`stage2-hunt-lanes` (v1), not the `-perfile` output. Precision proxy is already
+15.4% category-aware. There is nothing downstream to recover what these give up.
+
+Two ways out, both open:
+1. Accept the precision drop as the price of recall at this stage, and gate on
+   recall alone for now.
+2. Port Stage 3 onto the v2 artifacts first, so the extra low-confidence
+   findings have somewhere to be killed.
+
+**Verification for C4+C5:** the confidence distribution is the primary
+diagnostic, ahead of recall. If findings below 0.7 still do not appear, the edit
+did not take regardless of what recall did. Also track share of empty lanes
+(66.4% baseline) and findings per producing lane (1.36 baseline).
+
+
 ---
 
 ## CANDIDATES — evidence gathered, decision pending
@@ -428,6 +509,36 @@ against the answer key without a run.
 Note also that `categories[]` is dead weight in v2: **all 541 lanes receive the
 identical 25-code list**, and `[CLASS RESOLUTION]` confirmed 0 lanes used the
 categories fallback path. Narrowing happens entirely through `classes[]`.
+
+## Sequencing — five confirmed changes cannot ship as one run
+
+The five confirmed items move three different axes, and two of them inflate
+scored recall by *different* mechanisms. Shipped together, a recall delta is
+unattributable.
+
+| axis | items | effect on scored recall |
+|---|---|---|
+| label space | C1, C2, C3 | up, via wider category intersection (hedging) |
+| emission volume | C4, C5 | up, via more findings — and down on precision |
+| line placement | E1, E2 (D3) | up, via converting localized → recalled |
+
+Proposed grouping — cumulative, one group per run, Stage 2 only, ~$4.64 each:
+
+| run | adds | primary diagnostic |
+|---|---|---|
+| **A** | C1 + C2 + C3 | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically; category-blind is what says whether anything new was found. |
+| **B** | + C4 + C5 | **confidence distribution** — findings below 0.7 must appear at all. Then empty-lane share (66.4%) and findings per producing lane (1.36). |
+| **C** | + E1 + E2 | **signed-delta histogram** collapsing toward zero, with localization (66.3%) holding as recall climbs toward it. |
+
+Within a group the delta is attributable to the group, not to individual items.
+That is an accepted cost: C2 and C3 are one change expressed in two files, and
+C4 and C5 are one change expressed in two paragraphs.
+
+Total ≈ $14 for three runs, against a baseline of $4.64.
+
+**If all five must ship at once**, the run is still worth doing, but the report
+has to say the delta cannot be attributed to any single change — and
+category-blind recall becomes the only interpretable headline.
 
 ## Constraints any change must respect
 
