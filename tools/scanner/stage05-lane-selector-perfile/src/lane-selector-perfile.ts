@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
+import { SEED_DENYLIST, guardStats } from '../../shared/read-guard.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -534,6 +535,7 @@ async function main() {
 
   const lanes: Lane[] = []
   let laneCounter = 0
+  const denylistedSkips: string[] = []
 
   for (const fileInfo of allFiles) {
     laneCounter++
@@ -548,7 +550,18 @@ async function main() {
     let disposition: 'hunt' | 'skip'
     let skipReason: string | null = null
 
-    if (isNonExecutable) {
+    // Blind-development boundary, checked FIRST so no later branch can undo it.
+    // These files reference real challenge names for legitimate structural
+    // reasons; models/challenge.ts is a literal array of every challenge key.
+    // One lane per file means a hunt disposition would paste the answer set
+    // straight into the prompt. v1's selector has always applied this list;
+    // v2 was forked before it moved into shared/ and never picked it up.
+    const repoRelative = path.relative(projectRoot, path.join(targetDir, targetFile))
+    if (SEED_DENYLIST.includes(repoRelative)) {
+      disposition = 'skip'
+      skipReason = 'Denylisted: references challenge identifiers — must never reach a hunting lane'
+      denylistedSkips.push(targetFile)
+    } else if (isNonExecutable) {
       disposition = 'skip'
       skipReason = getSkipReason(language)
     } else if (isExecutable) {
@@ -611,6 +624,22 @@ async function main() {
     process.exit(1)
   }
   console.log('[Stage 0.5 v3] Ledger balanced: ' + assignedHunt + ' hunt + ' + assignedSkip + ' skip = ' + totalFiles + ' total, unaccounted = 0')
+
+  // Loud, because it is a deliberate coverage gap that every downstream recall
+  // number has to be read against.
+  console.log('[Stage 0.5 v3] Denylisted (never hunted): ' + denylistedSkips.length +
+    (denylistedSkips.length ? ' — ' + denylistedSkips.join(', ') : ''))
+  const missedDenylist = SEED_DENYLIST
+    .map(p => path.relative(targetDir, path.join(projectRoot, p)))
+    .filter(rel => !rel.startsWith('..'))
+    .filter(rel => {
+      const lane = lanes.find(l => l.target_file === rel)
+      return lane && lane.disposition !== 'skip'
+    })
+  if (missedDenylist.length > 0) {
+    console.error('[FATAL] Denylisted files assigned to hunt lanes: ' + missedDenylist.join(', '))
+    process.exit(1)
+  }
 
   // Assertions
   if (lanes.length !== totalFiles) {
@@ -688,7 +717,7 @@ async function main() {
 
   // Provenance. Deterministic stage — no model ran, so the model field says so
   // rather than naming one that was never called.
-  writeMeta(PROVIDER, 'stage05-lane-selector-perfile', 'deterministic', STARTED)
+  writeMeta(PROVIDER, 'stage05-lane-selector-perfile', 'deterministic', STARTED, 0, guardStats().blocked)
   console.log('[Stage 0.5 v3] Done.')
 }
 

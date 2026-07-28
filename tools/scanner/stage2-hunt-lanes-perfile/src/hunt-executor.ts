@@ -31,12 +31,13 @@
  */
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
+import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import type {
   LaneAssignmentEntry,
   LaneAssignments,
@@ -552,13 +553,20 @@ async function huntLane(
   tokensUsed: number;
   chunkRecords: ChunkTokenRecord[];
 }> {
-  const targetPath = join(targetDir, lane.target_file)
-  if (!existsSync(targetPath)) {
-    console.error(`  [${lane.lane_id}] [ERROR] Target file not found: ${targetPath}`)
+  // Second line of defence behind Stage 0.5's denylist. The lane manifest is
+  // machine-generated, but it is still the thing that decides what gets pasted
+  // into a prompt — so the read goes through the corpus allowlist, which fails
+  // closed on denylisted files and on anything outside target-apps/. Stage 0.5
+  // skipping these and this returning null are independent; either alone is
+  // enough. readCorpusFile() also covers the existence check.
+  const repoRelative = relative(REPO_ROOT, join(targetDir, lane.target_file))
+  const rawContent = readCorpusFile(repoRelative)
+  if (rawContent === null) {
+    console.error(
+      `  [${lane.lane_id}] [BLOCKED] Guard refused ${lane.target_file} — lane produces no findings`,
+    )
     return { findings: [], tokensUsed: 0, chunkRecords: [] }
   }
-
-  const rawContent = readFileSync(targetPath, 'utf-8')
   const sanitized = sanitizePemPrivateKey(rawContent)
 
   // Compute per-lane route context (once, not per-chunk)
@@ -1499,7 +1507,7 @@ async function main() {
   writeFileSync(v2Tmp, JSON.stringify(v2Output, null, 2) + '\n')
   renameSync(v2Tmp, v2Path)
 
-  writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED)
+  writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED, 0, guardStats().blocked)
 
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)

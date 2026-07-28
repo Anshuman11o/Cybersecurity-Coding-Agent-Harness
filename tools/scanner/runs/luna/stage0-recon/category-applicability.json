@@ -1,0 +1,184 @@
+[
+  {
+    "name": "A01: Broken Access Control",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Authenticated resource-scoped routes with identifier parameters exist, including /api/Users/:id, /api/Cards/:id, /api/Addresss/:id, and /rest/basket/:id.",
+    "confidence": 0.99
+  },
+  {
+    "name": "A02: Cryptographic Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "The application includes JWT authentication, login and password-reset flows, password handling, 2FA, encryption-key serving, and cryptographic/Web3 functionality.",
+    "confidence": 0.99
+  },
+  {
+    "name": "A03: Injection",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "absent",
+    "evidence": "The architecture reports Sequelize ORM usage, no raw SQL queries, no MongoDB detection, and no explicit eval/exec or query-string interpolation.",
+    "confidence": 0.88
+  },
+  {
+    "name": "A04: Insecure Design",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "The extensive unauthenticated API surface and sensitive business flows suggest possible design weaknesses, but insecure design cannot be established reliably from route and dependency metadata alone.",
+    "confidence": 0.78
+  },
+  {
+    "name": "A05: Security Misconfiguration",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "The application has XML parsing, CORS, Helmet, public file indexes, exposed metrics, and many undocumented routes, but parser entity settings, CORS policy, and effective security headers are not fully specified.",
+    "confidence": 0.84
+  },
+  {
+    "name": "A06: Vulnerable and Outdated Components",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "The application has 117 dependencies, including security-sensitive packages such as express-jwt, jsonwebtoken, multer, js-yaml, libxml2-wasm, and Sequelize.",
+    "confidence": 0.99
+  },
+  {
+    "name": "A07: Identification and Authentication Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Login, password change/reset, security-question, JWT authorization, 2FA, and rate-limited authentication-related endpoints are present.",
+    "confidence": 0.99
+  },
+  {
+    "name": "A08: Software and Data Integrity Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "The application processes uploaded YAML, XML, ZIP, and image files and includes webhook handling, creating deserialization and integrity-sensitive processing paths.",
+    "confidence": 0.94
+  },
+  {
+    "name": "A09: Security Logging and Monitoring Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "A logging module is present, along with upload metrics middleware and a publicly exposed /metrics endpoint.",
+    "confidence": 0.98
+  },
+  {
+    "name": "A10: Server-Side Request Forgery (SSRF)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "The /profile/image/url endpoint provides a URL-based image upload path, indicating server-side retrieval of externally supplied URLs.",
+    "confidence": 0.93
+  },
+  {
+    "name": "API1: Broken Object Level Authorization (BOLA)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The REST/API surface contains authenticated object routes with client-controlled identifiers, including users, cards, addresses, baskets, and feedback.",
+    "confidence": 0.99
+  },
+  {
+    "name": "API2: Broken Authentication",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The API exposes login, password reset, password change, JWT authorization, security-question, and 2FA flows.",
+    "confidence": 0.99
+  },
+  {
+    "name": "API3: Broken Object Property Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Broad auto-CRUD endpoints expose numerous model properties; only password and totpSecret are excluded from User routes, and most other models have no excluded attributes.",
+    "confidence": 0.98
+  },
+  {
+    "name": "API4: Unrestricted Resource Consumption",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The API includes file uploads, pagination-heavy auto-CRUD endpoints, search, CAPTCHA, chat, Web3 operations, and many routes without visible rate limiting.",
+    "confidence": 0.95
+  },
+  {
+    "name": "API5: Broken Function Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The API exposes administrative, accounting, product, user, challenge, wallet, and order functions with varied authorization middleware and several publicly registered sensitive-looking routes.",
+    "confidence": 0.94
+  },
+  {
+    "name": "API6: Unrestricted Access to Sensitive Business Flows",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Sensitive flows include registration, password reset, checkout, coupon application, wallet funding, deluxe membership, order tracking, and Web3 operations.",
+    "confidence": 0.97
+  },
+  {
+    "name": "API7: Server Side Request Forgery",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The profile image URL upload route indicates a server-side URL-fetching capability controlled by request input.",
+    "confidence": 0.93
+  },
+  {
+    "name": "API8: Security Misconfiguration",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The API has extensive undocumented coverage, public file indexes and metrics, multiple unauthenticated routes, and varied security middleware configuration.",
+    "confidence": 0.98
+  },
+  {
+    "name": "API9: Improper Inventory Management",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Swagger documents only one path while 109 hand-written routes and 28 auto-CRUD routes remain undocumented.",
+    "confidence": 1
+  },
+  {
+    "name": "API10: Unsafe Consumption of APIs",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "The application integrates AI/OpenAI-compatible services, Web3 functionality, outbound URL-based image retrieval, and other external-resource capabilities.",
+    "confidence": 0.89
+  },
+  {
+    "name": "LLM01: Prompt Injection",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "A chatbot uses an LLM with tool calling, so user-controlled conversational input can influence model behavior and tool selection.",
+    "confidence": 0.99
+  },
+  {
+    "name": "LLM02: Sensitive Information Disclosure",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "LLM tools perform real database queries, including order and product/review retrieval, creating a model-mediated path to potentially sensitive application data.",
+    "confidence": 0.96
+  },
+  {
+    "name": "LLM03: Supply Chain",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "The LLM integration depends on third-party AI SDKs and an OpenAI-compatible provider package.",
+    "confidence": 0.94
+  },
+  {
+    "name": "LLM05: Improper Output Handling",
+    "framework": "LLM Top 10",
+    "verdict": "uncertain",
+    "evidence": "The application uses Angular HTML escape hatches, but the architecture does not clearly establish whether chatbot-generated output reaches these sinks without safe encoding.",
+    "confidence": 0.82
+  },
+  {
+    "name": "LLM06: Excessive Agency",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "The LLM can invoke tools that perform authenticated database queries and generate coupons, giving it real application capabilities.",
+    "confidence": 1
+  },
+  {
+    "name": "LLM10: Unbounded Consumption",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "A chat endpoint exposes LLM processing and tool execution, while no dedicated rate limit or token/usage bound is shown for /rest/chat.",
+    "confidence": 0.91
+  }
+]

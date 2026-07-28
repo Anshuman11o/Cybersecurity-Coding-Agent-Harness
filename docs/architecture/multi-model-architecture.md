@@ -373,6 +373,14 @@ baseline predates the mechanism.
 
 ## 8. Known issues
 
+- **The two 2026-07-27 v2 runs are not blind.** Their lane manifests assigned
+  `models/challenge.ts`, `lib/antiCheat.ts` and `data/datacreator.ts` to hunt
+  lanes, so the challenge-key list reached the model mid-scan. Do not cite
+  `scanner-2026-07-27-a` or `-b` as a blind baseline. The manifest that produced
+  them has been removed from the repo rather than left where it could be re-run;
+  the runs themselves are in the private archive. See `CLAUDE.md`'s
+  blind-development section for the fix and the lesson.
+
 - **No v2 run under `luna` has been scored yet.** The v2 track is wired and its
   deterministic stages (0, 0.5, 1) have been run end to end under `luna`, but
   Stage 2 — the only v2 stage that calls a model — has not been run for real.

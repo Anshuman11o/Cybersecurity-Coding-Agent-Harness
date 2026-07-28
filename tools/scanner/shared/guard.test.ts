@@ -29,6 +29,48 @@ check('corpus server.ts readable', ok !== null && ok.length > 0)
 check('isCorpusReadable agrees',    isCorpusReadable('target-apps/juice-shop-blind/server.ts'))
 check('isCorpusReadable denies runs', !isCorpusReadable('tools/scanner/runs/qwen/stage3-validate/validated-findings.json'))
 
+console.log('\n-- blind-development boundary: denylisted files must never be hunt lanes --')
+// This is the check that was missing. v2 assigns one lane per file, so a hunt
+// disposition on a denylisted file pastes challenge identifiers straight into a
+// prompt. models/challenge.ts is a literal array of every challenge key.
+// Asserted against every lane-assignments.json on disk, v1 manifest and v2
+// alike, so it fails on the artifact rather than on a reading of the code.
+{
+  const { readFileSync, existsSync, readdirSync } = await import('fs')
+  const { join, relative } = await import('path')
+  const { SEED_DENYLIST } = await import('./read-guard.js')
+  const { REPO_ROOT, RUNS_ROOT } = await import('./run-paths.js')
+
+  check('denylist is non-empty', SEED_DENYLIST.length > 0)
+
+  let manifests = 0
+  let violations: string[] = []
+  if (existsSync(RUNS_ROOT)) {
+    for (const provider of readdirSync(RUNS_ROOT)) {
+      for (const stage of readdirSync(join(RUNS_ROOT, provider))) {
+        const f = join(RUNS_ROOT, provider, stage, 'lane-assignments.json')
+        if (!existsSync(f)) continue
+        manifests++
+        const a = JSON.parse(readFileSync(f, 'utf-8'))
+        for (const lane of a.lanes ?? []) {
+          if (lane.disposition !== 'hunt') continue
+          const repoRel = relative(REPO_ROOT, join(a.target_dir, lane.target_file))
+          if (SEED_DENYLIST.includes(repoRel)) {
+            violations.push(`${provider}/${stage}: ${lane.lane_id} ${lane.target_file}`)
+          }
+        }
+      }
+    }
+  }
+  check(`no denylisted hunt lanes in ${manifests} manifest(s) on disk`, violations.length === 0)
+  for (const v of violations) console.log(`        VIOLATION ${v}`)
+
+  // The guard itself must refuse them regardless of what any manifest says.
+  for (const p of SEED_DENYLIST) {
+    check(`guard denies ${p.split('/').slice(-2).join('/')}`, readCorpusFile(p) === null)
+  }
+}
+
 console.log('\n-- run paths --')
 // Registry-driven: every configured provider must get its own isolated tree
 // for every stage. Adding a model to models.json extends this automatically.

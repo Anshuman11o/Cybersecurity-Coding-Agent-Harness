@@ -47,6 +47,20 @@ identifiers alongside found/not-found status, and a protocol doc named challenge
 keys next to their source files. Both were redacted; check for recurrences when
 adding results.
 
+Third instance, found 2026-07-28: the v2 per-file lane selector never applied
+`SEED_DENYLIST`, so `models/challenge.ts` — 114 of its 183 lines a literal array
+of every challenge key — was assigned as a **hunt lane**, along with
+`lib/antiCheat.ts` and `data/datacreator.ts`. One lane per file means the
+executor reads the whole file into the prompt. The two v2 runs on 2026-07-27
+(`scanner-2026-07-27-a`, `-b`) ran against such a manifest, so **their numbers
+are not blind** and must not be cited as a blind baseline. Fixed in three
+independent places — the selector skips them, the executor reads through
+`readCorpusFile()`, and `guard.test.ts` asserts no manifest on disk assigns a
+denylisted file to a hunt lane. The pattern to learn from: the guard existed and
+was correct; v2 was forked from v1 before the denylist moved into `shared/` and
+silently never picked it up. **When adding a v2 of a component, diff its
+security-relevant imports against v1's, not just its behaviour.**
+
 ## Verification discipline
 
 Never report a Qwen result without independently confirming it. Read the actual
