@@ -429,7 +429,7 @@ share a location with another. Six multi-entry locations are near-misses:
 Landing those six moves recall **37.8% → 56.1%** (+18.3 points) with no new
 detection at all.
 
-#### Interventions
+#### Interventions — **proposed only, not approved**
 
 | # | Change | Targets |
 |---|---|---|
@@ -510,17 +510,15 @@ Note also that `categories[]` is dead weight in v2: **all 541 lanes receive the
 identical 25-code list**, and `[CLASS RESOLUTION]` confirmed 0 lanes used the
 categories fallback path. Narrowing happens entirely through `classes[]`.
 
-## Sequencing — five confirmed changes cannot ship as one run
+## Sequencing — the five confirmed changes cannot ship as one run
 
-The five confirmed items move three different axes, and two of them inflate
-scored recall by *different* mechanisms. Shipped together, a recall delta is
-unattributable.
+The five confirmed items move two different axes, and both inflate scored recall
+by *different* mechanisms. Shipped together, a recall delta is unattributable.
 
 | axis | items | effect on scored recall |
 |---|---|---|
 | label space | C1, C2, C3 | up, via wider category intersection (hedging) |
 | emission volume | C4, C5 | up, via more findings — and down on precision |
-| line placement | E1, E2 (D3) | up, via converting localized → recalled |
 
 Proposed grouping — cumulative, one group per run, Stage 2 only, ~$4.64 each:
 
@@ -528,17 +526,21 @@ Proposed grouping — cumulative, one group per run, Stage 2 only, ~$4.64 each:
 |---|---|---|
 | **A** | C1 + C2 + C3 | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically; category-blind is what says whether anything new was found. |
 | **B** | + C4 + C5 | **confidence distribution** — findings below 0.7 must appear at all. Then empty-lane share (66.4%) and findings per producing lane (1.36). |
-| **C** | + E1 + E2 | **signed-delta histogram** collapsing toward zero, with localization (66.3%) holding as recall climbs toward it. |
 
 Within a group the delta is attributable to the group, not to individual items.
 That is an accepted cost: C2 and C3 are one change expressed in two files, and
 C4 and C5 are one change expressed in two paragraphs.
 
-Total ≈ $14 for three runs, against a baseline of $4.64.
+Total ≈ $9.3 for two runs, against a baseline of $4.64.
 
 **If all five must ship at once**, the run is still worth doing, but the report
 has to say the delta cannot be attributed to any single change — and
 category-blind recall becomes the only interpretable headline.
+
+**Nothing from D3 is in this sequence.** E1, E2 and E3 remain candidates and are
+not approved. If they are approved later they form a third axis — line placement
+— and would slot in as a further cumulative run with the signed-delta histogram
+as its primary diagnostic.
 
 ## Constraints any change must respect
 
