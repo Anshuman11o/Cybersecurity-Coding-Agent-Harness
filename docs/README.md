@@ -8,6 +8,7 @@
 | What gets measured, and how is a score defined? | `protocols/eval-framework.md` |
 | How much data does a dev-time eval run against? | `protocols/dev-loop-protocol.md` |
 | What may the scanner never be allowed to see? | `protocols/blind-development.md` |
+| What are we changing next to raise recall, and why? | `protocols/recall-improvement-backlog.md` |
 | What does one specific stage read and write? | `stages/<stage>.md` |
 
 `architecture/` is design intent. `protocols/` is process that outlives any one
