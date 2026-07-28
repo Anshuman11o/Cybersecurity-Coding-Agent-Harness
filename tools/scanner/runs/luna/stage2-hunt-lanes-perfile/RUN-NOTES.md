@@ -1,41 +1,46 @@
 # Stage 2 v2 (per-file) under `luna` — run notes
 
-Complete: **541/541 hunt lanes**, 324 skip, 247 candidate findings, 0 guard blocks.
+**Run 3**, 2026-07-28T23:07Z, `c9e3e94`. Complete: **541/541 hunt lanes**, 324
+skip, **407 candidate findings**, 0 guard blocks, 0 blocked reads.
 
-## It took two passes
+These notes describe the artifacts currently in this directory. Earlier runs are
+archived; see `docs/run-history.md` for the comparison table.
 
-| Pass | Lanes | Concurrency | Outcome |
-|---|---|---|---|
-| 1 — 2026-07-28T04:42Z | 541 attempted | 8 | 489 succeeded, **52 failed** on TPM rate limits |
-| 2 — 2026-07-28T05:0xZ | 52 retried | 3 | all 52 succeeded, 0 retries needed |
+## A clean single pass
 
-Pass 1's 52 failures were OpenAI tokens-per-minute limits on `gpt-5.6-luna`,
-after the executor's 3 retries were spent. Not model behaviour. Ten of the
-ninety-eight ground-truth entries sat in those lanes, so pass 1 alone was not
-scoreable; the figures reported for this run come from the union of both passes.
+| | |
+|---|---|
+| Wall clock | 17m12s (23:07:30Z → 23:24:42Z) |
+| Concurrency | `HUNT_CONCURRENCY=4` |
+| Lanes | 541/541, **0 fatal**, 54 retries all recovered |
+| Tokens | 3,558,386 — 3,175,058 in / 383,328 out |
+| Cost | **$5.48** at $1.00/M input, $6.00/M output |
 
-Mixed concurrency is a property of this run: 489 lanes ran 8-way, 52 ran 3-way.
-Concurrency affects scheduling only — prompts, playbooks and lane definitions
-were byte-identical across both passes, because Stage 2 reads
-`lane-assignments.json` and never regenerates it.
+Because this was a single pass, the `laneRecordsV2` checkpoint defect that
+qualified run 1 does **not** apply here. All three accounting sources agree
+exactly:
 
-## Known gap in this directory's `budget-consumption.json`
+| Source | Total tokens |
+|---|---|
+| `rollup` | 3,558,386 |
+| `lanes[]` (541 entries, no duplicate `lane_id`, none `failed`) | 3,558,386 |
+| `legacy_entries` (865 entries, 0 `ceiling_hit`) | 3,558,386 |
 
-`legacy_entries` is complete and correct: 865 entries, no duplicates, summing to
-**3,338,328** tokens across the whole run.
+## What this run measured
 
-`lanes[]` (the per-chunk v2 detail) and `rollup` cover **only pass 2's 52 lanes**.
-`laneRecordsV2` is rebuilt from empty on every invocation and is not restored
-from the checkpoint, so a resumed run silently reports only its final pass in
-that section. Reading `rollup` as the run total understates it by ~6x.
+One change since run 2: **F1** — the `## Distinguishing From Adjacent Classes`
+section was deleted from all 14 playbooks, and the executor's class-selection
+prompt was strengthened to state that classes are not mutually exclusive.
 
-True split, reconstructed from both passes and cross-checked against
-`legacy_entries` (exact match):
+The upstream stages confirm the change was isolated to Stage 2's prompt: Stage
+0.5's `lanes[]` payload is **byte-identical** to run 2's, so lane count,
+dispositions and per-lane class assignments are unchanged. Stage 1's only
+per-lane deltas are `estimated_playbook_tokens` and `projected_input_tokens`,
+which fell 3,394,521 → 2,764,390 (−18.6%) with the 22% smaller playbooks.
 
-| | input | output | total |
-|---|---|---|---|
-| pass 1 (489 lanes) | 2,625,901 | 223,754 | 2,849,655 |
-| pass 2 (52 lanes) | 452,859 | 35,814 | 488,673 |
-| **run total** | **3,078,760** | **259,568** | **3,338,328** |
+## Schema warnings
 
-Pass 1's full per-chunk detail is preserved in the private run archive.
+46 findings named a `justified_by_step` beyond their trace length and were
+clamped to 0 (run 2 had the same class of warning). This is a model output
+conformance issue, not a lane failure — the finding is retained with a clamped
+step index. Worth tracking if it grows.

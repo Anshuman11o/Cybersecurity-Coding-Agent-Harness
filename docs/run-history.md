@@ -10,28 +10,79 @@ baseline.
 
 ## Scored runs, v2 per-file
 
-| Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Target |
-|---|---|---|---|
-| Recall (file + exact line + category) | 37/98 = 37.8% | **32/98 = 32.7%** | ≥90% |
-| Localization (±15 lines) | 65/98 = 66.3% | **57/98 = 58.2%** | ≥90% |
-| File-level (any line) | 93/98 = 94.9% | **97/98 = 99.0%** | — |
-| Precision proxy (category-aware) | 15.4% | **11.9%** | ≥95% |
-| Hedging | 1.462 classes/finding | **1.240** | baseline 1.000 |
+| Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Target |
+|---|---|---|---|---|
+| Recall (file + exact line + category) | 37/98 = 37.8% | 32/98 = 32.7% | **49/98 = 50.0%** | ≥90% |
+| Localization (±15 lines) | 65/98 = 66.3% | 57/98 = 58.2% | **73/98 = 74.5%** | ≥90% |
+| File-level (any line) | 93/98 = 94.9% | 97/98 = 99.0% | **97/98 = 99.0%** | — |
+| Precision proxy (category-aware) | 15.4% | 11.9% | **11.8%** | ≥95% |
+| Hedging | 1.462 classes/finding | 1.240 | **1.538** | baseline 1.000 |
 
 Category-blind, and the emission diagnostics:
 
-| | Run 1 | Run 2 |
-|---|---|---|
-| Recall, category-blind | 40.8% | **48.0%** |
-| Localization, category-blind | 80.6% | **85.7%** |
-| Findings | 247 | 354 |
-| Lanes emitting ≥1 finding | 182/541 = 33.6% | **228/541 = 42.1%** |
-| Findings below confidence 0.7 | 0 | 109 (min 0.28) |
-| Max classes on one finding | 2 (capped) | 3 |
-| Tokens | 3,338,328 | 4,022,526 |
-| Cost | $4.64 | **$5.82** |
+| | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Recall, category-blind | 40.8% | 48.0% | **53.1%** |
+| Localization, category-blind | 80.6% | 85.7% | **87.8%** |
+| Precision proxy, category-blind | 22.3% | 20.3% | **18.4%** |
+| Findings | 247 | 354 | **407** |
+| Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** |
+| Findings below confidence 0.7 | 0 | 109 (min 0.28) | **131 (min 0.28)** |
+| Max classes on one finding | 2 (capped) | 3 | **4** |
+| Distinct locations behind the recall hits | — | 24 | **23** |
+| Tokens | 3,338,328 | 4,022,526 | **3,558,386** |
+| Cost | $4.64 | $5.82 | **$5.48** |
 
 ---
+
+### Run 3 — 2026-07-28T23:07Z, `stage0-2-v2-perfile`, `luna`, `c9e3e94`
+
+541/541 lanes in a single pass, 0 failures, 54 retries all recovered. 17m12s at
+`HUNT_CONCURRENCY=4`. `rollup`, `lanes[]` and `legacy_entries` all total
+3,558,386, so the `laneRecordsV2` gap does not apply.
+
+**One change: F1.** The `## Distinguishing From Adjacent Classes` section was
+deleted from all 14 playbooks (49,137 → 38,061 chars) and the executor's
+class-selection prompt was strengthened to say classes are not mutually
+exclusive. The isolation was verified rather than assumed: Stage 0.5's `lanes[]`
+payload is **byte-identical** to run 2's — same lanes, same dispositions, same
+per-lane classes, zero flips — and Stage 1's only per-lane deltas are the
+playbook token estimates, down 18.6%.
+
+**F1's own success criteria are met.** Hedging rose 1.240 → 1.538, co-label
+share rose in 10 of 12 classes, and scored recall converged on category-blind
+recall: the gap closed from 15.3 points to 3.1. The backlog's revert condition
+(hedging rises, recall does not) did not trigger.
+
+**But the headline is location-concentrated, and F1 was not label-only.** Two
+qualifications, both of which matter more than the +17:
+
+1. The 49 hits span **23 distinct locations**, against run 2's 32 hits over 24.
+   A single 11-entry location went from 1/11 to 11/11 and accounts for **10 of
+   the 17-point gain**. Excluding it, recall rose 31/87 → 38/87 (+8.1 points).
+   That residual is the honest broad-based figure. `crypto-auth` recovering
+   0/25 → 19/25 is predominantly the same location.
+2. F1 was predicted to add no detection, which would have pinned category-blind
+   recall at 48.0%. It did not: category-blind recall rose 47 → 52, findings
+   354 → 407, producing lanes 228 → 250. The reason is that F1 **as shipped**
+   deleted 22% of playbook content rather than rewording the closer as
+   originally proposed, so it changed what the model hunts for as well as how it
+   labels. Any claim that this measured a pure labelling change is wrong.
+
+**The foreseen regression landed.** `misconfiguration` 58.8% → 47.1% and
+`insecure-design` 38.5% → 30.8% — the two classes that improved in run 2 and
+whose targeted adjacency bullets F1 deleted. Their category-blind localization
+did not fall, so the defects are still found and positioned; they are labelled
+differently. Per F1's own instruction, those bullets carried real guidance and
+should return without the singular closer.
+
+**Cost of the emission increase.** Precision proxy fell 20.3% → 18.4%
+category-blind. v2 still has no Stage 3 validator, so nothing recovers it.
+
+Also in force: 46 findings named a `justified_by_step` beyond their trace length
+and were clamped to 0 — model output conformance, not a lane failure. And this
+run was executed directly by Claude at the operator's instruction rather than
+dispatched to Qwen, so the `CLAUDE.md` execute/verify split did not hold.
 
 ### Run 2 — 2026-07-28T18:23Z, `stage0-2-v2-perfile`, `luna`, `e3307ec`
 

@@ -340,6 +340,47 @@ class; scored recall must converge toward category-blind recall (48.0%), which i
 the ceiling this change can reach. If hedging rises and scored recall does not,
 the labels are wider without being righter and the change should be reverted.
 
+#### Result — run 3, `c9e3e94`. Criteria met; do not revert. Two corrections.
+
+Measured in isolation against run 2: Stage 0.5's `lanes[]` is byte-identical, so
+nothing upstream moved.
+
+| Criterion | Required | Measured |
+|---|---|---|
+| Hedging | rise from 1.240 | **1.538** |
+| Co-label share | rise per class | **rose in 10 of 12** (fell only `logging-monitoring` 35%→21%; `ssrf` flat at 0%) |
+| Recall converges on category-blind | — | **gap 15.3 → 3.1 points** |
+
+Recall 32/98 → 49/98, localization 57/98 → 73/98. The revert condition did not
+trigger.
+
+**Correction 1 — "the ceiling this change can reach" was wrong, because F1 was
+not label-only.** Category-blind recall was expected to stay at 48.0%; it rose to
+53.1%, with findings 354 → 407 and producing lanes 228 → 250. Deleting the whole
+section removed 22% of playbook text, which changes what the model *hunts for*,
+not only how it labels. The "adds no detection" prediction was inherited from the
+reword proposal and does not hold for the delete. **A section deletion is never a
+pure labelling intervention — budget for a detection delta whenever prompt volume
+moves.**
+
+**Correction 2 — most of the headline is one line.** The 49 hits span 23 distinct
+locations against run 2's 32 over 24. The benchmark's 11-entry location went 1/11
+→ 11/11, which is 10 of the 17-point gain; `crypto-auth` 0/25 → 19/25 is
+predominantly the same line. Excluding it, recall rose 31/87 → 38/87 (+8.1
+points) — real, broad, and about half the headline. This is exactly the failure
+mode `eval-howto.md` warns about, in the direction that flatters the change.
+
+**The foreseen regression landed.** misconfiguration 58.8% → 47.1%,
+insecure-design 38.5% → 30.8%, with category-blind localization holding in both.
+Per the paragraph above, the bullets carried real guidance. **Next action: restore
+the misconfiguration and insecure-design adjacency bullets without the singular
+closer** — F3, below the line. Restoring them everywhere would re-run the run-2
+experiment; restoring them in the two classes that measurably lost is the smaller
+test.
+
+**Cost.** Precision proxy 20.3% → 18.4% category-blind, with no v2 validator to
+recover it. Findings below confidence 0.7 rose 109 → 131.
+
 ### F2 — Anchor access-control to the authorization decision
 
 **File:** `stage2-hunt-lanes-perfile/src/playbooks/access-control.ts`.
