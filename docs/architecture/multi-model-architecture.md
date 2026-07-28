@@ -100,6 +100,43 @@ inconsistent about accepting non-default sampling values, so `luna` declares
 `max_completion_tokens` and an empty `sampling`. DashScope accepts only
 `max_tokens`, so `qwen` declares that and `temperature: 0.1`.
 
+### Operational profile per model
+
+The registry declares what the API *accepts*. It deliberately does not declare
+rate limits or price — those are account properties, not model properties, and
+hardcoding them would rot. Measured values, for planning a run:
+
+| | `luna` / `gpt-5.6-luna` | `qwen` / `qwen-plus` |
+|---|---|---|
+| Tokens-per-minute ceiling | **200,000** (observed in 429 bodies) | not measured |
+| Safe `HUNT_CONCURRENCY` for 541 lanes | **4** — 8 lost 52 lanes to TPM | 8 used historically |
+| Price basis used for reported cost | $1.00/M in, $6.00/M output | — |
+| Full v2 Stage 2 run | ~20 min, ~4.0M tokens, ~$5.82 | — |
+
+Discover a new model's ceiling the same way: the 429 body states it verbatim
+(`Limit N, Used N, Requested N. Please try again in Xs`). Read it from the run
+log rather than guessing — the wait it asks for is usually 1–4s, which tells you
+whether a failure was a short spike or sustained saturation. See
+`../protocols/running-a-scan.md` §5.
+
+### Bringing a new model to a comparable run
+
+1. Add the registry entry; run `npx tsx ../shared/guard.test.ts`.
+2. `SCANNER_PROVIDER=<key> npx tsx ../shared/preflight.ts` — confirms the
+   credential, the model id, and that `json_schema` responses round-trip. A model
+   that cannot do structured output cannot run Stage 2.
+3. Seed or re-run upstream stages **into that provider's own tree**. Artifacts
+   are provider-isolated, so a new key starts with an empty `runs/<key>/`.
+   Comparing a new model against an existing baseline requires the same Stage 0.5
+   manifest, so either seed it or confirm the regenerated one matches.
+4. Run Stage 2 at a conservative concurrency until the TPM ceiling is known.
+5. Score with the same scorer, validated against the previous run's published
+   numbers first (`../protocols/eval-howto.md`).
+
+Cross-model comparisons are only meaningful when the *manifest* is identical, not
+merely the code — lane assignment depends on Stage 0's output, and Stage 0 is
+itself an LLM call.
+
 ### Bash reads the same registry
 
 `run.sh`, `diff.sh` and `seed-upstream.sh` get the provider list and alias
