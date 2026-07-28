@@ -73,6 +73,23 @@ that mattered:
 
 When a claim is load-bearing, verify it yourself before it reaches the user.
 
+### Verify the tree before a run, not the intent
+
+A dispatch prompt under `prompts/dispatch/` records what was *asked for*. Only the
+commit graph records what a run will *execute*. These came apart on 2026-07-28:
+three dispatched changes — per-playbook class disambiguation, removal of the
+two-class cap, and the misconfiguration/insecure-design prompt work — were all
+implemented and committed before the Luna v2 run started, but on a branch that
+run's tree had forked away from. The run measured a scanner missing all three,
+and the cap was demonstrably binding: 114 of its 247 findings sat exactly on the
+two-class ceiling.
+
+Before launching a scan, run `git merge-base HEAD origin/main` and diff the
+scanner source against `main`. Confirm each change you believe is in force by
+grepping the file, not by finding its dispatch prompt on disk. A baseline
+measured from the wrong tree is worse than no baseline — it gets cited later as
+if the changes had been tested and had not worked.
+
 ## Reporting
 
 Report what happened, including cost and failure. If a run died, say what was

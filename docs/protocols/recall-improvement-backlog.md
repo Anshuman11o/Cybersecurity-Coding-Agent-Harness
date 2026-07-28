@@ -1,12 +1,40 @@
 # Recall-improvement backlog
 
 Running list of changes proposed between the `scanner-2026-07-28-luna-a` baseline
-and the next run. **Nothing here is implemented.** Items move to CONFIRMED only
-on an explicit decision; everything else is a candidate with its evidence
-attached so the decision can be made on numbers rather than intuition.
+and the next run. Items move to CONFIRMED only on an explicit decision;
+everything else is a candidate with its evidence attached so the decision can be
+made on numbers rather than intuition. Items marked **SHIPPED** are already in
+the tree and need no further work.
 
 Baseline being improved on: recall **37/98 = 37.8%**, localization 66.3%,
 file-level 94.9%, precision proxy 15.4% category-aware, cost $4.64.
+
+### ⚠ The baseline ran without three dispatched changes
+
+`scanner-2026-07-28-luna-a` executed from `claude/luna-5.6-model-setup-g80khc`,
+which had forked before three dispatched changes landed on `main` via the
+remediation branch:
+
+| dispatch | commit | committed | in the baseline's tree? |
+|---|---|---|---|
+| `2026-07-27__playbook-adjacent-class-disambiguation` | `44e01ad` | 07-27 23:31 | no |
+| `2026-07-28__remove-class-cap` | `510dcb6` | 07-28 03:18 | no |
+| `2026-07-28__misconfiguration-sweep-and-insecure-design-desuppression` | `95cd259` | 07-28 03:45 | no |
+
+All three were committed *before* Stage 2 started (07-28 04:59) but on a branch
+the run never contained. The output confirms the cap was in force and biting:
+**max 2 classes on any of 247 findings, with 114 of 247 — 46.2% — sitting exactly
+on the ceiling** (compare the 15% that justified writing the dispatch). All three
+are merged in now.
+
+This has two consequences. C2 and C3 below were proposals for work already done,
+and are re-marked SHIPPED. And the 37.8% baseline is a *pre-dispatch* number: the
+next run's delta will include these three changes whether or not anything else
+is applied, so it cannot be attributed to the confirmed list alone.
+
+**Check for recurrences by diffing this branch against `main` before every run**,
+not just at merge time. A dispatch prompt on disk is evidence of intent, not of
+presence in the tree that runs.
 
 ---
 
@@ -31,7 +59,11 @@ unemittable. No ground-truth entry carries API10, so recall is unaffected — bu
 `vuln-classes.json` and `signal-classes.json` must both be updated or the
 selector's validation will fail on a dangling reference.
 
-### C2 — Remove the per-finding class cap
+### C2 — Remove the per-finding class cap — **SHIPPED** (`510dcb6`, 07-28 03:18)
+
+Already in the tree. Dispatched as `2026-07-28__remove-class-cap.md`; the edit
+below is exactly what shipped. It was absent from the baseline's branch, which is
+why the measured run still shows the cap. Nothing further to do.
 
 **File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:160`
 
@@ -52,7 +84,27 @@ assigned, so the ceiling is the lane's 4–13, not 15, and not 2.
 v1 (`stage2-hunt-lanes`) has no `maxItems` and no class model at all, so this is
 a v2-only change and v1 stays byte-identical.
 
-### C3 — Rewrite the class-selection prompt
+### C3 — Rewrite the class-selection prompt — **SHIPPED** (`510dcb6`, 07-28 03:18)
+
+Already in the tree, in the same commit as C2. The rationing rule is gone and the
+replacement paragraph is in place — **but the shipped wording is not the wording
+proposed below**, so read the "as shipped" text as authoritative:
+
+> List every class that your scanning of this file establishes for this finding,
+> using the playbooks, the file content, and the context you were given. There is
+> no limit on how many — list all the evidence supports, and do not narrow to a
+> single label when several genuinely apply. A single line can legitimately be
+> more than one class: a render sink reached by attacker-controlled data is both
+> an injection and a client-side finding. For each class you list, give the index
+> of the trace step that establishes it.
+
+One substantive difference from the proposal: the shipped text asks for
+`justified_by_step` but does **not** carry the explicit "if you cannot point to a
+step, do not list it" instruction. The schema still requires the field and
+runtime validation still drops findings with invalid `finding_classes`, so the
+constraint is enforced mechanically — it is just no longer stated to the model.
+Whether to add that sentence back is an open question best answered by the
+hedging rate on the next run; it is not worth a run of its own.
 
 **File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:400`
 
@@ -510,37 +562,45 @@ Note also that `categories[]` is dead weight in v2: **all 541 lanes receive the
 identical 25-code list**, and `[CLASS RESOLUTION]` confirmed 0 lanes used the
 categories fallback path. Narrowing happens entirely through `classes[]`.
 
-## Sequencing — the five confirmed changes cannot ship as one run
+## Sequencing — revised now that three dispatch changes are in the tree
 
-The five confirmed items move two different axes, and both inflate scored recall
-by *different* mechanisms. Shipped together, a recall delta is unattributable.
+The confirmed items move two axes, and each inflates scored recall by a
+*different* mechanism, so shipping them together makes a recall delta
+unattributable. The merge adds a third group that is already in the tree and will
+be measured by the next run whether or not anything else changes.
 
-| axis | items | effect on scored recall |
+| axis | items | status | effect on scored recall |
+|---|---|---|---|
+| label space | C2, C3, playbook disambiguation, misconfig/insecure-design | **in the tree** — unmeasured | up, via wider intersection and better class choice |
+| label space | C1 (drop `general-catchall`) | to do | up slightly; down on noise |
+| emission volume | C4, C5 | to do | up, via more findings — and down on precision |
+
+Both label-space groups share a mechanism and a diagnostic, so bundling them
+costs no attribution that was not already lost when the dispatch changes went in
+unmeasured. That keeps this to two runs:
+
+| run | contains | primary diagnostic |
 |---|---|---|
-| label space | C1, C2, C3 | up, via wider category intersection (hedging) |
-| emission volume | C4, C5 | up, via more findings — and down on precision |
-
-Proposed grouping — cumulative, one group per run, Stage 2 only, ~$4.64 each:
-
-| run | adds | primary diagnostic |
-|---|---|---|
-| **A** | C1 + C2 + C3 | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically; category-blind is what says whether anything new was found. |
+| **A** | merged tree (the three dispatch changes) + C1 | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically once the cap is gone; category-blind is what says whether anything new was *found*. Also per-class recall for `misconfiguration` (18%) and `insecure-design` (8%) — those two have targeted changes and should move on their own. |
 | **B** | + C4 + C5 | **confidence distribution** — findings below 0.7 must appear at all. Then empty-lane share (66.4%) and findings per producing lane (1.36). |
 
-Within a group the delta is attributable to the group, not to individual items.
-That is an accepted cost: C2 and C3 are one change expressed in two files, and
-C4 and C5 are one change expressed in two paragraphs.
+Run A's delta covers four changes at once. That is not ideal and it is worth
+saying plainly in the report: it is a consequence of the branch divergence, not a
+sequencing choice. Two of the four are per-class targeted, so per-class recall
+gives partial attribution that run-level recall cannot.
 
 Total ≈ $9.3 for two runs, against a baseline of $4.64.
 
-**If all five must ship at once**, the run is still worth doing, but the report
-has to say the delta cannot be attributed to any single change — and
-category-blind recall becomes the only interpretable headline.
+**Before either run, diff the branch against `main`.** The reason this section
+had to be rewritten is that a run executed from a tree three commits behind the
+changes it was meant to test.
 
 **Nothing from D3 is in this sequence.** E1, E2 and E3 remain candidates and are
-not approved. If they are approved later they form a third axis — line placement
-— and would slot in as a further cumulative run with the signed-delta histogram
-as its primary diagnostic.
+not approved.
+
+If they are approved later they form a further axis — line placement — and would
+slot in as another cumulative run with the signed-delta histogram as its primary
+diagnostic.
 
 ## Constraints any change must respect
 
@@ -551,3 +611,7 @@ as its primary diagnostic.
   were not blind. Report hedging rate alongside any recall figure.
 - **One change per run, or the attribution is lost.** C1 and D2 pull in opposite
   directions on precision; bundling them makes the result uninterpretable.
+- **The tree must be verified before the run, not after.** `git merge-base` and a
+  diff against `main` are part of run setup. A dispatch prompt in
+  `prompts/dispatch/` records what was asked for; only the commit graph records
+  what the run will execute.
