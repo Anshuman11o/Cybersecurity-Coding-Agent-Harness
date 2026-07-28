@@ -19,6 +19,19 @@ Scope: Detect any vulnerability that does not fit the specialized playbook categ
 - "Could be improved" is not a finding. The finding must demonstrate exploitability.
 - For uncategorized findings: the finding must still meet the standard rigor — a named vulnerability class, a concrete trace, and a clear impact statement.
 
+## Distinguishing From Adjacent Classes
+This is the class of last resort. Before choosing it, confirm the finding matches none of
+the specific classes — in particular:
+- an outbound request to a caller-influenced destination is ssrf, never this class
+- an unsafe option, default, or exposed surface is misconfiguration
+- an unverified payload or update channel is integrity-failures
+- a response consumed without schema validation, where the destination is fixed and the
+  trust is misplaced, is integrity-failures
+
+Choose general-catchall only when the defect is genuinely real and traceable but fits no
+other class in the assigned set. Preferring it over a specific class that applies is a
+labelling error, not caution.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint accepting external input or making external calls

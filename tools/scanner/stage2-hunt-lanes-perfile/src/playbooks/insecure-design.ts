@@ -20,6 +20,20 @@ Scope: Detect business-logic-level design flaws that cannot be fixed by adding a
 - "Missing input validation" is an implementation flaw, not a design flaw. A design flaw is one where even correct implementation of the current design enables an attack.
 - The fix for an insecure design finding typically requires architectural changes, not a single line of code.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- a check exists for this flow and can be bypassed — that is access-control; insecure-design
+  means no control was omitted because none was ever conceived
+- the flow is sound and a setting, default, or option carries an unsafe value — that is
+  misconfiguration
+- caller data reaches an interpreter and changes how it parses — that is injection
+- the design is sound and the identity proof protecting it is weak — that is crypto-auth
+- the design is sound and the abuse is a legitimate operation repeated at scale — that is
+  sensitive-business-flows
+
+Choose insecure-design when the code does exactly what it was designed to do, and the
+design itself permits the abuse — so no single added check would close it.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The business process or workflow

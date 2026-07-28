@@ -19,6 +19,20 @@ Scope: Detect automatic field binding that exposes sensitive model properties to
 - A finding requires demonstrating that a caller can set a field they should not control, and that this has a security impact (privilege escalation, data exposure, bypass of business logic).
 - Read-only fields that are validated but never persisted are not a mass assignment risk.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the caller reaches a record that is not theirs at all — that is access-control;
+  api-property-auth means the record is legitimately theirs and the field set is wrong
+- the field value is interpreted as query or code structure rather than stored — that is
+  injection
+- no field-level boundary was ever designed for this model — that is insecure-design
+- the exposed field is a credential or key that is also weakly protected — that is
+  crypto-auth
+
+Choose api-property-auth when the object is the right object but the properties crossing
+the boundary are wrong: a caller writing a field they should not control, or reading a
+field they should not see.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)

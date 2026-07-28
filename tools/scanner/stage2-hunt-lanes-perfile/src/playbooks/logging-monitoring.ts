@@ -20,6 +20,17 @@ Scope: Detect absence of security-relevant logging, exposure of log data, and lo
 - Internal-only log access (restricted to ops/admin roles) is acceptable; publicly accessible logs are a finding.
 - Structured logging without sensitive fields is the expected pattern; the finding is the presence of sensitive data in log entries.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the logging is adequate and the underlying operation is itself unauthorized — use the
+  class matching that operation
+- a log level or destination is set to an unsafe value — that is misconfiguration
+- the logged value is a secret that is also weak or reused — that is crypto-auth
+
+Choose logging-monitoring when a security-relevant event is not recorded, is recorded
+without enough detail to reconstruct it, or is recorded with data that should never be
+written down. The gap is in the record of the event, not in the event.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The security-relevant event that is not logged (or is logged inadequately)

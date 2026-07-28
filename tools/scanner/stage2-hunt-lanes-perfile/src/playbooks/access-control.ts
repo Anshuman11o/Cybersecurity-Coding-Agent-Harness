@@ -19,6 +19,22 @@ Scope: Detect authorization gaps where a user can access, modify, or delete reso
 - For function-level authorization: if a lower-privileged user can reach an endpoint intended only for higher-privileged roles by omitting, modifying, or spoofing a role claim in the request, that is a Broken Function Level Authorization finding.
 - A false positive occurs when the lookup itself is scoped to the current user (e.g., WHERE user_id = ? AND id = ?) or when the resource is intentionally public.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the check exists but the identity it trusts was forged, replayed, or weakly derived —
+  that is crypto-auth, an authentication failure rather than an authorization one
+- the record is legitimately the caller's and the problem is which fields cross the
+  boundary — that is api-property-auth
+- the caller controls a value that changes how the query is parsed, rather than which
+  record it returns — that is injection
+- no check exists anywhere and none was ever designed for this flow — that is
+  insecure-design; access-control means a check exists and is bypassable
+- the gap is an option, default, or permission set to an unsafe value rather than a
+  missing check in application logic — that is misconfiguration
+
+Choose access-control when a check is present and reachable but does not bind the
+resource or the function to the identity of the caller.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route path + HTTP method, or function name)
