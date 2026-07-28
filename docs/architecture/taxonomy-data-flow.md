@@ -71,10 +71,12 @@ and API5 because those three OWASP labels name the same defect from three
 taxonomies. This is a naming fact. It costs nothing and means nothing about
 difficulty.
 
-**Axis B — genuine cross-class multiplicity.** One line can honestly be two
+**Axis B — genuine cross-class multiplicity.** One line can honestly be several
 *different* classes: a handler that both concatenates caller input into a query
 and fails to bind the record to its owner is injection *and* access-control.
-This is a reasoning fact, and it is capped at two per finding.
+This is a reasoning fact. It carried a cap of two until 2026-07-28; it is now
+bounded only by the lane's assigned classes and by the requirement that each
+class cite a trace step.
 
 A class carrying many codes is **not** more likely to be confused with its
 neighbours. Measured on the 2026-07-27 run, 16 of the 30 mislabelled entries had
@@ -145,7 +147,7 @@ the model cannot name a class it was not given:
 
 ```ts
 finding_classes: {
-  type: 'array', minItems: 1, maxItems: 2,
+  type: 'array', minItems: 1,          // no upper bound since 2026-07-28
   items: { properties: {
     class:             { type: 'string', enum: classIds },   // this lane's classes
     justified_by_step: { type: 'integer' } } }
@@ -157,7 +159,7 @@ their alias codes and writes that to `categories[]` — the second and last code
 boundary. There is **no** silent fallback: a finding whose classes expand to an
 empty code set is a fatal error, not a defaulted label.
 
-The cap of two is Axis B. It is not a limit on how many *codes* a finding
+The class count is Axis B, and it is not a limit on how many *codes* a finding
 carries — a single `access-control` finding already emits three.
 
 ### Evaluation

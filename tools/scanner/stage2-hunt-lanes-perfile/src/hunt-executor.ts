@@ -143,7 +143,6 @@ function buildHuntSchema(classIds: string[]): Record<string, unknown> {
             finding_classes: {
               type: 'array',
               minItems: 1,
-              maxItems: 2,
               items: {
                 type: 'object',
                 additionalProperties: false,
@@ -383,7 +382,7 @@ Report a defect when the code in front of you is wrong on its own terms — a ch
 
 Do not invent findings. An empty array is right for a file that genuinely has no defect. But do not stay silent about something you can see merely because the surrounding context is missing.
 
-List every class this finding genuinely belongs to. A single line can legitimately be more than one class — a render sink reached by attacker-controlled data is both an injection and a client-side finding. Only list a second class if the **same trace** establishes it; if a second class would need a different entrypoint or a different sink, it is a separate finding, not a second label. For each class you list, give the index of the trace step that establishes it.
+List every class that your scanning of this file establishes for this finding, using the playbooks, the file content, and the context you were given. There is no limit on how many — list all the evidence supports, and do not narrow to a single label when several genuinely apply. A single line can legitimately be more than one class: a render sink reached by attacker-controlled data is both an injection and a client-side finding. For each class you list, give the index of the trace step that establishes it.
 
 Each finding must have:
 - "finding_classes": array of { "class": one of the class ids from your assigned classes list above, "justified_by_step": 0-based index into this finding's trace array }
