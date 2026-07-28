@@ -29,6 +29,22 @@ Scope: Detect weak or incorrect implementations of cryptography, authentication,
 - Missing optional hardening is a recommendation, not a vulnerability.
 - A validation layer that explicitly rejects weak configurations before they take effect is a valid control.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the identity is established correctly and the gap is that a verified caller reaches a
+  resource that is not theirs — that is access-control
+- the weak value is a framework or library option left at an unsafe default rather than
+  an algorithm or protocol implemented incorrectly here — that is misconfiguration
+- the algorithm is sound but the library version implementing it is known-vulnerable —
+  that is vulnerable-components
+- the secret is handled correctly but written to a log, trace, or error response — that
+  is logging-monitoring
+- the flow is authenticated correctly and the design still permits the abuse — that is
+  insecure-design
+
+Choose crypto-auth when the secret, token, hash, or identity proof is itself forgeable,
+guessable, replayable, or protected by an algorithm inadequate for its purpose.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The specific cryptographic/auth operation

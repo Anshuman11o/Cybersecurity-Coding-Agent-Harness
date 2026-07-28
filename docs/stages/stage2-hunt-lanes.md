@@ -79,4 +79,4 @@ This replaced a defect that was the largest single contributor to the recall gap
 findings emitted exactly one code each, while ground-truth entries often carry
 several and a single line can genuinely be two classes. Recall ignoring category
 was 53.1% versus 31.6% with it. Full rationale, the two axes of multiplicity, and
-why the class cap is two: `docs/architecture/vulnerability-class-model.md`.
+why the class count is now uncapped: `docs/architecture/vulnerability-class-model.md`.

@@ -24,6 +24,20 @@ Scope: Detect prompt injection, sensitive disclosure, excessive agency, and cons
 - System prompt injection is a finding when the injected content causes the model to perform an action the application did not intend — not merely when the model's output changes.
 - Sensitive data in tool returns is a finding only when that data reaches the user or an untrusted context.
 
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the model's output reaches a server-side interpreter that parses it as query or code —
+  that is injection
+- the tool re-derives the caller's authority correctly and the underlying handler still
+  returns another user's record — that is access-control
+- the model's output is rendered unsafely in the browser — that is client-side
+- the loop is bounded and the defect is a missing per-request cost or turn limit — that
+  is resource-consumption
+
+Choose ai-llm-agency when untrusted content reaches the instruction channel, or when a
+tool or handler acts on the model's output with authority the requesting user does not
+independently hold.
+
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The model integration point (chat, tool handler, agent loop)

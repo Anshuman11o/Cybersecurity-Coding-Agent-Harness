@@ -8,6 +8,19 @@ Scope: Detect dangerous default configurations, exposed internals, missing secur
 - OWASP A05: Security Misconfiguration
 
 ## Sink Patterns to Hunt For
+
+### How to sweep a file for this class
+Configuration is a value, not a file type. Work through this file and list every place
+it does any of the following:
+  - constructs or initialises a library, framework, parser, server, or client
+  - passes an options object, flag, mode, or boolean literal into such a call
+  - sets a header, permission, limit, timeout, or origin
+  - declares a credential, key, endpoint, or environment default
+
+That list is your candidate set. Test each entry against the patterns below: is this
+particular value the unsafe one? Most dangerous settings are a single argument inside
+an otherwise ordinary call, in a file with an entirely ordinary name.
+
 1. Exposed internal resources: directories, files, or endpoints that should be internal or restricted — configuration files, environment files, version control metadata, database dumps, test fixtures, backup files.
 2. Dangerous parser or deserialization settings: XML external entity resolution enabled, unsafe YAML/object deserialization, parsers with known vulnerability modes active.
 3. Missing security headers or transport controls: absence of content security directives, frame-busting, MIME-type enforcement, or transport-layer security enforcement on responses.
@@ -22,6 +35,25 @@ Scope: Detect dangerous default configurations, exposed internals, missing secur
 - Hardcoded secrets in source code are always findings, regardless of whether they are currently used in production.
 - Debug endpoints in production are always findings — they should only be active in development environments.
 - For undocumented or hidden endpoints: confirm the endpoint actually functions and carries a security-relevant operation before flagging.
+
+## Distinguishing From Adjacent Classes
+This finding belongs to another class if:
+- the setting is correct and application logic fails to bind a resource to its caller —
+  that is access-control
+- the setting is correct and caller data reaches an interpreter that parses it — that is
+  injection
+- the dangerous value is a dependency version rather than an option — that is
+  vulnerable-components
+- the workflow itself permits the abuse regardless of how it is configured — that is
+  insecure-design
+
+Choose misconfiguration when an option, default, flag, permission, header, or exposed
+surface carries an unsafe value. The code is correct; the setting is wrong. This is a
+property of a value, not of a code shape, so it can appear in any file — a parser allowing
+entity expansion, an upload with no size limit, a handler with directory listing enabled,
+a permissive cross-origin policy, a debug or verbose mode reachable in production, an
+endpoint present but absent from the declared interface. Do not decline this class merely
+because the file is not named like a configuration file.
 
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
