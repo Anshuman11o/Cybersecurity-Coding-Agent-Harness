@@ -1,0 +1,11 @@
+{
+  "provider": "luna",
+  "model": "gpt-5.6-luna",
+  "stage": "stage0-recon",
+  "git_sha": "2686e46",
+  "started": "2026-07-28T04:31:45.705Z",
+  "ended": "2026-07-28T04:31:45.716Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
