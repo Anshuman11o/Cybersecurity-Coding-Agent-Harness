@@ -416,7 +416,11 @@ Do not fabricate. Every finding must point at code that is actually present in t
 
 Subject to that, report what you see. An empty array is a strong claim — it says this file contains no weak control, no unvalidated input reaching a dangerous operation, and no defect of any assigned class. Most files in a real application do contain something. If you are about to return an empty array, re-read the file once against your assigned class list before you do.
 
-List every class that your scanning of this file establishes for this finding, using the playbooks, the file content, and the context you were given. There is no limit on how many — list all the evidence supports, and do not narrow to a single label when several genuinely apply. A single line can legitimately be more than one class: a render sink reached by attacker-controlled data is both an injection and a client-side finding. For each class you list, give the index of the trace step that establishes it.
+List every class from your assigned classes list that this finding establishes. There is no limit on how many, and the classes are not mutually exclusive — naming one never rules out another.
+
+Do not hold back. If you have some or enough evidence that more than one assigned class is involved, name them all. One statement is often several classes at once: a query that interpolates caller-controlled input while also comparing a password hashed with a broken algorithm is an injection finding and a crypto-auth finding, on the same line and the same trace. A render sink reached by attacker-controlled data is both an injection and a client-side finding. Choosing the single best label discards the others and gains nothing — a class you can see and do not name is a class you did not find.
+
+For each class you list, give the index of the trace step that establishes it.
 
 Each finding must have:
 - "finding_classes": array of { "class": one of the class ids from your assigned classes list above, "justified_by_step": 0-based index into this finding's trace array }

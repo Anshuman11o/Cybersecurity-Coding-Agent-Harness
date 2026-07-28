@@ -251,6 +251,128 @@ did not take regardless of what recall did. Also track share of empty lanes
 
 ---
 
+## CONFIRMED — from the run-2 analysis
+
+Baseline for these is run 2: recall 32/98 = 32.7%, localization 58.2%,
+category-blind recall 48.0%, hedging 1.240. See `../run-history.md`.
+
+### F1 — Stop the playbooks instructing a single label — **SHIPPED**
+
+**Files:** all 14 in `stage2-hunt-lanes-perfile/src/playbooks/`.
+
+Every playbook closes its disambiguation section with a singular imperative —
+`Choose <x> when …` — after a list framed as `This finding belongs to another
+class if:`. That is pick-one guidance. It is longer, more specific, and closer to
+the decision than the prompt's "list every class … there is no limit", so it
+wins.
+
+**What the evidence does and does not show.** Co-labelling fell uniformly, in
+every class without exception:
+
+| | run 1 | run 2 | | | run 1 | run 2 |
+|---|---|---|---|---|---|---|
+| access-control | 62% | 28% | | injection | 77% | 35% |
+| api-property-auth | 78% | 24% | | insecure-design | 69% | 41% |
+| client-side | 100% | 42% | | misconfiguration | 60% | 46% |
+| crypto-auth | 81% | 66% | | resource-consumption | 19% | 6% |
+
+(share of a class's appearances that were as a co-label rather than sole label)
+
+It is **not** the specific adjacency rules routing specific pairs. Pairs named in
+each other's disambiguation fell 46%; pairs *not* named fell **52%** — slightly
+more — and the adjacent:non-adjacent ratio rose 5.71x → 6.42x. A pair-targeted
+mechanism predicts the opposite. Dropping `general-catchall` explains only 13 of
+114 run-1 multi-class findings; excluding it, run 1 still hedges 1.447 vs run 2's
+1.237. **The cause is the pick-one posture the framing induces, not the content
+of any rule.** Do not "fix" the adjacency bullets — they are good.
+
+**Why it costs recall, precisely.** Where two classes are two separable defects,
+the model now emits two findings instead of one dual-labelled finding. That is
+harmless, arguably better, and is most of the aggregate change: across the 174
+lanes producing in both runs, distinct classes per lane barely moved (1.764 →
+1.713). Where two classes are two *properties of the same statement*, there is
+nothing to split into, so the secondary class is simply dropped. At the
+benchmark's most crowded location the lane named the secondary class in run 1 and
+named it **nowhere in the file** in run 2 — 10 entries lost, with the model's own
+trace description explicitly noting the evidence for the class it declined to
+name.
+
+**The change.** Keep every disambiguation bullet. Replace the singular closer so
+it selects *evidence for a class*, not *the class*, and state that one trace may
+establish several. Pattern, per playbook:
+
+> Name access-control when a check is present and reachable but does not bind the
+> resource or the function to the identity of the caller. These classes are not
+> mutually exclusive: the bullets above tell you when a *different* class also
+> applies, not when to drop this one. If the same trace establishes more than one
+> class, name them all.
+
+**As shipped (decided 2026-07-28): the whole section was deleted, not reworded.**
+All 14 playbooks lose `## Distinguishing From Adjacent Classes` in full — bullets
+and closer alike — returning them to their run-1 shape, 22% smaller (49,137 →
+38,061 chars). The multi-class instruction now lives only in the executor prompt,
+strengthened to carry it alone:
+
+> List every class from your assigned classes list that this finding establishes.
+> There is no limit on how many, and the classes are not mutually exclusive —
+> naming one never rules out another.
+>
+> Do not hold back. If you have some or enough evidence that more than one
+> assigned class is involved, name them all. One statement is often several
+> classes at once… Choosing the single best label discards the others and gains
+> nothing — a class you can see and do not name is a class you did not find.
+
+The targeted work from `95cd259` is unaffected — misconfiguration keeps its sweep
+procedure and insecure-design its de-suppressed scope line, since neither lived
+in the deleted section.
+
+**Known risk accepted with this choice.** misconfiguration (41.2% → 58.8%) and
+insecure-design (15.4% → 38.5%) were the only two classes to improve in run 2,
+and both had targeted adjacency bullets. Deleting the section may give part of
+that back. Watch those two classes specifically; if they regress, the bullets
+were carrying real guidance and should return without the singular closer.
+
+**Targets:** 12 of 15 `CATEGORY_MISS` and 12 of 16 `FILE_ONLY` — ~24 of 66 misses
+sit one label away from a hit, with position already correct.
+
+**Verification:** hedging rate must rise from 1.240; co-label share must rise per
+class; scored recall must converge toward category-blind recall (48.0%), which is
+the ceiling this change can reach. If hedging rises and scored recall does not,
+the labels are wider without being righter and the change should be reverted.
+
+### F2 — Anchor access-control to the authorization decision
+
+**File:** `stage2-hunt-lanes-perfile/src/playbooks/access-control.ts`.
+
+Access-control is the one class whose misses are **not** the labelling problem.
+4 of 16 hit; the other misses are spread by line: deltas
+`16, 16, -63, 21, -25, 3, 2, -1, 14`, only 4 of 9 within ±15. The model is
+pointing at a different construct, not a neighbouring line.
+
+The cause is structural. An access-control defect is an *absence* — a check that
+should exist and does not — so there is no sink to anchor on. The playbook's
+Hunting Discipline step 4 asks for "the absence of a per-resource ownership check
+between lookup and response" and then says nothing about which line to cite for
+an absence. The model lands on whatever it can trace: sometimes the route
+registration far above, sometimes the mutation far below. The signed deltas run
+both ways, which is what an unanchored choice looks like.
+
+**The change.** Add a "Which line to cite" section (full before/after in the
+commit). Substance: cite the line where the authorization decision **is made or
+should have been made** — the route registration if the guard belongs in the
+middleware chain, the handler's first statement if it belongs at entry, the
+lookup call itself if it should have carried an owner predicate — never the
+response, the mutation, or the enclosing declaration.
+
+**Expected gain is bounded and should be stated honestly:** at most the 4
+near-misses plus some of the 5 far ones, so 25% → perhaps 50–55% for this class,
+worth ~4–6 points of overall recall. The far misses may not move at all — a
+63-line error is not a specificity problem.
+
+**Verification:** access-control's signed-delta spread must narrow; its
+`LINE_MISS_FAR` count must fall. Recall for the class is the goal, but the delta
+spread is the diagnostic, because recall can move for unrelated reasons.
+
 ## CANDIDATES — evidence gathered, decision pending
 
 ### D1 — Trim the floor class set
@@ -278,7 +400,7 @@ cost? It cannot raise recall directly. The hypothesis is indirect — a shorter
 class list per lane may improve attention on the classes that remain. That is
 untested and should be measured, not assumed.
 
-### D2 — Raise emission rate  *(plan below)*
+### D2 — Raise emission rate — **RETIRED, see the run-2 entry below**
 
 #### The problem, measured
 
@@ -521,38 +643,53 @@ right thing and misses the line. `resource-consumption` localizes 1 of 2.
 
 ---
 
-### D5 — Zero-signal lanes: hunt or skip?
+### D5 — Zero-signal lanes: hunt or skip? — **answered; cost only, not recall**
 
-**170 of 541 hunt lanes (31.4%) carry exactly 4 classes** — the floor set and
-nothing else. Those files fired **zero signals** in Stage 0, so they get a
-generic prompt with no file-specific narrowing, hunted only on floor classes
-that emit at 6.2%.
+170 of 541 hunt lanes carry only the floor set. They produced 18 of 354 findings
+across 15 lanes and contain **1** ground-truth entry, which is missed anyway.
+Dropping them saves 31% of Stage 2 lanes — roughly $1.80 and 6 minutes a run —
+and all three floor classes remain assigned to the other 371 lanes, so nothing
+is reassigned and no class is lost.
 
-Class-count distribution across hunt lanes:
+**This is a cost optimisation, not a recall change**, and it should not be
+bundled with a recall run: it changes the denominator of every emission metric
+and would confound the comparison. Park it until the label and line work is done.
 
-| classes | lanes | % |
-|---:|---:|---:|
-| 4 (floor only, no signal) | **170** | **31.4%** |
-| 5 | 28 | 5.2% |
-| 6 | 112 | 20.7% |
-| 7 | 29 | 5.4% |
-| 8 | 73 | 13.5% |
-| 9 | 52 | 9.6% |
-| 10 | 54 | 10.0% |
-| 11–13 | 23 | 4.2% |
+### D2 — Emission rate — **retired, was never the bottleneck**
 
-min 4, max 13, mean 6.55. No lane receives all 15 classes.
+Run 2 settles this. 313 of 541 hunt lanes emitted nothing, and **zero
+ground-truth entries live in any of them**. All 41 GT-bearing files produced
+findings; 180 of the 313 silent lanes are test or spec files and 216 are frontend
+components. The silence is correct behaviour.
 
-Skipping zero-signal files would cut roughly a third of Stage 2's cost. **Open
-question, not yet checked:** does any ground-truth entry live in a zero-signal
-file? Stage 0's eval reported signal→class coverage of 98/98, which suggests
-not — but that measured whether the entry's *class* was implied, not whether the
-file had any signal at all. Check before deciding; this one can be answered
-against the answer key without a run.
+C4 raised producing lanes 33.6% → 42.1% and bought no recall. Emission volume is
+not a recall lever and should not be treated as one again.
 
-Note also that `categories[]` is dead weight in v2: **all 541 lanes receive the
-identical 25-code list**, and `[CLASS RESOLUTION]` confirmed 0 lanes used the
-categories fallback path. Narrowing happens entirely through `classes[]`.
+### D6 — Revert C5 (confidence bands)
+
+C5 produced **109** findings below confidence 0.7. They uniquely account for
+**4** ground-truth entries — every other entry they touch was already hit by a
+higher-confidence finding. Category-aware precision in the 0.40–0.69 band is
+**5.8%** against 14.3% above 0.7.
+
+That is ~105 false positives for 4 entries, with no v2 validator downstream to
+absorb them. Precision proxy fell 15.4% → 11.9% across the run and this is a
+large part of it.
+
+Reverting restores the prompt's previous confidence sentence. The 4 entries are a
+real loss and should be stated as such, but they are recoverable through F1/F2,
+which cost no precision at all.
+
+### Retired detail
+
+The pre-run-2 D5 write-up (class-count distribution, the open question about
+whether ground truth lived in a zero-signal file) is superseded. The answer is
+above: one entry, and it is missed regardless. Figures there predate C1 and used
+a 4-class floor; the floor is now 3.
+
+Still true and worth keeping: `categories[]` is dead weight in v2 — all 541 lanes
+receive the identical 25-code list and no lane used the categories fallback path.
+Narrowing happens entirely through `classes[]`.
 
 ## Sequencing — revised now that three dispatch changes are in the tree
 

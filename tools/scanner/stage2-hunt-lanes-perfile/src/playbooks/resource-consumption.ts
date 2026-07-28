@@ -21,20 +21,6 @@ Scope: Detect endpoints vulnerable to denial-of-service through excessive resour
 - A body size limit that is set unreasonably high is effectively no limit.
 - Infrastructure-level protections (WAF, reverse proxy rate limiting, load balancer limits) may mitigate the application-level gap — note them but do not dismiss the finding.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the request is cheap and the defect is that it reaches data belonging to someone else —
-  that is access-control
-- the input alters how a query or interpreter parses — that is injection
-- a limit exists in code but is configured to an ineffective value — that is
-  misconfiguration
-- the operation is bounded per request and the abuse is repeating a legitimate flow to
-  extract value — that is sensitive-business-flows
-
-Choose resource-consumption when a single caller-triggered operation performs work — CPU,
-memory, storage, connections, third-party spend — that is not bounded by the code, so cost
-scales with what the caller asks for.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)

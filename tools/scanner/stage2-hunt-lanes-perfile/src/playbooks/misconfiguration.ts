@@ -36,25 +36,6 @@ an otherwise ordinary call, in a file with an entirely ordinary name.
 - Debug endpoints in production are always findings — they should only be active in development environments.
 - For undocumented or hidden endpoints: confirm the endpoint actually functions and carries a security-relevant operation before flagging.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the setting is correct and application logic fails to bind a resource to its caller —
-  that is access-control
-- the setting is correct and caller data reaches an interpreter that parses it — that is
-  injection
-- the dangerous value is a dependency version rather than an option — that is
-  vulnerable-components
-- the workflow itself permits the abuse regardless of how it is configured — that is
-  insecure-design
-
-Choose misconfiguration when an option, default, flag, permission, header, or exposed
-surface carries an unsafe value. The code is correct; the setting is wrong. This is a
-property of a value, not of a code shape, so it can appear in any file — a parser allowing
-entity expansion, an upload with no size limit, a handler with directory listing enabled,
-a permissive cross-origin policy, a debug or verbose mode reachable in production, an
-endpoint present but absent from the declared interface. Do not decline this class merely
-because the file is not named like a configuration file.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The misconfigured resource, endpoint, or setting
