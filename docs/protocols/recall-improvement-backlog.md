@@ -414,6 +414,15 @@ regresses against the 37.8% baseline.
 
 ### D3 — Exact-line attribution  *(plan below)*
 
+> **Located evidence lives outside this repo.** The version of this section that
+> named specific (file, line) locations, quoted ground-truth source lines, and
+> gave per-location entry counts was moved to the answer-key repo at
+> `analysis/d3-exact-line-attribution.md` on 2026-07-28. It was a
+> blind-development violation: `docs/protocols/blind-development.md` forbids any
+> pairing of a benchmark entry with a file and line inside this repository, and
+> that is exactly what it was. What remains here is everything needed to decide
+> and verify the change, with nothing that localizes a benchmark entry.
+
 #### The problem
 
 34 of the 61 misses are **right file, right class, wrong line** — 55.7% of all
@@ -433,61 +442,33 @@ median -1   mean -4.5   earlier 20 / later 14   within +-5: 26/34
 ```
 
 No dominant offset and no directional bias, so line numbering is sound. The
-`+3:9` spike is a single location carrying 8 entries, not nine independent
-errors. Closest step was a `sink` in 22 of 34, `propagation` in 9, `entrypoint`
-in 3.
+`+3:9` spike is a single multi-entry location, not nine independent errors.
+Closest step was a `sink` in 22 of 34, `propagation` in 9, `entrypoint` in 3.
 
-#### Root causes, from reading the actual lines
+#### Root causes
 
-**1. Sink-vs-control.** The model cites where the damage lands; ground truth
-marks where the control is missing or weak.
+Three patterns, each confirmed against the actual lines (examples in the
+answer-key analysis):
 
-```
-routes/resetPassword.ts   (8 entries, +3)
-  GT    L41: if ((data != null) && security.hmac(answer) === data.answer) {
-  model L44: const updatedUser = await user.update({ password: newPassword })
-```
+1. **Sink-vs-control.** The model cites where the damage lands; ground truth
+   marks where the control is missing or weak. Both readings are defensible;
+   ground truth is consistent about choosing the weak check.
+2. **Container-vs-element.** The model cites an enclosing declaration or array
+   literal; ground truth the specific line inside it.
+3. **Signature-vs-body.** The model cites a function signature; ground truth a
+   statement within the body.
 
-Both are defensible readings. Ground truth consistently marks the **weak check**,
-not the consequence.
+Pattern 1 is the largest. Note this is *not* the whole story: of six near-miss
+multi-entry locations, only one is sink-vs-control. Two have structurally
+trivial ground-truth lines (a bare brace, a `catch` clause) where the model's
+cited line is arguably the better answer.
 
-**2. Container-vs-element.** The model cites the enclosing declaration, ground
-truth the specific line inside it.
-
-```
-server.ts                 (2 entries, -1)
-  GT    L477: { name: 'User', exclude: ['password', 'totpSecret'], model: UserModel },
-  model L476: const autoModels = [
-```
-
-**3. Signature-vs-body.** The model cites the function signature, ground truth a
-statement within.
-
-```
-routes/fileUpload.ts      (-1)
-  GT    L55: if (file != null) {
-  model L54: function checkUploadSize ({ file }: Request, ...)
-routes/metrics.ts         (-1)
-  GT    L86: res.set('Content-Type', register.contentType)
-  model L85: return async (req: Request, res: Response, next: NextFunction) => {
-```
-
-#### Where the leverage is — six lines are worth 18 points
+#### Where the leverage is
 
 The 98 entries occupy only **67 distinct (file, line) locations**; 44 entries
-share a location with another. Six multi-entry locations are near-misses:
-
-| location | entries | delta |
-|---|---:|---:|
-| `routes/resetPassword.ts:41` | 8 | +3 |
-| `routes/chat.ts:182` | 2 | −2 |
-| `server.ts:477` | 2 | −1 |
-| `lib/insecurity.ts:55` | 2 | +1 |
-| `routes/b2bOrder.ts:25` | 2 | −2 |
-| `lib/insecurity.ts:135` | 2 | no category match |
-
-Landing those six moves recall **37.8% → 56.1%** (+18.3 points) with no new
-detection at all.
+share a location with another. **Six multi-entry near-miss locations are worth
++18.3 points** — 37.8% → 56.1% — with no new detection at all. Which six is in
+the answer-key analysis.
 
 #### Interventions — **proposed only, not approved**
 
@@ -519,12 +500,15 @@ not how many are emitted.
 
 #### Measurement note that applies to every future run
 
-98 entries across **67 locations**, with `routes/login.ts:33` carrying 11,
-`routes/resetPassword.ts:41` carrying 8, and `routes/fileServer.ts:27` carrying
-5 — **24 entries at 3 lines**. Recall is location-weighted, not
-challenge-weighted, so a single line landing or slipping swings the headline by
-up to 11 points. Report the distinct-location count alongside recall, and treat
-small deltas between runs as noise unless the delta histogram moved too.
+98 entries occupy only **67 distinct locations**, and the three most crowded
+carry 11, 8 and 5 entries — **24 entries at 3 lines**. Recall is
+location-weighted, not challenge-weighted, so a single line landing or slipping
+swings the headline by up to 11 points. Report the distinct-location count
+alongside recall, and treat small deltas between runs as noise unless the delta
+histogram moved too.
+
+Run 2 demonstrated this exactly: scored recall fell 5 points, but excluding the
+single 11-entry location it *rose* 5. See `docs/run-history.md`.
 
 ### D4 — Revisit the three zero-recall classes
 

@@ -4,6 +4,10 @@ Read this before doing anything else. These rules exist because breaking them
 has already caused real, measurable damage in this project — each one traces to
 a specific incident, noted where useful.
 
+New to the repo? `docs/orientation.md` is the fastest way in, and
+`docs/protocols/running-a-scan.md` is the runbook. These rules still take
+precedence over both.
+
 ## Roles
 
 **Claude** is the architect, reviewer, verifier and dispatcher. Claude does not
@@ -60,6 +64,22 @@ denylisted file to a hunt lane. The pattern to learn from: the guard existed and
 was correct; v2 was forked from v1 before the denylist moved into `shared/` and
 silently never picked it up. **When adding a v2 of a component, diff its
 security-relevant imports against v1's, not just its behaviour.**
+
+Fourth instance, found 2026-07-28: the recall backlog's D3 section — written by
+Claude while analysing an eval — quoted ground-truth source lines verbatim, named
+specific `file:line` locations, and gave the number of benchmark entries at each.
+That is precisely the forbidden pairing, sitting in `docs/` where the coding agent
+reads. Moved to the answer-key repo at `analysis/d3-exact-line-attribution.md`;
+the harness copy keeps the aggregate statistics and the interventions and
+localizes nothing. **Eval analysis is the most likely source of a leak, because
+the useful conclusions are naturally phrased in terms of locations.** When
+writing up a run, put the aggregate here and the located evidence in the
+answer-key repo. `docs/protocols/eval-howto.md` states the split.
+
+Still outstanding: `results/archive/2026-07-five-tool-benchmark/raw/` contains
+prior external tools' own outputs, which name vulnerable files and lines. Those
+are findings rather than answer key, and they predate this rule, but they are
+readable by anything working in this repo. Not redacted — flagged for a decision.
 
 ## Verification discipline
 
