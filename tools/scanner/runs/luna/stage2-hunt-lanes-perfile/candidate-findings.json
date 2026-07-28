@@ -9117,5 +9117,1463 @@
     ],
     "severity_estimate": "medium",
     "confidence": 0.94
+  },
+  {
+    "finding_id": "FIND-0215",
+    "lane_id": "file-0103",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Stored XSS through trusted feedback HTML",
+    "description": "Feedback comments returned by the backend are explicitly marked as trusted HTML without sanitization. An attacker who submits a feedback comment containing markup such as an element with an event-handler payload (for example, an image with an onerror handler) can have that content rendered as active HTML in the administration UI, assuming the template binds the trusted value as HTML. This bypasses Angular's normal sanitization and enables stored client-side XSS against administrators.",
+    "trace": [
+      {
+        "description": "The caller is outside this file: the component receives the result of an asynchronous backend feedback query in the subscription callback.",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "entrypoint",
+        "line": 87
+      },
+      {
+        "description": "Each backend-supplied feedback object is assigned to the component data source, and its comment field is taken directly from the response.",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "propagation",
+        "line": 89
+      },
+      {
+        "description": "The raw feedback comment is passed to bypassSecurityTrustHtml, disabling Angular's HTML sanitization. When the administration template renders this trusted value as HTML, attacker-controlled markup and event handlers can execute in an administrator's browser.",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "sink",
+        "line": 91
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.98
+  },
+  {
+    "finding_id": "FIND-0216",
+    "lane_id": "file-0103",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Stored XSS through trusted user email HTML",
+    "description": "User email values received from the backend are interpolated into an HTML string and explicitly marked as trusted. A maliciously crafted stored email value can break out of the intended span text/markup and inject HTML, including event-handler attributes, when the trusted value is rendered by the administration template. This creates a stored client-side XSS path against administrators; the exact reachability depends on the application's email validation and template binding, which are outside this file.",
+    "trace": [
+      {
+        "description": "The caller is outside this file: the component receives a collection of users from UserService.find().",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "entrypoint",
+        "line": 68
+      },
+      {
+        "description": "For every returned user, the response-controlled email value is embedded directly into a constructed HTML span string; only the CSS class is locally selected.",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "propagation",
+        "line": 73
+      },
+      {
+        "description": "The constructed HTML is passed to bypassSecurityTrustHtml, disabling Angular's sanitization. Any attacker-controlled characters in the email value can therefore become active DOM markup when rendered as HTML.",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "kind": "sink",
+        "line": 73
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.91
+  },
+  {
+    "finding_id": "FIND-0217",
+    "lane_id": "file-0118",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "API4"
+    ],
+    "title": "Unbounded chat input, conversation history, and streamed response consumption",
+    "description": "The component accepts chat content without any length, token, message-count, response-size, timeout, or tool-call limit. A caller outside this file can provide an arbitrarily large `initialMessage` via the route query parameter, and the chat input can invoke the same public `sendMessage` method. The component sends the entire accumulated conversation to the backend, then continuously appends streamed response content and tool calls to in-memory state. Because the loop has no maximum duration or output-size cap, an attacker can cause oversized requests, expensive LLM processing, unbounded browser memory growth, and potentially large local conversation persistence. Repeatedly using long messages compounds the resource use because prior messages are resubmitted on every request.",
+    "trace": [
+      {
+        "description": "The component receives attacker-influenced chat content from the route's `initialMessage` query parameter; callers of the public `sendMessage` method, including the chat input component, are outside this file.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "entrypoint",
+        "line": 77
+      },
+      {
+        "description": "The query parameter is passed directly to `sendMessage` without a length or content-size limit.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "propagation",
+        "line": 80
+      },
+      {
+        "description": "The supplied content is appended to the conversation, and the full accumulated message history is retained in component state.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "propagation",
+        "line": 117
+      },
+      {
+        "description": "Every request maps and sends the entire prior conversation to the chat backend, with no cap on message count, aggregate size, or token estimate.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "propagation",
+        "line": 126
+      },
+      {
+        "description": "The component starts an unconstrained streaming operation; the code does not impose request rate, timeout, maximum response, or maximum tool-call limits.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "propagation",
+        "line": 131
+      },
+      {
+        "description": "Each streamed delta is concatenated into the existing assistant message without a size limit. An unbounded or excessively large stream therefore causes unbounded memory growth and can create oversized persisted conversations, enabling client-side resource exhaustion and potentially excessive LLM/API consumption.",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "kind": "sink",
+        "line": 151
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0218",
+    "lane_id": "file-0195",
+    "finding_classes": [
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 3
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A08",
+      "A04"
+    ],
+    "title": "Client-controlled review author permits identity spoofing",
+    "description": "The review submission sends the author identity as a client-controlled request field. `this.author` is populated from the client-side `whoAmI` response and then placed directly into the review object; an attacker can modify the browser state or intercept and alter the outgoing request to submit a review under another user's email or an arbitrary identity. The server must derive the author from the authenticated session rather than trusting this field. If the API persists the supplied author, this permits review attribution forgery and undermines audit and content integrity.",
+    "trace": [
+      {
+        "description": "The `addReview` handler receives user-entered review content through its `HTMLTextAreaElement` parameter; its caller and the attacker-facing UI interaction are outside this file.",
+        "file": "frontend/src/app/product-details/product-details.component.ts",
+        "kind": "entrypoint",
+        "line": 72
+      },
+      {
+        "description": "The component obtains the current user's email through a client-side identity lookup and stores it in the mutable `author` property. This value is not a trusted server-side identity and can be changed by tampering with the client or request.",
+        "file": "frontend/src/app/product-details/product-details.component.ts",
+        "kind": "propagation",
+        "line": 54
+      },
+      {
+        "description": "The review payload combines the user-entered message with the client-controlled `author` value.",
+        "file": "frontend/src/app/product-details/product-details.component.ts",
+        "kind": "propagation",
+        "line": 73
+      },
+      {
+        "description": "The payload, including the caller-supplied author field, is sent to the product review creation API. No server-side identity derivation or integrity protection is visible in this client path, so a modified request can attribute the review to another identity if the API trusts the field.",
+        "file": "frontend/src/app/product-details/product-details.component.ts",
+        "kind": "sink",
+        "line": 76
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.84
+  },
+  {
+    "finding_id": "FIND-0219",
+    "lane_id": "file-0186",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-controlled wallet payment amount",
+    "description": "The wallet payment amount is taken directly from attacker-controlled browser storage and sent to the wallet API as the authoritative balance. An authenticated user can modify `sessionStorage.walletTotal` before loading the payment page, causing `totalPrice` to become an arbitrary value. `choosePayment()` only performs a client-side balance comparison and then submits that value via `walletService.put({ balance: this.totalPrice, paymentId: this.paymentId })`. If the server uses the submitted balance for the wallet transaction, the user can alter the amount charged or credited, potentially causing financial loss or wallet-balance manipulation. The amount must be derived and validated server-side rather than trusted from session storage or a client-side calculation.",
+    "trace": [
+      {
+        "description": "Angular invokes `ngOnInit`; the caller and browser-controlled storage state are outside this file.",
+        "file": "frontend/src/app/payment/payment.component.ts",
+        "kind": "entrypoint",
+        "line": 96
+      },
+      {
+        "description": "For wallet payments, `totalPrice` is populated by parsing the user-modifiable `sessionStorage` value `walletTotal` without authenticity or server-side verification.",
+        "file": "frontend/src/app/payment/payment.component.ts",
+        "kind": "propagation",
+        "line": 131
+      },
+      {
+        "description": "The client performs only a local wallet-balance comparison and submits the untrusted `totalPrice` as the transaction balance to `walletService.put`, making it the payment operation's amount.",
+        "file": "frontend/src/app/payment/payment.component.ts",
+        "kind": "sink",
+        "line": 218
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.86
+  },
+  {
+    "finding_id": "FIND-0220",
+    "lane_id": "file-0199",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Client-controlled basket ID enables cross-user basket operations",
+    "description": "The component treats the client-controlled `sessionStorage` value `bid` as the authoritative basket identifier. An attacker can modify this value in browser developer tools before invoking the add-to-basket flow, causing the component to read another basket and then update an existing basket item or create a new item in the selected basket. If the corresponding basket APIs do not independently enforce ownership, this is a broken object-level authorization path allowing cross-user basket modification (and potentially disclosure through the basket lookup). The authorization decision must be based on the authenticated server-side user/session, not on a browser-controlled basket ID.",
+    "trace": [
+      {
+        "description": "`addToBasket` is an exported component method whose caller and attacker-facing UI event are outside this file; it receives a product identifier and executes the logged-in basket workflow.",
+        "file": "frontend/src/app/product/product.component.ts",
+        "kind": "entrypoint",
+        "line": 38
+      },
+      {
+        "description": "For logged-in users, the component obtains the basket identifier directly from mutable browser storage without binding it to the authenticated user or validating ownership.",
+        "file": "frontend/src/app/product/product.component.ts",
+        "kind": "propagation",
+        "line": 71
+      },
+      {
+        "description": "The attacker-controlled basket ID is used to fetch the basket, and the returned contents determine which basket item is subsequently read and updated.",
+        "file": "frontend/src/app/product/product.component.ts",
+        "kind": "propagation",
+        "line": 79
+      },
+      {
+        "description": "The component sends mutations using identifiers derived from the untrusted basket lookup, either updating an existing basket item or creating a new item with `BasketId` taken from `sessionStorage`; no per-user ownership check is present in this file.",
+        "file": "frontend/src/app/product/product.component.ts",
+        "kind": "sink",
+        "line": 135
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.82
+  },
+  {
+    "finding_id": "FIND-0221",
+    "lane_id": "file-0247",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Product descriptions are intentionally trusted as executable HTML",
+    "description": "The test explicitly verifies that attacker-controlled product description HTML, including a <script> payload, is passed to DomSanitizer.bypassSecurityTrustHtml. This disables Angular's normal sanitization for content originating from the product search API. If the component template renders the resulting value through an HTML-binding sink, a malicious or compromised product description can execute client-side script in users' browsers. Although this file is a test and the sanitizer is mocked, the test codifies and protects an unsafe production behavior.",
+    "trace": [
+      {
+        "description": "The test supplies a product-search response containing attacker-controlled HTML, including a script element; the real caller/API is outside this file.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "entrypoint",
+        "line": 166
+      },
+      {
+        "description": "The component lifecycle is invoked with the malicious product description present in the mocked search result.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "propagation",
+        "line": 167
+      },
+      {
+        "description": "The test asserts that the raw payload is passed to bypassSecurityTrustHtml rather than being sanitized, establishing an unsafe HTML-trust sink.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "sink",
+        "line": 169
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0222",
+    "lane_id": "file-0247",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Search query is trusted as HTML without sanitization",
+    "description": "The test verifies that a URL/query-controlled search value containing a script payload is passed directly to bypassSecurityTrustHtml. Query parameters are attacker-controllable, so trusting this value as HTML can enable client-side XSS wherever the component renders the trusted value as HTML. The sanitizer is mocked in this spec, but the assertion preserves an unsafe production contract instead of requiring sanitization or plain-text rendering.",
+    "trace": [
+      {
+        "description": "The test sets the ActivatedRoute query parameter to a script payload; the external browser URL/query-string entrypoint is outside this file.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "entrypoint",
+        "line": 219
+      },
+      {
+        "description": "The component filters using the attacker-controlled query parameter.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "propagation",
+        "line": 220
+      },
+      {
+        "description": "The test asserts that the raw query value is passed to bypassSecurityTrustHtml, disabling framework sanitization for attacker-controlled content.",
+        "file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "kind": "sink",
+        "line": 221
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.88
+  },
+  {
+    "finding_id": "FIND-0223",
+    "lane_id": "file-0270",
+    "finding_classes": [
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A08"
+    ],
+    "title": "Remote Solidity compiler loaded without integrity verification",
+    "description": "The component fetches and executes a Solidity compiler release from a remote URL constructed from a locally selected version, but does not verify a cryptographic hash or signature for the downloaded compiler. The release filename is pinned, but that does not protect against compromise of the hosting domain, replacement of the referenced artifact, or a compromised dependency loader. The resulting compiler output is trusted and used to construct deployment bytecode, which the connected wallet can sign and deploy. A compromised compiler could silently modify contract bytecode, causing users to deploy malicious contracts or contracts with attacker-controlled behavior.",
+    "trace": [
+      {
+        "description": "The caller outside this file supplies Solidity source code to the exported component method `compileAndFetchContracts`; this is the entrypoint for attacker- or user-controlled compiler input.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "entrypoint",
+        "line": 109
+      },
+      {
+        "description": "The component maps the selected compiler version to a remote Solidity compiler artifact URL. Although the version is selected from a local map, no expected hash or signature is associated with the artifact.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "propagation",
+        "line": 121
+      },
+      {
+        "description": "The remote URL and caller-supplied Solidity source are passed to `solidityCompiler`, which obtains and executes the compiler artifact without an application-level integrity verification step.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "sink",
+        "line": 125
+      },
+      {
+        "description": "The compiler's unverified output is accepted as the compiled contract set and subsequently used as the source of deployment bytecode and ABI.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "propagation",
+        "line": 133
+      },
+      {
+        "description": "The selected compiler output's EVM bytecode is extracted and supplied to an ethers `ContractFactory` connected to the user's wallet signer.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "propagation",
+        "line": 159
+      },
+      {
+        "description": "The application deploys the compiler-produced bytecode through the connected wallet. If the remote compiler artifact is replaced or compromised, the user can be induced to sign and deploy altered malicious bytecode.",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "kind": "sink",
+        "line": 174
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.87
+  },
+  {
+    "finding_id": "FIND-0224",
+    "lane_id": "file-0294",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Administrative role is accepted from an unverified client-side JWT",
+    "description": "The helper treats the `role` claim in a client-side JWT as authoritative without verifying the JWT signature, expiration, or issuer. Because the token is read from writable `localStorage`, an attacker can replace it with a forged token containing `data.role: \"admin\"`; `jwtDecode` only parses claims and performs no authentication. Any caller that uses `waitForAdminLogIn()` as an administrative gate can therefore be tricked into proceeding as an admin. Server-side authorization may mitigate downstream actions, but this helper itself does not establish an authenticated administrative identity.",
+    "trace": [
+      {
+        "description": "The exported `waitForAdminLogIn()` helper is callable by code outside this file and is intended to wait until the client is considered logged in as an administrator.",
+        "file": "frontend/src/hacking-instructor/helpers/helpers.ts",
+        "kind": "entrypoint",
+        "line": 181
+      },
+      {
+        "description": "The helper obtains the token from `localStorage` and decodes it with `jwtDecode`. `jwtDecode` parses the payload only; it does not verify the JWT signature or validate expiration and issuer claims. The token storage is also writable by client-side code.",
+        "file": "frontend/src/hacking-instructor/helpers/helpers.ts",
+        "kind": "propagation",
+        "line": 186
+      },
+      {
+        "description": "The decoded, untrusted payload is used directly as the administrative role value.",
+        "file": "frontend/src/hacking-instructor/helpers/helpers.ts",
+        "kind": "propagation",
+        "line": 189
+      },
+      {
+        "description": "The helper releases its wait condition solely when the attacker-controlled decoded claim equals `admin`; no cryptographic verification or server-derived authorization check occurs before treating the caller as an administrator.",
+        "file": "frontend/src/hacking-instructor/helpers/helpers.ts",
+        "kind": "sink",
+        "line": 193
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.93
+  },
+  {
+    "finding_id": "FIND-0225",
+    "lane_id": "file-0327",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API3",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Writable BasketId enables mass assignment across baskets",
+    "description": "The BasketItem model exposes security-sensitive relationship fields (`BasketId` and `ProductId`) as writable model attributes, with no explicit property allow-list or server-side ownership constraint. The application's auto-generated CRUD surface for `/api/BasketItems` and `/api/BasketItems/:id` can therefore bind caller-supplied fields directly to this model. An authenticated attacker who submits or updates a BasketItem with another user's `BasketId` can insert items into or alter items belonging to that user's basket, depending on the generated route's authorization behavior. This is both a mass-assignment/property-authorization issue and a potential object-level authorization issue.",
+    "trace": [
+      {
+        "description": "The auto-generated `/api/BasketItems` and `/api/BasketItems/:id` CRUD caller is outside this file and supplies request-derived model attributes to the exported BasketItem model.",
+        "file": "models/basketitem.ts",
+        "kind": "entrypoint",
+        "line": 48
+      },
+      {
+        "description": "The model declares `ProductId`, `BasketId`, and `quantity` as ordinary writable attributes; there is no explicit request-field allow-list separating client-controlled values from server-owned relationship fields.",
+        "file": "models/basketitem.ts",
+        "kind": "propagation",
+        "line": 19
+      },
+      {
+        "description": "`BasketId` and `ProductId` are registered as persistent Sequelize columns without an ownership check, foreign-key scope, or other model-level restriction. The generated CRUD layer can consequently persist a caller-supplied `BasketId`, allowing cross-basket creation or modification when the route does not add per-resource authorization.",
+        "file": "models/basketitem.ts",
+        "kind": "sink",
+        "line": 26
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.78
+  },
+  {
+    "finding_id": "FIND-0226",
+    "lane_id": "file-0306",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded private key enables authentication-token forgery",
+    "description": "The RSA private key is embedded directly in the source and is used by `authorize()` to sign authentication tokens. Anyone who obtains the source or compiled artifact can use the same key to forge valid RS256 JWTs, impersonate users, and potentially obtain privileged roles. The same hardcoded private key is also reused as an HMAC secret for deluxe tokens.",
+    "trace": [
+      {
+        "description": "The module initializes a fixed RSA private key in source code; this value is not loaded from a protected secret store. The exposure originates inside this file rather than from a visible route.",
+        "file": "lib/insecurity.ts",
+        "kind": "entrypoint",
+        "line": 21
+      },
+      {
+        "description": "The exported `authorize` function signs caller-supplied user claims using the hardcoded `privateKey` and RS256.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 56
+      },
+      {
+        "description": "The hardcoded key is the signing secret for authentication tokens, so an attacker possessing it can create tokens accepted by the application's public-key verification path, including forged identity and role claims.",
+        "file": "lib/insecurity.ts",
+        "kind": "sink",
+        "line": 56
+      }
+    ],
+    "severity_estimate": "critical",
+    "confidence": 0.99
+  },
+  {
+    "finding_id": "FIND-0227",
+    "lane_id": "file-0306",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Unsalted MD5 used for authentication-related hashing",
+    "description": "`hash()` uses unsalted MD5 with no password-specific work factor. If, as the exported security helper indicates, this function is used to hash passwords or other authentication secrets, a database compromise permits rapid dictionary and rainbow-table cracking, after which attackers can authenticate as affected users. The caller is outside this file, but the weak primitive is directly visible here.",
+    "trace": [
+      {
+        "description": "A caller outside this file can provide arbitrary authentication or credential data to the exported `hash(data)` helper.",
+        "file": "lib/insecurity.ts",
+        "kind": "entrypoint",
+        "line": 43
+      },
+      {
+        "description": "The helper hashes the data directly with MD5, without salting or a memory- and time-hard password KDF such as Argon2, scrypt, or bcrypt.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 43
+      },
+      {
+        "description": "The MD5 digest is returned as the security value; when used for password storage, compromised password hashes can be cracked at very high speed and reused for account takeover.",
+        "file": "lib/insecurity.ts",
+        "kind": "sink",
+        "line": 43
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.86
+  },
+  {
+    "finding_id": "FIND-0228",
+    "lane_id": "file-0306",
+    "finding_classes": [
+      {
+        "class": "general-catchall",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API10"
+    ],
+    "title": "Substring-based redirect allowlist can be bypassed",
+    "description": "The redirect validation uses substring matching rather than exact URL parsing and origin allowlisting. An attacker can supply a URL such as `https://attacker.example/?next=https://github.com/juice-shop/juice-shop`; it contains an allowed string, so the function returns true while the actual redirect destination is attacker-controlled. The redirecting caller is outside this file.",
+    "trace": [
+      {
+        "description": "A caller outside this file passes an attacker-controlled redirect URL to the exported `isRedirectAllowed(url)` function.",
+        "file": "lib/insecurity.ts",
+        "kind": "entrypoint",
+        "line": 134
+      },
+      {
+        "description": "The function iterates over the nominally allowed URLs but does not parse the supplied URL or compare its origin and full destination.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 136
+      },
+      {
+        "description": "`url.includes(allowedUrl)` accepts any URL containing an allowed URL as a substring, allowing an attacker-controlled destination to pass the redirect check and enabling an open redirect.",
+        "file": "lib/insecurity.ts",
+        "kind": "sink",
+        "line": 137
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.97
+  },
+  {
+    "finding_id": "FIND-0229",
+    "lane_id": "file-0306",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 3
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A04"
+    ],
+    "title": "Coupons lack authenticity protection and can be forged",
+    "description": "Coupon values are only Z85-encoded and checked for the current month and a two-digit format; there is no signature, MAC, or server-side lookup binding the discount to an issued coupon. An attacker can construct a current-month encoded value containing an arbitrary discount and have it accepted by `discountFromCoupon`, potentially obtaining an unauthorized discount. The endpoint consuming the returned discount is outside this file.",
+    "trace": [
+      {
+        "description": "A caller outside this file supplies an attacker-controlled coupon string to the exported `discountFromCoupon(coupon)` function.",
+        "file": "lib/insecurity.ts",
+        "kind": "entrypoint",
+        "line": 104
+      },
+      {
+        "description": "The coupon is merely decoded with Z85; encoding provides no secrecy or integrity protection.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 108
+      },
+      {
+        "description": "The only checks are a syntactic month/discount pattern and whether the month matches the current month; there is no issuer authentication or lookup of an issued coupon.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 109
+      },
+      {
+        "description": "The parsed attacker-selected discount is returned to the caller as trusted authorization for a discount.",
+        "file": "lib/insecurity.ts",
+        "kind": "sink",
+        "line": 114
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.93
+  },
+  {
+    "finding_id": "FIND-0230",
+    "lane_id": "file-0306",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Authentication token cookie lacks security flags",
+    "description": "When a token is obtained from an Authorization header, `updateAuthenticatedUsers` copies it into a response cookie without `HttpOnly`, `Secure`, or `SameSite` attributes. This can expose the authentication token to client-side script and permit transmission over an insecure connection, increasing the impact of XSS or network interception. The middleware's route caller is outside this file.",
+    "trace": [
+      {
+        "description": "A caller outside this file invokes the exported middleware with a request containing a token in either the cookie or JWT request location.",
+        "file": "lib/insecurity.ts",
+        "kind": "entrypoint",
+        "line": 186
+      },
+      {
+        "description": "The middleware selects the incoming token and, when it is not already cached, verifies it before placing it in a response cookie.",
+        "file": "lib/insecurity.ts",
+        "kind": "propagation",
+        "line": 187
+      },
+      {
+        "description": "`res.cookie('token', token)` sets the authentication token without `HttpOnly`, `Secure`, or `SameSite` options, leaving the token accessible to JavaScript and permitting insecure transport depending on deployment.",
+        "file": "lib/insecurity.ts",
+        "kind": "sink",
+        "line": 193
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0231",
+    "lane_id": "file-0348",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "2FA verification attempts are not security-audited",
+    "description": "The unauthenticated 2FA verification flow handles a security-sensitive authentication event but performs no audit logging for successful or failed verification attempts. An attacker can repeatedly submit invalid TOTP values, while operators have no application-level record of the attempts or resulting authentications, impairing detection and investigation of MFA brute-force or account-compromise activity.",
+    "trace": [
+      {
+        "description": "The caller outside this file reaches the exported verify handler through POST /rest/2fa/verify; the route is intentionally unauthenticated because it completes the pre-authentication MFA flow.",
+        "file": "routes/2fa.ts",
+        "kind": "entrypoint",
+        "line": 16
+      },
+      {
+        "description": "The handler accepts the caller-controlled tmpToken and totpToken, validates the temporary token, loads the associated user, and checks the TOTP value.",
+        "file": "routes/2fa.ts",
+        "kind": "propagation",
+        "line": 31
+      },
+      {
+        "description": "The handler returns 401 for an invalid TOTP and issues a new authenticated token for a valid TOTP, but there is no logging or audit event on either security-relevant path.",
+        "file": "routes/2fa.ts",
+        "kind": "sink",
+        "line": 36
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.96
+  },
+  {
+    "finding_id": "FIND-0232",
+    "lane_id": "file-0348",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "2FA enrollment changes are not logged",
+    "description": "Changing a user's MFA configuration is a security-relevant account event, but the setup flow updates the stored TOTP secret and returns success without emitting an audit log. If an attacker gains a session or otherwise changes MFA settings, administrators cannot reliably detect or reconstruct the enrollment event from application logs.",
+    "trace": [
+      {
+        "description": "The caller outside this file reaches the exported setup handler through POST /rest/2fa/setup after authentication middleware.",
+        "file": "routes/2fa.ts",
+        "kind": "entrypoint",
+        "line": 96
+      },
+      {
+        "description": "The handler validates the current session, password, setup token, and initial TOTP, then persists the new TOTP secret for the authenticated user.",
+        "file": "routes/2fa.ts",
+        "kind": "propagation",
+        "line": 128
+      },
+      {
+        "description": "The MFA secret is saved and the cached authenticated user is updated, but the successful security-control change is returned without an audit log or monitoring event.",
+        "file": "routes/2fa.ts",
+        "kind": "sink",
+        "line": 132
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.98
+  },
+  {
+    "finding_id": "FIND-0233",
+    "lane_id": "file-0348",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "2FA disablement is not logged",
+    "description": "Disabling MFA is a security-sensitive account change, but this handler persists an empty TOTP secret and returns success without recording the event. This removes visibility into unauthorized or suspicious MFA disablement and prevents effective incident reconstruction.",
+    "trace": [
+      {
+        "description": "The caller outside this file reaches the exported disable handler through POST /rest/2fa/disable after authentication middleware.",
+        "file": "routes/2fa.ts",
+        "kind": "entrypoint",
+        "line": 141
+      },
+      {
+        "description": "The handler validates the current session and password, loads the authenticated user's model, and clears the stored TOTP secret.",
+        "file": "routes/2fa.ts",
+        "kind": "propagation",
+        "line": 161
+      },
+      {
+        "description": "The MFA state is saved and the cached session is updated, but the successful disablement is returned without an audit log or monitoring event.",
+        "file": "routes/2fa.ts",
+        "kind": "sink",
+        "line": 165
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.98
+  },
+  {
+    "finding_id": "FIND-0234",
+    "lane_id": "file-0379",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unauthenticated exposure of application metrics",
+    "description": "The unauthenticated GET /metrics route returns the complete Prometheus registry. The registry includes sensitive application-wide aggregates such as total digital-wallet balance, registered-user counts, order/review/feedback/complaint counts, and cheat-score/accuracy metrics. An unauthenticated remote caller can retrieve internal operational and business data without network- or role-based authorization.",
+    "trace": [
+      {
+        "description": "GET /metrics invokes serveMetrics(); the route is registered outside this file without authentication or authorization, and the caller reaches this exported handler.",
+        "file": "routes/metrics.ts",
+        "kind": "entrypoint",
+        "line": 85
+      },
+      {
+        "description": "The process-wide Prometheus registry contains application metrics populated by this module, including the aggregate wallet balance at line 211 and user, order, review, feedback, and complaint metrics at lines 206-213.",
+        "file": "routes/metrics.ts",
+        "kind": "propagation",
+        "line": 211
+      },
+      {
+        "description": "The handler serializes the entire registry and sends it directly in the HTTP response, exposing those internal metrics to the unauthenticated caller.",
+        "file": "routes/metrics.ts",
+        "kind": "sink",
+        "line": 87
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.97
+  },
+  {
+    "finding_id": "FIND-0235",
+    "lane_id": "file-0379",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API4"
+    ],
+    "title": "Unbounded Prometheus label cardinality from upload MIME types",
+    "description": "The file-upload metrics middleware uses the multipart file's mimetype directly as a Prometheus label value. The mimetype is derived from attacker-controlled upload metadata, and there is no allowlist or cardinality bound in this middleware. Prometheus creates and retains a distinct child time series for each unique label value; repeatedly submitting uploads with unique MIME-type strings can therefore grow the in-process registry and consume memory. The on-finished callback records the label even for rejected uploads, so downstream file-type checks do not reliably prevent the resource-exhaustion path.",
+    "trace": [
+      {
+        "description": "The POST /file-upload and POST /profile/image/file routes invoke observeFileUploadMetricsMiddleware(); the route callers are outside this file and accept attacker-controlled multipart uploads.",
+        "file": "routes/metrics.ts",
+        "kind": "entrypoint",
+        "line": 74
+      },
+      {
+        "description": "When the response finishes, the middleware reads file.mimetype from the uploaded file object. This value originates from the request's multipart metadata and is not constrained here.",
+        "file": "routes/metrics.ts",
+        "kind": "propagation",
+        "line": 76
+      },
+      {
+        "description": "The attacker-controlled MIME type is passed directly to fileUploadsCountMetric.labels(...) or fileUploadErrorsMetric.labels(...), causing Prometheus to allocate a persistent series for each distinct value without a bound or allowlist.",
+        "file": "routes/metrics.ts",
+        "kind": "sink",
+        "line": 77
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0236",
+    "lane_id": "file-0401",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "User-controlled username reaches server-side eval()",
+    "description": "The authenticated user's persisted username is treated as executable JavaScript when it matches the `#{...}` pattern and the username-XSS challenge is enabled. An attacker who can create or modify a username can submit a payload such as `#{...}`; the handler extracts the contents and passes them directly to `eval()` without an allow-list or sandbox. This enables arbitrary server-side JavaScript execution in the application process, including reading files, accessing secrets, making network requests, or modifying application state.",
+    "trace": [
+      {
+        "description": "The exported `getUserProfile()` handler receives the attacker-facing request; its route is registered outside this file as `GET /profile` and has no route-level authentication middleware.",
+        "file": "routes/userProfile.ts",
+        "kind": "entrypoint",
+        "line": 25
+      },
+      {
+        "description": "The handler obtains the logged-in user from the request cookie and then loads that user's database record.",
+        "file": "routes/userProfile.ts",
+        "kind": "propagation",
+        "line": 34
+      },
+      {
+        "description": "The username value comes from the authenticated user's persisted model record and is assigned for subsequent processing.",
+        "file": "routes/userProfile.ts",
+        "kind": "propagation",
+        "line": 52
+      },
+      {
+        "description": "A username matching `#{(.*)}` is treated as code-bearing input, and the contents between the delimiters are extracted without restricting the expression to a safe character set.",
+        "file": "routes/userProfile.ts",
+        "kind": "propagation",
+        "line": 54
+      },
+      {
+        "description": "The extracted username contents are passed directly to JavaScript `eval()`. This is a code-execution sink controlled by attacker-influenced username data, allowing arbitrary server-side JavaScript execution when the challenge is enabled.",
+        "file": "routes/userProfile.ts",
+        "kind": "sink",
+        "line": 61
+      }
+    ],
+    "severity_estimate": "critical",
+    "confidence": 0.99
+  },
+  {
+    "finding_id": "FIND-0237",
+    "lane_id": "file-0422",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded reusable credentials in data-export tests",
+    "description": "The test source contains multiple hardcoded account credentials, including user passwords and the administrative password `admin123`. These values are passed directly to the login helper and used to obtain bearer tokens for authenticated API requests. If the repository or built test artifacts are exposed, or if these accounts exist in a shared/non-isolated environment, an attacker can authenticate as the corresponding users or administrator. Test credentials should be injected through isolated test configuration and must not be reusable production credentials.",
+    "trace": [
+      {
+        "description": "The test runner, which is outside this file, executes data-export tests containing literal account passwords, including the administrator credential at line 321 and user credentials at lines 53, 73, 162, 189, 216, and 251.",
+        "file": "test/api/data-export.test.ts",
+        "kind": "entrypoint",
+        "line": 53
+      },
+      {
+        "description": "The hardcoded email/password pairs are passed to the shared login helper to obtain bearer tokens for authenticated requests.",
+        "file": "test/api/data-export.test.ts",
+        "kind": "propagation",
+        "line": 53
+      },
+      {
+        "description": "The resulting bearer token is placed in the Authorization header and used against the data-export endpoint; the same pattern is used for administrator authentication in the error-case tests.",
+        "file": "test/api/data-export.test.ts",
+        "kind": "sink",
+        "line": 54
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.93
+  },
+  {
+    "finding_id": "FIND-0238",
+    "lane_id": "file-0418",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Hardcoded authentication credentials in test source",
+    "description": "The test source contains hardcoded account credentials, including a real-looking user email and password at line 261 and another username/password pair at line 330. These values are passed to the authentication helper and used to obtain bearer tokens, so anyone with repository access can recover or reuse the credentials if the corresponding accounts exist in a shared, staging, or accidentally connected environment. Hardcoded credentials should be replaced with isolated test fixtures or injected secrets.",
+    "trace": [
+      {
+        "description": "The test directly embeds authentication credentials in source code; the caller is the test runner outside this file.",
+        "file": "test/api/chat.test.ts",
+        "kind": "entrypoint",
+        "line": 261
+      },
+      {
+        "description": "The hardcoded email and password are supplied to the login helper to authenticate against the application.",
+        "file": "test/api/chat.test.ts",
+        "kind": "propagation",
+        "line": 261
+      },
+      {
+        "description": "The resulting bearer token is attached to an authenticated request, demonstrating that the embedded credentials are operational rather than inert test data.",
+        "file": "test/api/chat.test.ts",
+        "kind": "sink",
+        "line": 270
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.86
+  },
+  {
+    "finding_id": "FIND-0239",
+    "lane_id": "file-0426",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded plaintext account password in test source",
+    "description": "The test source contains a plaintext password for a real-looking account and passes it to the authentication helper. Anyone with repository access can recover and reuse this credential to obtain an authenticated session, and the same credential may be valid outside the test environment if the account or password is shared. Test fixtures should use isolated, generated credentials or protected secrets.",
+    "trace": [
+      {
+        "description": "The test invokes the login flow for the account bjoern.kimminich@gmail.com; the authentication implementation is outside this file.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "entrypoint",
+        "line": 79
+      },
+      {
+        "description": "The caller supplies a plaintext password literal in the test source, making the credential available to anyone who can read the repository.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "propagation",
+        "line": 80
+      },
+      {
+        "description": "The password literal is passed as the authentication password to obtain a bearer token, which is then used for authenticated API requests.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "sink",
+        "line": 81
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.96
+  },
+  {
+    "finding_id": "FIND-0240",
+    "lane_id": "file-0426",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      },
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A08"
+    ],
+    "title": "Feedback can be created under an arbitrary user's identity",
+    "description": "The feedback creation request accepts a caller-controlled UserId without binding it to the authenticated identity or rejecting anonymous spoofing. The test sends an unauthenticated request with UserId 3 and asserts a successful creation whose returned record is attributed to that user. An attacker can therefore create feedback under another user's name, causing impersonation and integrity/reputation damage.",
+    "trace": [
+      {
+        "description": "The attacker-facing entrypoint is the POST /api/Feedbacks route, exercised here without an Authorization header; the route implementation is outside this file.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "entrypoint",
+        "line": 42
+      },
+      {
+        "description": "The request body includes a caller-supplied UserId of 3 while using only the public JSON header and CAPTCHA fields, with no authenticated identity or ownership check represented in the request.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "propagation",
+        "line": 43
+      },
+      {
+        "description": "The application returns HTTP 201 and the test confirms that the created feedback's UserId is the arbitrary supplied value, demonstrating successful attribution to another user.",
+        "file": "test/api/feedback.test.ts",
+        "kind": "sink",
+        "line": 52
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.98
+  },
+  {
+    "finding_id": "FIND-0241",
+    "lane_id": "file-0446",
+    "finding_classes": [
+      {
+        "class": "ssrf",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A10",
+      "API7"
+    ],
+    "title": "Profile image URL upload enables server-side request forgery",
+    "description": "The authenticated `POST /profile/image/url` endpoint accepts an arbitrary `imageUrl` and causes the server to make an HTTP request to that address. This test demonstrates the behavior using a dynamically chosen localhost port: the application processes `http://localhost:${mockPort}/photo.jpg` and the local server returns an image that is then accepted. Because no destination allow-list or private-network protection is demonstrated, an authenticated attacker can use the endpoint to probe or access loopback services, cloud metadata endpoints, or other internal HTTP services from the server's network position.",
+    "trace": [
+      {
+        "description": "The attacker-facing route is `POST /profile/image/url`; the route handler is outside this test file. This test invokes it as an authenticated user.",
+        "file": "test/api/profile-image-upload.test.ts",
+        "kind": "entrypoint",
+        "line": 193
+      },
+      {
+        "description": "The request supplies `imageUrl` as the target URL. The test uses a localhost address with a runtime-selected port, showing that the destination is not restricted to a fixed external image host.",
+        "file": "test/api/profile-image-upload.test.ts",
+        "kind": "propagation",
+        "line": 215
+      },
+      {
+        "description": "A local HTTP server is started and listens on an ephemeral port, providing an internal-network target for the application. The successful profile-image processing assertion demonstrates that the server-side handler reaches and consumes the attacker-selected localhost URL; the outbound fetch implementation is outside this file.",
+        "file": "test/api/profile-image-upload.test.ts",
+        "kind": "sink",
+        "line": 168
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.86
+  },
+  {
+    "finding_id": "FIND-0242",
+    "lane_id": "file-0441",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 3
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A04"
+    ],
+    "title": "Password change bypasses current-password reauthentication and uses GET query parameters",
+    "description": "The password-change endpoint is exercised successfully via GET while omitting the current password. The request supplies only the new and repeated passwords together with a bearer token, and the test expects HTTP 200. This demonstrates that possession of an authenticated token is sufficient to change the password without reauthentication. Additionally, the password values are placed in the URL query string, where they may be exposed through browser history, proxy/access logs, referrers, and monitoring systems. An attacker who obtains a valid session token, or any intermediary that captures the request URL, can facilitate account takeover or obtain password material.",
+    "trace": [
+      {
+        "description": "The test runner, outside this file, invokes the password-change API scenario for an authenticated user.",
+        "file": "test/api/password.test.ts",
+        "kind": "entrypoint",
+        "line": 92
+      },
+      {
+        "description": "The test sends a GET request to /rest/user/change-password containing only new and repeated passwords in the query string; no current password is supplied.",
+        "file": "test/api/password.test.ts",
+        "kind": "propagation",
+        "line": 99
+      },
+      {
+        "description": "The request is authenticated only with the bearer token, with no additional current-password verification shown.",
+        "file": "test/api/password.test.ts",
+        "kind": "propagation",
+        "line": 100
+      },
+      {
+        "description": "The test expects the password change to succeed with HTTP 200, establishing the acceptance condition for changing the password without the current password.",
+        "file": "test/api/password.test.ts",
+        "kind": "sink",
+        "line": 102
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.94
+  },
+  {
+    "finding_id": "FIND-0243",
+    "lane_id": "file-0441",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Plaintext account passwords and password-reset answers committed in test source",
+    "description": "This test source contains plaintext passwords, reset answers, and bearer-authentication test material for named accounts, including internal- and OWASP-associated accounts. Anyone with repository or artifact access can obtain these credentials and attempt account takeover wherever the accounts or passwords are reused, or use the answers to invoke the password-reset flow. Even if intended as fixtures, they are committed sensitive authentication material and should be isolated, clearly non-production, and generated or managed outside source control.",
+    "trace": [
+      {
+        "description": "The test runner, outside this file, invokes password-reset scenarios against the application.",
+        "file": "test/api/password.test.ts",
+        "kind": "entrypoint",
+        "line": 107
+      },
+      {
+        "description": "The test constructs reset requests using named account email addresses and plaintext security-question answers.",
+        "file": "test/api/password.test.ts",
+        "kind": "propagation",
+        "line": 112
+      },
+      {
+        "description": "The request body includes a plaintext replacement password and its repeat value.",
+        "file": "test/api/password.test.ts",
+        "kind": "propagation",
+        "line": 114
+      },
+      {
+        "description": "The test source also embeds credentials for multiple named accounts, including Bender and Bjoern, which are used to authenticate in other scenarios.",
+        "file": "test/api/password.test.ts",
+        "kind": "sink",
+        "line": 126
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.88
+  },
+  {
+    "finding_id": "FIND-0244",
+    "lane_id": "file-0448",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded weak administrator credentials in source",
+    "description": "The test source contains plaintext credentials for a privileged administrator account, including the weak password `admin123`, and passes them directly to the authentication helper. Because these credentials are committed in source and may be reused by the test application or an environment seeded from it, anyone with repository or artifact access can authenticate as the administrator. Even if intended only for tests, this creates a dangerous credential-reuse/default-credential risk.",
+    "trace": [
+      {
+        "description": "The test runner executes the administrator authentication test; the caller is outside this file.",
+        "file": "test/api/quantity.test.ts",
+        "kind": "entrypoint",
+        "line": 34
+      },
+      {
+        "description": "The test constructs an administrator login request using the hardcoded account email and plaintext password `admin123`.",
+        "file": "test/api/quantity.test.ts",
+        "kind": "propagation",
+        "line": 35
+      },
+      {
+        "description": "The hardcoded credentials are supplied to `login`, an authentication operation, allowing the credentials to be used to obtain an administrator token.",
+        "file": "test/api/quantity.test.ts",
+        "kind": "sink",
+        "line": 37
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.88
+  },
+  {
+    "finding_id": "FIND-0245",
+    "lane_id": "file-0465",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded weak administrative credentials in Cypress test source",
+    "description": "The Cypress test source contains hardcoded authentication credentials for both an administrative account (`admin` / `admin123`) and a user account (`jim` / `ncc-1701`). Anyone who can read the repository or obtain test artifacts can reuse these credentials to authenticate as those accounts; the administrative credential is especially high impact. The values are also weak/default-like, increasing the likelihood of unauthorized account access if these accounts or passwords are reachable outside an isolated test environment.",
+    "trace": [
+      {
+        "description": "The Cypress runner invokes this `beforeEach` hook from outside this file; the hook establishes an authenticated test session.",
+        "file": "test/cypress/e2e/basket.spec.ts",
+        "kind": "entrypoint",
+        "line": 3
+      },
+      {
+        "description": "The hook passes hardcoded credentials to `cy.login`, including the privileged `admin` account and the `admin123` password (and, in the other suite, the hardcoded `jim` credentials).",
+        "file": "test/cypress/e2e/basket.spec.ts",
+        "kind": "propagation",
+        "line": 4
+      },
+      {
+        "description": "The hardcoded credential literals are the authentication sink: repository readers or leaked test source can replay them to obtain the corresponding account sessions, including administrator access if the test account is exposed.",
+        "file": "test/cypress/e2e/basket.spec.ts",
+        "kind": "sink",
+        "line": 4
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.98
+  },
+  {
+    "finding_id": "FIND-0246",
+    "lane_id": "file-0460",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API3",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Unauthenticated user creation permits admin-role mass assignment",
+    "description": "The public POST /api/Users endpoint accepts a caller-supplied `role` property and persists it. The test sends no authentication header, supplies `role: 'admin'`, and receives HTTP 201 with the created user's role set to `admin`. An unauthenticated attacker can therefore create an administrator account and obtain administrative privileges. This is both mass assignment of a sensitive property and broken function-level authorization because the privileged role is controlled by the request body.",
+    "trace": [
+      {
+        "description": "The test exercises the attacker-facing `POST /api/Users` route without setting an authentication header; the route handler is outside this file.",
+        "file": "test/api/user.test.ts",
+        "kind": "entrypoint",
+        "line": 63
+      },
+      {
+        "description": "The request body includes the sensitive caller-controlled property `role: 'admin'` alongside the new user's credentials.",
+        "file": "test/api/user.test.ts",
+        "kind": "propagation",
+        "line": 66
+      },
+      {
+        "description": "The server accepts the request with status 201 and returns the created user with `role` equal to `admin`, demonstrating persistence of the privileged property and resulting administrative-account creation.",
+        "file": "test/api/user.test.ts",
+        "kind": "sink",
+        "line": 77
+      }
+    ],
+    "severity_estimate": "critical",
+    "confidence": 0.99
+  },
+  {
+    "finding_id": "FIND-0247",
+    "lane_id": "file-0460",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API3",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Who-am-I field selection exposes password credential material",
+    "description": "An authenticated caller can add `password` to the `fields` query parameter of `/rest/user/whoami`, causing the response to include password credential material. The normal response omits it, but the endpoint dynamically honors the caller's requested field list without protecting sensitive properties. Exposure of a password hash enables offline password cracking and can facilitate account takeover when users reuse passwords.",
+    "trace": [
+      {
+        "description": "The test logs in and invokes the attacker-facing `GET /rest/user/whoami` endpoint; the route implementation is outside this file.",
+        "file": "test/api/user.test.ts",
+        "kind": "entrypoint",
+        "line": 303
+      },
+      {
+        "description": "The caller-controlled query string requests the sensitive `password` property via `fields=id,email,password`.",
+        "file": "test/api/user.test.ts",
+        "kind": "propagation",
+        "line": 309
+      },
+      {
+        "description": "The endpoint returns HTTP 200 and a string-valued `res.body.user.password`, confirming that the sensitive credential field reaches the API response.",
+        "file": "test/api/user.test.ts",
+        "kind": "sink",
+        "line": 315
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.99
   }
 ]
