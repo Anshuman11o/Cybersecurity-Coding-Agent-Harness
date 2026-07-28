@@ -19,21 +19,6 @@ Scope: Detect unsafe deserialization, file handling, and supply chain integrity 
 - File upload is only a finding if the uploaded content can be: executed as code, used to traverse directories, or processed in a way that triggers a parser vulnerability.
 - Signed and verified updates or plugins are not a finding.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the data is verified and the defect is that its content is parsed as executable
-  structure — that is injection
-- the verification is present but the key or signature protecting it is weak — that is
-  crypto-auth
-- verification is disabled by an option rather than absent from the code — that is
-  misconfiguration
-- the payload is verified and the harm is the volume of work it triggers — that is
-  resource-consumption
-
-Choose integrity-failures when data, code, or an update is consumed without verifying it
-has not been tampered with in transit or at rest — unsigned payloads, unverified
-deserialization, unauthenticated update or plugin channels.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint accepting untrusted data

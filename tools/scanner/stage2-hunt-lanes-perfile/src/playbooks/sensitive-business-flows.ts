@@ -20,19 +20,6 @@ Scope: Detect business-critical operations that lack anti-automation safeguards.
 - Internal/admin operations may have different risk profiles; flag based on the potential business impact if abused.
 - The finding should name the specific business impact: "enables automated purchase of limited inventory," "allows unlimited discount stacking," "permits bulk data exfiltration."
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the flow can be reached by a caller who should not reach it at all — that is
-  access-control
-- the flow is sound and the cost of one invocation is unbounded — that is
-  resource-consumption
-- the flow's own logic permits the abuse in a single pass, without repetition — that is
-  insecure-design
-
-Choose sensitive-business-flows when each individual invocation is legitimate and
-authorized, and the harm comes from automating or repeating it at a scale the business
-logic assumed a human would not reach.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The business-critical entrypoint

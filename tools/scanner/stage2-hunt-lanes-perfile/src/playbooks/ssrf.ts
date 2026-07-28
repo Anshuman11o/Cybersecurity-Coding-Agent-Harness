@@ -28,21 +28,6 @@ Scope: Detect outbound network requests where the destination is controlled by t
 - Callback URLs that are validated against an allow-list of known-good domains are safe; unrestricted callback URLs are a finding.
 - API gateway or WAF-level URL filtering may mitigate the application-level gap — note it but do not dismiss the finding.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the caller influences a value inside the request body or query rather than the
-  destination it is sent to — that is injection
-- the destination is fixed and the response is trusted without validation — that is
-  integrity-failures
-- the destination is fixed and the defect is how many requests can be triggered — that is
-  resource-consumption
-- the fetch is authorized but returns a resource belonging to another user — that is
-  access-control
-
-Choose ssrf when the server issues an outbound request — over any protocol, to a URL, a
-host, or a filesystem path — to a destination the caller can influence. This shape is
-always one of the classes above; there is no generic label to fall back to.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route + HTTP method)

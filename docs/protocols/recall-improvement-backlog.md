@@ -256,7 +256,7 @@ did not take regardless of what recall did. Also track share of empty lanes
 Baseline for these is run 2: recall 32/98 = 32.7%, localization 58.2%,
 category-blind recall 48.0%, hedging 1.240. See `../run-history.md`.
 
-### F1 — Stop the playbooks instructing a single label
+### F1 — Stop the playbooks instructing a single label — **SHIPPED**
 
 **Files:** all 14 in `stage2-hunt-lanes-perfile/src/playbooks/`.
 
@@ -306,6 +306,31 @@ establish several. Pattern, per playbook:
 > mutually exclusive: the bullets above tell you when a *different* class also
 > applies, not when to drop this one. If the same trace establishes more than one
 > class, name them all.
+
+**As shipped (decided 2026-07-28): the whole section was deleted, not reworded.**
+All 14 playbooks lose `## Distinguishing From Adjacent Classes` in full — bullets
+and closer alike — returning them to their run-1 shape, 22% smaller (49,137 →
+38,061 chars). The multi-class instruction now lives only in the executor prompt,
+strengthened to carry it alone:
+
+> List every class from your assigned classes list that this finding establishes.
+> There is no limit on how many, and the classes are not mutually exclusive —
+> naming one never rules out another.
+>
+> Do not hold back. If you have some or enough evidence that more than one
+> assigned class is involved, name them all. One statement is often several
+> classes at once… Choosing the single best label discards the others and gains
+> nothing — a class you can see and do not name is a class you did not find.
+
+The targeted work from `95cd259` is unaffected — misconfiguration keeps its sweep
+procedure and insecure-design its de-suppressed scope line, since neither lived
+in the deleted section.
+
+**Known risk accepted with this choice.** misconfiguration (41.2% → 58.8%) and
+insecure-design (15.4% → 38.5%) were the only two classes to improve in run 2,
+and both had targeted adjacency bullets. Deleting the section may give part of
+that back. Watch those two classes specifically; if they regress, the bullets
+were carrying real guidance and should return without the singular closer.
 
 **Targets:** 12 of 15 `CATEGORY_MISS` and 12 of 16 `FILE_ONLY` — ~24 of 66 misses
 sit one label away from a hit, with position already correct.

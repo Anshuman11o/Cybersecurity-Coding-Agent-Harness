@@ -33,24 +33,6 @@ Scope: Detect any form of injection where untrusted input is interpreted as code
 - Escaping functions are a weaker control than parameterization and can still fail in edge cases (encoding tricks, charset mismatches, double-decoding).
 - A finding requires demonstrating that user-influenced input reaches a code-interpreting sink without an intervening parameterization, allow-list, or other effective control.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the input selects which record is returned without altering how the query is parsed —
-  that is access-control
-- the input names a host, URL, or path the server then fetches — that is ssrf
-- the input is deserialized or executed because it was accepted without an integrity
-  check, rather than because it was concatenated into a statement — that is
-  integrity-failures
-- the sink executes in the user's browser rather than on the server — that is client-side
-- the interpreter is safe and the defect is a parser or engine option enabling a
-  dangerous feature, such as entity expansion or code evaluation — that is
-  misconfiguration
-- the input is well-formed and bounded, and the harm is the volume of work it causes —
-  that is resource-consumption
-
-Choose injection when caller-controlled data changes how a downstream interpreter parses
-or executes its input, rather than merely what that input selects.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (route, handler, or function accepting external input)

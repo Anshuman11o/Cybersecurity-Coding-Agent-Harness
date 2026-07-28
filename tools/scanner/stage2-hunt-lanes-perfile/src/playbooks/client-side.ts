@@ -23,20 +23,6 @@ Scope: Detect client-side cross-site scripting where unsanitized dynamic content
 - Content that is purely server-generated with no user influence path is not a finding.
 - Sanitization must be context-appropriate: HTML sanitization does not protect against script context injection (e.g., inserting into a script tag or event handler attribute).
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- the sink executes on the server rather than in the browser — that is injection
-- the rendered content originates from a model's output and the concern is what that
-  model was induced to emit — that is ai-llm-agency
-- the framework's protections are intact and a build or policy option disabled them —
-  that is misconfiguration
-- the browser correctly renders data the caller was never entitled to receive — that is
-  access-control
-
-Choose client-side when the sink executes in the user's browser and attacker-influenced
-content reaches it through an escape hatch, an unsafe rendering path, or a disabled
-sanitizer.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The entrypoint (source of user-controlled data)

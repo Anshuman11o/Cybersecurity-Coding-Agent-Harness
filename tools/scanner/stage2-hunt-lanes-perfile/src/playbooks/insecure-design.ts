@@ -27,20 +27,6 @@ operation still succeeds and returns normally.
 - Missing validation on one field is an implementation flaw. A rule the design never established — an amount that is never bounded, an ordering that is never enforced, a value the server never re-derives — is a design flaw.
 - The test is whether the current design, implemented correctly, still permits the attack. Do not use the size of the fix as the test — a design flaw can have a one-line remedy, and an architectural fix does not make something a design flaw.
 
-## Distinguishing From Adjacent Classes
-This finding belongs to another class if:
-- a check exists for this flow and can be bypassed — that is access-control; insecure-design
-  means no control was omitted because none was ever conceived
-- the flow is sound and a setting, default, or option carries an unsafe value — that is
-  misconfiguration
-- caller data reaches an interpreter and changes how it parses — that is injection
-- the design is sound and the identity proof protecting it is weak — that is crypto-auth
-- the design is sound and the abuse is a legitimate operation repeated at scale — that is
-  sensitive-business-flows
-
-Choose insecure-design when the code does exactly what it was designed to do, and the
-design itself permits the abuse — so no single added check would close it.
-
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
 1. The business process or workflow
