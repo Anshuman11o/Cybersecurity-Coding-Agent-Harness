@@ -1107,13 +1107,33 @@ function loadCheckpoint(outDir: string): {
 
   try {
     const findings: CandidateFinding[] = JSON.parse(readFileSync(findingsPath, 'utf-8'))
-    const consumption: BudgetConsumption[] = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
+    const rawConsumption = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
 
-    if (!Array.isArray(findings) || !Array.isArray(consumption)) {
+    // Two shapes on disk. writeCheckpoint() emits a bare array mid-run, but the
+    // completion write replaces it with the v2 object. Reading only the array
+    // meant that after any FINISHED run the checkpoint was unreadable, so a
+    // re-run repeated every lane at full cost instead of resuming — the exact
+    // situation checkpointing exists for.
+    const consumption: BudgetConsumption[] = Array.isArray(rawConsumption)
+      ? rawConsumption
+      : Array.isArray(rawConsumption?.legacy_entries)
+        ? rawConsumption.legacy_entries
+        : []
+
+    if (!Array.isArray(findings) || consumption.length === 0) {
       return null
     }
 
-    const completedLaneIds = new Set(consumption.map(c => c.lane_id))
+    // A failed lane is recorded but NOT complete. Deriving completedLaneIds
+    // from every entry meant a rate-limited lane was skipped on resume and the
+    // run reported success while missing it.
+    const completedLaneIds = new Set(
+      consumption.filter(c => !c.failed).map(c => c.lane_id),
+    )
+    const failedCount = consumption.filter(c => c.failed).length
+    if (failedCount > 0) {
+      console.log(`[RESUME] ${failedCount} lane(s) previously failed — they will be retried`)
+    }
     return { findings, consumption, completedLaneIds }
   } catch {
     return null
@@ -1369,7 +1389,12 @@ async function main() {
   const checkpoint = loadCheckpoint(outDir)
   if (checkpoint) {
     allFindings = checkpoint.findings
-    consumptionReport.push(...checkpoint.consumption)
+    // Drop the previous failure records: those lanes are about to be retried,
+    // and carrying them forward would leave two entries with the same lane_id.
+    // reconcileV2() keys its lane map by lane_id with Map.set(), so a stale
+    // zero-token entry arriving last would silently zero out a lane that
+    // actually ran.
+    consumptionReport.push(...checkpoint.consumption.filter(c => !c.failed))
     const maxId = allFindings.reduce((max, f) => {
       const num = parseInt(f.finding_id.split('-')[1], 10)
       return num > max ? num : max
@@ -1459,11 +1484,17 @@ async function main() {
         writeCheckpoint(outDir, allFindings, consumptionReport)
       } catch (err: any) {
         console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
+        // Marked failed, not merely zero-token. Without the flag this entry is
+        // indistinguishable from a skip lane, and loadCheckpoint would treat
+        // the lane as done — so a resume would skip it for good and the run
+        // would report success while missing it.
         consumptionReport.push({
           lane_id: lane.lane_id,
           tokens_used: 0,
           seconds_elapsed: 0,
           ceiling_hit: false,
+          failed: true,
+          failure_reason: String(err?.message ?? err).slice(0, 300),
         })
         writeCheckpoint(outDir, allFindings, consumptionReport)
       } finally {
@@ -1475,8 +1506,13 @@ async function main() {
 
   await Promise.all(lanePromises)
 
-  // Also report skip lanes with zero consumption
+  // Also report skip lanes with zero consumption — but only once. On a resume
+  // the carried-forward checkpoint already holds them, and pushing again gave
+  // every skip lane a duplicate entry. reconcileV2() builds its lane map with
+  // Map.set(), so a duplicate silently overwrites rather than erroring.
+  const alreadyReported = new Set(consumptionReport.map(c => c.lane_id))
   for (const lane of skipLanes) {
+    if (alreadyReported.has(lane.lane_id)) continue
     consumptionReport.push({
       lane_id: lane.lane_id,
       tokens_used: 0,

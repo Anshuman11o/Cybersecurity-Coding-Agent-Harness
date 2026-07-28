@@ -99,6 +99,15 @@ export interface BudgetConsumption {
   tokens_used: number;
   seconds_elapsed: number;
   ceiling_hit: boolean;
+  /**
+   * True when the lane threw and produced no findings. The entry is still
+   * recorded — a lane that burned wall-clock and hit a rate limit is part of
+   * the budget story — but a failed lane is NOT complete, and loadCheckpoint
+   * excludes it so a resume retries it instead of locking the failure in.
+   */
+  failed?: boolean;
+  /** Why the lane failed. Kept so a rate limit is distinguishable from a bug. */
+  failure_reason?: string;
 }
 
 // ── v2 itemized token accounting types ───────────────────────────────────
