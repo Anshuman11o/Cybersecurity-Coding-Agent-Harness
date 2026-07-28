@@ -72,6 +72,11 @@ export const SINGLE_PASS_LINE_BUDGET = 2000
 // Cap on how many lanes run concurrently.  Default 8; override via env var
 // HUNT_CONCURRENCY.  Running too many simultaneous calls against the same
 // upstream endpoint increases 429 risk — keep this modest.
+//
+// Measured: 8 was too high for gpt-5.6-luna on 2026-07-28 — 52 of 541 lanes
+// died on tokens-per-minute limits, and a retry pass at 3 completed all 52 with
+// zero retries. Pass HUNT_CONCURRENCY explicitly for a full run rather than
+// relying on this default.
 const DEFAULT_MAX_CONCURRENT_LANES = 8
 const MAX_CONCURRENT_LANES = (() => {
   const env = process.env.HUNT_CONCURRENCY
@@ -468,7 +473,12 @@ async function callLlm(
   schema: Record<string, unknown>,
   laneId: string,
 ): Promise<LlmCallResult | null> {
-  const maxRetries = 3
+  // Sized to outlast a tokens-per-minute window. The 2026-07-28 run lost 52 of
+  // 541 lanes to TPM limits with maxRetries=3 and a 15s backoff cap: total wait
+  // was ~14s, so all three retries were spent inside a single 60s window and the
+  // lane failed while the limit was still in force. Five retries capped at 60s
+  // wait 2+4+8+16+32 = 62s, which crosses the window.
+  const maxRetries = 5
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await client.chat.completions.create({
@@ -508,7 +518,7 @@ async function callLlm(
         }
       }
       if (isTransientError(err) && attempt < maxRetries) {
-        const backoff = Math.min(2000 * Math.pow(2, attempt), 15000)
+        const backoff = Math.min(2000 * Math.pow(2, attempt), 60000)
         const jitter = Math.random() * 1000
         const wait = Math.round(backoff + jitter)
         console.log(`  [${laneId}] [RETRY] Transient error (attempt ${attempt + 1}/${maxRetries}), backing off ${wait}ms: ${err.message ?? err}`)
