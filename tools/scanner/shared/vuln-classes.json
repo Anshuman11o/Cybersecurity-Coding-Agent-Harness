@@ -47,10 +47,6 @@
     "playbook": "sensitive-business-flows",
     "codes": ["API6"]
   },
-  "general-catchall": {
-    "playbook": "general-catchall",
-    "codes": ["API10"]
-  },
   "ai-llm-agency": {
     "playbook": "ai-llm-agency",
     "codes": ["LLM01", "LLM02", "LLM03", "LLM06", "LLM10"]
