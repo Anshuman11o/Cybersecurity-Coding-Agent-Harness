@@ -40,8 +40,8 @@ This finding belongs to another class if:
   access-control
 
 Choose ssrf when the server issues an outbound request — over any protocol, to a URL, a
-host, or a filesystem path — to a destination the caller can influence. Never fall back to
-general-catchall for this shape.
+host, or a filesystem path — to a destination the caller can influence. This shape is
+always one of the classes above; there is no generic label to fall back to.
 
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:

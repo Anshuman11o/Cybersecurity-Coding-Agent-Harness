@@ -252,7 +252,13 @@ async function validateAllPlaybooks(): Promise<void> {
     }
   }
 
-  // 2. All 26 codes covered exactly once
+  // 2. All emittable codes covered exactly once.
+  //
+  // API10 is deliberately absent. It was reachable only through the
+  // general-catchall class, which was assigned to all 541 lanes, produced 13.8%
+  // of run output at 3% precision, and matched no ground-truth entry. Dropping
+  // the class drops its only code with it. This is v2-only: v1 has no class
+  // model and keeps its own general-catchall lane and playbook.
   const allCodes = Object.values(reg).flatMap(e => e.codes)
   const codeCounts = new Map<string, number>()
   for (const code of allCodes) {
@@ -262,7 +268,7 @@ async function validateAllPlaybooks(): Promise<void> {
   const missingCodes = (() => {
     const expected = new Set([
       'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
-      'API1','API2','API3','API4','API5','API6','API7','API8','API9','API10',
+      'API1','API2','API3','API4','API5','API6','API7','API8','API9',
       'LLM01','LLM02','LLM03','LLM05','LLM06','LLM10',
     ])
     return [...expected].filter(c => !codeCounts.has(c))
@@ -392,9 +398,18 @@ Respond with a structured JSON object containing a "findings" array.
 
 You are seeing one file. The attacker-facing entrypoint is often in a different file — a route handler, a caller, a framework hook — and you will not be able to see it. That does not make a defect in this file unreportable. When the entrypoint is outside this file, begin the trace where this file receives data from outside it: an exported function's parameter, a setter, a handler argument. Say in that step's description that the caller is outside this file.
 
-Report a defect when the code in front of you is wrong on its own terms — a check that is absent, a weaker control chosen where a stronger one sits beside it, input reaching a dangerous operation without validation — even if you cannot see who calls it. Use "confidence" to express how sure you are: a defect you can see clearly but whose reachability you cannot confirm from this file is a real finding at moderate confidence, not something to withhold.
+Report a defect when the code in front of you is wrong on its own terms — a check that is absent, a weaker control chosen where a stronger one sits beside it, input reaching a dangerous operation without validation — even if you cannot see who calls it.
 
-Do not invent findings. An empty array is right for a file that genuinely has no defect. But do not stay silent about something you can see merely because the surrounding context is missing.
+Set "confidence" to how sure you are, and use the whole range. It is a label on the finding, not a threshold for reporting it:
+- 0.8-1.0 — you can see the defect and the path to it in this file.
+- 0.4-0.7 — the defect is visible but something is unconfirmable from here: the caller, the reachability, whether a control exists elsewhere.
+- 0.1-0.3 — the shape is suspicious and you would want a second opinion, but you cannot establish it from this file alone.
+
+Report findings in all three bands. A 0.2 finding is useful output; a withheld one is not. Do not raise a number to make a finding look more solid, and do not suppress a finding because its number would be low.
+
+Do not fabricate. Every finding must point at code that is actually present in the file in front of you, and every trace step must cite a real line.
+
+Subject to that, report what you see. An empty array is a strong claim — it says this file contains no weak control, no unvalidated input reaching a dangerous operation, and no defect of any assigned class. Most files in a real application do contain something. If you are about to return an empty array, re-read the file once against your assigned class list before you do.
 
 List every class that your scanning of this file establishes for this finding, using the playbooks, the file content, and the context you were given. There is no limit on how many — list all the evidence supports, and do not narrow to a single label when several genuinely apply. A single line can legitimately be more than one class: a render sink reached by attacker-controlled data is both an injection and a client-side finding. For each class you list, give the index of the trace step that establishes it.
 

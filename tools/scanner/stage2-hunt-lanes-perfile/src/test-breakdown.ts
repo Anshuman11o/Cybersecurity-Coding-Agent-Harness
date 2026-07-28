@@ -91,8 +91,8 @@ async function main() {
   const result3 = buildHuntPrompt(
     'utils/helper.ts',
     sampleContent,
-    ['general-catchall'],
-    new Map([['general-catchall', 'Catch-all playbook text.']]),
+    ['logging-monitoring'],
+    new Map([['logging-monitoring', 'Logging playbook text.']]),
     { chunkIndex: 1, totalChunks: 1 },
   )
   console.log(`  Prompt length: ${result3.prompt.length}`)

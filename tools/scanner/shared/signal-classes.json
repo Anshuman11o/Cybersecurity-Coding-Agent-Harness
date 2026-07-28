@@ -1,5 +1,5 @@
 {
-  "floor": ["insecure-design", "logging-monitoring", "general-catchall", "misconfiguration"],
+  "floor": ["insecure-design", "logging-monitoring", "misconfiguration"],
   "signals": {
     "route_handler":  ["access-control", "api-property-auth", "resource-consumption", "injection", "crypto-auth"],
     "db_query":       ["injection", "api-property-auth", "resource-consumption"],

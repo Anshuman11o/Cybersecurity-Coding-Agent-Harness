@@ -40,7 +40,15 @@ presence in the tree that runs.
 
 ## CONFIRMED
 
-### C1 — Drop the `general-catchall` class
+### C1 — Drop the `general-catchall` class — **SHIPPED**
+
+v2 only. `vuln-classes.json` loses the class (15 → 14), `signal-classes.json`
+loses it from the floor (4 → 3), the v2 playbook module is deleted, `API10` comes
+out of the expected-code set in `validateAllPlaybooks()` (26 → 25) since the class
+was its only carrier, and `ssrf.ts`'s "never fall back to general-catchall" line
+is reworded now that there is nothing to fall back to. v1 keeps its own
+`general-catchall` lane and playbook untouched — v1 has no class model and does
+not read either JSON file.
 
 | | |
 |---|---|
@@ -160,7 +168,7 @@ If scored recall rises while category-blind recall is flat, the change improved
 labelling and found nothing new. That is still a legitimate result, but it must
 be reported as such.
 
-### C4 — Resolve the instruction conflict *(addresses H1)*
+### C4 — Resolve the instruction conflict *(addresses H1)* — **SHIPPED**
 
 **File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:398`
 
@@ -191,7 +199,7 @@ silence.
 The distinction being drawn is between *fabricating* (forbidden) and *reporting
 something uncertain* (wanted). The current text collapses the two.
 
-### C5 — Confidence is an annotation, not a gate *(addresses H2)*
+### C5 — Confidence is an annotation, not a gate *(addresses H2)* — **SHIPPED**
 
 **File:** `tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts:396`
 
@@ -569,27 +577,28 @@ The confirmed items move two axes, and each inflates scored recall by a
 unattributable. The merge adds a third group that is already in the tree and will
 be measured by the next run whether or not anything else changes.
 
-| axis | items | status | effect on scored recall |
-|---|---|---|---|
-| label space | C2, C3, playbook disambiguation, misconfig/insecure-design | **in the tree** — unmeasured | up, via wider intersection and better class choice |
-| label space | C1 (drop `general-catchall`) | to do | up slightly; down on noise |
-| emission volume | C4, C5 | to do | up, via more findings — and down on precision |
+**All six are now in the tree.** The sequencing question is no longer *what to
+implement* but *whether to measure them in one run or two* — and splitting now
+means reverting shipped code, which is not worth doing.
 
-Both label-space groups share a mechanism and a diagnostic, so bundling them
-costs no attribution that was not already lost when the dispatch changes went in
-unmeasured. That keeps this to two runs:
+| axis | items | effect on scored recall |
+|---|---|---|
+| label space | C1, C2, C3, playbook disambiguation, misconfig/insecure-design | up, via wider intersection and better class choice |
+| emission volume | C4, C5 | up, via more findings — and down on precision |
 
 | run | contains | primary diagnostic |
 |---|---|---|
-| **A** | merged tree (the three dispatch changes) + C1 | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically once the cap is gone; category-blind is what says whether anything new was *found*. Also per-class recall for `misconfiguration` (18%) and `insecure-design` (8%) — those two have targeted changes and should move on their own. |
-| **B** | + C4 + C5 | **confidence distribution** — findings below 0.7 must appear at all. Then empty-lane share (66.4%) and findings per producing lane (1.36). |
+| **A** (recommended) | all six | **category-blind recall** (40.8% baseline) and **hedging rate** (1.462). Scored recall will rise mechanically once the cap is gone; category-blind is what says whether anything new was *found*. Then: **confidence distribution** — findings below 0.7 must appear at all — plus empty-lane share (66.4%) and findings per producing lane (1.36). Per-class recall for `misconfiguration` (18%) and `insecure-design` (8%) gives partial attribution, since only those two have class-targeted changes. |
 
-Run A's delta covers four changes at once. That is not ideal and it is worth
-saying plainly in the report: it is a consequence of the branch divergence, not a
-sequencing choice. Two of the four are per-class targeted, so per-class recall
-gives partial attribution that run-level recall cannot.
+One run at ≈ $4.64. The cost of bundling is that a run-level recall delta is not
+attributable to any single change. That attribution was already lost when three
+of the six went in unmeasured; the honest move is to say so in the report rather
+than to spend a second run recovering a split that the branch divergence had
+already destroyed.
 
-Total ≈ $9.3 for two runs, against a baseline of $4.64.
+If the bundled result is ambiguous — recall up but category-blind flat, or
+precision collapsed — the follow-up run should revert the emission-volume axis
+(C4, C5) only, which is two paragraphs in one file and cleanly separable.
 
 **Before either run, diff the branch against `main`.** The reason this section
 had to be rewritten is that a run executed from a tree three commits behind the
