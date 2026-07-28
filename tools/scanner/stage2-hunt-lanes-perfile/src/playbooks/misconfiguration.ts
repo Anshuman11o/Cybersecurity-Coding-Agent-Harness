@@ -8,6 +8,19 @@ Scope: Detect dangerous default configurations, exposed internals, missing secur
 - OWASP A05: Security Misconfiguration
 
 ## Sink Patterns to Hunt For
+
+### How to sweep a file for this class
+Configuration is a value, not a file type. Work through this file and list every place
+it does any of the following:
+  - constructs or initialises a library, framework, parser, server, or client
+  - passes an options object, flag, mode, or boolean literal into such a call
+  - sets a header, permission, limit, timeout, or origin
+  - declares a credential, key, endpoint, or environment default
+
+That list is your candidate set. Test each entry against the patterns below: is this
+particular value the unsafe one? Most dangerous settings are a single argument inside
+an otherwise ordinary call, in a file with an entirely ordinary name.
+
 1. Exposed internal resources: directories, files, or endpoints that should be internal or restricted — configuration files, environment files, version control metadata, database dumps, test fixtures, backup files.
 2. Dangerous parser or deserialization settings: XML external entity resolution enabled, unsafe YAML/object deserialization, parsers with known vulnerability modes active.
 3. Missing security headers or transport controls: absence of content security directives, frame-busting, MIME-type enforcement, or transport-layer security enforcement on responses.
