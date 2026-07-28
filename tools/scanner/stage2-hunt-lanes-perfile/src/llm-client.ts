@@ -1,24 +1,22 @@
 /**
- * LLM client — same createClient() pattern as v1.
- * DashScope (Qwen) via DASHSCOPE_API_KEY, with HttpsProxyAgent.
+ * LLM client — provider-aware, same pattern as v1.
+ *
+ * The endpoint and credential come from the model registry
+ * (tools/scanner/shared/models.json), so this file names no model and no
+ * vendor. See docs/architecture/multi-model-architecture.md.
+ *
+ * No HttpsProxyAgent: openai SDK v6 routes through fetch/undici and has no
+ * httpAgent option. Proxying is handled by NODE_USE_ENV_PROXY=1, exported by
+ * run.sh, which makes Node honour HTTPS_PROXY natively. Passing an agent here
+ * was inert under v6 and does not even typecheck.
  */
 import OpenAI from 'openai'
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import { clientConfigFor, apiKeyEnvFor, type Provider } from '../../shared/provider.js'
 
-export function createClient(): OpenAI {
-  const apiKey = process.env.DASHSCOPE_API_KEY
-  if (!apiKey) {
-    throw new Error('DASHSCOPE_API_KEY is not set')
-  }
-  const baseURL = process.env.DASHSCOPE_BASE_URL
-    ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  const proxyUrl = process.env.HTTPS_PROXY ?? 'http://127.0.0.1:39707'
-  const httpAgent = new HttpsProxyAgent(proxyUrl)
-  return new OpenAI({
-    apiKey,
-    baseURL,
-    httpAgent,
-  })
+export function createClient(provider: Provider): OpenAI {
+  const { apiKey, baseURL } = clientConfigFor(provider)
+  if (!apiKey) throw new Error(`${apiKeyEnvFor(provider)} is not set`)
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
 }
 
 /**

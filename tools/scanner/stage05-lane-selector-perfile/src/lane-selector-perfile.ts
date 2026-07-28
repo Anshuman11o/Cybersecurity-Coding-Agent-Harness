@@ -5,21 +5,32 @@
  * Deterministic: no LLM calls. Classes derived from per-file signals
  * detected by Stage 0, via a lookup table — no inference.
  *
+ * Provider-scoped: reads Stage 0's artifacts for the resolved provider and
+ * writes its own under the same provider, so a run under one model can never
+ * consume or overwrite another's evidence. This stage makes no LLM call, but it
+ * still carries the provider — its input did.
+ *
  * Input:
- *   - tools/scanner/stage0-recon/output/architecture-summary.json
- *   - tools/scanner/stage0-recon/output/category-applicability.json
- *   - tools/scanner/stage0-recon/output/file-signals.json
+ *   - runs/<provider>/stage0-recon/architecture-summary.json
+ *   - runs/<provider>/stage0-recon/category-applicability.json
+ *   - runs/<provider>/stage0-recon/file-signals.json
  *   - tools/scanner/shared/signal-classes.json
  *   - tools/scanner/shared/vuln-classes.json
  * Output:
- *   - tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json
+ *   - runs/<provider>/stage05-lane-selector-perfile/lane-assignments.json
  */
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
+import { resolveProvider } from '../../shared/provider.js'
+import { writeMeta, assertUpstream } from '../../shared/meta.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const PROVIDER: Provider = resolveProvider('stage05perfile')
+const STARTED = new Date().toISOString()
 
 // ---------------------------------------------------------------------------
 // Exported constants (not magic numbers)
@@ -356,14 +367,16 @@ function computeClasses(
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const projectRoot = path.resolve(__dirname, '../../../..')
-  const stage0OutputDir = path.join(projectRoot, 'tools/scanner/stage0-recon/output')
-  const outputDir = path.join(projectRoot, 'tools/scanner/stage05-lane-selector-perfile/output')
+  const projectRoot = REPO_ROOT
+  const stage0OutputDir = runPath(PROVIDER, 'stage0-recon')
+  const outputDir = runPath(PROVIDER, 'stage05-lane-selector-perfile')
   const sharedDir = path.join(projectRoot, 'tools/scanner/shared')
 
   // -----------------------------------------------------------------------
   // Load Stage 0 outputs
   // -----------------------------------------------------------------------
+  console.log(`[Stage 0.5 v3] [PROVIDER] ${PROVIDER}`)
+  assertUpstream(PROVIDER, 'stage0-recon')
   console.log('[Stage 0.5 v3] Loading Stage 0 outputs...')
 
   const archPath = path.join(stage0OutputDir, 'architecture-summary.json')
@@ -659,7 +672,9 @@ async function main() {
   const output: LaneAssignments = {
     generated_at: new Date().toISOString(),
     target_dir: targetDir,
-    source_stage0_run: archPath,
+    // Repo-relative: the artifact is read back on other machines and by
+    // archive tooling, and an absolute path would pin it to this checkout.
+    source_stage0_run: path.relative(projectRoot, archPath),
     coverage_ledger: ledger,
     category_universe: categoryUniverse,
     signal_class_map: 'tools/scanner/shared/signal-classes.json',
@@ -670,6 +685,10 @@ async function main() {
   const outputPath = path.join(outputDir, 'lane-assignments.json')
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2) + '\n')
   console.log('[Stage 0.5 v3] Output written to ' + outputPath)
+
+  // Provenance. Deterministic stage — no model ran, so the model field says so
+  // rather than naming one that was never called.
+  writeMeta(PROVIDER, 'stage05-lane-selector-perfile', 'deterministic', STARTED)
   console.log('[Stage 0.5 v3] Done.')
 }
 

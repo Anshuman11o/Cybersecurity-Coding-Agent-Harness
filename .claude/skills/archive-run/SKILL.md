@@ -11,12 +11,14 @@ completed work).
 
 Run every step. Skipping a step silently loses something.
 
-> **Two output locations.** The v1 stages (`stage0-recon`, `stage05-lane-selector`,
-> `stage1-budget-governor`, `stage2-hunt-lanes`, `stage3-validate`) write to
-> `tools/scanner/runs/<provider>/<stage>/` and those artifacts are **committed**,
-> not gitignored — see `docs/architecture/dual-model-architecture.md`. The v2 `-perfile`
-> stages still write to their own `output/` directories, which are gitignored.
-> Archive both.
+> **One output location, both tracks.** Every stage — v1 (`stage0-recon`,
+> `stage05-lane-selector`, `stage1-budget-governor`, `stage2-hunt-lanes`,
+> `stage3-validate`) and v2 (`stage05-lane-selector-perfile`,
+> `stage1-budget-governor-perfile`, `stage2-hunt-lanes-perfile`) — writes to
+> `tools/scanner/runs/<provider>/<stage>/`, and those artifacts are
+> **committed**, not gitignored. Only `logs/` is ignored. See
+> `docs/architecture/multi-model-architecture.md`. The per-stage `output/`
+> directories the v2 stages used to write to are gone; do not look for them.
 
 ## 0. Before launching a run: clear the previous checkpoint
 
@@ -45,8 +47,8 @@ and pin the commit, so any number can be traced back to reproducible inputs.
 
 ## 2. Snapshot every stage output
 
-Copy `tools/scanner/runs/<provider>/*/` (v1) and `tools/scanner/*-perfile/output/`
-(v2) into `$RUN/<stage>/`, one subdirectory per stage. Keep each stage's
+Copy `tools/scanner/runs/<provider>/*/` — this now covers both tracks, v1 and
+v2 alike — into `$RUN/<stage>/`, one subdirectory per stage. Keep each stage's
 `meta.json` — it names the provider, model and commit the artifacts came from.
 Include stages that did not run in this pass but whose outputs were consumed as
 inputs — the run is not reproducible without them. Label carried-over outputs as

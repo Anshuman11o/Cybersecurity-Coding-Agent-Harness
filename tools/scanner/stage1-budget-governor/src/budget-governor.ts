@@ -6,13 +6,18 @@ import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSy
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
-import { resolveProvider } from "../../shared/provider.js";
+import { resolveProvider, modelFor } from "../../shared/provider.js";
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../../../..");
 const PROVIDER: Provider = resolveProvider("stage1");
 const STARTED = new Date().toISOString();
+
+// v1 and v2 share this source file but not their artifacts: both tracks are
+// load-bearing and may run under the same provider, so v2 gets its own stage
+// key rather than overwriting v1's budget plan.
+const V2_STAGE = "stage1-budget-governor-perfile" as const;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +89,8 @@ export interface BudgetPlanV2 {
   total_file_bytes: number;
   total_chunks: number;
   lane_count: number;
+  /** Provider key the plan was computed for. Optional: predates the registry. */
+  provider?: string;
   model: string;
 }
 
@@ -508,10 +515,16 @@ function estimateChunkInputTokens(
  * built from actual lane assignments, playbook sizes, and chunk counts.
  */
 function computeBudgetPlanV2(): BudgetPlanV2 {
-  // Load v2 lane assignments
-  const assignmentsPath = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
+  // Load v2 lane assignments — provider-scoped, same as v1's manifest read
+  const assignmentsPath = join(
+    runPath(PROVIDER, 'stage05-lane-selector-perfile'),
+    'lane-assignments.json',
+  )
   if (!existsSync(assignmentsPath)) {
-    throw new Error(`v2 lane assignments not found at ${assignmentsPath}`)
+    throw new Error(
+      `v2 lane assignments not found at ${assignmentsPath} — ` +
+        `has Stage 0.5 (per-file) run under provider "${PROVIDER}"?`,
+    )
   }
   const assignments = JSON.parse(readFileSync(assignmentsPath, 'utf-8'))
   const targetDir = assignments.target_dir
@@ -624,7 +637,10 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
     total_file_bytes: totalFileBytes,
     total_chunks: totalChunks,
     lane_count: lanes.length,
-    model: 'qwen-plus',
+    // The model Stage 2 will run under, so a plan and the run it projects can
+    // be checked against each other.
+    provider: PROVIDER,
+    model: modelFor(PROVIDER),
   }
 }
 
@@ -728,12 +744,14 @@ function reconcileV2(
 // ── v2 CLI entry point ────────────────────────────────────────────────────
 
 async function mainV2(mode: 'estimate' | 'reconcile') {
-  const outDir = join(__dirname, '..', 'output')
+  const outDir = runPath(PROVIDER, V2_STAGE)
   mkdirSync(outDir, { recursive: true })
+  console.log(`[PROVIDER] ${PROVIDER} / ${modelFor(PROVIDER)}`)
 
   if (mode === 'estimate') {
     console.log('=== Stage 1 v2: Pre-run budget estimate ===\n')
 
+    assertUpstream(PROVIDER, 'stage05-lane-selector-perfile')
     const plan = computeBudgetPlanV2()
     const outPath = join(outDir, 'budget-plan-v2.json')
     writeFileSync(outPath, JSON.stringify(plan, null, 2) + '\n')
@@ -781,11 +799,14 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
 
     const plan: BudgetPlanV2 = JSON.parse(readFileSync(planPath, 'utf-8'))
 
-    // Try v2 consumption first, fall back to v1
-    const consumptionPath = join(__dirname, '../../stage2-hunt-lanes-perfile/output/budget-consumption.json')
+    assertUpstream(PROVIDER, 'stage2-hunt-lanes-perfile')
+    const consumptionPath = join(
+      runPath(PROVIDER, 'stage2-hunt-lanes-perfile'),
+      'budget-consumption.json',
+    )
     if (!existsSync(consumptionPath)) {
       console.error(`Consumption file not found at ${consumptionPath}`)
-      console.error('Has Stage 2 (per-file) run yet?')
+      console.error(`Has Stage 2 (per-file) run yet under provider "${PROVIDER}"?`)
       process.exit(1)
     }
 
@@ -828,17 +849,34 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
       }
     }
   }
+
+  // Provenance. Arithmetic only — no model call — so "deterministic", matching
+  // v1. The model the plan projects for is inside the plan itself.
+  writeMeta(PROVIDER, V2_STAGE, 'deterministic', STARTED)
 }
 
 // ── Combined entry point ──────────────────────────────────────────────────
 
-const args = process.argv.slice(2)
-const isV2 = args.includes('--v2')
-const modeIdx = args.indexOf('--mode')
-const mode = modeIdx >= 0 ? (args[modeIdx + 1] as 'estimate' | 'reconcile') : 'estimate'
+// Only when this file IS the process entry. Without the guard, importing
+// anything from here — as test-harness.ts does for BudgetTracker — silently ran
+// main() and rewrote the committed budget-plan.json as a side effect of running
+// the tests. Same guard the hunt executors use.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const args = process.argv.slice(2)
+  const isV2 = args.includes('--v2')
+  const modeIdx = args.indexOf('--mode')
+  const mode = modeIdx >= 0 ? (args[modeIdx + 1] as 'estimate' | 'reconcile') : 'estimate'
 
-if (isV2) {
-  mainV2(mode).catch(console.error)
-} else {
-  main().catch(console.error)
+  // Exit non-zero on failure. `.catch(console.error)` left the process at 0, so
+  // run.sh would chain the next stage onto a plan that was never written.
+  const fail = (err: unknown) => {
+    console.error(err)
+    process.exit(1)
+  }
+
+  if (isV2) {
+    mainV2(mode).catch(fail)
+  } else {
+    main().catch(fail)
+  }
 }

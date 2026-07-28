@@ -28,7 +28,7 @@ that specific file. Two problems this is meant to solve:
 v1 directories must remain byte-for-byte unchanged. v2 is a sibling, independently
 runnable via its own `npm run run`. Copy and adapt v1 code freely as a starting point.
 
-## Stage 0.5 v2 output: `output/lane-assignments.json`
+## Stage 0.5 v2 output: `runs/<provider>/stage05-lane-selector-perfile/lane-assignments.json`
 
 ```jsonc
 {
@@ -119,7 +119,8 @@ specific to any one repository.
 
 ## Stage 2 v2 output — unchanged from v1
 
-`output/candidate-findings.json` and `output/budget-consumption.json` keep their existing
+`candidate-findings.json` and `budget-consumption.json` — written to
+`runs/<provider>/stage2-hunt-lanes-perfile/` — keep their existing
 shapes so downstream stages and the scoring tooling continue to work. One clarification:
 `categories[]` on a finding must name the vulnerability class **actually found**, chosen
 from that lane's assigned categories — it is not the lane's whole list copied verbatim.

@@ -9,21 +9,23 @@
  * - Prompt-size delta for lanes that match routes
  */
 import { readFileSync, existsSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { join } from 'path'
 import {
   extractExportedSymbols,
   matchRoutesForFile,
   renderRouteContext,
 } from './hunt-executor.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = join(__dirname, '../../../..')
+import { runPath, type Provider } from '../../shared/run-paths.js'
+import { resolveProvider } from '../../shared/provider.js'
 
 // ── Paths ─────────────────────────────────────────────────────────────────
+// Analysis-only script, but still provider-scoped: reading one model's lane
+// assignments while reporting them as another's is the mix-up runPath() exists
+// to prevent, and an analysis number is quoted as readily as a run's.
 
-const LANE_ASSIGNMENTS_PATH = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
-const ARCH_SUMMARY_PATH = join(REPO_ROOT, 'tools/scanner/stage0-recon/output/architecture-summary.json')
+const PROVIDER: Provider = resolveProvider('stage2perfile')
+const LANE_ASSIGNMENTS_PATH = join(runPath(PROVIDER, 'stage05-lane-selector-perfile'), 'lane-assignments.json')
+const ARCH_SUMMARY_PATH = join(runPath(PROVIDER, 'stage0-recon'), 'architecture-summary.json')
 
 // ── Specific lanes to render ──────────────────────────────────────────────
 

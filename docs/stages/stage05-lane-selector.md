@@ -26,7 +26,7 @@ no warning. v2 matches on the category code instead.
 One lane per file in the inventory, carrying the categories recon's evidence
 associates with that file, plus a chunk plan covering the whole file.
 
-Output: `output/lane-assignments.json`, schema in
+Output: `runs/<provider>/stage05-lane-selector-perfile/lane-assignments.json`, schema in
 `docs/architecture/perfile-lane-contract.md`.
 
 Fully deterministic — **zero LLM calls**.

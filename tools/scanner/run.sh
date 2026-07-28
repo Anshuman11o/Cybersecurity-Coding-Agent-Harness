@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # Single entry point for scanner runs.
 #
-#   ./tools/scanner/run.sh <provider> <stage|all>
+#   ./tools/scanner/run.sh <provider> <stage|all|all-v2>
+#
+# The provider list is not hardcoded here — it comes from shared/models.json
+# via shared/registry-cli.mjs, so adding a model is a registry entry and
+# nothing else. Aliases are canonicalized before anything touches the disk:
+# `run.sh openai …` must tee logs into the same runs/<key>/ directory the
+# stage itself writes to, or the logs end up orphaned from the artifacts.
 #
 # Guarantees:
 #   - only one PROVIDER may run at a time (cross-provider mutex)
 #   - multiple concurrent runs of the SAME provider are allowed (re-entrant)
 #   - stale locks from crashed runs are auto-cleared via PID liveness check
-#   - stdout/stderr are teed into runs/<provider>/<stage>/logs/
+#   - stdout/stderr are teed into runs/<provider>/<stage>/logs/<stage>.std{out,err}.log
+#     (named per stage because two passes can share one log directory)
 #
 # The lock is a directory (mkdir is atomic on POSIX), so this needs no flock —
 # which macOS does not ship by default.
@@ -22,23 +29,72 @@ export NODE_USE_ENV_PROXY=1
 SCANNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_DIR="$SCANNER_DIR/.run.lock"
 LOCK_META="$LOCK_DIR/meta"
+REGISTRY="$SCANNER_DIR/shared/registry-cli.mjs"
 
-STAGES=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes stage3-validate)
+# The registry CLI reads a local JSON file and makes no network call, so it runs
+# without the proxy env — which would otherwise print an experimental-API
+# warning on every lookup and bury the real error message.
+registry() { NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= node "$REGISTRY" "$@"; }
+
+# v1 — category-themed lanes.
+STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes stage3-validate)
+# v2 — one lane per file. Shares stage0-recon with v1; reconcile runs last,
+# after stage 2 has produced the consumption it reconciles against.
+STAGES_V2=(stage0-recon stage05-lane-selector-perfile stage1-budget-governor-perfile stage2-hunt-lanes-perfile reconcile-v2)
 
 usage() {
-  echo "usage: $0 <qwen|openai> <stage|all>" >&2
-  echo "  stages: ${STAGES[*]}" >&2
+  echo "usage: $0 <provider> <stage|all|all-v2>" >&2
+  echo "  providers: $(registry spellings 2>/dev/null || echo '(registry unreadable)')" >&2
+  echo "  v1 stages: ${STAGES_V1[*]}" >&2
+  echo "  v2 stages: ${STAGES_V2[*]}" >&2
   exit 2
 }
 
 [ $# -eq 2 ] || usage
-PROVIDER="$1"
+PROVIDER_ARG="$1"
 TARGET="$2"
 
-case "$PROVIDER" in
-  qwen|openai) ;;
-  *) echo "error: unknown provider '$PROVIDER'" >&2; usage ;;
-esac
+# Canonicalize (and validate) against the registry. Exits non-zero, with the
+# accepted list, if the key is unknown.
+PROVIDER="$(registry canonical "$PROVIDER_ARG")" || usage
+if [ "$PROVIDER" != "$PROVIDER_ARG" ]; then
+  echo "  [PROVIDER] '$PROVIDER_ARG' is an alias for '$PROVIDER'" >&2
+fi
+echo "  [PROVIDER] $PROVIDER / $(registry model "$PROVIDER") — $(registry label "$PROVIDER")" >&2
+
+# ── Stage table ─────────────────────────────────────────────────────────────
+# A stage key names an artifact namespace, not necessarily a source directory:
+# the v2 budget governor shares v1's source but owns its own run tree.
+
+stage_dir() {
+  case "$1" in
+    stage1-budget-governor-perfile|reconcile-v2) echo "stage1-budget-governor" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+stage_script() {
+  case "$1" in
+    stage1-budget-governor-perfile) echo "run:v2" ;;
+    reconcile-v2)                   echo "run:v2-reconcile" ;;
+    *)                              echo "run" ;;
+  esac
+}
+
+# Where logs go. reconcile-v2 is a second pass over the v2 governor's own
+# artifacts, so its logs belong with them rather than in a stray directory.
+stage_logdir() {
+  case "$1" in
+    reconcile-v2) echo "stage1-budget-governor-perfile" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+known_stage() {
+  local s
+  for s in "${STAGES_V1[@]}" "${STAGES_V2[@]}"; do [ "$s" = "$1" ] && return 0; done
+  return 1
+}
 
 # ── Lock ────────────────────────────────────────────────────────────────────
 
@@ -101,27 +157,36 @@ trap release_lock EXIT INT TERM
 
 run_stage() {
   local stage="$1"
-  local logdir="$SCANNER_DIR/runs/$PROVIDER/$stage/logs"
+  local dir script logdir
+  dir="$(stage_dir "$stage")"
+  script="$(stage_script "$stage")"
+  logdir="$SCANNER_DIR/runs/$PROVIDER/$(stage_logdir "$stage")/logs"
   mkdir -p "$logdir"
 
   echo "=== [$PROVIDER] $stage ==="
   (
-    cd "$SCANNER_DIR/$stage" || exit 1
-    SCANNER_PROVIDER="$PROVIDER" npm run --silent run
-  ) > >(tee "$logdir/stdout.log") 2> >(tee "$logdir/stderr.log" >&2)
+    cd "$SCANNER_DIR/$dir" || exit 1
+    SCANNER_PROVIDER="$PROVIDER" npm run --silent "$script"
+  ) > >(tee "$logdir/$stage.stdout.log") 2> >(tee "$logdir/$stage.stderr.log" >&2)
 
   local code=${PIPESTATUS[0]}
   echo "=== [$PROVIDER] $stage exited $code ==="
   return "$code"
 }
 
-if [ "$TARGET" = "all" ]; then
-  for s in "${STAGES[@]}"; do
+# Stages passed positionally, not by nameref: `local -n` needs bash 4.3, and
+# macOS still ships 3.2 — the same reason the lock is a directory, not flock.
+run_pipeline() {
+  for s in "$@"; do
     run_stage "$s" || { echo "error: $s failed — stopping pipeline" >&2; exit 1; }
   done
-else
-  found=0
-  for s in "${STAGES[@]}"; do [ "$s" = "$TARGET" ] && found=1; done
-  [ "$found" -eq 1 ] || { echo "error: unknown stage '$TARGET'" >&2; usage; }
-  run_stage "$TARGET"
-fi
+}
+
+case "$TARGET" in
+  all)    run_pipeline "${STAGES_V1[@]}" ;;
+  all-v2) run_pipeline "${STAGES_V2[@]}" ;;
+  *)
+    known_stage "$TARGET" || { echo "error: unknown stage '$TARGET'" >&2; usage; }
+    run_stage "$TARGET"
+    ;;
+esac

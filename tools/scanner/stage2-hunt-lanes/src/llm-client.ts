@@ -1,34 +1,23 @@
 /**
  * LLM client — provider-aware.
  *
- * Selects between DashScope/Qwen and OpenAI at runtime via SCANNER_PROVIDER.
- * Both providers run byte-identical scanner logic; only the model id and the
- * credential differ. See docs/dual-model-architecture.md.
- *
- *   qwen   -> DASHSCOPE_API_KEY, DashScope OpenAI-compatible endpoint
- *   openai -> OPENAI_API_KEY, api.openai.com (no baseURL override)
+ * The endpoint and credential come from the model registry
+ * (tools/scanner/shared/models.json), so this file names no model and no
+ * vendor. Every provider runs byte-identical scanner logic; only the model id,
+ * the base URL and the credential differ.
+ * See docs/architecture/multi-model-architecture.md.
  */
 import OpenAI from 'openai'
-import { resolveProvider, type Provider } from '../../shared/provider.js'
+import { resolveProvider, clientConfigFor, apiKeyEnvFor, type Provider } from '../../shared/provider.js'
 
 export function createClient(provider: Provider): OpenAI {
   // Proxying is handled by NODE_USE_ENV_PROXY=1 (exported by run.sh), which
   // makes Node honour HTTPS_PROXY natively. openai SDK v6 routes through
   // fetch/undici and has no httpAgent option at all -- passing one was inert
   // and does not even typecheck.
-
-  if (provider === 'openai') {
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) throw new Error('OPENAI_API_KEY is not set')
-    // No baseURL — defaults to https://api.openai.com/v1
-    return new OpenAI({ apiKey })
-  }
-
-  const apiKey = process.env.DASHSCOPE_API_KEY
-  if (!apiKey) throw new Error('DASHSCOPE_API_KEY is not set')
-  const baseURL = process.env.DASHSCOPE_BASE_URL
-    ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  return new OpenAI({ apiKey, baseURL })
+  const { apiKey, baseURL } = clientConfigFor(provider)
+  if (!apiKey) throw new Error(`${apiKeyEnvFor(provider)} is not set`)
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
 }
 
 export { resolveProvider }

@@ -204,6 +204,8 @@ export interface RunLevelRollupV2 {
  */
 export interface BudgetConsumptionV2 {
   generated_at: string;
+  /** Provider key the run executed under. Optional: predates the registry. */
+  provider?: string;
   model: string | null;
   lanes: LaneTokenRecordV2[];
   rollup: RunLevelRollupV2;

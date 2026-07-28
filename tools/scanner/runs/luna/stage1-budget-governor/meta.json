@@ -1,0 +1,11 @@
+{
+  "provider": "luna",
+  "model": "seeded",
+  "stage": "stage1-budget-governor",
+  "git_sha": "9350a27",
+  "started": "2026-07-27T20:44:11Z",
+  "ended": "2026-07-27T20:44:11Z",
+  "exit_code": 0,
+  "seeded_from": "qwen",
+  "provider_key_renamed_from": "openai"
+}

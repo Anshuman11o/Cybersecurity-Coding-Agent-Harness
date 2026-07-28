@@ -1,7 +1,10 @@
 /** Smoke tests for the read guard and run-path helpers. Run: npx tsx shared/guard.test.ts */
 import { readCorpusFile, isCorpusReadable, guardStats } from './read-guard.js'
-import { runPath, RUNS_ROOT } from './run-paths.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from './provider.js'
+import { runPath, RUNS_ROOT, STAGES } from './run-paths.js'
+import {
+  resolveProvider, modelFor, tokenLimitParam, samplingParams,
+  listProviders, defaultProvider, targetFor, apiKeyEnvFor, clientConfigFor,
+} from './provider.js'
 
 let pass = 0, fail = 0
 function check(name: string, cond: boolean) {
@@ -27,26 +30,79 @@ check('isCorpusReadable agrees',    isCorpusReadable('target-apps/juice-shop-bli
 check('isCorpusReadable denies runs', !isCorpusReadable('tools/scanner/runs/qwen/stage3-validate/validated-findings.json'))
 
 console.log('\n-- run paths --')
-check('qwen path',   runPath('qwen', 'stage3-validate').endsWith('runs/qwen/stage3-validate'))
-check('openai path', runPath('openai', 'stage3-validate').endsWith('runs/openai/stage3-validate'))
-check('paths differ', runPath('qwen', 'stage2-hunt-lanes') !== runPath('openai', 'stage2-hunt-lanes'))
-check('under RUNS_ROOT', runPath('openai', 'stage0-recon').startsWith(RUNS_ROOT))
+// Registry-driven: every configured provider must get its own isolated tree
+// for every stage. Adding a model to models.json extends this automatically.
+const providers = listProviders()
+check('at least two providers configured', providers.length >= 2)
+for (const p of providers) {
+  check(`${p} path`, runPath(p, 'stage3-validate').endsWith(`runs/${p}/stage3-validate`))
+  check(`${p} under RUNS_ROOT`, runPath(p, 'stage0-recon').startsWith(RUNS_ROOT))
+}
+{
+  const seen = new Set<string>()
+  let collision = false
+  for (const p of providers) for (const s of STAGES) {
+    const path = runPath(p, s)
+    if (seen.has(path)) collision = true
+    seen.add(path)
+  }
+  check('no provider/stage path collisions', !collision)
+  check('v2 stages are isolated from v1',
+    runPath(providers[0], 'stage2-hunt-lanes') !== runPath(providers[0], 'stage2-hunt-lanes-perfile'))
+}
+try { runPath('not-a-model', 'stage0-recon'); check('runPath rejects unknown provider', false) }
+catch { check('runPath rejects unknown provider', true) }
 
 console.log('\n-- provider resolution --')
 delete process.env.SCANNER_PROVIDER
-check('defaults to qwen', resolveProvider('stage2') === 'qwen')
-process.env.SCANNER_PROVIDER = 'openai'
-check('global override',  resolveProvider('stage2') === 'openai')
-process.env.SCANNER_PROVIDER_STAGE3 = 'qwen'
-check('per-stage wins',   resolveProvider('stage3') === 'qwen')
+delete process.env.SCANNER_MODEL
+check('defaults to registry default', resolveProvider('stage2') === defaultProvider())
+check('default is luna',              defaultProvider() === 'luna')
+process.env.SCANNER_PROVIDER = 'qwen'
+check('global override',  resolveProvider('stage2') === 'qwen')
+process.env.SCANNER_PROVIDER_STAGE3 = 'luna'
+check('per-stage wins',   resolveProvider('stage3') === 'luna')
 delete process.env.SCANNER_PROVIDER_STAGE3
-check('model qwen',   modelFor('qwen') === 'qwen-plus')
-check('model openai', modelFor('openai') === 'gpt-5.6-luna')
-check('qwen max_tokens',            'max_tokens' in tokenLimitParam('qwen', 100))
-check('openai max_completion_tokens','max_completion_tokens' in tokenLimitParam('openai', 100))
-check('qwen has temperature',   'temperature' in samplingParams('qwen'))
-check('openai omits sampling',  Object.keys(samplingParams('openai')).length === 0)
-try { resolveProvider('x'); process.env.SCANNER_PROVIDER='bogus'; resolveProvider('x'); check('rejects unknown', false) }
+process.env.SCANNER_PROVIDER = 'openai'
+check('alias openai -> luna', resolveProvider('stage2') === 'luna')
+check('alias reaches the same run tree',
+  runPath(resolveProvider('stage2'), 'stage3-validate') === runPath('luna', 'stage3-validate'))
+delete process.env.SCANNER_PROVIDER
+
+console.log('\n-- registry contract (holds for every configured model) --')
+for (const p of providers) {
+  const t = targetFor(p)
+  check(`${p}: model id non-empty`, modelFor(p).length > 0)
+  check(`${p}: exactly one token-limit param`,
+    Object.keys(tokenLimitParam(p, 100)).length === 1 &&
+    t.token_limit_param in tokenLimitParam(p, 100))
+  check(`${p}: sampling matches registry`,
+    JSON.stringify(samplingParams(p)) === JSON.stringify(t.sampling))
+  check(`${p}: declares a credential env var`, apiKeyEnvFor(p).length > 0)
+  // Mutating the returned object must not corrupt the registry for later calls.
+  samplingParams(p).__scratch = 1
+  check(`${p}: samplingParams returns a copy`, !('__scratch' in samplingParams(p)))
+}
+
+console.log('\n-- configured models (the two the repo ships with) --')
+check('luna model id',            modelFor('luna') === 'gpt-5.6-luna')
+check('qwen model id',            modelFor('qwen') === 'qwen-plus')
+check('luna max_completion_tokens','max_completion_tokens' in tokenLimitParam('luna', 100))
+check('qwen max_tokens',          'max_tokens' in tokenLimitParam('qwen', 100))
+check('luna omits sampling',      Object.keys(samplingParams('luna')).length === 0)
+check('qwen has temperature',     'temperature' in samplingParams('qwen'))
+check('luna uses SDK default URL', clientConfigFor('luna').baseURL === undefined)
+check('qwen overrides baseURL',    typeof clientConfigFor('qwen').baseURL === 'string')
+
+console.log('\n-- model override --')
+process.env.SCANNER_MODEL = 'pinned-snapshot'
+check('SCANNER_MODEL pins every target', modelFor('luna') === 'pinned-snapshot')
+process.env.OPENAI_MODEL = 'target-specific'
+check('target env beats SCANNER_MODEL',  modelFor('luna') === 'target-specific')
+delete process.env.OPENAI_MODEL
+delete process.env.SCANNER_MODEL
+
+try { process.env.SCANNER_PROVIDER='bogus'; resolveProvider('x'); check('rejects unknown provider', false) }
 catch { check('rejects unknown provider', true) }
 delete process.env.SCANNER_PROVIDER
 

@@ -3,13 +3,14 @@
  * 1. Tool-calling detection heuristic on chat.ts
  * 2. Category applicability probe (OWASP Top 10, API Security Top 10, LLM Top 10)
  *
- * Uses OpenAI-compatible API (DashScope/Qwen via DASHSCOPE_API_KEY).
+ * Endpoint, credential and model come from the model registry
+ * (tools/scanner/shared/models.json) via the resolved provider.
  * Falls back to deterministic analysis when API is unreachable.
  */
 import OpenAI from 'openai'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor } from '../../shared/provider.js'
 import { markDegraded } from '../../shared/degraded.js'
 
 const PROVIDER = resolveProvider('stage0')
@@ -31,23 +32,16 @@ export interface CategoryVerdict {
 }
 
 /**
- * Initialize the LLM client using DASHSCOPE_API_KEY.
- * DashScope provides an OpenAI-compatible endpoint.
+ * Initialize the LLM client for the resolved provider.
+ *
+ * Returns null when the credential is absent, so the caller can markDegraded()
+ * and fall back to deterministic analysis rather than crash the stage.
+ * Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
  */
 function createClient(): OpenAI | null {
-  if (PROVIDER === 'openai') {
-    const key = process.env.OPENAI_API_KEY
-    if (!key) return null
-    // Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
-    return new OpenAI({ apiKey: key })
-  }
-  const apiKey = process.env.DASHSCOPE_API_KEY
+  const { apiKey, baseURL } = clientConfigFor(PROVIDER)
   if (!apiKey) return null
-  const baseURL = process.env.DASHSCOPE_BASE_URL
-    ?? 'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  // for DashScope endpoints. Without it, node-fetch goes through the proxy
-  // but gets a 403 'Host not in allowlist'.
-  return new OpenAI({ apiKey, baseURL })
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
 }
 
 /**
