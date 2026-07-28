@@ -85,6 +85,56 @@ def table(rows, widths, header=True, zebra=True):
     return t
 
 
+def _flatten_metrics(m):
+    """Accept both metrics schemas.
+
+    Entries up to 2026-07-27 were hand-written flat (`recall_pct`,
+    `recall_fraction`, ...). From the first Luna run onward the block is the
+    scorer's own JSON pasted verbatim, which is nested (`recall: {hits, total,
+    pct}`). Both are correct records; only the shape differs. This maps the
+    nested form onto the flat keys the report reads, and leaves an already-flat
+    block untouched. Purely a read-time adapter — nothing on disk is rewritten.
+    """
+    if "recall_pct" in m or "recall" not in m:
+        return m
+    f = dict(m)
+
+    def put(prefix, block):
+        if not isinstance(block, dict):
+            return
+        f[f"{prefix}_pct"] = block.get("pct")
+        if "hits" in block and "total" in block:
+            f[f"{prefix}_fraction"] = f"{block['hits']}/{block['total']}"
+
+    put("recall", m.get("recall"))
+    put("localization", m.get("localization"))
+
+    fl = m.get("file_level") or {}
+    f["file_match_any_line_pct"] = fl.get("pct")
+    if "hits" in fl and "total" in fl:
+        f["file_match_fraction"] = f"{fl['hits']}/{fl['total']}"
+
+    pp = m.get("precision_proxy") or {}
+    total = m.get("findings_total")
+    f["precision_proxy_category_blind_pct"] = pp.get("category_blind")
+    f["precision_proxy_category_blind_fraction"] = (
+        f"{pp.get('localized_findings')}/{total}" if total else "n/a")
+    f["precision_proxy_category_aware_pct"] = pp.get("category_aware")
+
+    hg = m.get("hedging") or {}
+    f["hedging_mean_classes_per_finding"] = hg.get("mean_classes_per_finding")
+    f["hedging_class_count_distribution"] = hg.get("class_count_distribution")
+
+    # category-blind ceilings, so a detection gap reads apart from a label gap
+    for src, dst in (("recall_category_blind", "recall_category_blind"),
+                     ("localization_category_blind", "localization_category_blind")):
+        b = m.get(src) or {}
+        f[f"{dst}_pct"] = b.get("pct")
+
+    f["candidate_findings"] = total
+    return f
+
+
 def load_jsonl(name):
     p = os.path.join(HIST, name)
     if not os.path.exists(p):
@@ -94,7 +144,10 @@ def load_jsonl(name):
         for line in f:
             line = line.strip()
             if line:
-                out.append(json.loads(line))
+                rec = json.loads(line)
+                if isinstance(rec.get("metrics"), dict):
+                    rec["metrics"] = _flatten_metrics(rec["metrics"])
+                out.append(rec)
     return out
 
 
