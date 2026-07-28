@@ -2847,7 +2847,7 @@
       "getOrderById",
       "generateCoupon"
     ],
-    "evidence": "The file defines four AI SDK tools with Zod input schemas and execute functions that perform real database queries, authentication checks, and coupon generation. They are passed to streamText via the tools option, enabling the LLM to invoke them during conversations.",
+    "evidence": "The file defines four AI SDK tools with Zod input schemas and execute handlers that perform real database queries, authentication checks, and coupon generation. They are passed to streamText via the tools option, with multi-step execution enabled and tool-call events handled.",
     "confidence": 1
   },
   "file_inventory": {
