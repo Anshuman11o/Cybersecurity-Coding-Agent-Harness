@@ -1,7 +1,7 @@
 // Stage 1 — Simulated Test Harness (Task C)
 // Three scenarios with fake lane runners, no actual LLM calls.
 
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runPath } from "../../shared/run-paths.js";
@@ -21,7 +21,19 @@ function assert(cond: boolean, msg: string): void {
 }
 
 function loadPlan(): BudgetPlanEntry[] {
-  const planPath = join(runPath(resolveProvider("stage1"), "stage1-budget-governor"), "budget-plan.json");
+  const provider = resolveProvider("stage1");
+  const planPath = join(runPath(provider, "stage1-budget-governor"), "budget-plan.json");
+  if (!existsSync(planPath)) {
+    // The plan is provider-scoped, so which one the tests read depends on
+    // SCANNER_PROVIDER. Say so — an ENOENT stack does not.
+    throw new Error(
+      `No budget plan at ${planPath}.\n` +
+        `These scenarios replay against a real plan, and provider "${provider}" ` +
+        `has none. Either run Stage 1 under it, or point the tests at a ` +
+        `provider that has a committed baseline:\n` +
+        `  SCANNER_PROVIDER=qwen npm test`,
+    );
+  }
   return JSON.parse(readFileSync(planPath, "utf-8"));
 }
 

@@ -148,16 +148,26 @@ not apples-to-apples; each vendor reports against a different eval.
 
 ### Relevance to this harness
 
-The scanner currently runs `qwen-plus` (`hunt-executor.ts:317`,
-`validator-orchestrator.ts:355`) — the one model family on this list with a *negative*
-published cyber result. If Stage 3 is producing false positives or shallow findings,
-model capability is a plausible cause worth isolating before tuning prompts.
+**Superseded in part, 2026-07-28.** When this section was written the scanner ran
+`qwen-plus` from hardcoded call sites. It no longer does: the model is selected at
+runtime from `tools/scanner/shared/models.json`, and the default is now
+`luna` (`gpt-5.6-luna`). The reasoning below is what motivated that change, and
+the cost figures still stand — only the "currently runs" claim is stale.
 
-Suggested cheap experiment: re-run Stage 3 validation only (41 calls, ~170K tokens)
-against a stronger model and diff the CONFIRMED/REJECTED verdicts against the answer
-key. At Stage 3's volume that is roughly $0.90 on Opus 5 versus ~$0.06 on qwen-plus.
-Stage 2 hunting is where the bulk of input tokens land, so validate the hypothesis on
-Stage 3 first.
+`qwen-plus` was the one model family on this list with a *negative* published cyber
+result. If Stage 3 was producing false positives or shallow findings, model capability
+was a plausible cause worth isolating before tuning prompts.
+
+At the measured volumes, moving the whole pipeline from Qwen 3.6 Plus to GPT-5.6 Luna
+is roughly a 3× cost increase on input ($2.00 → $6.15 at the Table 3 workload) — the
+smallest step up available that clears the negative-result problem, and an order of
+magnitude cheaper than Opus 5 or GPT-5.6 Sol.
+
+Cheap way to isolate the judge from the hunter: re-run Stage 3 validation only
+(41 calls, ~170K tokens) against a different model and diff the CONFIRMED/REJECTED
+verdicts against the answer key — see `seed-upstream.sh` in
+`docs/architecture/multi-model-architecture.md` §5. Stage 2 hunting is where the bulk
+of input tokens land, so validate the hypothesis on Stage 3 first.
 
 ---
 

@@ -16,7 +16,7 @@ import OpenAI from 'openai'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { runPath, type Provider } from '../../shared/run-paths.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor } from '../../shared/provider.js'
 import { writeMeta, failIfDegraded } from '../../shared/meta.js'
 import { markDegraded } from '../../shared/degraded.js'
 import { SEED_DENYLIST } from '../../shared/read-guard.js'
@@ -130,18 +130,12 @@ interface OrchestratorReview {
 // ---------------------------------------------------------------------------
 
 function createClient(): OpenAI | null {
-  if (PROVIDER === 'openai') {
-    const key = process.env.OPENAI_API_KEY
-    if (!key) return null
-    // Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
-    return new OpenAI({ apiKey: key })
-  }
-  const apiKey = process.env.DASHSCOPE_API_KEY
+  // Endpoint and credential come from the model registry; null credential means
+  // the caller markDegraded()s instead of crashing.
+  // Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
+  const { apiKey, baseURL } = clientConfigFor(PROVIDER)
   if (!apiKey) return null
-  const baseURL =
-    process.env.DASHSCOPE_BASE_URL ??
-    'https://dashscope-us.aliyuncs.com/compatible-mode/v1'
-  return new OpenAI({ apiKey, baseURL })
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
 }
 
 // ---------------------------------------------------------------------------

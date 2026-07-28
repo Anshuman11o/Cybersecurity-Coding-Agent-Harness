@@ -16,7 +16,13 @@
  *   ceiling (default 8, env HUNT_CONCURRENCY). Each lane is isolated
  *   with its own error boundary so one failure does not abort the pool.
  *
- * Outputs: output/candidate-findings.json, output/budget-consumption.json
+ * Provider-scoped: model, endpoint, credential and API parameter dialect all
+ * come from the model registry via the resolved provider, and every artifact
+ * lands under runs/<provider>/stage2-hunt-lanes-perfile/. No model id appears
+ * anywhere in this file.
+ *
+ * Outputs: runs/<provider>/stage2-hunt-lanes-perfile/candidate-findings.json
+ *          runs/<provider>/stage2-hunt-lanes-perfile/budget-consumption.json
  *
  * Checkpointing: after EACH lane completes, results are written to disk
  * immediately. On startup, existing partial results are detected and the
@@ -28,6 +34,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from '
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { runPath, type Provider } from '../../shared/run-paths.js'
+import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import type {
   LaneAssignmentEntry,
   LaneAssignments,
@@ -50,6 +59,10 @@ import type {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '../../../..')
+
+const PROVIDER: Provider = resolveProvider('stage2perfile')
+const MODEL = modelFor(PROVIDER)
+const STARTED = new Date().toISOString()
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
 export const SINGLE_PASS_LINE_BUDGET = 2000
@@ -444,10 +457,10 @@ async function callLlm(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await client.chat.completions.create({
-        model: 'qwen-plus',
+        model: MODEL,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.1,
-        max_tokens: 8000,
+        ...samplingParams(PROVIDER),
+        ...tokenLimitParam(PROVIDER, 8000),
         response_format: {
           type: 'json_schema',
           json_schema: {
@@ -456,7 +469,7 @@ async function callLlm(
             strict: true,
           },
         },
-      })
+      } as any)
       const text = response.choices[0]?.message?.content
       if (!text) return null
       return { text, measured: captureMeasuredTokens(response.usage) }
@@ -465,12 +478,12 @@ async function callLlm(
       if (isSchema) {
         try {
           const response = await client.chat.completions.create({
-            model: 'qwen-plus',
+            model: MODEL,
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.1,
-            max_tokens: 8000,
+            ...samplingParams(PROVIDER),
+            ...tokenLimitParam(PROVIDER, 8000),
             response_format: { type: 'json_object' },
-          })
+          } as any)
           const text = response.choices[0]?.message?.content
           if (!text) return null
           return { text, measured: captureMeasuredTokens(response.usage) }
@@ -1260,10 +1273,16 @@ async function main() {
   await validateAllPlaybooks()
   console.log()
 
-  const assignmentsPath = join(REPO_ROOT, 'tools/scanner/stage05-lane-selector-perfile/output/lane-assignments.json')
+  console.log(`[PROVIDER] ${PROVIDER} / ${MODEL}`)
+  assertUpstream(PROVIDER, 'stage05-lane-selector-perfile')
+
+  const assignmentsPath = join(
+    runPath(PROVIDER, 'stage05-lane-selector-perfile'),
+    'lane-assignments.json',
+  )
   if (!existsSync(assignmentsPath)) {
     console.error(`ERROR: Lane assignments not found at ${assignmentsPath}`)
-    console.error('Has Stage 0.5 (per-file) run yet?')
+    console.error(`Has Stage 0.5 (per-file) run yet under provider "${PROVIDER}"?`)
     process.exit(1)
   }
 
@@ -1329,9 +1348,9 @@ async function main() {
     // Non-fatal — per-lane route context will simply be omitted
   }
 
-  const client = createClient()
+  const client = createClient(PROVIDER)
 
-  const outDir = join(__dirname, '..', 'output')
+  const outDir = runPath(PROVIDER, 'stage2-hunt-lanes-perfile')
   mkdirSync(outDir, { recursive: true })
 
   // ── Checkpoint resume ───────────────────────────────────────────────────
@@ -1467,7 +1486,10 @@ async function main() {
 
   const v2Output: BudgetConsumptionV2 = {
     generated_at: new Date().toISOString(),
-    model: process.env.DASHSCOPE_API_KEY ? 'qwen-plus' : null,
+    provider: PROVIDER,
+    // The model that actually ran. createClient() throws when the credential is
+    // missing, so reaching this line means every call went to MODEL.
+    model: MODEL,
     lanes: laneRecordsV2,
     rollup,
     legacy_entries: consumptionReport,
@@ -1478,7 +1500,10 @@ async function main() {
   writeFileSync(v2Tmp, JSON.stringify(v2Output, null, 2) + '\n')
   renameSync(v2Tmp, v2Path)
 
+  writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED)
+
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
+  console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)
   console.log(`Total candidate findings: ${allFindings.length}`)
   console.log(`Lanes processed: ${huntLanes.length} hunt, ${skipLanes.length} skip`)
   console.log(`Total tokens: ${consumptionReport.reduce((s, r) => s + r.tokens_used, 0).toLocaleString()}`)

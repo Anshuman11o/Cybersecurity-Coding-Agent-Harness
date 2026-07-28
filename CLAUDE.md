@@ -16,6 +16,13 @@ the scans.
 The split is deliberate: the party that verifies a result should not be the
 party that produced it.
 
+**This is not the same axis as the scanner's inference model.** Qwen Code is a
+*coding agent* that edits files in this repo. The model the scanner *calls*
+while scanning is a runtime parameter selected from
+`tools/scanner/shared/models.json` — currently `luna` (`gpt-5.6-luna`) by
+default. Changing one has no bearing on the other. See
+`docs/architecture/multi-model-architecture.md` §1.
+
 ## The blind-development boundary
 
 The scanner must never be able to learn the answers it is being scored against.
@@ -63,10 +70,13 @@ result.
 
 - `tools/scanner/` contains hardcoded inter-stage paths. Do not move or rename
   anything under it without updating every reference.
-- v1 stage artifacts are addressed through `runPath(provider, stage)` in
-  `tools/scanner/shared/run-paths.ts`, never a path literal. The v2 `-perfile`
-  components still use literals and are not provider-isolated. See
-  `docs/architecture/dual-model-architecture.md` before touching either.
+- Stage artifacts — v1 and v2 alike — are addressed through
+  `runPath(provider, stage)` in `tools/scanner/shared/run-paths.ts`, never a
+  path literal. Both tracks are provider-isolated. See
+  `docs/architecture/multi-model-architecture.md` before touching either.
+- No model id, endpoint or credential env var belongs in code. They live in
+  `tools/scanner/shared/models.json`; adding a model is one entry there and
+  nothing else. An `if (provider === '…')` outside `shared/` breaks that.
 - v1 and v2 components live side by side (`stage2-hunt-lanes` and
   `stage2-hunt-lanes-perfile`). Both are load-bearing. Preserve v1 exactly when
   building a v2 alternative.

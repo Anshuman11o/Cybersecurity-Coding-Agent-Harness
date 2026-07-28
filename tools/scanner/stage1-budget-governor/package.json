@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "run": "tsx src/budget-governor.ts",
+    "run:v2": "tsx src/budget-governor.ts --v2 --mode estimate",
+    "run:v2-reconcile": "tsx src/budget-governor.ts --v2 --mode reconcile",
     "test": "tsx src/test-harness.ts"
   },
   "devDependencies": {

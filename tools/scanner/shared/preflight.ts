@@ -3,7 +3,7 @@
  * before spending money on a real stage run.
  *
  *   cd tools/scanner/stage3-validate
- *   SCANNER_PROVIDER=openai npx tsx ../shared/preflight.ts
+ *   SCANNER_PROVIDER=luna npx tsx ../shared/preflight.ts
  *
  * Costs a few tokens. Exits non-zero on failure so it can gate a pipeline.
  */
@@ -11,6 +11,8 @@ import { createClient } from '../stage3-validate/src/llm-client.js'
 import {
   resolveProvider,
   modelFor,
+  labelFor,
+  apiKeyEnvFor,
   tokenLimitParam,
   samplingParams,
 } from './provider.js'
@@ -19,11 +21,11 @@ async function main() {
   const provider = resolveProvider('preflight')
   const model = modelFor(provider)
 
-  console.log(`provider : ${provider}`)
+  console.log(`provider : ${provider} (${labelFor(provider)})`)
   console.log(`model    : ${model}`)
   console.log(`params   : ${JSON.stringify({ ...samplingParams(provider), ...tokenLimitParam(provider, 16) })}`)
 
-  const keyVar = provider === 'openai' ? 'OPENAI_API_KEY' : 'DASHSCOPE_API_KEY'
+  const keyVar = apiKeyEnvFor(provider)
   if (!process.env[keyVar]) {
     console.error(`\nFAIL: ${keyVar} is not set`)
     process.exit(1)

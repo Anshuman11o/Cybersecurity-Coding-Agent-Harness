@@ -2,7 +2,8 @@
 # Seed one provider's upstream stage artifacts from another provider's run.
 #
 #   ./tools/scanner/seed-upstream.sh <from> <to> [stage ...]
-#   ./tools/scanner/seed-upstream.sh qwen openai stage1-budget-governor stage2-hunt-lanes
+#   ./tools/scanner/seed-upstream.sh qwen luna stage1-budget-governor stage2-hunt-lanes
+#   ./tools/scanner/seed-upstream.sh qwen luna stage05-lane-selector-perfile   # v2
 #
 # Use case: run a VALIDATOR-ONLY comparison. Both providers judge the same
 # stage-2 candidates, isolating the validator model as the single variable.
@@ -16,11 +17,19 @@
 set -euo pipefail
 
 SCANNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REGISTRY="$SCANNER_DIR/shared/registry-cli.mjs"
 FROM="${1:-}"; TO="${2:-}"; shift 2 || true
 STAGES=("${@:-stage1-budget-governor stage2-hunt-lanes}")
 
 [ -n "$FROM" ] && [ -n "$TO" ] || {
-  echo "usage: $0 <from-provider> <to-provider> [stage ...]" >&2; exit 2; }
+  echo "usage: $0 <from-provider> <to-provider> [stage ...]" >&2
+  echo "  providers: $(node "$REGISTRY" spellings 2>/dev/null || echo '(registry unreadable)')" >&2
+  exit 2; }
+
+# Canonicalize before touching disk: seeding runs/openai/ when the stage will
+# read runs/luna/ produces a run that looks seeded and is not.
+FROM="$(node "$REGISTRY" canonical "$FROM")" || exit 1
+TO="$(node "$REGISTRY" canonical "$TO")" || exit 1
 [ "$FROM" != "$TO" ] || { echo "error: from and to are the same" >&2; exit 2; }
 
 for stage in ${STAGES[*]}; do
