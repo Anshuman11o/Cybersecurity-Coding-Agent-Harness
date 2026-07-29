@@ -208,16 +208,38 @@ function nextFindingId(): string {
   return `FIND-${String(findingCounter).padStart(4, '0')}`
 }
 
-function sanitizePemPrivateKey(content: string): string {
+/**
+ * Redact PEM private key material without changing the file's line count.
+ *
+ * The line count is load-bearing. Every line number shown to the model, and
+ * every chunk boundary in the lane's chunk plan, is computed from the
+ * *unredacted* file — Stage 0.5 counts lines before Stage 2 ever redacts. If
+ * redaction changes the count, two things break at once: the numbers the model
+ * is told to cite no longer correspond to the file the scorer reads, and the
+ * chunk plan's end_line truncates or overruns the content.
+ *
+ * That is not hypothetical. The earlier version replaced the key body with
+ * "\n[REDACTED…]\n", which turned the corpus's single-line key declaration into
+ * three lines. In run 5 that made `lib/insecurity.ts` 196 -> 198 lines, so every
+ * line from the key onward was displayed to the model **2 higher than its true
+ * number**, and slicing to the manifest's end_line of 196 silently dropped the
+ * file's last 2 lines. Every finding that file produced below the key was
+ * mis-scored by +2.
+ *
+ * So: keep the markers, drop the key bytes, and re-emit exactly as many newlines
+ * as the removed body contained.
+ */
+export function sanitizePemPrivateKey(content: string): string {
   return content.replace(
-    /(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z0-9 ]*PRIVATE KEY-----)/g,
-    (_match, beginMarker, endMarker) => {
-      return beginMarker + '\n[REDACTED: private key material]\n' + endMarker
+    /(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)([\s\S]*?)(-----END [A-Z0-9 ]*PRIVATE KEY-----)/g,
+    (_match, beginMarker: string, body: string, endMarker: string) => {
+      const newlines = (body.match(/\n/g) ?? []).length
+      return beginMarker + '[REDACTED: private key material]' + '\n'.repeat(newlines) + endMarker
     }
   )
 }
 
-function lineNumberContent(content: string, startLine: number): string {
+export function lineNumberContent(content: string, startLine: number): string {
   const lines = content.split('\n')
   const totalLines = startLine + lines.length - 1
   const pad = String(totalLines).length
@@ -428,30 +450,7 @@ Each finding must have:
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
 - "severity_estimate": "low" | "medium" | "high" | "critical"
-- "confidence": number 0-1
-
-## Trace precision — cite the innermost statement, not the construct around it
-Every trace step must name the most specific line that carries the defect. When the
-defect sits inside a larger construct, cite the line inside it, never the line that
-opens it:
-
-- not a \`for\`, \`while\`, \`if\` or \`try\` header — the statement in the body that
-  performs the weak or unchecked operation
-- not a function signature, method declaration or arrow-function header — the
-  statement inside the body where the defect happens
-- not the opening line of an array or object literal, and not the loop or helper
-  that consumes it — the specific element or property line that is wrong
-- not the enclosing declaration of a getter, setter or property — the statement
-  inside it that assigns, compares, or passes the value on
-
-Apply the same rule when the defect is a control that is missing, weak, or
-bypassable: cite the line where that control is applied and the decision is made
-— the comparison, the guard, the assignment that should have been validated. If
-the control is absent entirely, cite the statement that proceeds without it, not
-the function or block that contains that statement.
-
-If you can point at a narrower line that still carries the defect, that narrower
-line is the one to cite.`
+- "confidence": number 0-1`
   segments.push({ segment_type: 'file_content', chars: fileContentBlock.length })
   parts.push(fileContentBlock)
 

@@ -174,6 +174,51 @@ console.log('\n-- degraded tracking --')
   delete process.env.SCANNER_PROVIDER_STAGE0
 }
 
+console.log('\n-- line-number fidelity: what the model is told must be what the scorer reads --')
+// Every line number shown to the model, and every chunk boundary in a lane's
+// chunk plan, is derived from the UNREDACTED file: Stage 0.5 counts lines before
+// Stage 2 ever redacts. So any content transform in Stage 2 must preserve the
+// line count exactly. sanitizePemPrivateKey once did not — it turned the
+// corpus's single-line key declaration into three lines, which displayed every
+// subsequent line in lib/insecurity.ts 2 higher than its true number and made
+// the manifest's end_line truncate the file's tail. Findings in that file were
+// mis-scored by +2 in every run up to and including run 5.
+{
+  const { sanitizePemPrivateKey } = await import('../stage2-hunt-lanes-perfile/src/hunt-executor.js')
+  const lines = (s: string) => s.split('\n').length
+
+  const oneLine = "const k = '-----BEGIN RSA PRIVATE KEY-----\\r\\nAAAABBBB\\r\\n-----END RSA PRIVATE KEY-----'"
+  check('single-line PEM keeps its line count',
+    lines(sanitizePemPrivateKey(oneLine)) === lines(oneLine))
+
+  const multi = 'before\n-----BEGIN PRIVATE KEY-----\nAAA\nBBB\nCCC\n-----END PRIVATE KEY-----\nafter'
+  check('multi-line PEM keeps its line count',
+    lines(sanitizePemPrivateKey(multi)) === lines(multi))
+
+  check('key bytes are gone', !sanitizePemPrivateKey(multi).includes('AAA'))
+  check('markers survive redaction',
+    sanitizePemPrivateKey(multi).includes('-----BEGIN PRIVATE KEY-----') &&
+    sanitizePemPrivateKey(multi).includes('-----END PRIVATE KEY-----'))
+  check('redaction notice present',
+    sanitizePemPrivateKey(multi).includes('[REDACTED: private key material]'))
+
+  // Text at line N must still be at line N after redaction, for every line.
+  const corpusFile = readCorpusFile('target-apps/juice-shop-blind/lib/insecurity.ts')
+  if (corpusFile === null) {
+    check('insecurity.ts readable for fidelity check', false)
+  } else {
+    const before = corpusFile.split('\n')
+    const after = sanitizePemPrivateKey(corpusFile).split('\n')
+    check('real corpus file keeps its line count', before.length === after.length)
+    // every line except the redacted declaration itself is byte-identical
+    let drift = 0
+    for (let i = 0; i < before.length; i++) {
+      if (before[i] !== after[i] && !before[i].includes('PRIVATE KEY')) drift++
+    }
+    check('no line other than the key declaration moved', drift === 0)
+  }
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)
