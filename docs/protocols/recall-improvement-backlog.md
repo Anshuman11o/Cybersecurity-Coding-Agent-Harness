@@ -383,6 +383,90 @@ test.
 **Cost.** Precision proxy 20.3% → 18.4% category-blind, with no v2 validator to
 recover it. Findings below confidence 0.7 rose 109 → 131.
 
+### F3 — Force a per-class sweep before findings — **SHIPPED, measured by run 4**
+
+**Files:** `stage2-hunt-lanes-perfile/src/hunt-executor.ts`, `.../types.ts`.
+
+**The gap F1 could not close.** F1 drained `CATEGORY_MISS` 15 → 3 but barely moved
+`FILE_ONLY` 16 → 13, and the two buckets fail for different reasons. F1's
+instruction reads *"List every class ... that **this finding** establishes"* and
+sits in the Output Format block — it is a **serialization** rule, applied to a
+finding that already exists. `CATEGORY_MISS` is a serialization failure, so F1
+fixed it. `FILE_ONLY` is a **hunting** failure: no finding of that class was ever
+formed, and no serialization rule can conjure one.
+
+The only per-class sweep anywhere in the prompt was the empty-array guard —
+*"If you are about to return an empty array, re-read the file once against your
+assigned class list"* — which fires **only when zero findings are emitted**. All
+13 `FILE_ONLY` lanes emitted at least one finding, so it never ran for any of
+them.
+
+**The scale of what is not being checked.** Across 541 hunt lanes Stage 0.5
+assigns **3,005 lane-class pairs; only 503 produced anything — 16.7%.** Utilisation
+per producing lane is 0.310, and **0 of 250** producing lanes emitted every
+assigned class. Today "checked and clean" and "never looked" are indistinguishable,
+which is why neither the playbooks nor Stage 0.5's assignment can be tuned.
+
+| class | assigned | emitted | used |
+|---|---|---|---|
+| logging-monitoring | 541 | 32 | 5.9% |
+| misconfiguration | 541 | 88 | 16.3% |
+| insecure-design | 541 | 103 | 19.0% |
+| injection | 213 | 20 | 9.4% |
+| ssrf | 156 | 6 | 3.8% |
+| vulnerable-components | 4 | 0 | 0.0% |
+
+**The change, in three parts.** All three are required; any one alone fails.
+
+1. **Schema — `class_sweep` declared *first*, before `findings`.** The ordering is
+   the mechanism, not decoration. Generation is autoregressive, so a sweep emitted
+   first means the findings are generated *conditioned on* those verdicts.
+   Declared last it is post-hoc narration: observable, but changing nothing.
+   Each entry is `{class, verdict: found|absent, evidence_line, reason}`.
+   `evidence_line` is 0 when absent — `strict` mode forbids optional fields.
+2. **Prompt — a procedure with an order**, replacing the empty-array guard:
+   work the assigned list in order, one verdict per class, `absent` requires
+   naming the construct examined *in this file*, findings only after every class
+   has a verdict.
+3. **Mechanical invariants**, recorded per lane in `class-sweep.json`:
+   `missing_classes`, `offlist_classes`, `duplicate_classes`,
+   `inconsistent_classes` (named in a finding but not swept `found`),
+   `found_without_finding`. **Recorded, not enforced** — dropping findings on an
+   inconsistent sweep would move recall for a reason unrelated to the hypothesis.
+   Enforce once the base rates are known.
+
+**The ordering assumption was verified, not assumed.** A single live lane against
+`gpt-5.6-luna` returned key order `class_sweep, findings` (indices 1 and 1116),
+all assigned classes swept, and `absent` reasons that cite specific lines. Had the
+provider reordered keys, the fallback is a two-call design — sweep, then findings
+conditioned on it — which costs roughly double the input.
+
+**Cost.** Sweep output is ~110–170 tokens/lane on top of ~709, so ≈ +$0.35–0.55
+against run 3's $5.48. Output tokens ~+20%; input essentially unchanged.
+
+**Verification, and the control that decides attribution:**
+
+- utilisation must rise from **0.310**; `FILE_ONLY` must fall from **13**
+- category-aware localization should rise toward **86**, and **category-blind
+  localization must stay flat at 86** — 86 is the arithmetic ceiling for
+  labelling-only work (the blind−aware gap of 13 is exactly
+  `9 FILE_ONLY + 3 CATEGORY_MISS + 1 LINE_MISS_FAR`). **If category-blind
+  localization also rises, the change added detection and the result is confounded
+  — report it that way rather than claiming a clean labelling win.** This is
+  precisely the trap F1 fell into.
+- precision proxy is 11.8% category-aware with no v2 validator to recover it;
+  forcing consideration of every class will raise emission. Watch it with hedging
+  and co-label share.
+- **Revert if** utilisation rises but `FILE_ONLY` does not — the sweep is being
+  filled in without changing what is hunted.
+
+**Second-order value.** A class swept `absent` in ~95% of the lanes it is assigned
+to is being over-assigned by the signal→class map, and can be dropped from those
+lanes to reclaim prompt budget. `logging-monitoring` (5.9%) and `ssrf` (3.8%) are
+the first candidates — but only the sweep distinguishes over-assignment from
+under-hunting. The `found` verdicts with line citations should also be useful to
+the patcher; treat `absent` reasons more carefully, as they are unverified claims.
+
 ### F2 — Anchor access-control to the authorization decision
 
 **File:** `stage2-hunt-lanes-perfile/src/playbooks/access-control.ts`.
