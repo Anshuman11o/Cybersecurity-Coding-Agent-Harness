@@ -143,7 +143,56 @@ same files (187 findings, 9/42, 25/42) with 2 entries gained and 2 lost.
 **Run-to-run variance is about ±2 entries on a 42-entry set**; effects smaller
 than that are not interpretable.
 
-### 2.4 `client-side` → A03 — correct, worth nothing
+### 2.4 Fewer classes per lane — WORKS, and it is the lever for the residual
+
+Run 3 assigns a mean of **5.55 classes per lane** and the model emits **2.01**;
+utilisation is 0.31 and **no lane out of 250 emitted every class it was
+assigned**. The hypothesis: a lane carrying eight playbooks answers about the
+two or three that dominate the file and never engages the rest.
+
+Tested as a matched A/B on the 19 (file, needed-class) pairs run 3 failed to
+localize. Both arms use the real `buildHuntPrompt`, the same playbooks, the same
+arch and route context; the only difference is the assigned-class list — one
+class versus run 3's assignment (mean 8.26 on these files). **Both arms were
+answered by the same inference model** (Claude subagents, to keep Luna spend
+down at the user's request), so the contrast is model-matched even though the
+absolute level will not transfer.
+
+| arm | recovered | label gap | coverage gap |
+|---|---|---|---|
+| **focused, 1 class/lane** | **18/19** | 10/10 | 8/9 |
+| full list, 8.26 classes/lane | 13/19 | 8/10 | 5/9 |
+
+Focused-only wins **5**; full-only wins **0**. The dominance is complete — focus
+never loses a probe the full list wins — which is what makes 19 probes enough to
+read (sign test on the 5 discordant pairs, p ≈ 0.03).
+
+It moves **both** halves of the gap, which nothing else tested does. An earlier
+single-arm probe on Luna recovered 12/19 against run 3's 0/19 on the same
+entries, consistent in direction; its control was invalidated by rate-limit
+failures and was not repeated on Luna.
+
+**Cost.** Splitting does *not* multiply playbook tokens — each class's playbook
+is already sent once per file it is assigned to. The added cost is re-sending
+file content, arch context and boilerplate per class:
+
+| configuration | calls | input | cost | vs run 3 |
+|---|---|---|---|---|
+| run 3 (one lane per file) | 541 | 3.18M | $5.48 | 1.00× |
+| groups of ~3 classes | 1,001 | 4.25M | $7.24 | 1.32× |
+| groups of ~2 classes | 1,502 | 5.41M | $8.86 | 1.62× |
+| one lane per (file, class) | 3,005 | 8.91M | $13.51 | 2.47× |
+| ditto, arch context dropped | 3,005 | 7.74M | $12.34 | 2.25× |
+
+Wall clock at `HUNT_CONCURRENCY=4` scales with call count — the full split is
+roughly 90 minutes against run 3's 17, and 3,005 calls will press harder on the
+200k TPM ceiling than 541 did.
+
+**Only the extremes have been measured (1 class vs 8.26).** The grouped middle
+is an interpolation. Recommend measuring the dose before committing to the full
+split — the 1.32× option may capture most of the benefit.
+
+### 2.5 `client-side` → A03 — correct, worth nothing
 
 The `client-side` playbook is a competent XSS playbook whose only code is
 `LLM05`. `LLM05` appears **zero times** in the ground truth, so findings from
@@ -206,12 +255,15 @@ no cost increase beyond ~0.2% more input tokens.
 3. **`crypto-auth`**: add the authentication-outcome anchor.
 
 Deliberately **not** proposed: windowing (falsified, §2.3), `client-side` → A03
-as a recall lever (worth zero, §2.4), and any schema or output-ordering change
+as a recall lever (worth zero, §2.5), and any schema or output-ordering change
 (F3's family, retired by run 4).
+
+Then, **as a second step and only if the first is not enough**, split lanes by
+class (§2.4) at the cheapest dose that holds up.
 
 ### Expected effect
 
-On 97 entries, against run 3 as measured:
+Stage 1 — the three playbook edits, on 97 entries, against run 3 as measured:
 
 | | run 3 | projected | basis |
 |---|---|---|---|
@@ -222,12 +274,22 @@ Against the configuration's *expectation* rather than run 3's lucky draw, the
 anchor is worth a further ~+9.5 entries; the gain over an average run-3-config
 run is therefore larger than the table shows, and the variance is much smaller.
 
-**This lands at roughly 87% localization, short of the 90% target.** The
-residual after both changes was measured directly (arm C, excluding the hot line
-the anchor repairs): 12 misses on 92 entries — 6 label-fixable, 6
-coverage-needed, spread thinly across misconfiguration (4), insecure-design (2),
-integrity-failures (2), access-control (2) and crypto-auth (2). There is no
-single remaining lever worth more than about 4 entries.
+**Stage 1 lands at roughly 87% localization — short of the 90% target.** The
+residual was measured directly (arm C, excluding the hot line the anchor
+repairs): 12 misses on 92 entries — 6 label-fixable, 6 coverage-needed, spread
+thinly across misconfiguration (4), insecure-design (2), integrity-failures (2),
+access-control (2) and crypto-auth (2). No single remaining playbook lever is
+worth more than about 4 entries.
+
+Stage 2 — class-split lanes. This is the only tested intervention that moves
+both halves of the residual (§2.4: label 10/10, coverage 8/9 against 8/10 and
+5/9). If it transfers to Luna at even half the rate measured, it closes 6 of the
+12 residual entries and puts localization at **90/97 ≈ 92%**. That is the route
+to the target; it costs 1.3–2.5× depending on dose, and the dose is untested.
+
+Honest summary: **the proposal reaches ~87% on measured evidence, and 90%+
+requires the class-split, whose direction is proven but whose magnitude on Luna
+and whose cheapest working dose are not.**
 
 ### Caveats
 

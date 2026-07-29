@@ -1033,3 +1033,30 @@ Windowing produces more findings about what the model already reports.
 never score. Adding A03 is right on the OWASP mapping. Simulated offline against
 run 3: **no entry moves** — 12 of 13 `client-side` findings already co-label
 `injection` and so already carry A03. Cleanup only.
+
+### S1 — Fewer classes per lane (class-split lanes) — **WORKS, not shipped, dose untested**
+
+Run 3 assigns 5.55 classes per lane and the model emits 2.01; no lane of 250
+emitted every class it was assigned. A lane carrying eight playbooks answers
+about the two or three that dominate the file.
+
+Matched A/B on the 19 (file, needed-class) pairs run 3 failed to localize, same
+playbooks and context in both arms, same inference model in both arms:
+
+| arm | recovered | label gap | coverage gap |
+|---|---|---|---|
+| focused, 1 class/lane | **18/19** | 10/10 | 8/9 |
+| full list, 8.26 classes/lane | 13/19 | 8/10 | 5/9 |
+
+Focused-only wins 5, full-only wins 0. **The only tested intervention that moves
+both halves of the gap**, and therefore the only route to 90%+ localization.
+
+Cost: splitting does not multiply playbook tokens (each class playbook is
+already sent once per file it is assigned to); it re-sends file content, arch
+and boilerplate per class. Groups of ~3 classes 1.32x ($7.24), groups of ~2
+1.62x ($8.86), one lane per (file,class) 2.47x ($13.51). Only the extremes
+were measured — **measure the dose before committing to the full split**.
+
+Caveat: the A/B was answered by a different inference model than the scanner
+runs under, to keep spend down. The contrast is model-matched; the absolute
+level will not transfer.
