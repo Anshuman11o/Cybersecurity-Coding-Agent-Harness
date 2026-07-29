@@ -8,22 +8,51 @@ A run not listed here either was not scored or was not blind. Both cases are
 recorded, because an unmarked non-blind number gets cited later as if it were a
 baseline.
 
+## The denominator is 97
+
+One of the answer key's 98 entries sits in a file on `SEED_DENYLIST`. Stage 0.5
+gives that file a `skip` lane and `readCorpusFile()` refuses it, so **no finding
+can ever cite it** — it is unreachable by construction, a cost of the
+blind-development boundary rather than a scanner failure. Scoring it as a miss
+understated every run by ~1 point and put an unattainable point between the
+scanner and the ≥90% target.
+
+**Every ground-truth-denominated metric below is over the 97 reachable entries.**
+Hits are unchanged; only the denominator moved. Runs 1 and 2 are restated on the
+same basis so the columns compare. Per-finding metrics — precision proxy, hedging,
+class distribution — are untouched, since their denominator is findings. The only
+per-class denominator that shifts is `insecure-design` (13 → 12).
+
+Nothing in the harness changed: `score_scanner.py` still reads all 98 and the
+re-base is applied at recording time. `analysis/rebase-97.py` in the answer-key
+repo does the conversion. `scanner.jsonl` keeps its original lines and adds
+`*-rebased97` re-score lines, per the never-rewrite rule. See
+`protocols/eval-howto.md`.
+
 ## Scored runs, v2 per-file
 
 | Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Target |
 |---|---|---|---|---|
-| Recall (file + exact line + category) | 37/98 = 37.8% | 32/98 = 32.7% | **49/98 = 50.0%** | ≥90% |
-| Localization (±15 lines) | 65/98 = 66.3% | 57/98 = 58.2% | **73/98 = 74.5%** | ≥90% |
-| File-level (any line) | 93/98 = 94.9% | 97/98 = 99.0% | **97/98 = 99.0%** | — |
+| Recall (file + exact line + category) | 37/97 = 38.1% | 32/97 = 33.0% | **49/97 = 50.5%** | ≥90% |
+| Localization (±15 lines) | 65/97 = 67.0% | 57/97 = 58.8% | **73/97 = 75.3%** | ≥90% |
+| File-level (any line) | 93/97 = 95.9% | 97/97 = 100% | **97/97 = 100%** | — |
 | Precision proxy (category-aware) | 15.4% | 11.9% | **11.8%** | ≥95% |
 | Hedging | 1.462 classes/finding | 1.240 | **1.538** | baseline 1.000 |
+
+As published on the old 98 basis, for anyone re-reading an earlier report:
+
+| Metric | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Recall | 37/98 = 37.8% | 32/98 = 32.7% | 49/98 = 50.0% |
+| Localization | 65/98 = 66.3% | 57/98 = 58.2% | 73/98 = 74.5% |
+| File-level | 93/98 = 94.9% | 97/98 = 99.0% | 97/98 = 99.0% |
 
 Category-blind, and the emission diagnostics:
 
 | | Run 1 | Run 2 | Run 3 |
 |---|---|---|---|
-| Recall, category-blind | 40.8% | 48.0% | **53.1%** |
-| Localization, category-blind | 80.6% | 85.7% | **87.8%** |
+| Recall, category-blind | 40/97 = 41.2% | 47/97 = 48.5% | **52/97 = 53.6%** |
+| Localization, category-blind | 79/97 = 81.4% | 84/97 = 86.6% | **86/97 = 88.7%** |
 | Precision proxy, category-blind | 22.3% | 20.3% | **18.4%** |
 | Findings | 247 | 354 | **407** |
 | Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** |
@@ -59,18 +88,20 @@ qualifications, both of which matter more than the +17:
 
 1. The 49 hits span **23 distinct locations**, against run 2's 32 hits over 24.
    A single 11-entry location went from 1/11 to 11/11 and accounts for **10 of
-   the 17-point gain**. Excluding it, recall rose 31/87 → 38/87 (+8.1 points).
+   the 17-point gain**. Excluding it, recall rose 31/86 → 38/86 (+8.2 points).
    That residual is the honest broad-based figure. `crypto-auth` recovering
    0/25 → 19/25 is predominantly the same location.
 2. F1 was predicted to add no detection, which would have pinned category-blind
-   recall at 48.0%. It did not: category-blind recall rose 47 → 52, findings
+   recall at run 2's level (47 entries). It did not: category-blind recall rose
+   47 → 52 entries, findings
    354 → 407, producing lanes 228 → 250. The reason is that F1 **as shipped**
    deleted 22% of playbook content rather than rewording the closer as
    originally proposed, so it changed what the model hunts for as well as how it
    labels. Any claim that this measured a pure labelling change is wrong.
 
-**The foreseen regression landed.** `misconfiguration` 58.8% → 47.1% and
-`insecure-design` 38.5% → 30.8% — the two classes that improved in run 2 and
+**The foreseen regression landed.** `misconfiguration` 10/17 = 58.8% → 8/17 =
+47.1% and `insecure-design` 5/12 = 41.7% → 4/12 = 33.3% — the two classes that
+improved in run 2 and
 whose targeted adjacency bullets F1 deleted. Their category-blind localization
 did not fall, so the defects are still found and positioned; they are labelled
 differently. Per F1's own instruction, those bullets carried real guidance and
@@ -100,7 +131,7 @@ label rose — category-blind recall +7.2, category-blind localization +5.1,
 file-level +4.1, producing lanes +8.5. Scored recall fell because run 1's score
 depended on a single hedged finding at the benchmark's most crowded location,
 which matched 11 entries at once. Excluding that one location, scored recall rose
-from 26/87 to 31/87.
+from 26/86 to 31/86.
 
 **Removing the class cap did the opposite of what was predicted.** Hedging fell
 1.462 → 1.240 and the share of findings naming ≥2 classes fell 46.2% → 22.9%. The
@@ -113,8 +144,8 @@ Attributable per-class movement, the two classes with targeted changes:
 
 | Class | Run 1 | Run 2 |
 |---|---|---|
-| misconfiguration | 41.2% | **58.8%** |
-| insecure-design | 15.4% | **38.5%** |
+| misconfiguration | 7/17 = 41.2% | **10/17 = 58.8%** |
+| insecure-design | 2/12 = 16.7% | **5/12 = 41.7%** |
 
 One class collapsed: `crypto-auth` 44% → 0%, while its category-blind
 localization held. The defects are still found; they are no longer labelled
