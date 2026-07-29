@@ -149,9 +149,20 @@ variance, not a detection regression: run 3 won 24/24 of the three-line pool and
 run 5 won 16/24, and that −8 accounts for the whole delta. Excluding those
 lines, recall is flat (34.2% → 35.6%) and localization rose 67.1% → 74.0%.
 
-The `crypto-auth` anchor is **partially** effective, consistent with its own
-pre-run probe: of the three hot lines it held two. The one it missed had been
-measured at 3/4 in the probe, so a miss is the expected one-in-four.
+The `crypto-auth` anchor is **more effective than the headline suggests**, and
+the earlier reading of this run — "it held two of three hot lines" — misattributed
+the cause. On the line it appeared to lose, both runs produced the same two
+findings with the same classes; the `crypto-auth` finding's trace cited the
+benchmark line in run 3 and a line 3 away in run 5, while the
+`logging-monitoring` finding cited the benchmark line instead. The class is on
+the right finding in both runs, and `crypto-auth` localization is **identical at
+23/25**. What moved was trace-step selection, not class attribution.
+
+Consequence for reading any bucket table here: **`CATEGORY_MISS` does not mean
+"not localized"**. It takes precedence on an exact-line non-match, so an entry
+can be `CATEGORY_MISS` and localized simultaneously — 8 of run 5's 13 are.
+Had that one finding's trace included the benchmark line, run 5's recall would
+have been 50/97 = 51.5%, above run 3's 50.5%.
 
 **Projections were too optimistic.** The investigation projected localization
 ≈86.6% and recall ≈56.7%; measured 80.4% and 43.3%. The localization projection

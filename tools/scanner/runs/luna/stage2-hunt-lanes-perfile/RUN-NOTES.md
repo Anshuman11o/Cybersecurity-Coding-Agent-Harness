@@ -59,11 +59,25 @@ Localization **75.3% → 80.4%**, the best recorded, with hedging *falling*
 bucket collapsed **13 → 2**. `injection`-class localization is 18/18 and
 `ssrf`-class 3/3, both exactly as the pre-run arm predicted.
 
-**Recall fell 50.5% → 43.3%, and that is not a detection regression.** Three
-ground-truth lines carry 24 of the 97 reachable entries; run 3 won all 24 and
-run 5 won 16. That −8 accounts for the entire delta. Excluding those three
-lines, recall is flat (34.2% → 35.6%) and localization is 67.1% → 74.0%, the
-best of any run.
+**Recall fell 50.5% → 43.3%, and that is not a detection regression, nor a
+labelling one.** Three ground-truth lines carry 24 of the 97 reachable entries;
+run 3 won all 24 and run 5 won 16. That −8 accounts for the entire delta.
+Excluding those three lines, recall is flat (34.2% → 35.6%) and localization is
+67.1% → 74.0%, the best of any run.
+
+Eight of those eight lost entries sit on one line, and the cause is **trace-step
+selection, not class attribution**. Both runs produced the same two findings on
+that file with the same classes; the `crypto-auth` finding's trace cited the
+benchmark line in run 3 and cited a line 3 away in run 5, while the
+`logging-monitoring` finding happened to cite the benchmark line instead. The
+anchor did its job — the class is on the right finding in both runs — and
+`crypto-auth` localization is **identical at 23/25** across the two runs. Only
+the exact-line hit moved.
+
+That also means `CATEGORY_MISS` is not the same as "not localized": 8 of run 5's
+13 `CATEGORY_MISS` entries are still localized by a matching-class finding
+within ±15. The bucket takes precedence on an exact-line non-match, so an entry
+can be `CATEGORY_MISS` and localized at once.
 
 The pre-run projection (localization ~86.6%, recall ~56.7%) was too optimistic
 on both counts. Full accounting is in the run archive's `MANIFEST.md`.
