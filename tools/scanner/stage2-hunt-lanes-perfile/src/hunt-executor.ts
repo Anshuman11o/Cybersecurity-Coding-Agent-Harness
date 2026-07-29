@@ -428,7 +428,30 @@ Each finding must have:
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
 - "severity_estimate": "low" | "medium" | "high" | "critical"
-- "confidence": number 0-1`
+- "confidence": number 0-1
+
+## Trace precision — cite the innermost statement, not the construct around it
+Every trace step must name the most specific line that carries the defect. When the
+defect sits inside a larger construct, cite the line inside it, never the line that
+opens it:
+
+- not a \`for\`, \`while\`, \`if\` or \`try\` header — the statement in the body that
+  performs the weak or unchecked operation
+- not a function signature, method declaration or arrow-function header — the
+  statement inside the body where the defect happens
+- not the opening line of an array or object literal, and not the loop or helper
+  that consumes it — the specific element or property line that is wrong
+- not the enclosing declaration of a getter, setter or property — the statement
+  inside it that assigns, compares, or passes the value on
+
+Apply the same rule when the defect is a control that is missing, weak, or
+bypassable: cite the line where that control is applied and the decision is made
+— the comparison, the guard, the assignment that should have been validated. If
+the control is absent entirely, cite the statement that proceeds without it, not
+the function or block that contains that statement.
+
+If you can point at a narrower line that still carries the defect, that narrower
+line is the one to cite.`
   segments.push({ segment_type: 'file_content', chars: fileContentBlock.length })
   parts.push(fileContentBlock)
 
@@ -576,7 +599,7 @@ async function huntLane(
   classIds: string[],
   playbooks: Map<string, string>,
   archSummarySnippet?: string,
-  archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[] } },
+  archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[]; middleware_routes?: any[] } },
 ): Promise<{
   findings: CandidateFinding[];
   tokensUsed: number;
@@ -602,7 +625,18 @@ async function huntLane(
   const routeContext = archSummary
     ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
     : { handWritten: [], autoCrud: [] }
-  const routeContextSection = renderRouteContext(routeContext)
+  let routeContextSection = renderRouteContext(routeContext)
+
+  // A file can both declare registrations and export handlers. The registrar
+  // block goes first because it is the one carrying line numbers.
+  const registrarSection = archSummary
+    ? renderRegistrarRouteContext(lane.target_file, archSummary.route_table)
+    : undefined
+  if (registrarSection) {
+    routeContextSection = routeContextSection
+      ? `${registrarSection}\n\n${routeContextSection}`
+      : registrarSection
+  }
 
   const allFindings: CandidateFinding[] = []
   let totalTokens = 0
@@ -875,6 +909,88 @@ interface AutoCrudRoute {
 export interface RouteContext {
   handWritten: HandWrittenRoute[]
   autoCrud: AutoCrudRoute[]
+}
+
+/**
+ * Render the route and middleware registrations a file DECLARES.
+ *
+ * `matchRoutesForFile()` below matches routes to a file by that file's exported
+ * symbols, which serves handler files and starves the file that registers the
+ * routes — it exports none of the handlers it mounts, so it matches nothing. In
+ * run 5 the registrar file received zero characters of route context while
+ * Stage 0 already held every registration it makes, each with a declaring file,
+ * an exact line, and its auth middleware.
+ *
+ * This is a lookup, not a judgement: the model is told which line each
+ * registration is on and whether a guard is attached, instead of being asked to
+ * work it out from the file and then pick a line to blame.
+ *
+ * Deliberately additive — it does not change `matchRoutesForFile()` or
+ * `renderRouteContext()`, so the lanes that already receive route context
+ * receive byte-identical text and the change stays single-variable.
+ */
+export function renderRegistrarRouteContext(
+  targetFileRel: string,
+  routeTable: {
+    hand_written_routes?: any[]
+    middleware_routes?: any[]
+  },
+): string | undefined {
+  // Stage 0 records the declaring file as a repo-relative corpus path
+  // ("target-apps/<app>/server.ts"); the lane carries the corpus-relative one
+  // ("server.ts"). Accept either, and require a path-segment boundary so
+  // "server.ts" cannot match "vendor/fake-server.ts".
+  const declaredHere = (routes: any[] | undefined) =>
+    (routes ?? []).filter((r) => {
+      if (typeof r.file !== 'string') return false
+      return r.file === targetFileRel || r.file.endsWith(`/${targetFileRel}`)
+    })
+
+  const hw = declaredHere(routeTable.hand_written_routes)
+  const mw = declaredHere(routeTable.middleware_routes)
+  if (hw.length === 0 && mw.length === 0) return undefined
+
+  const authOf = (r: any) =>
+    r.auth === null || r.auth === undefined || r.auth === '' || r.auth === 'none' ? 'none' : String(r.auth)
+  const isUnguarded = (r: any) => authOf(r) === 'none'
+
+  const lines: string[] = []
+  lines.push('## Routes And Middleware Declared In This File')
+  lines.push('This file is where the application registers the routes below. Each entry is given with the')
+  lines.push('exact line of its registration and the authentication or authorization middleware attached to')
+  lines.push('it, exactly as the application declares it. "auth: none" means no authentication or')
+  lines.push('authorization middleware is applied to that registration.')
+  lines.push('')
+  lines.push("When a finding concerns one of these registrations, cite that registration's own line.")
+  lines.push('')
+
+  const fmt = (r: any) => {
+    const method = String(r.method ?? '?').padEnd(6)
+    const path = String(r.path ?? '?').padEnd(38)
+    const handler = r.handler ? `  -> ${String(r.handler).replace(/\([^)]*\)$/, '')}()` : ''
+    return `  line ${String(r.line ?? '?').padStart(4)}  ${method} ${path} auth: ${authOf(r)}${handler}`
+  }
+
+  // Unguarded first: that ordering is the point of the block.
+  const unguardedFirst = (a: any, b: any) =>
+    (isUnguarded(a) ? 0 : 1) - (isUnguarded(b) ? 0 : 1) || (a.line ?? 0) - (b.line ?? 0)
+
+  if (hw.length > 0) {
+    lines.push(`### Route handlers registered here (${hw.length})`)
+    for (const r of [...hw].sort(unguardedFirst)) lines.push(fmt(r))
+    lines.push('')
+  }
+  if (mw.length > 0) {
+    lines.push(`### Middleware mounted here (${mw.length})`)
+    for (const r of [...mw].sort(unguardedFirst)) lines.push(fmt(r))
+    lines.push('')
+  }
+
+  const unguarded = [...hw, ...mw].filter(isUnguarded).length
+  lines.push(
+    `${unguarded} of these ${hw.length + mw.length} registrations carry no authentication or authorization middleware.`,
+  )
+  return lines.join('\n')
 }
 
 /**
@@ -1394,7 +1510,7 @@ async function main() {
   }
 
   // Load full architecture summary for per-lane route matching
-  let archSummaryFull: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[] } } | undefined
+  let archSummaryFull: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[]; middleware_routes?: any[] } } | undefined
   try {
     if (existsSync(archPath)) {
       const full = JSON.parse(readFileSync(archPath, 'utf-8'))
