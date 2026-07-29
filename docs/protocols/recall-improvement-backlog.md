@@ -383,7 +383,7 @@ test.
 **Cost.** Precision proxy 20.3% → 18.4% category-blind, with no v2 validator to
 recover it. Findings below confidence 0.7 rose 109 → 131.
 
-### F3 — Force a per-class sweep before findings — **SHIPPED, measured by run 4**
+### F3 — Force a per-class sweep before findings — **FAILED (run 4), REVERTED**
 
 **Files:** `stage2-hunt-lanes-perfile/src/hunt-executor.ts`, `.../types.ts`.
 
@@ -466,6 +466,77 @@ lanes to reclaim prompt budget. `logging-monitoring` (5.9%) and `ssrf` (3.8%) ar
 the first candidates — but only the sweep distinguishes over-assignment from
 under-hunting. The `found` verdicts with line citations should also be useful to
 the patcher; treat `absent` reasons more carefully, as they are unverified claims.
+
+
+#### Result — run 4, `bab0ad2`. Hypothesis falsified. **Reverted 2026-07-29.**
+
+The schema, prompt and invariants were reverted to run 3's source
+(`hunt-executor.ts` and `types.ts` restored from `c9e3e94`, byte-identical), and
+`runs/luna/` was restored to run 3's archived artifacts. **Run 3 is the baseline
+for both architecture and results.** Run 4's artifacts, logs, eval JSON and
+`class-sweep.json` are preserved in the answer-key repo under
+`runs/2026-07-29T02-23Z__stage0-2-v2-perfile-F3__luna__bab0ad2/` — the sweep file
+holds the model's explicit per-class reasoning for all 3005 lane-class pairs and
+is the most detailed record of *why* a class was declined that this project has.
+
+**The mechanism worked perfectly and changed nothing.** Sweep conformance across
+541 lanes: **3005/3005 lane-class pairs swept (100%)**, zero `missing`,
+`offlist`, `duplicate`, `inconsistent` or `found_without_finding`. Per-class
+coverage went from an implicit ~17% to an explicit 100%.
+
+**`FILE_ONLY` did not move: 13 → 13.** Not one entry converted.
+
+| Bucket | Run 3 | Run 4 | | Metric (97 basis) | Run 3 | Run 4 |
+|---|---|---|---|---|---|---|
+| HIT | 49 | **29** | | Recall | 50.5% | **29.9%** |
+| CATEGORY_MISS | 3 | **21** | | Localization | 75.3% | **49.5%** |
+| LINE_MISS_NEAR | 24 | 18 | | Loc, cat-blind | 88.7% | 81.4% |
+| LINE_MISS_FAR | 8 | 15 | | Findings | 407 | 311 |
+| FILE_ONLY | 13 | **13** | | Utilisation | 0.310 | **0.267** |
+| NOT_FOUND | 0 | 1 | | Cost | $5.48 | **$6.46** |
+
+The stated revert criterion was "utilisation rises but FILE_ONLY does not".
+Utilisation did not even rise — it **fell**, 0.310 → 0.267. Unambiguous revert.
+
+**`LINE_MISS_NEAR` 24 → 18 is not a gain.** It is drainage downward: of run 3's
+24, only **1** improved to HIT, while **6** fell to `LINE_MISS_FAR` and **2** to
+`FILE_ONLY`. Run 4's 18 even contains **2 entries that fell from HIT**. Across the
+whole benchmark the run-3 → run-4 movement is **3 improved, 64 unchanged, 30
+worsened** — run 4 gained on no dimension. A bucket shrinking is only good news
+when its entries moved *up*; always check the transition, not the count.
+
+**Why it failed — two mechanisms.**
+
+1. **The sweep gated instead of checking.** `inconsistent_classes` and
+   `found_without_finding` are both 0 everywhere: verdicts and labels are in
+   perfect lockstep. Requiring that any class in a finding be swept `found` turned
+   a cheap early "absent" into a hard block on labelling that class later. The
+   sweep **replaced** the model's richer implicit consideration with a cheaper
+   explicit one and locked in the result — only 372/3005 pairs (12.4%) came back
+   `found` against run 3's 503 (16.7%) actually emitted. `CATEGORY_MISS` 3 → 21
+   and `crypto-auth` 19/25 → 1/25 are the damage.
+2. **F3 also deleted the anti-suppression nudge** ("Most files in a real
+   application do contain something…") and replaced it with text legitimising
+   empty output. Findings 407 → 311, producing lanes 250 → 202. **A second
+   variable inside a change billed as single-variable** — a self-inflicted
+   confound; part of the regression is not attributable to the sweep.
+
+**What this eliminates.** `FILE_ONLY` is *not* a coverage failure. The model does
+consider every assigned class when told to, and still does not produce the
+finding. So the remaining explanations are that the playbook does not describe
+the shape well enough for that file, or the defect needs cross-file context the
+per-file lane cannot supply. **Neither is addressable by prompt sequencing**, which
+retires that whole family of interventions.
+
+**What to keep.** The instrumentation, made **non-binding**: keep
+`class-sweep.json` and the five invariants, drop the "any class in a finding must
+have been swept `found`" rule, and restore the emission nudge. That preserves the
+Stage 0.5 feedback signal (a class swept `absent` in ~95% of its lanes is
+over-assigned) at no measured cost, since conformance was already perfect.
+
+**Process lesson.** Two prompt edits shipped as one change and the confound was
+only spotted mid-run. When editing prompt text, diff it and count the *behavioural*
+edits, not the commits.
 
 ### F2 — Anchor access-control to the authorization decision
 
