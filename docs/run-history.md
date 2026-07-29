@@ -31,16 +31,44 @@ repo does the conversion. `scanner.jsonl` keeps its original lines and adds
 
 ## Scored runs, v2 per-file
 
-| Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Run 4 · `bab0ad2` | Target |
-|---|---|---|---|---|---|
-| Recall (file + exact line + category) | 37/97 = 38.1% | 32/97 = 33.0% | **49/97 = 50.5%** | 29/97 = 29.9% | ≥90% |
-| Localization (±15 lines) | 65/97 = 67.0% | 57/97 = 58.8% | **73/97 = 75.3%** | 48/97 = 49.5% | ≥90% |
-| File-level (any line) | 93/97 = 95.9% | 97/97 = 100% | **97/97 = 100%** | 96/97 = 99.0% | — |
-| Precision proxy (category-aware) | 15.4% | 11.9% | 11.8% | 12.2% | ≥95% |
-| Hedging | 1.462 classes/finding | 1.240 | **1.538** | 1.312 | baseline 1.000 |
+| Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Run 4 · `bab0ad2` | Run 5 · `c9c2cf0` | Target |
+|---|---|---|---|---|---|---|
+| Recall (file + exact line + category) | 37/97 = 38.1% | 32/97 = 33.0% | **49/97 = 50.5%** | 29/97 = 29.9% | 42/97 = 43.3% | ≥90% |
+| Localization (±15 lines) | 65/97 = 67.0% | 57/97 = 58.8% | 73/97 = 75.3% | 48/97 = 49.5% | **78/97 = 80.4%** | ≥90% |
+| File-level (any line) | 93/97 = 95.9% | 97/97 = 100% | **97/97 = 100%** | 96/97 = 99.0% | **97/97 = 100%** | — |
+| Precision proxy (category-aware) | 15.4% | 11.9% | 11.8% | 12.2% | **12.5%** | ≥95% |
+| Hedging | 1.462 classes/finding | 1.240 | 1.538 | 1.312 | 1.518 | baseline 1.000 |
 
-**Run 3 remains the best result.** Run 4 tested F3 and regressed; F3 is to be
-reverted. See its entry below.
+**Run 5 has the best localization; run 3 still has the best headline recall.**
+Those two facts have one cause, and it is not detection — see the hot-line
+table below before comparing any two runs in this file.
+
+### ⚠ Three lines carry 23 of the 97 entries
+
+Whether ~23 entries score turns on whether one finding at each of three
+ground-truth locations carries one class. Which lines they are is located
+evidence and lives in the answer-key repo.
+
+| run | entries won from those three lines | recall | recall **excluding** them |
+|---|---|---|---|
+| Run 2 | 5/23 | 33.0% | 35.6% |
+| Run 3 | **23/23** | 50.5% | 34.2% |
+| Run 4 | 5/23 | 29.9% | 31.9% |
+| Run 5 | 15/23 | 43.3% | **35.6%** |
+
+Run 3 drew all 23 and run 5 drew 15; that −8 is the whole recall delta between
+them. **Excluding those lines, run 3's recall (34.2%) is no better than run 2's
+(35.6%), and run 5 matches run 2 while localizing far better:**
+
+| run | localization **excluding** the three lines |
+|---|---|
+| Run 2 | 58.9% |
+| Run 3 | 67.1% |
+| Run 4 | 58.3% |
+| Run 5 | **74.0%** |
+
+Read the excluding-them columns when comparing architecture changes. The
+headline carries ~10 points of run-to-run variance from three labels.
 
 As published on the old 98 basis, for anyone re-reading an earlier report:
 
@@ -52,19 +80,84 @@ As published on the old 98 basis, for anyone re-reading an earlier report:
 
 Category-blind, and the emission diagnostics:
 
-| | Run 1 | Run 2 | Run 3 | Run 4 |
-|---|---|---|---|---|
-| Recall, category-blind | 40/97 = 41.2% | 47/97 = 48.5% | **52/97 = 53.6%** | 50/97 = 51.5% |
-| Localization, category-blind | 79/97 = 81.4% | 84/97 = 86.6% | **86/97 = 88.7%** | 79/97 = 81.4% |
-| Precision proxy, category-blind | 22.3% | 20.3% | 18.4% | 22.5% |
-| Findings | 247 | 354 | **407** | 311 |
-| Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** | 202/541 = 37.3% |
-| Utilisation (emitted ÷ assigned classes) | — | — | **0.310** | 0.267 |
-| Findings below confidence 0.7 | 0 | 109 (min 0.28) | 131 (min 0.28) | 94 |
-| Max classes on one finding | 2 (capped) | 3 | **4** | 4 |
-| Distinct locations behind the recall hits | — | 24 | **23** | 19 |
-| Tokens | 3,338,328 | 4,022,526 | **3,558,386** | 3,908,988 |
-| Cost | $4.64 | $5.82 | **$5.48** | $6.46 |
+| | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |
+|---|---|---|---|---|---|
+| Recall, category-blind | 40/97 = 41.2% | 47/97 = 48.5% | 52/97 = 53.6% | 50/97 = 51.5% | **55/97 = 56.7%** |
+| Localization, category-blind | 79/97 = 81.4% | 84/97 = 86.6% | 86/97 = 88.7% | 79/97 = 81.4% | **87/97 = 89.7%** |
+| Precision proxy, category-blind | 22.3% | 20.3% | 18.4% | 22.5% | 19.1% |
+| Findings | 247 | 354 | **407** | 311 | 392 |
+| Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** | 202/541 = 37.3% | 245/541 = 45.3% |
+| Utilisation (emitted ÷ assigned classes) | — | — | **0.310** | 0.267 | 0.303 |
+| Findings below confidence 0.7 | 0 | 109 (min 0.28) | 131 (min 0.28) | 94 | 117 |
+| Max classes on one finding | 2 (capped) | 3 | **4** | 4 | 3 |
+| Tokens | 3,338,328 | 4,022,526 | 3,558,386 | 3,908,988 | 3,786,720 |
+| Cost | $4.64 | $5.82 | **$5.48** | $6.46 | $5.73 |
+| Wall clock | — | — | 17m12s @ C=4 | 19m23s @ C=4 | **4m38s @ C=16** |
+| Retries / fatal | — | — | 54 / 0 | 27 / 0 | **0 / 0** |
+
+---
+
+### Run 5 — 2026-07-29T16:55Z, `stage1-2-v2-perfile-playbooks`, `luna`, `c9c2cf0`
+
+Stages 1 and 2 only; Stage 0 and 0.5 carried over from run 3 unchanged, so the
+lane manifest and per-lane class assignments are identical and the comparison is
+single-variable.
+
+**What changed:** three playbook edits (PR #22), all acting on one mechanism —
+which class a finding is labelled with.
+
+1. `injection` declared it covers A03 "all variants" and contained no
+   cross-site-scripting content at all. OWASP 2021 merged XSS into A03
+   (CWE-79). Added reflected, stored and DOM-based XSS, with stored XSS
+   reported at the persistence point, since the render sink is usually in
+   another file the lane cannot see.
+2. `ssrf` covered A10 but was written entirely around outbound requests. Added
+   open redirect and weak destination allow-listing, and corrected the
+   false-positive rule that treated any allow-list as a valid control.
+3. `crypto-auth` described defects *in* authentication mechanisms only. Added
+   an authentication-outcome anchor: a defect of another class sitting on an
+   authentication path also establishes A07.
+
+**Execution.** Clean single pass: 541/541 lanes, **0 retries, 0 fatal**, 0
+blocked reads, 4m38s at `HUNT_CONCURRENCY=16`. The org TPM ceiling for this
+model rose 200,000 → 2,000,000, so 16 sits at ~41% of ceiling; run 3 needed 54
+retries at concurrency 4 because 4 already saturated the old limit. All three
+accounting sources agree exactly at 3,786,720 tokens.
+
+Stage 1 projected 3,040,003 input tokens against run 3's 2,764,390 — **+10.0%**,
+the cost of the longer playbooks. An earlier estimate of "~0.2%" in
+`analysis/2026-07-29-localization-investigation.md` was wrong and is corrected
+there.
+
+| Bucket | Run 3 | Run 5 | Δ |
+|---|---|---|---|
+| HIT | 49 | 42 | −7 |
+| CATEGORY_MISS | 3 | 13 | +10 |
+| LINE_MISS_NEAR | 24 | 28 | +4 |
+| LINE_MISS_FAR | 8 | 12 | +4 |
+| FILE_ONLY | 13 | **2** | **−11** |
+| NOT_FOUND | 1 | 1 | 0 |
+
+**What worked.** Localization 75.3% → **80.4%**, the best recorded, while
+hedging *fell* 1.538 → 1.518 — the gain is better aim, not a wider net. The
+`FILE_ONLY` bucket, which the change targeted, collapsed 13 → 2.
+`injection`-class localization reached 18/18 and `ssrf`-class 3/3, exactly as
+the pre-run subset arm predicted. Category-blind localization 88.7% → 89.7%.
+
+**What did not.** Headline recall fell 50.5% → 43.3%. This is hot-line
+variance, not a detection regression: run 3 won 23/23 of the three-line pool and
+run 5 won 15/23, and that −8 accounts for the whole delta. Excluding those
+lines, recall is flat (34.2% → 35.6%) and localization rose 67.1% → 74.0%.
+
+The `crypto-auth` anchor is **partially** effective, consistent with its own
+pre-run probe: of the three hot lines it held two. The one it missed had been
+measured at 3/4 in the probe, so a miss is the expected one-in-four.
+
+**Projections were too optimistic.** The investigation projected localization
+≈86.6% and recall ≈56.7%; measured 80.4% and 43.3%. The localization projection
+counted arm C's +11 gained without its offsetting losses (the run gained 11 and
+lost 6, net +5); the recall projection assumed the anchor would hold ~21/23
+hot-line entries where it held 15/23.
 
 ---
 

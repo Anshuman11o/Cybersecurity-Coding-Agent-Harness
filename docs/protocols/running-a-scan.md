@@ -91,14 +91,40 @@ when anything upstream has changed.
 
 ### Concurrency and rate limits
 
-`HUNT_CONCURRENCY` (default 8) caps concurrent lanes. **8 was measured too high
-for `gpt-5.6-luna`**: on 2026-07-28 it lost 52 of 541 lanes to tokens-per-minute
-limits. Use 4.
+`HUNT_CONCURRENCY` (default 8) caps concurrent lanes. **Derive it from the
+current rate limit rather than copying a number out of this file** — the limit
+has already changed once by 10x, and a setting tuned to the old ceiling is
+either needlessly slow or a lane-loss risk.
 
-The relevant numbers, from the 429 bodies themselves:
+#### Current limits for `gpt-5.6-luna` (as of 2026-07-29)
 
-- the ceiling is **200,000 TPM** for that org/model
-- each 429 asks for a **1–4 second** wait
+| | |
+|---|---|
+| tokens per minute | **2,000,000** |
+| requests per minute | 5,000 |
+| tokens per day | 20,000,000 |
+
+#### How to pick a value
+
+Run 3 is the calibration point: 541 lanes, 3,558,386 tokens in 17m12s at
+`HUNT_CONCURRENCY=4`. That is **~51,700 TPM and ~7.9 RPM per unit of
+concurrency** — scale linearly from there.
+
+    C  =  (target share of TPM ceiling) / 51,700
+
+**Target 40–50% of the TPM ceiling, not 90%.** The headroom is not waste: lanes
+do not arrive uniformly, and a batch of large files landing together spikes well
+above the mean. RPM is never the binding constraint at this lane size — at the
+2M ceiling it sits under 3%.
+
+At the current ceiling that gives **`HUNT_CONCURRENCY=16`** (~828k TPM, 41% of
+ceiling, ~4 min wall clock). Run 5 used it: **541/541 lanes, 0 fatal.**
+
+History, for calibration: at the old **200,000 TPM** ceiling, 8 lost 52 of 541
+lanes and 4 was the safe value — 4 already sat at ~207k TPM, right on that
+ceiling, which is why run 3 still took 54 retries to get through cleanly.
+
+Each 429 asks for a **1–4 second** wait.
 
 So no individual backoff was ever too short. What killed the run was `maxRetries`
 being 3 — three retries could not outlast a *sustained* saturation period. It is

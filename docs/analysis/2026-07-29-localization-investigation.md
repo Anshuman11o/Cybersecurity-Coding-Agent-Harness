@@ -249,9 +249,14 @@ the difference between them outside these lines was a couple of entries.
 what is in the tree for run 5.
 
 No architecture change, no new stage, no schema change, no change to Stage 0,
-0.5 or 1, no cost increase beyond ~0.2% more input tokens. The entire
-behavioural diff is three files under
+0.5 or 1. The entire behavioural diff is three files under
 `tools/scanner/stage2-hunt-lanes-perfile/src/playbooks/`.
+
+**Cost.** The three playbooks grow by 5,417 characters in total, which Stage 1
+projects as **+275,613 input tokens, +10.0%** (2,764,390 → 3,040,003) — about
+**+$0.28** on a $5.48 run. An earlier draft of this document said "~0.2%";
+that was wrong by a factor of fifty and is corrected here. The absolute cost is
+still small, but 10% is the number to plan against, not 0.2%.
 
 1. **`injection`**: add cross-site scripting — reflected, stored, and
    DOM-based — with an explicit instruction to report stored XSS at the
