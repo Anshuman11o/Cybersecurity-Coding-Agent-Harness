@@ -976,6 +976,88 @@ diagnostic.
 
 ---
 
+## TESTED 2026-07-29 — run 6 investigation
+
+Full write-up: `../analysis/2026-07-29-run6-investigation.md`. Located evidence:
+answer-key repo, `analysis/2026-07-29-run6-residual-located.md`.
+
+### G1 — PEM redaction changed a file's line count — **FIXED, worth +3 entries**
+
+`sanitizePemPrivateKey()` emitted `"\n[REDACTED…]\n"`, turning a single-line key
+declaration into three lines. Stage 0.5 counts lines before Stage 2 redacts, so
+the numbers shown to the model sat 2 above the numbers the scorer reads, and the
+chunk plan's `end_line` truncated the file's tail. Re-scoring run 5 with the shift
+undone: recall 42/97 → **45/97**, localization unchanged. Deterministic, no
+inference. Fixed; 7 regression tests; invariant verified across all 541 lanes.
+
+**Generalise this.** Any Stage 2 transform of file content must preserve line
+count, because the chunk plan and the scorer both use pre-transform coordinates.
+
+### G2 — Model tier — **THE LEVER. +17.1 recall points, measured**
+
+Every scored run used `luna`, the cheapest GPT-5.6 tier, chosen on cost. `terra`
+and `sol` are the same endpoint and key — one registry entry each. 129-lane arm
+selected by a manifest property only, sharing luna's Stage 0, real unmodified
+Stage 2:
+
+| arm | recall | localization | blind loc | cost |
+|---|---|---|---|---|
+| `luna` (run 5, same lanes) | 36/82 = 43.9% | 69/82 = 84.1% | 90.2% | — |
+| **`terra`** | **50/82 = 61.0%** | 67/82 = 81.7% | **96.3%** | $5.54 |
+
+16 entries gained, 2 lost. Category-blind localization +6.1; category-aware dips
+2.4, so terra finds and positions better and labels slightly worse. 129/129 lanes,
+0 retries, 0 fatal.
+
+A 40-lane Claude-subagent arm on byte-identical prompts reached 66/97 = 68.0%
+recall and 90/97 = 92.8% localization — an upper bound, not a forecast (agent loop,
+not a single structured completion), but it brackets the effect from above.
+
+**`sol` is rate-limit-bound**: 205 retries and 35 fatal lanes by lane 39 at
+concurrency 8, where luna and terra had 0. Not measured, not cited.
+
+### G3 — Trace-specificity instruction — **FALSIFIED**
+
+The prompt gives no guidance on which line to cite, and the residual is dominated
+by findings that cite the construct containing a defect rather than the statement
+that is the defect — so this looked like the lever. Matched A/B, 40 lanes, same
+model, only the appended block differing: recall 72 → 70, localization 94 → 91,
+**3 improved / 7 worsened** (`HIT → NEAR` ×3, `HIT → FAR` ×1), precision 46.2% →
+40.2%. It moves the model off lines it already had right. Reverted from source,
+kept as an arm variant. Caveat: that control sits at 96.9% localization, so
+headroom is thin — but it did not shrink the near-miss pool while breaking 4 hits.
+
+### G4 — Registrar route context — **IN THE TREE, UNMEASURED**
+
+`matchRoutesForFile()` matches by exported symbols, so the file that *declares* the
+routes matches nothing and got zero route context in run 5 (only 70 of 541 lanes
+got any). Stage 0 already holds all 148 registrations with declaring file, exact
+line and auth middleware; 88 are unguarded. `renderRegistrarRouteContext()` makes
+that a lookup instead of a judgement. Additive — existing route-context lanes get
+byte-identical text. **Do not claim it works until measured on the 40-lane
+platform.**
+
+### G5 — The measurement platform
+
+All 97 reachable entries live in **40 of 541 hunt lanes**, and restricting run 5's
+findings to those lanes reproduces its published metrics exactly. A 40-lane arm is
+a complete recall/localization measurement at 7.4% of the lane count. Prompt
+fidelity is asserted per lane against the recorded `prompt_breakdown.total_chars`
+— that assertion is what surfaced G1.
+
+### G6 — The three-class hypothesis — **FALSIFIED on all three**
+
+`crypto-auth` `CATEGORY_MISS` is 8/9 hot-line variance plus one defensible taxonomy
+disagreement (cold total: 1 entry), and the playbook already names MD5 and SHA-1.
+`access-control` / `misconfiguration` `LINE_MISS_FAR` is real but is line
+attribution and missing route context, not playbook content. The dominant cold pool
+is `LINE_MISS_NEAR` at 28 entries — right code, within ±15, wrong exact line, with
+no run-5 finding citing the exact line for any of them. Misses are file-concentrated
+(top 3 files = 53% of localization misses), which is why four class-level
+interventions plateaued.
+
+---
+
 ## TESTED 2026-07-29 — localization investigation
 
 Full write-up and method: `../analysis/2026-07-29-localization-investigation.md`.
