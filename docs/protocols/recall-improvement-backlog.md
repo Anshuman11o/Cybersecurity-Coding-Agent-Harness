@@ -251,6 +251,32 @@ did not take regardless of what recall did. Also track share of empty lanes
 
 ---
 
+## ⚠ Read this before citing run 3 as a baseline
+
+The 2026-07-29 localization investigation
+(`../analysis/2026-07-29-localization-investigation.md`) found that **three
+source lines carry 23 of the 97 reachable entries**, and that whether those 23
+score turns on whether one finding at each line carries one class.
+
+Run 2 won 5 of those 23. Run 3 won **23 of 23**. Run 4 won 5.
+
+Excluding those three lines, run 3's recall is **34.2%** against run 2's
+**35.6%** — no better. **The +17-entry recall gain credited to F1 below came
+almost entirely from a single favourable draw on three lines**, not from a broad
+improvement. F1's localization gain outside them is real (58.9% → 67.1%); its
+recall headline is not.
+
+Two consequences for everything in this file:
+
+- Run 3 is an optimistic baseline; its configuration's *expected* recall is
+  roughly 11 entries below what it measured.
+- The headline metric carries **~10 points of run-to-run variance** from those
+  three labels. An A/B smaller than that cannot be read unless the hot lines are
+  reported separately. Run-to-run churn is otherwise about ±2 entries per 42.
+
+Located detail — which lines, which runs, which labels — is in the answer-key
+repo at `analysis/2026-07-29-localization-located.md`.
+
 ## CONFIRMED — from the run-2 analysis
 
 Baseline for these is run 2, on the 97 reachable entries: recall 32/97 = 33.0%,
@@ -664,15 +690,16 @@ hypotheses about *why* the model under-emits; H3 is a proposed *remedy*
 error.
 
 Its supporting evidence was the findings-density table above, and that table has
-a confound. The 2–3-finding bucket's 54.9% is substantially one file:
-`routes/login.ts` produced 2 findings and carries **11 ground-truth entries at a
-single line**, all 11 recalled. Excluding it:
+a confound. The 2–3-finding bucket's 54.9% is substantially **one file, which
+produced 2 findings and carries 11 ground-truth entries at a single line**, all
+11 recalled. (Which file is located evidence and lives in the answer-key repo,
+`analysis/2026-07-29-localization-located.md`.) Excluding it:
 
 | bucket | recall |
 |---|---:|
 | 1 finding | 31.0% (n=29) |
 | 2–3 findings, as reported | 54.9% (n=51) |
-| 2–3 findings, excluding `routes/login.ts` | **42.5% (n=40)** |
+| 2–3 findings, excluding that file | **42.5% (n=40)** |
 
 The gap shrinks from 23.9 points to **11.5**. Still directional, but weak at
 these sample sizes, and it no longer supports "more shots on goal" strongly
@@ -946,3 +973,63 @@ diagnostic.
   diff against `main` are part of run setup. A dispatch prompt in
   `prompts/dispatch/` records what was asked for; only the commit graph records
   what the run will execute.
+
+---
+
+## TESTED 2026-07-29 — localization investigation
+
+Full write-up and method: `../analysis/2026-07-29-localization-investigation.md`.
+Located evidence: answer-key repo, `analysis/2026-07-29-localization-located.md`.
+
+### P1 — Add cross-site scripting to the `injection` playbook — **WORKS, not shipped**
+
+The playbook claims to cover A03 "all variants" and contains no XSS content.
+OWASP 2021 merged XSS into A03 (CWE-79); every XSS entry in the benchmark is
+coded A03. Stored XSS is the widest part of the gap: the defect is introduced at
+the persistence point while the render sink sits in a file the lane cannot see.
+
+Measured (arm `expc`, real Luna run, 217 lanes, 92 entries): `injection`-class
+localization **14/18 → 18/18**. Hedging unchanged.
+
+### P2 — Add open redirect to the `ssrf` playbook — **WORKS, not shipped**
+
+The playbook covers A10 but is written entirely around outbound requests, with
+nothing on redirect destinations or weak allow-list matching (substring, prefix,
+suffix, unanchored pattern).
+
+Measured, same arm: `ssrf`-class localization **1/3 → 3/3**.
+
+Combined P1+P2: FILE_ONLY 13 → 4, category-blind localization 90.2% → 93.5%,
+11 entries gained category-aware localization, 6 became exact-line hits,
+hedging 1.550 → 1.536.
+
+### P3 — Authentication-outcome anchor in `crypto-auth` — **WORKS, not shipped**
+
+`crypto-auth` described defects *in* auth mechanisms only. A defect of another
+class sitting on an authentication path also establishes A07. This is the lever
+for the hot lines described at the top of this file.
+
+Measured (three highest-multiplicity lanes, 4 repeats each): cells producing the
+needed class at the exact line **7/12 → 11/12**. Hedging did not rise
+(1.704 vs 1.800 on the same files) while findings per lane rose 1.67 → 2.25.
+
+### W1 — Window long files into multiple lanes — **FALSIFIED**
+
+The obvious reading of the length/recall correlation. Stage 2 already implements
+multi-chunk lanes; only `SINGLE_PASS_LINE_BUDGET = 2000` stops them firing.
+
+Tested with a matched control (arm `expa` whole-file vs arm `expb` at a 120-line
+window, same 180 files, 417 chunks vs 180): findings/file +39%, trace-lines/file
++35%, files with ≥3 findings doubled — and **category-aware localization was
+identical (25/42) while category-blind localization fell 76.2% → 71.4%**. The
+largest file went from 6 findings to 19 and its miss count rose.
+
+Windowing produces more findings about what the model already reports.
+**Do not lower `SINGLE_PASS_LINE_BUDGET`.**
+
+### R1 — Add A03 to `client-side`'s codes — **correct, worth zero**
+
+`LLM05` appears zero times in the ground truth, so `client-side` findings can
+never score. Adding A03 is right on the OWASP mapping. Simulated offline against
+run 3: **no entry moves** — 12 of 13 `client-side` findings already co-label
+`injection` and so already carry A03. Cleanup only.

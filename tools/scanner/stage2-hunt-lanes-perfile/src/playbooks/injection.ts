@@ -2,10 +2,10 @@ export const playbook = `
 Playbook for Injection (OWASP A03)
 ===================================
 
-Scope: Detect any form of injection where untrusted input is interpreted as code, queries, or commands by the executing runtime.
+Scope: Detect any form of injection where untrusted input is interpreted as code, queries, or commands by the executing runtime, or as markup or script by a browser that later renders it.
 
 ## OWASP Categories Covered
-- OWASP A03: Injection (all variants: SQL, NoSQL, OS command, LDAP, XPath, SSTI, code execution, etc.)
+- OWASP A03: Injection (all variants: SQL, NoSQL, OS command, LDAP, XPath, SSTI, code execution, and cross-site scripting — reflected, stored/persisted, and DOM-based)
 
 ## Sink Patterns to Hunt For
 
@@ -26,11 +26,21 @@ Scope: Detect any form of injection where untrusted input is interpreted as code
 8. Dynamic code evaluation: eval(), dynamic function construction, or any mechanism that interprets a string as executable code where the string contains user-influenced content.
 9. Dynamic module/class loading or import where the module path or class name is user-controlled.
 
+### Cross-Site Scripting
+Cross-site scripting is an A03 injection: the interpreter is the browser and the injected structure is markup or script.
+
+10. Reflected: a request value (query parameter, path segment, header, body field) echoed into an HTML, JSON-in-HTML, or script response without context-appropriate output encoding.
+11. Stored / persisted: user-controlled text written to a datastore, model attribute, file, or cache without validation or encoding, and rendered somewhere later. **Report this at the persistence point.** A model field, column definition, schema entry, or setter that accepts free-form user text with no sanitization, encoding, or allow-list is where a stored XSS is introduced — the rendering sink is usually in a different file, and frequently a different language, so you will not see it from here. Absence of the visible sink is not absence of the defect; say in the trace that the render sink is outside this file.
+12. Data-shape fields that are conventionally trusted downstream — display names, titles, comments, descriptions, filenames, URLs, IP or user-agent strings captured from request headers — are the usual carriers. A URL or path stored without scheme validation can carry \`javascript:\` or \`data:\` and become script at render time.
+13. Any value interpolated into an HTML document, inline script, or event-handler attribute during server-side rendering or string assembly, where encoding is absent or applied for the wrong context.
+
 ## Distinguishing Real Findings from False Positives
 - Parameterized queries (bind variables, placeholders, named parameters) are SAFE. The database or query engine treats bound values as data, never as executable structure.
 - ORM methods that take structured query objects (not raw strings) are generally safe because the ORM handles parameterization internally.
 - Input validation (length caps, type checks, character allow-lists) is NOT a sanitizer for injection. It may make exploitation harder but does not close the vulnerability class unless it definitively prevents the injection mechanism (e.g., rejecting all non-numeric input for a field that must be numeric).
 - Escaping functions are a weaker control than parameterization and can still fail in edge cases (encoding tricks, charset mismatches, double-decoding).
+- For XSS: a framework that auto-escapes by default is a valid control, and an unescaped value inside a template that auto-escapes is not a finding. An explicit bypass of that escaping, or assembly of markup by string concatenation outside the template engine, is.
+- For stored XSS: type or length constraints on a persisted field are not encoding. A field typed as free-form text with no sanitization hook remains a finding even though the value is inert until it is rendered.
 - A finding requires demonstrating that user-influenced input reaches a code-interpreting sink without an intervening parameterization, allow-list, or other effective control.
 
 ## Hunting Discipline

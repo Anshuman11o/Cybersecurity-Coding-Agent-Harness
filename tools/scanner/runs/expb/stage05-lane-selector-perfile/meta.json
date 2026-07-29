@@ -1,0 +1,11 @@
+{
+  "provider": "expb",
+  "model": "gpt-5.6-luna",
+  "stage": "stage05-lane-selector-perfile",
+  "git_sha": "experiment",
+  "started": "1970-01-01T00:00:00.000Z",
+  "ended": "1970-01-01T00:00:00.000Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}

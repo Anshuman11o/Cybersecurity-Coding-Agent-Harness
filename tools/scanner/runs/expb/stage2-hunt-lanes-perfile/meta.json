@@ -1,0 +1,11 @@
+{
+  "provider": "expb",
+  "model": "gpt-5.6-luna",
+  "stage": "stage2-hunt-lanes-perfile",
+  "git_sha": "48820d9",
+  "started": "2026-07-29T03:32:44.833Z",
+  "ended": "2026-07-29T03:48:12.224Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
