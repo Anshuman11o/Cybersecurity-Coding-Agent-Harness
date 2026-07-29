@@ -210,7 +210,7 @@ included in the proposal.
 ## 3. The finding that reframes the baseline
 
 The benchmark is not uniformly distributed over locations. **Three source lines
-carry 23 of the 97 reachable entries (23.7%)** — one carries 11 by itself.
+carry 24 of the 97 reachable entries (24.7%)** — one carries 11 by itself.
 Whether those 23 score depends on whether *one finding at each of three lines*
 carries *one class*.
 
@@ -218,9 +218,9 @@ Tracking those three lines across every v2 run:
 
 | run | entries won from the three lines | recall/97 | recall excluding those lines |
 |---|---|---|---|
-| run 2 | 5/23 | 33.0% | 35.6% |
-| **run 3** | **23/23** | **50.5%** | **34.2%** |
-| run 4 | 5/23 | 30.2% | 31.9% |
+| run 2 | 6/24 | 33.0% | 35.6% |
+| **run 3** | **24/24** | **50.5%** | **34.2%** |
+| run 4 | 6/24 | 30.2% | 31.9% |
 
 **Run 3's recall on the rest of the benchmark is not better than run 2's — it is
 marginally worse (34.2% vs 35.6%).** The entire +17-entry recall gain credited

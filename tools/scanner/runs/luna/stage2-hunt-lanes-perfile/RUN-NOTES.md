@@ -60,8 +60,8 @@ bucket collapsed **13 → 2**. `injection`-class localization is 18/18 and
 `ssrf`-class 3/3, both exactly as the pre-run arm predicted.
 
 **Recall fell 50.5% → 43.3%, and that is not a detection regression.** Three
-ground-truth lines carry 23 of the 97 reachable entries; run 3 won all 23 and
-run 5 won 15. That −8 accounts for the entire delta. Excluding those three
+ground-truth lines carry 24 of the 97 reachable entries; run 3 won all 24 and
+run 5 won 16. That −8 accounts for the entire delta. Excluding those three
 lines, recall is flat (34.2% → 35.6%) and localization is 67.1% → 74.0%, the
 best of any run.
 

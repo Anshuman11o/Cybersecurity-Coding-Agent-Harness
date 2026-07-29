@@ -43,20 +43,20 @@ repo does the conversion. `scanner.jsonl` keeps its original lines and adds
 Those two facts have one cause, and it is not detection — see the hot-line
 table below before comparing any two runs in this file.
 
-### ⚠ Three lines carry 23 of the 97 entries
+### ⚠ Three lines carry 24 of the 97 entries
 
-Whether ~23 entries score turns on whether one finding at each of three
+Whether 24 entries score turns on whether one finding at each of three
 ground-truth locations carries one class. Which lines they are is located
 evidence and lives in the answer-key repo.
 
 | run | entries won from those three lines | recall | recall **excluding** them |
 |---|---|---|---|
-| Run 2 | 5/23 | 33.0% | 35.6% |
-| Run 3 | **23/23** | 50.5% | 34.2% |
-| Run 4 | 5/23 | 29.9% | 31.9% |
-| Run 5 | 15/23 | 43.3% | **35.6%** |
+| Run 2 | 6/24 | 33.0% | 35.6% |
+| Run 3 | **24/24** | 50.5% | 34.2% |
+| Run 4 | 6/24 | 29.9% | 31.9% |
+| Run 5 | 16/24 | 43.3% | **35.6%** |
 
-Run 3 drew all 23 and run 5 drew 15; that −8 is the whole recall delta between
+Run 3 drew all 24 and run 5 drew 16; that −8 is the whole recall delta between
 them. **Excluding those lines, run 3's recall (34.2%) is no better than run 2's
 (35.6%), and run 5 matches run 2 while localizing far better:**
 
@@ -86,7 +86,7 @@ Category-blind, and the emission diagnostics:
 | Localization, category-blind | 79/97 = 81.4% | 84/97 = 86.6% | 86/97 = 88.7% | 79/97 = 81.4% | **87/97 = 89.7%** |
 | Precision proxy, category-blind | 22.3% | 20.3% | 18.4% | 22.5% | 19.1% |
 | Findings | 247 | 354 | **407** | 311 | 392 |
-| Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** | 202/541 = 37.3% | 245/541 = 45.3% |
+| Lanes emitting ≥1 finding | 182/541 = 33.6% | 228/541 = 42.1% | **250/541 = 46.2%** | 202/541 = 37.3% | 244/541 = 45.1% |
 | Utilisation (emitted ÷ assigned classes) | — | — | **0.310** | 0.267 | 0.303 |
 | Findings below confidence 0.7 | 0 | 109 (min 0.28) | 131 (min 0.28) | 94 | 117 |
 | Max classes on one finding | 2 (capped) | 3 | **4** | 4 | 3 |
@@ -146,7 +146,7 @@ the pre-run subset arm predicted. Category-blind localization 88.7% → 89.7%.
 
 **What did not.** Headline recall fell 50.5% → 43.3%. This is hot-line
 variance, not a detection regression: run 3 won 23/23 of the three-line pool and
-run 5 won 15/23, and that −8 accounts for the whole delta. Excluding those
+run 5 won 16/24, and that −8 accounts for the whole delta. Excluding those
 lines, recall is flat (34.2% → 35.6%) and localization rose 67.1% → 74.0%.
 
 The `crypto-auth` anchor is **partially** effective, consistent with its own
@@ -157,7 +157,7 @@ measured at 3/4 in the probe, so a miss is the expected one-in-four.
 ≈86.6% and recall ≈56.7%; measured 80.4% and 43.3%. The localization projection
 counted arm C's +11 gained without its offsetting losses (the run gained 11 and
 lost 6, net +5); the recall projection assumed the anchor would hold ~21/23
-hot-line entries where it held 15/23.
+hot-line entries where it held 16/24.
 
 ---
 
