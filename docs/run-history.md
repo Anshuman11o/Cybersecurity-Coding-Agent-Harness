@@ -156,7 +156,7 @@ measured at 3/4 in the probe, so a miss is the expected one-in-four.
 **Projections were too optimistic.** The investigation projected localization
 ≈86.6% and recall ≈56.7%; measured 80.4% and 43.3%. The localization projection
 counted arm C's +11 gained without its offsetting losses (the run gained 11 and
-lost 6, net +5); the recall projection assumed the anchor would hold ~21/23
+lost 6, net +5); the recall projection assumed the anchor would hold ~22/24
 hot-line entries where it held 16/24.
 
 ---
