@@ -6,7 +6,7 @@ everything else is a candidate with its evidence attached so the decision can be
 made on numbers rather than intuition. Items marked **SHIPPED** are already in
 the tree and need no further work.
 
-Baseline being improved on: recall **37/98 = 37.8%**, localization 66.3%,
+Baseline being improved on: recall **37/97 = 38.1%**, localization 67.0%,
 file-level 94.9%, precision proxy 15.4% category-aware, cost $4.64.
 
 ### ⚠ The baseline ran without three dispatched changes
@@ -253,8 +253,10 @@ did not take regardless of what recall did. Also track share of empty lanes
 
 ## CONFIRMED — from the run-2 analysis
 
-Baseline for these is run 2: recall 32/98 = 32.7%, localization 58.2%,
-category-blind recall 48.0%, hedging 1.240. See `../run-history.md`.
+Baseline for these is run 2, on the 97 reachable entries: recall 32/97 = 33.0%,
+localization 58.8%, category-blind recall 48.5%, hedging 1.240. One of the 98
+answer-key entries is in a denylisted file and can never be cited, so every
+ground-truth denominator here is 97. See `../run-history.md`.
 
 ### F1 — Stop the playbooks instructing a single label — **SHIPPED**
 
@@ -326,8 +328,8 @@ The targeted work from `95cd259` is unaffected — misconfiguration keeps its sw
 procedure and insecure-design its de-suppressed scope line, since neither lived
 in the deleted section.
 
-**Known risk accepted with this choice.** misconfiguration (41.2% → 58.8%) and
-insecure-design (15.4% → 38.5%) were the only two classes to improve in run 2,
+**Known risk accepted with this choice.** misconfiguration (7/17 → 10/17) and
+insecure-design (2/12 → 5/12) were the only two classes to improve in run 2,
 and both had targeted adjacency bullets. Deleting the section may give part of
 that back. Watch those two classes specifically; if they regress, the bullets
 were carrying real guidance and should return without the singular closer.
@@ -336,7 +338,7 @@ were carrying real guidance and should return without the singular closer.
 sit one label away from a hit, with position already correct.
 
 **Verification:** hedging rate must rise from 1.240; co-label share must rise per
-class; scored recall must converge toward category-blind recall (48.0%), which is
+class; scored recall must converge toward category-blind recall (47 entries), which is
 the ceiling this change can reach. If hedging rises and scored recall does not,
 the labels are wider without being righter and the change should be reverted.
 
@@ -351,12 +353,12 @@ nothing upstream moved.
 | Co-label share | rise per class | **rose in 10 of 12** (fell only `logging-monitoring` 35%→21%; `ssrf` flat at 0%) |
 | Recall converges on category-blind | — | **gap 15.3 → 3.1 points** |
 
-Recall 32/98 → 49/98, localization 57/98 → 73/98. The revert condition did not
+Recall 32/97 → 49/97, localization 57/97 → 73/97. The revert condition did not
 trigger.
 
 **Correction 1 — "the ceiling this change can reach" was wrong, because F1 was
-not label-only.** Category-blind recall was expected to stay at 48.0%; it rose to
-53.1%, with findings 354 → 407 and producing lanes 228 → 250. Deleting the whole
+not label-only.** Category-blind recall was expected to stay at 47 entries; it rose
+to 52 (48.5% → 53.6% on the 97 basis), with findings 354 → 407 and producing lanes 228 → 250. Deleting the whole
 section removed 22% of playbook text, which changes what the model *hunts for*,
 not only how it labels. The "adds no detection" prediction was inherited from the
 reword proposal and does not hold for the delete. **A section deletion is never a
@@ -366,12 +368,12 @@ moves.**
 **Correction 2 — most of the headline is one line.** The 49 hits span 23 distinct
 locations against run 2's 32 over 24. The benchmark's 11-entry location went 1/11
 → 11/11, which is 10 of the 17-point gain; `crypto-auth` 0/25 → 19/25 is
-predominantly the same line. Excluding it, recall rose 31/87 → 38/87 (+8.1
+predominantly the same line. Excluding it, recall rose 31/86 → 38/86 (+8.2
 points) — real, broad, and about half the headline. This is exactly the failure
 mode `eval-howto.md` warns about, in the direction that flatters the change.
 
-**The foreseen regression landed.** misconfiguration 58.8% → 47.1%,
-insecure-design 38.5% → 30.8%, with category-blind localization holding in both.
+**The foreseen regression landed.** misconfiguration 10/17 → 8/17,
+insecure-design 5/12 → 4/12, with category-blind localization holding in both.
 Per the paragraph above, the bullets carried real guidance. **Next action: restore
 the misconfiguration and insecure-design adjacency bullets without the singular
 closer** — F3, below the line. Restoring them everywhere would re-run the run-2
@@ -380,6 +382,90 @@ test.
 
 **Cost.** Precision proxy 20.3% → 18.4% category-blind, with no v2 validator to
 recover it. Findings below confidence 0.7 rose 109 → 131.
+
+### F3 — Force a per-class sweep before findings — **SHIPPED, measured by run 4**
+
+**Files:** `stage2-hunt-lanes-perfile/src/hunt-executor.ts`, `.../types.ts`.
+
+**The gap F1 could not close.** F1 drained `CATEGORY_MISS` 15 → 3 but barely moved
+`FILE_ONLY` 16 → 13, and the two buckets fail for different reasons. F1's
+instruction reads *"List every class ... that **this finding** establishes"* and
+sits in the Output Format block — it is a **serialization** rule, applied to a
+finding that already exists. `CATEGORY_MISS` is a serialization failure, so F1
+fixed it. `FILE_ONLY` is a **hunting** failure: no finding of that class was ever
+formed, and no serialization rule can conjure one.
+
+The only per-class sweep anywhere in the prompt was the empty-array guard —
+*"If you are about to return an empty array, re-read the file once against your
+assigned class list"* — which fires **only when zero findings are emitted**. All
+13 `FILE_ONLY` lanes emitted at least one finding, so it never ran for any of
+them.
+
+**The scale of what is not being checked.** Across 541 hunt lanes Stage 0.5
+assigns **3,005 lane-class pairs; only 503 produced anything — 16.7%.** Utilisation
+per producing lane is 0.310, and **0 of 250** producing lanes emitted every
+assigned class. Today "checked and clean" and "never looked" are indistinguishable,
+which is why neither the playbooks nor Stage 0.5's assignment can be tuned.
+
+| class | assigned | emitted | used |
+|---|---|---|---|
+| logging-monitoring | 541 | 32 | 5.9% |
+| misconfiguration | 541 | 88 | 16.3% |
+| insecure-design | 541 | 103 | 19.0% |
+| injection | 213 | 20 | 9.4% |
+| ssrf | 156 | 6 | 3.8% |
+| vulnerable-components | 4 | 0 | 0.0% |
+
+**The change, in three parts.** All three are required; any one alone fails.
+
+1. **Schema — `class_sweep` declared *first*, before `findings`.** The ordering is
+   the mechanism, not decoration. Generation is autoregressive, so a sweep emitted
+   first means the findings are generated *conditioned on* those verdicts.
+   Declared last it is post-hoc narration: observable, but changing nothing.
+   Each entry is `{class, verdict: found|absent, evidence_line, reason}`.
+   `evidence_line` is 0 when absent — `strict` mode forbids optional fields.
+2. **Prompt — a procedure with an order**, replacing the empty-array guard:
+   work the assigned list in order, one verdict per class, `absent` requires
+   naming the construct examined *in this file*, findings only after every class
+   has a verdict.
+3. **Mechanical invariants**, recorded per lane in `class-sweep.json`:
+   `missing_classes`, `offlist_classes`, `duplicate_classes`,
+   `inconsistent_classes` (named in a finding but not swept `found`),
+   `found_without_finding`. **Recorded, not enforced** — dropping findings on an
+   inconsistent sweep would move recall for a reason unrelated to the hypothesis.
+   Enforce once the base rates are known.
+
+**The ordering assumption was verified, not assumed.** A single live lane against
+`gpt-5.6-luna` returned key order `class_sweep, findings` (indices 1 and 1116),
+all assigned classes swept, and `absent` reasons that cite specific lines. Had the
+provider reordered keys, the fallback is a two-call design — sweep, then findings
+conditioned on it — which costs roughly double the input.
+
+**Cost.** Sweep output is ~110–170 tokens/lane on top of ~709, so ≈ +$0.35–0.55
+against run 3's $5.48. Output tokens ~+20%; input essentially unchanged.
+
+**Verification, and the control that decides attribution:**
+
+- utilisation must rise from **0.310**; `FILE_ONLY` must fall from **13**
+- category-aware localization should rise toward **86**, and **category-blind
+  localization must stay flat at 86** — 86 is the arithmetic ceiling for
+  labelling-only work (the blind−aware gap of 13 is exactly
+  `9 FILE_ONLY + 3 CATEGORY_MISS + 1 LINE_MISS_FAR`). **If category-blind
+  localization also rises, the change added detection and the result is confounded
+  — report it that way rather than claiming a clean labelling win.** This is
+  precisely the trap F1 fell into.
+- precision proxy is 11.8% category-aware with no v2 validator to recover it;
+  forcing consideration of every class will raise emission. Watch it with hedging
+  and co-label share.
+- **Revert if** utilisation rises but `FILE_ONLY` does not — the sweep is being
+  filled in without changing what is hunted.
+
+**Second-order value.** A class swept `absent` in ~95% of the lanes it is assigned
+to is being over-assigned by the signal→class map, and can be dropped from those
+lanes to reclaim prompt budget. `logging-monitoring` (5.9%) and `ssrf` (3.8%) are
+the first candidates — but only the sweep distinguishes over-assignment from
+under-hunting. The `found` verdicts with line citations should also be useful to
+the patcher; treat `absent` reasons more carefully, as they are unverified claims.
 
 ### F2 — Anchor access-control to the authorization decision
 
@@ -591,7 +677,7 @@ regresses against the 37.8% baseline.
 34 of the 61 misses are **right file, right class, wrong line** — 55.7% of all
 misses and the largest recoverable pool. **26 of the 34 are within ±5 lines.**
 
-D3's ceiling is today's localization: **65/98 = 66.3%**. It converts *localized*
+D3's ceiling is today's localization: **65/97 = 67.0%**. It converts *localized*
 into *recalled*; it cannot find anything new.
 
 #### It is not an off-by-one bug — checked
@@ -775,8 +861,11 @@ diagnostic.
 
 ## Constraints any change must respect
 
-- **The 97/98 ceiling stands.** `data/datacreator.ts` is denylisted and holds
-  one ground-truth entry. Do not "fix" recall by re-hunting it.
+- **The denominator is 97, and the ceiling is 97/97.** `data/datacreator.ts` is
+  denylisted and holds one ground-truth entry that no finding can ever cite. As
+  of 2026-07-29 that entry is excluded from every ground-truth denominator rather
+  than scored as a permanent miss — so a perfect run reads 97/97, not 97/98. Do
+  not "fix" recall by re-hunting it; the fix was to stop counting it.
 - **Comparability.** The next run must be diffed against
   `scanner-2026-07-28-luna-a`, not against `scanner-2026-07-27-a/-b` — those
   were not blind. Report hedging rate alongside any recall figure.

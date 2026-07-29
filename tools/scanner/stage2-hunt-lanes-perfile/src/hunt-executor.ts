@@ -56,6 +56,8 @@ import type {
   RunLevelRollupV2,
   VulnClassRegistry,
   FindingClassRef,
+  ClassSweepEntry,
+  LaneClassSweep,
 } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -148,11 +150,44 @@ function codesToClasses(codes: string[]): string[] {
 
 // ── Structured output schema (per-lane, built dynamically) ──────────────
 
-function buildHuntSchema(classIds: string[]): Record<string, unknown> {
+/**
+ * `class_sweep` is declared FIRST, and that order is load-bearing rather than
+ * cosmetic.
+ *
+ * Generation is autoregressive: under `strict` structured output the model
+ * emits keys in the order this schema declares them, so a sweep declared first
+ * is written before any finding exists, and the findings are then generated
+ * conditioned on those verdicts. Declared last, the model has already committed
+ * to its findings and the sweep degrades into post-hoc narration — observable,
+ * but with no effect on what gets hunted.
+ *
+ * `minItems: 1` only; there is deliberately no `maxItems` on either array. The
+ * natural bound on both is the lane's own assigned class list, which the `enum`
+ * already enforces.
+ */
+export function buildHuntSchema(classIds: string[]): Record<string, unknown> {
   return {
     type: 'object',
     additionalProperties: false,
     properties: {
+      class_sweep: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            class: { type: 'string', enum: classIds },
+            verdict: { type: 'string', enum: ['found', 'absent'] },
+            // 0 when verdict is "absent". `strict` mode requires every property
+            // to be present and non-nullable, so this is a sentinel rather than
+            // an optional field.
+            evidence_line: { type: 'integer' },
+            reason: { type: 'string' },
+          },
+          required: ['class', 'verdict', 'evidence_line', 'reason'],
+        },
+      },
       findings: {
         type: 'array',
         items: {
@@ -196,7 +231,8 @@ function buildHuntSchema(classIds: string[]): Record<string, unknown> {
         },
       },
     },
-    required: ['findings'],
+    // Order matches `properties` — class_sweep before findings.
+    required: ['class_sweep', 'findings'],
   }
 }
 
@@ -414,13 +450,36 @@ Report findings in all three bands. A 0.2 finding is useful output; a withheld o
 
 Do not fabricate. Every finding must point at code that is actually present in the file in front of you, and every trace step must cite a real line.
 
-Subject to that, report what you see. An empty array is a strong claim — it says this file contains no weak control, no unvalidated input reaching a dangerous operation, and no defect of any assigned class. Most files in a real application do contain something. If you are about to return an empty array, re-read the file once against your assigned class list before you do.
+Subject to that, report what you see.
+
+## Class Sweep — do this before you write any finding
+
+Work through your assigned class list **in the order given above**. For each class in turn, re-read the file against that class's playbook and emit one \`class_sweep\` entry:
+
+- \`"verdict": "found"\` — this file contains at least one instance of the class. Set \`evidence_line\` to the line where it is clearest.
+- \`"verdict": "absent"\` — it does not. Set \`evidence_line\` to 0, and in \`reason\` name the specific construct you examined in **this** file and why it does not qualify.
+
+Every assigned class gets exactly one entry, in the order listed. Do not skip a class because it feels unlikely for this kind of file — an unlikely class is the one you are most likely to have missed, and deciding it is absent takes one line.
+
+"absent" is a real and useful answer. But it is a claim that you looked, so the reason must be specific to the code in front of you. A reason that would be true of any file is not a reason.
+
+Only when every assigned class has a verdict, write your findings. Any class you marked "found" must then appear in the \`finding_classes\` of at least one finding, and any class in a finding must have been swept "found".
+
+An empty \`findings\` array is a strong claim — it says every assigned class came back "absent". That is a legitimate outcome for a file that genuinely has none, and your sweep is where you show it.
+
+## Findings
 
 List every class from your assigned classes list that this finding establishes. There is no limit on how many, and the classes are not mutually exclusive — naming one never rules out another.
 
 Do not hold back. If you have some or enough evidence that more than one assigned class is involved, name them all. One statement is often several classes at once: a query that interpolates caller-controlled input while also comparing a password hashed with a broken algorithm is an injection finding and a crypto-auth finding, on the same line and the same trace. A render sink reached by attacker-controlled data is both an injection and a client-side finding. Choosing the single best label discards the others and gains nothing — a class you can see and do not name is a class you did not find.
 
 For each class you list, give the index of the trace step that establishes it.
+
+Each "class_sweep" entry must have:
+- "class": one of the class ids from your assigned classes list above
+- "verdict": "found" | "absent"
+- "evidence_line": NUMBER — the line establishing it when "found", 0 when "absent"
+- "reason": why, specific to this file
 
 Each finding must have:
 - "finding_classes": array of { "class": one of the class ids from your assigned classes list above, "justified_by_step": 0-based index into this finding's trace array }
@@ -581,7 +640,23 @@ async function huntLane(
   findings: CandidateFinding[];
   tokensUsed: number;
   chunkRecords: ChunkTokenRecord[];
+  sweep: LaneClassSweep;
 }> {
+  // An empty sweep, for the paths that return before any LLM call. Recorded
+  // rather than omitted so class-sweep.json has one entry per hunt lane and a
+  // missing lane is distinguishable from a lane that swept nothing.
+  const emptySweep = (): LaneClassSweep => ({
+    lane_id: lane.lane_id,
+    target_file: lane.target_file,
+    assigned_classes: [...classIds],
+    sweep: [],
+    missing_classes: [...classIds],
+    offlist_classes: [],
+    duplicate_classes: [],
+    inconsistent_classes: [],
+    found_without_finding: [],
+  })
+
   // Second line of defence behind Stage 0.5's denylist. The lane manifest is
   // machine-generated, but it is still the thing that decides what gets pasted
   // into a prompt — so the read goes through the corpus allowlist, which fails
@@ -594,7 +669,7 @@ async function huntLane(
     console.error(
       `  [${lane.lane_id}] [BLOCKED] Guard refused ${lane.target_file} — lane produces no findings`,
     )
-    return { findings: [], tokensUsed: 0, chunkRecords: [] }
+    return { findings: [], tokensUsed: 0, chunkRecords: [], sweep: emptySweep() }
   }
   const sanitized = sanitizePemPrivateKey(rawContent)
 
@@ -605,13 +680,14 @@ async function huntLane(
   const routeContextSection = renderRouteContext(routeContext)
 
   const allFindings: CandidateFinding[] = []
+  const sweepEntries: ClassSweepEntry[] = []
   let totalTokens = 0
   const chunkRecords: ChunkTokenRecord[] = []
 
   const chunks = lane.chunk_plan.chunks
   if (chunks.length === 0 && lane.disposition === 'hunt') {
     console.warn(`  [${lane.lane_id}] [WARN] No chunks but disposition is "hunt"`)
-    return { findings: [], tokensUsed: 0, chunkRecords: [] }
+    return { findings: [], tokensUsed: 0, chunkRecords: [], sweep: emptySweep() }
   }
 
   const schema = buildHuntSchema(classIds)
@@ -675,6 +751,23 @@ async function huntLane(
     } catch {
       console.log(`  [${lane.lane_id}] [WARN] chunk ${chunk.index} returned unparseable content`)
       continue
+    }
+
+    // Collect the sweep before the findings, mirroring the schema order. A
+    // chunked lane sweeps once per chunk; entries are concatenated and the
+    // per-lane reconciliation below dedupes on class.
+    if (Array.isArray((parsed as any).class_sweep)) {
+      for (const e of (parsed as any).class_sweep as ClassSweepEntry[]) {
+        if (!e || typeof e.class !== 'string') continue
+        sweepEntries.push({
+          class: e.class,
+          verdict: e.verdict === 'found' ? 'found' : 'absent',
+          evidence_line: typeof e.evidence_line === 'number' ? e.evidence_line : 0,
+          reason: typeof e.reason === 'string' ? e.reason : '',
+        })
+      }
+    } else {
+      console.log(`  [${lane.lane_id}] [WARN] chunk ${chunk.index} returned no class_sweep`)
     }
 
     if (parsed.findings && Array.isArray(parsed.findings)) {
@@ -747,7 +840,62 @@ async function huntLane(
     }
   }
 
-  return { findings: allFindings, tokensUsed: totalTokens, chunkRecords }
+  // ── Sweep reconciliation ────────────────────────────────────────────────
+  // Four invariants, all checked mechanically and none requiring the model to
+  // cooperate. They are RECORDED, not enforced: dropping a finding on an
+  // inconsistent sweep would change recall for a reason unrelated to the
+  // hypothesis under test, and the first run with the sweep needs a clean
+  // comparison against run 3. Enforce later, once the base rates are known.
+  const assignedSet = new Set(classIds)
+  const seen = new Map<string, ClassSweepEntry>()
+  const duplicateClasses: string[] = []
+  const offlistClasses: string[] = []
+  for (const e of sweepEntries) {
+    if (!assignedSet.has(e.class)) {
+      if (!offlistClasses.includes(e.class)) offlistClasses.push(e.class)
+      continue
+    }
+    if (seen.has(e.class)) {
+      if (!duplicateClasses.includes(e.class)) duplicateClasses.push(e.class)
+      // A chunked lane legitimately sweeps per chunk; "found" anywhere wins.
+      if (e.verdict === 'found' && seen.get(e.class)!.verdict !== 'found') seen.set(e.class, e)
+      continue
+    }
+    seen.set(e.class, e)
+  }
+
+  const missingClasses = classIds.filter(c => !seen.has(c))
+  const classesInFindings = new Set(
+    allFindings.flatMap(f => f.finding_classes.map(fc => fc.class)),
+  )
+  const inconsistentClasses = [...classesInFindings].filter(
+    c => seen.get(c)?.verdict !== 'found',
+  )
+  const foundWithoutFinding = [...seen.values()]
+    .filter(e => e.verdict === 'found' && !classesInFindings.has(e.class))
+    .map(e => e.class)
+
+  const sweptFound = [...seen.values()].filter(e => e.verdict === 'found').length
+  console.log(
+    `  [${lane.lane_id}] sweep: ${seen.size}/${classIds.length} classes, ` +
+    `${sweptFound} found, ${seen.size - sweptFound} absent` +
+    (missingClasses.length ? ` | MISSING ${missingClasses.join(',')}` : '') +
+    (inconsistentClasses.length ? ` | INCONSISTENT ${inconsistentClasses.join(',')}` : ''),
+  )
+
+  const sweep: LaneClassSweep = {
+    lane_id: lane.lane_id,
+    target_file: lane.target_file,
+    assigned_classes: [...classIds],
+    sweep: classIds.filter(c => seen.has(c)).map(c => seen.get(c)!),
+    missing_classes: missingClasses,
+    offlist_classes: offlistClasses,
+    duplicate_classes: duplicateClasses,
+    inconsistent_classes: inconsistentClasses,
+    found_without_finding: foundWithoutFinding,
+  }
+
+  return { findings: allFindings, tokensUsed: totalTokens, chunkRecords, sweep }
 }
 
 /**
@@ -1103,9 +1251,11 @@ function writeCheckpoint(
   outDir: string,
   findings: CandidateFinding[],
   consumption: BudgetConsumption[],
+  sweeps: LaneClassSweep[],
 ): void {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
+  const sweepPath = join(outDir, 'class-sweep.json')
 
   const findingsTmp = findingsPath + '.tmp'
   writeFileSync(findingsTmp, JSON.stringify(findings, null, 2) + '\n')
@@ -1114,6 +1264,10 @@ function writeCheckpoint(
   const consumptionTmp = consumptionPath + '.tmp'
   writeFileSync(consumptionTmp, JSON.stringify(consumption, null, 2) + '\n')
   renameSync(consumptionTmp, consumptionPath)
+
+  const sweepTmp = sweepPath + '.tmp'
+  writeFileSync(sweepTmp, JSON.stringify(sweeps, null, 2) + '\n')
+  renameSync(sweepTmp, sweepPath)
 }
 
 /**
@@ -1124,10 +1278,12 @@ function writeCheckpoint(
 function loadCheckpoint(outDir: string): {
   findings: CandidateFinding[]
   consumption: BudgetConsumption[]
+  sweeps: LaneClassSweep[]
   completedLaneIds: Set<string>
 } | null {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
+  const sweepPath = join(outDir, 'class-sweep.json')
 
   if (!existsSync(findingsPath) || !existsSync(consumptionPath)) {
     return null
@@ -1162,7 +1318,22 @@ function loadCheckpoint(outDir: string): {
     if (failedCount > 0) {
       console.log(`[RESUME] ${failedCount} lane(s) previously failed — they will be retried`)
     }
-    return { findings, consumption, completedLaneIds }
+    // class-sweep.json is deliberately NOT part of the resume gate. It arrived
+    // after the other two artifacts, so a checkpoint written by an earlier
+    // build has none — treating that as unresumable would force a full re-run
+    // at full cost. Sweeps for lanes already done are simply lost, which costs
+    // observability on those lanes and nothing else.
+    let sweeps: LaneClassSweep[] = []
+    if (existsSync(sweepPath)) {
+      try {
+        const raw = JSON.parse(readFileSync(sweepPath, 'utf-8'))
+        if (Array.isArray(raw)) sweeps = raw
+      } catch {
+        console.warn('[RESUME] class-sweep.json unreadable — sweeps for completed lanes are lost')
+      }
+    }
+
+    return { findings, consumption, sweeps, completedLaneIds }
   } catch {
     return null
   }
@@ -1413,10 +1584,12 @@ async function main() {
   let allFindings: CandidateFinding[] = []
   const consumptionReport: BudgetConsumption[] = []
   const laneRecordsV2: LaneTokenRecordV2[] = []
+  const classSweeps: LaneClassSweep[] = []
 
   const checkpoint = loadCheckpoint(outDir)
   if (checkpoint) {
     allFindings = checkpoint.findings
+    classSweeps.push(...checkpoint.sweeps)
     // Drop the previous failure records: those lanes are about to be retried,
     // and carrying them forward would leave two entries with the same lane_id.
     // reconcileV2() keys its lane map by lane_id with Map.set(), so a stale
@@ -1475,6 +1648,7 @@ async function main() {
         const elapsed = (Date.now() - t0) / 1000
 
         allFindings.push(...result.findings)
+        classSweeps.push(result.sweep)
 
         consumptionReport.push({
           lane_id: lane.lane_id,
@@ -1509,7 +1683,7 @@ async function main() {
         console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
         // ── Checkpoint: write results immediately after each lane ─────────
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, classSweeps)
       } catch (err: any) {
         console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
         // Marked failed, not merely zero-token. Without the flag this entry is
@@ -1524,7 +1698,7 @@ async function main() {
           failed: true,
           failure_reason: String(err?.message ?? err).slice(0, 300),
         })
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, classSweeps)
       } finally {
         sem.release()
       }
@@ -1550,7 +1724,7 @@ async function main() {
   }
 
   // Final legacy write (includes skip lanes in consumption)
-  writeCheckpoint(outDir, allFindings, consumptionReport)
+  writeCheckpoint(outDir, allFindings, consumptionReport, classSweeps)
 
   // ── v2 budget consumption output ────────────────────────────────────────
   const totalSourceBytes = laneRecordsV2.reduce((s, l) => s + l.file_bytes, 0)
@@ -1580,7 +1754,26 @@ async function main() {
   console.log(`Lanes processed: ${huntLanes.length} hunt, ${skipLanes.length} skip`)
   console.log(`Total tokens: ${consumptionReport.reduce((s, r) => s + r.tokens_used, 0).toLocaleString()}`)
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
-  console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)
+  console.log(`Output: ${join(outDir, 'class-sweep.json')}`)
+
+  // ── Sweep coverage banner ───────────────────────────────────────────────
+  // The whole point of the sweep is that "checked and clean" becomes
+  // distinguishable from "never looked". Print that distinction at the end of
+  // the run so it does not have to be recovered from the artifact afterwards.
+  const sweptLanes = classSweeps.filter(s2 => s2.sweep.length > 0).length
+  const assignedPairs = classSweeps.reduce((n, s2) => n + s2.assigned_classes.length, 0)
+  const sweptPairs = classSweeps.reduce((n, s2) => n + s2.sweep.length, 0)
+  const foundPairs = classSweeps.reduce(
+    (n, s2) => n + s2.sweep.filter(e => e.verdict === 'found').length, 0)
+  const lanesMissing = classSweeps.filter(s2 => s2.missing_classes.length > 0).length
+  const lanesInconsistent = classSweeps.filter(s2 => s2.inconsistent_classes.length > 0).length
+  const pct = (a: number, b: number) => b ? `${(100 * a / b).toFixed(1)}%` : 'n/a'
+  console.log(`Class sweep: ${sweptLanes}/${classSweeps.length} lanes swept`)
+  console.log(`  lane-class pairs assigned : ${assignedPairs}`)
+  console.log(`  ... swept                 : ${sweptPairs} (${pct(sweptPairs, assignedPairs)})`)
+  console.log(`  ... verdict "found"       : ${foundPairs} (${pct(foundPairs, assignedPairs)} of assigned)`)
+  console.log(`  lanes with a missing class      : ${lanesMissing}`)
+  console.log(`  lanes with an inconsistent class: ${lanesInconsistent}`)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

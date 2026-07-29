@@ -90,8 +90,41 @@ export interface CandidateFinding {
   confidence: number;           // 0-1
 }
 
+/**
+ * One verdict per assigned class, emitted BEFORE the findings array.
+ *
+ * `evidence_line` is 0 when `verdict` is "absent" — the schema runs under
+ * `strict: true`, where every property must be present and non-nullable, so a
+ * sentinel is used rather than an optional field.
+ */
+export interface ClassSweepEntry {
+  class: string;
+  verdict: 'found' | 'absent';
+  evidence_line: number;
+  reason: string;
+}
+
 export interface LaneHuntResponse {
+  class_sweep: ClassSweepEntry[];
   findings: CandidateFinding[];
+}
+
+/** Per-lane sweep record, persisted to class-sweep.json. */
+export interface LaneClassSweep {
+  lane_id: string;
+  target_file: string;
+  assigned_classes: string[];
+  sweep: ClassSweepEntry[];
+  /** Assigned classes with no sweep entry — the model skipped them. */
+  missing_classes: string[];
+  /** Sweep entries naming a class not assigned to this lane. */
+  offlist_classes: string[];
+  /** Classes duplicated in the sweep. */
+  duplicate_classes: string[];
+  /** Classes named in a finding but swept "absent" (or not swept at all). */
+  inconsistent_classes: string[];
+  /** Classes swept "found" that produced no finding. */
+  found_without_finding: string[];
 }
 
 export interface BudgetConsumption {

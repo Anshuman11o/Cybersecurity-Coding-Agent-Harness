@@ -12,7 +12,9 @@ today.** The patcher, verifier and Stage 4 output are designed, not built.
 
 The target is OWASP Juice Shop. Accuracy is scored against a fixed 98-entry
 answer key that lives in a **separate private repository** and is never present
-here. See `protocols/blind-development.md` — this is the constraint that shapes
+here. **Metrics are reported over 97 of those entries** — one sits in a
+denylisted file that no finding can ever cite, so it is unreachable by
+construction; see `protocols/eval-howto.md`. See `protocols/blind-development.md` — this is the constraint that shapes
 most of the repo's odd decisions, and it has been violated three times.
 
 ## The two "models", which are not the same thing
@@ -85,6 +87,8 @@ lane assignment is reproducible from the same recon output.
   seed denylist was correct in `shared/` and simply never wired into v2.
 - **Recall is location-weighted.** 98 entries sit at 67 locations; the three most
   crowded carry 24 between them. One line swings the headline by up to 11 points.
+- **The denominator is 97, not 98.** One entry is in a denylisted file and is
+  unreachable by construction. Reporting it as a miss understates every run.
 
 ## Where to go next
 

@@ -37,8 +37,15 @@ run's `candidate-findings.json` is still there, the new run skips every lane it
 already has, returns the old findings, and reports success. The log looks normal
 and the output is well-formed.
 
+The resume gate is `candidate-findings.json` + `budget-consumption.json` only.
+`class-sweep.json` is written alongside them but is deliberately *not* part of
+the gate, so a checkpoint from a build that predates the sweep is still
+resumable. Clear all three anyway.
+
     ls tools/scanner/runs/<provider>/stage2-hunt-lanes-perfile/
     # candidate-findings.json and budget-consumption.json must NOT be there
+    # class-sweep.json should go too — it is not part of the resume gate, but
+    # leaving it behind mixes one run's sweeps into the next run's artifact
 
 Invoke the `archive-run` skill first, confirm the archive is complete, then move
 the two files aside — do not delete until the archive is verified. Stage outputs

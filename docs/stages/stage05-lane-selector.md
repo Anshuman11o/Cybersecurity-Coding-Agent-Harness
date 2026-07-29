@@ -48,4 +48,5 @@ Stage 0's `architecture-summary.json` and `category-applicability.json`.
 
 ## Measured
 Assignment correctness against ground truth: does every ground-truth file get a
-hunt lane carrying a correct category? v2 currently scores 98/98.
+hunt lane carrying a correct category? v2 currently scores 97/97 — the 98th
+entry is in a denylisted file that is given a skip lane by design.

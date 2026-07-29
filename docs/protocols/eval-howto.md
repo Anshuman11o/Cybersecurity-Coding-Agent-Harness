@@ -9,7 +9,8 @@ numbers mislead if read plainly.
 The answer key is **not in this repository and must never be**. It lives in a
 separate private repo, attached to a session on demand:
 
-    <answer-key-repo>/answer-key.json  →  .benchmark_ground_truth   (98 entries)
+    <answer-key-repo>/answer-key.json  →  .benchmark_ground_truth   (98 entries,
+                                                                97 of them reachable)
 
 Entry shape: `challengeKey`, `category`, `file`, `line`, `owasp_codes`,
 `solveCondition`, `referenceCorrectFix`, `exploitTest`, `confidence`.
@@ -34,9 +35,9 @@ one above:
 
 | Metric | Position test | Denominator |
 |---|---|---|
-| **File-level** | same file | 98 entries |
-| **Localization** | same file, within ±15 lines | 98 entries |
-| **Recall** | same file, **exact line** | 98 entries |
+| **File-level** | same file | 97 reachable entries |
+| **Localization** | same file, within ±15 lines | 97 reachable entries |
+| **Recall** | same file, **exact line** | 97 reachable entries |
 
 Each has a **category-aware** and a **category-blind** form. Category-aware also
 requires the finding's `categories[]` (OWASP code strings) to intersect the
@@ -48,7 +49,7 @@ category-aware form.
 - *category-blind* = findings within ±15 lines of any entry / all findings
 - *category-aware* = same, plus a code intersection / all findings
 
-It is a proxy because a finding outside the 98 may still be a real defect; the
+It is a proxy because a finding outside the benchmark may still be a real defect; the
 benchmark cannot tell.
 
 **Hedging rate** = mean vulnerability classes per finding. Mandatory alongside
@@ -58,13 +59,38 @@ class model this was exactly 1.000.
 
 **Per-class recall** groups entries by class via `shared/vuln-classes.json`
 (code → class). An entry spanning two classes counts toward both, so the per-class
-totals sum to more than 98.
+totals sum to more than 97.
+
+### The denominator is 97, not 98
+
+The answer key holds 98 entries. **One of them sits in a file on `SEED_DENYLIST`**
+(`data/datacreator.ts`, which references challenge identifiers). Stage 0.5 gives
+that file a `skip` lane and `readCorpusFile()` refuses it, so no finding can ever
+cite it. It is unreachable *by construction* — a consequence of the
+blind-development boundary, not a scanner failure.
+
+Counting it in the denominator makes every run look ~1 point worse than it is and
+puts a permanently unattainable point between the scanner and the ≥90% target.
+**All metrics with a ground-truth denominator are reported over the 97 reachable
+entries.** Hits never change; only the denominator does.
+
+This is a reporting basis, not a code change. `score_scanner.py` still reads all
+98 and is unmodified — the re-base is applied when results are recorded, and
+`analysis/rebase-97.py` in the answer-key repo does the conversion for any run.
+
+Per-finding metrics — precision proxy in both forms, hedging, class distribution
+— are unaffected, because their denominator is findings, not entries. The only
+per-class denominator that shifts is `insecure-design` (13 → 12).
+
+Runs recorded before 2026-07-29 were published on the 98 basis. `run-history.md`
+carries both columns; `scanner.jsonl` keeps the original lines untouched and adds
+`*-rebased97` re-score lines, per the never-rewrite rule.
 
 ### A discrepancy to be aware of
 
 `eval-framework.md:57` defines localization as *"matched findings within
 line-slack / **file-matched findings**"*. What is implemented, and what every run
-so far reports, is **per ground-truth entry over all 98**. The implemented form is
+so far reports, is **per ground-truth entry over the full reachable set**. The implemented form is
 the more useful one and all runs are mutually comparable, but the doc and the
 practice disagree. Treat the implementation as authoritative until the doc is
 reconciled.
