@@ -43,11 +43,19 @@ localization unchanged — a 2-line shift is invisible to a ±15 window and fata
 exact-line recall. Fixed on 2026-07-29 with 7 regression tests. Runs 1–5 are left
 as published; add ~3 entries when comparing any of them to a post-fix run.
 
+**⚠ No run 6 exists. The full-pipeline combined-fix run was launched and died on
+`no credits remaining` — the OpenAI account is out of credits.** The `terra` and
+`luna-fixed` full manifests are staged and checkpoints cleared, so both runs are
+executable the moment credits are restored. The same wall is why `sol` is
+unmeasured; an earlier note attributing that to rate limiting was wrong — all 248
+of its 429s carried `no credits remaining`.
+
 **2. Every scored run used the cheapest tier of its model family.** `luna` was
 chosen on cost as "the smallest step up" from `qwen`. A 129-lane arm on `terra`,
 same prompts and same shared Stage 0, scored **50/82 = 61.0% recall against luna's
 36/82 = 43.9%** — +17.1 points, the largest measured effect in the project's
-history. Four runs of playbook and labelling work were tuned against a model that
+history. That arm completed cleanly (0 retries, 0 fatal) before credits ran out, so
+it stands; it is a 129-lane result, not a full run. Four runs of playbook and labelling work were tuned against a model that
 was itself the binding constraint.
 
 ## Scored runs, v2 per-file

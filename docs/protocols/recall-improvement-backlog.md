@@ -1013,8 +1013,17 @@ A 40-lane Claude-subagent arm on byte-identical prompts reached 66/97 = 68.0%
 recall and 90/97 = 92.8% localization — an upper bound, not a forecast (agent loop,
 not a single structured completion), but it brackets the effect from above.
 
-**`sol` is rate-limit-bound**: 205 retries and 35 fatal lanes by lane 39 at
-concurrency 8, where luna and terra had 0. Not measured, not cited.
+**`sol` is unmeasured for a billing reason, not a capability or rate-limit one.**
+205 retries and 35 fatal lanes, and all 248 of its 429s read `no credits
+remaining`. An earlier note here called it rate-limit-bound; that was wrong.
+**A 429 is not self-evidently a rate limit — read the message body before tuning
+concurrency against it.**
+
+**No full-pipeline combined run exists.** The 541-lane terra run was staged (tree
+verified by grep, manifests installed, checkpoints cleared, 91/91 guard tests) and
+died on the same credit wall. `terra` and `luna-fixed` full manifests remain
+staged. `luna-fixed` is the arm that separates the fix contribution from the model
+contribution — run it too, or the terra delta stays confounded.
 
 ### G3 — Trace-specificity instruction — **FALSIFIED**
 

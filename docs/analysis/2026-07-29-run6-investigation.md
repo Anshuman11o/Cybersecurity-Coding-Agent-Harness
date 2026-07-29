@@ -156,14 +156,35 @@ environment, so it was not run through the real provider path. The contrast is
 model-matched, the absolute level will not transfer unchanged. §4.1 is the result
 measured through the real pipeline.
 
-### 4.3 `sol` is rate-limit-bound at this concurrency — not measured
+### 4.3 `sol` and the full-pipeline run are blocked on API credits, not on capability
 
-`sol` was launched on the same 129-lane manifest and **abandoned**: 205 retries
-and **35 fatal lanes** by lane 39 at `HUNT_CONCURRENCY=8`, which luna and terra
-both cleared with 0 of each. Its rate limit is far below theirs. The partial
-output is degraded and **is not cited anywhere**; its checkpoint was moved out of
-the run tree so no later run can resume it. Sol needs a much lower concurrency and
-a fresh run.
+**Correction.** An earlier version of this document said `sol` was
+"rate-limit-bound at this concurrency". That was wrong, and the error is worth
+recording because it would have sent the next run down a false path.
+
+`sol` was launched on the same 129-lane manifest and abandoned after 205 retries
+and 35 fatal lanes. I read the 429s as rate limiting. They were not: **all 248 of
+them carry the message `You have no credits remaining`.** The OpenAI account
+exhausted its credits partway through that run. Sol's capability is untested for a
+billing reason, and lowering `HUNT_CONCURRENCY` would not have helped.
+
+The lesson generalises: **a 429 is not self-evidently a rate limit.** Read the
+message body before tuning concurrency against it. The runbook's concurrency
+guidance (§5 of `../protocols/running-a-scan.md`) assumes 429 means TPM
+saturation; that assumption held for every earlier run and does not hold here.
+
+The `terra` full 541-lane run — the combined-fix run this investigation was meant
+to end with — was launched and **died on the same wall**, with every lane retrying
+to exhaustion on `no credits remaining`. It produced no scoreable output. Its
+partial artifacts were moved out of the run tree so no later run can resume them,
+and the completed 129-lane terra arm was restored and re-verified to score
+identically (50/82, 1,330,522 tokens, `exit_code 0`).
+
+**What this means for the numbers in §4.1.** The 129-lane terra arm completed
+*before* credits ran out, with 0 retries and 0 fatal lanes, and its artifacts
+verify clean. That result stands. What does not exist is a full-pipeline
+combined-fix run, so the recommendation in §6 rests on a 129-lane real-pipeline
+measurement plus an offline counterfactual, not on a full run 6.
 
 ## 5. What was tested and rejected
 
@@ -203,6 +224,38 @@ turns that judgement question into a lookup. It is additive — it does not touc
 route context gets byte-identical text. **In the tree, unmeasured; do not claim it
 works.**
 
+## 5b. The combined-fix run was attempted and could not complete
+
+The investigation was supposed to end with one run carrying every surviving fix
+together, on the full 541 lanes. That run was set up and launched and did not
+produce a number:
+
+- Tree verified first, by grepping the source rather than trusting the commit log:
+  PEM line-count preservation present, registrar route context wired into
+  `huntLane`, specificity instruction absent.
+- Full 541-lane manifests installed for `terra` and for a `luna-fixed` arm (same
+  model as `luna`, separate artifact namespace so run 5's committed tree stays
+  untouched). The `luna-fixed` arm exists to separate "the fixes helped" from "the
+  model tier helped" — without it a terra-vs-run-5 delta confounds both.
+- Checkpoints cleared; 91/91 guard tests pass across all 4 manifests on disk.
+- Launched, and every lane failed on `no credits remaining`.
+
+**So the decomposition is incomplete, and I am not going to present it as if it is
+not.** What is measured, and what is not:
+
+| what | status |
+|---|---|
+| PEM fix, isolated | measured offline, deterministic: +3 entries on run 5 |
+| terra vs luna, both fixes in force, 129 real lanes | measured: 50/82 vs 36/82 |
+| registrar route context, isolated | **not measured** — it was in force for the terra arm but never varied against a matched control |
+| all fixes together, full 541 lanes | **not measured** — blocked on credits |
+| `luna-fixed` (fixes without the model change), full lanes | **not measured** — blocked on credits |
+| `sol` | **not measured** — blocked on credits |
+
+The `terra` and `luna-fixed` manifests, the `luna-fixed` registry entry, and the
+cleared checkpoints are all in place, so whoever has credits can execute both runs
+without repeating any setup.
+
 ## 6. Recommendation for run 6
 
 1. **Ship the §3 line-number fix.** A correctness bug, +3 entries, no cost, no
@@ -215,7 +268,12 @@ works.**
    unmeasured, and run 4's lesson was that two variables destroy attribution.
    Measure it after, on the 40-lane platform.
 4. **Do not ship the specificity instruction.**
-5. **Re-run `sol` separately** at much lower concurrency, once terra is scored.
+5. **Restore API credits first — nothing below is executable without them.** Then
+   run the two arms already staged: `terra` full and `luna-fixed` full. `luna-fixed`
+   is what separates the fix contribution from the model contribution; run it even
+   though it is the less interesting of the two.
+6. **Then measure `sol`**, which is untested for billing reasons, not capability
+   ones, and measure the registrar route context against a matched control.
 
 Everything the last four runs were tuning — playbook coverage, class labelling,
 lane topology — was being tuned against the family's cheapest tier. That is the
