@@ -211,7 +211,7 @@ included in the proposal.
 
 The benchmark is not uniformly distributed over locations. **Three source lines
 carry 24 of the 97 reachable entries (24.7%)** — one carries 11 by itself.
-Whether those 23 score depends on whether *one finding at each of three lines*
+Whether those 24 score depends on whether *one finding at each of three lines*
 carries *one class*.
 
 Tracking those three lines across every v2 run:

@@ -145,7 +145,7 @@ hedging *fell* 1.538 → 1.518 — the gain is better aim, not a wider net. The
 the pre-run subset arm predicted. Category-blind localization 88.7% → 89.7%.
 
 **What did not.** Headline recall fell 50.5% → 43.3%. This is hot-line
-variance, not a detection regression: run 3 won 23/23 of the three-line pool and
+variance, not a detection regression: run 3 won 24/24 of the three-line pool and
 run 5 won 16/24, and that −8 accounts for the whole delta. Excluding those
 lines, recall is flat (34.2% → 35.6%) and localization rose 67.1% → 74.0%.
 
