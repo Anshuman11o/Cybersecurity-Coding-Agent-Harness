@@ -210,17 +210,17 @@ included in the proposal.
 ## 3. The finding that reframes the baseline
 
 The benchmark is not uniformly distributed over locations. **Three source lines
-carry 23 of the 97 reachable entries (23.7%)** — one carries 11 by itself.
-Whether those 23 score depends on whether *one finding at each of three lines*
+carry 24 of the 97 reachable entries (24.7%)** — one carries 11 by itself.
+Whether those 24 score depends on whether *one finding at each of three lines*
 carries *one class*.
 
 Tracking those three lines across every v2 run:
 
 | run | entries won from the three lines | recall/97 | recall excluding those lines |
 |---|---|---|---|
-| run 2 | 5/23 | 33.0% | 35.6% |
-| **run 3** | **23/23** | **50.5%** | **34.2%** |
-| run 4 | 5/23 | 30.2% | 31.9% |
+| run 2 | 6/24 | 33.0% | 35.6% |
+| **run 3** | **24/24** | **50.5%** | **34.2%** |
+| run 4 | 6/24 | 30.2% | 31.9% |
 
 **Run 3's recall on the rest of the benchmark is not better than run 2's — it is
 marginally worse (34.2% vs 35.6%).** The entire +17-entry recall gain credited
@@ -249,9 +249,14 @@ the difference between them outside these lines was a couple of entries.
 what is in the tree for run 5.
 
 No architecture change, no new stage, no schema change, no change to Stage 0,
-0.5 or 1, no cost increase beyond ~0.2% more input tokens. The entire
-behavioural diff is three files under
+0.5 or 1. The entire behavioural diff is three files under
 `tools/scanner/stage2-hunt-lanes-perfile/src/playbooks/`.
+
+**Cost.** The three playbooks grow by 5,417 characters in total, which Stage 1
+projects as **+275,613 input tokens, +10.0%** (2,764,390 → 3,040,003) — about
+**+$0.28** on a $5.48 run. An earlier draft of this document said "~0.2%";
+that was wrong by a factor of fifty and is corrected here. The absolute cost is
+still small, but 10% is the number to plan against, not 0.2%.
 
 1. **`injection`**: add cross-site scripting — reflected, stored, and
    DOM-based — with an explicit instruction to report stored XSS at the

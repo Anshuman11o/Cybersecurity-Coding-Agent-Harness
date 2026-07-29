@@ -2,9 +2,9 @@
   "provider": "luna",
   "model": "gpt-5.6-luna",
   "stage": "stage2-hunt-lanes-perfile",
-  "git_sha": "c9e3e94",
-  "started": "2026-07-28T23:07:30.324Z",
-  "ended": "2026-07-28T23:24:42.899Z",
+  "git_sha": "c9c2cf0",
+  "started": "2026-07-29T16:55:07.667Z",
+  "ended": "2026-07-29T16:59:45.528Z",
   "exit_code": 0,
   "blocked_reads": 0,
   "degraded": false

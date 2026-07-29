@@ -255,10 +255,10 @@ did not take regardless of what recall did. Also track share of empty lanes
 
 The 2026-07-29 localization investigation
 (`../analysis/2026-07-29-localization-investigation.md`) found that **three
-source lines carry 23 of the 97 reachable entries**, and that whether those 23
+source lines carry 24 of the 97 reachable entries**, and that whether those 24
 score turns on whether one finding at each line carries one class.
 
-Run 2 won 5 of those 23. Run 3 won **23 of 23**. Run 4 won 5.
+Run 2 won 6 of those 24. Run 3 won **24 of 24**. Run 4 won 6.
 
 Excluding those three lines, run 3's recall is **34.2%** against run 2's
 **35.6%** — no better. **The +17-entry recall gain credited to F1 below came
