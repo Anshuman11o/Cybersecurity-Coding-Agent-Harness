@@ -383,7 +383,7 @@ test.
 **Cost.** Precision proxy 20.3% → 18.4% category-blind, with no v2 validator to
 recover it. Findings below confidence 0.7 rose 109 → 131.
 
-### F3 — Force a per-class sweep before findings — **MEASURED BY RUN 4: FAILED, REVERT**
+### F3 — Force a per-class sweep before findings — **FAILED (run 4), REVERTED**
 
 **Files:** `stage2-hunt-lanes-perfile/src/hunt-executor.ts`, `.../types.ts`.
 
@@ -468,7 +468,16 @@ under-hunting. The `found` verdicts with line citations should also be useful to
 the patcher; treat `absent` reasons more carefully, as they are unverified claims.
 
 
-#### Result — run 4, `bab0ad2`. Hypothesis falsified. Revert the prompt and schema.
+#### Result — run 4, `bab0ad2`. Hypothesis falsified. **Reverted 2026-07-29.**
+
+The schema, prompt and invariants were reverted to run 3's source
+(`hunt-executor.ts` and `types.ts` restored from `c9e3e94`, byte-identical), and
+`runs/luna/` was restored to run 3's archived artifacts. **Run 3 is the baseline
+for both architecture and results.** Run 4's artifacts, logs, eval JSON and
+`class-sweep.json` are preserved in the answer-key repo under
+`runs/2026-07-29T02-23Z__stage0-2-v2-perfile-F3__luna__bab0ad2/` — the sweep file
+holds the model's explicit per-class reasoning for all 3005 lane-class pairs and
+is the most detailed record of *why* a class was declined that this project has.
 
 **The mechanism worked perfectly and changed nothing.** Sweep conformance across
 541 lanes: **3005/3005 lane-class pairs swept (100%)**, zero `missing`,
@@ -488,6 +497,13 @@ coverage went from an implicit ~17% to an explicit 100%.
 
 The stated revert criterion was "utilisation rises but FILE_ONLY does not".
 Utilisation did not even rise — it **fell**, 0.310 → 0.267. Unambiguous revert.
+
+**`LINE_MISS_NEAR` 24 → 18 is not a gain.** It is drainage downward: of run 3's
+24, only **1** improved to HIT, while **6** fell to `LINE_MISS_FAR` and **2** to
+`FILE_ONLY`. Run 4's 18 even contains **2 entries that fell from HIT**. Across the
+whole benchmark the run-3 → run-4 movement is **3 improved, 64 unchanged, 30
+worsened** — run 4 gained on no dimension. A bucket shrinking is only good news
+when its entries moved *up*; always check the transition, not the count.
 
 **Why it failed — two mechanisms.**
 

@@ -2,9 +2,9 @@
   "provider": "luna",
   "model": "deterministic",
   "stage": "stage1-budget-governor-perfile",
-  "git_sha": "bab0ad2",
-  "started": "2026-07-29T02:22:44.504Z",
-  "ended": "2026-07-29T02:22:44.570Z",
+  "git_sha": "c9e3e94",
+  "started": "2026-07-28T23:06:51.482Z",
+  "ended": "2026-07-28T23:06:51.548Z",
   "exit_code": 0,
   "blocked_reads": 0,
   "degraded": false

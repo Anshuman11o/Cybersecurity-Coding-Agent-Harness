@@ -123,9 +123,19 @@ considered. If kept it must be **non-binding** — drop the "any class in a find
 must have been swept `found`" rule so the sweep observes without gating — and the
 emission nudge must come back.
 
+**`LINE_MISS_NEAR` 24 → 18 is not a gain.** Of run 3's 24, only 1 improved to
+HIT; 6 fell to `LINE_MISS_FAR` and 2 to `FILE_ONLY`. Run 4's 18 includes 2 that
+fell from HIT. Whole-benchmark movement run 3 → run 4 is **3 improved, 64
+unchanged, 30 worsened**.
+
 **Cost of the experiment:** $6.46, the most expensive run so far, for a negative
 result. Worth it: it eliminates the most plausible remaining explanation for
 `FILE_ONLY` and redirects the next attempt.
+
+**Reverted 2026-07-29.** Source restored to run 3's (`c9e3e94`) byte-for-byte and
+`runs/luna/` restored to run 3's archived artifacts. Run 3 is the baseline for
+architecture and results alike. Run 4's artifacts, logs and `class-sweep.json`
+remain archived in the answer-key repo.
 
 ### Run 3 — 2026-07-28T23:07Z, `stage0-2-v2-perfile`, `luna`, `c9e3e94`
 
