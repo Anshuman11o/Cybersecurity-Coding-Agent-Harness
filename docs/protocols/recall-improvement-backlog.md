@@ -1025,7 +1025,39 @@ died on the same credit wall. `terra` and `luna-fixed` full manifests remain
 staged. `luna-fixed` is the arm that separates the fix contribution from the model
 contribution — run it too, or the terra delta stays confounded.
 
-### G3 — Trace-specificity instruction — **FALSIFIED**
+### G0 — The agent-arm platform has a +-14 entry noise floor — **READ FIRST**
+
+The combined arm ran 40/40 and scored recall 66/97 -> 74/97, localization 90/97 ->
+94/97 against its control. Then `cmp` showed **39 of the 40 prompts were
+byte-identical** — the registrar route context only adds text to a file that
+declares routes, and exactly one does.
+
+| | improved | worsened |
+|---|---|---|
+| on the 39 identical prompts | **11** | **3** |
+| on the one lane the fix changes | 2 | 0 |
+
+**Identical input moved 14 of 97 entries, net +8.** That is this instrument's noise
+floor: **+-14 entries, ~+-14 points on 97.** The project's prior +-2-per-42 figure
+came from a Luna arm (one structured completion per lane); an agent loop re-reads
+and revises, and is far noisier. The two are not interchangeable.
+
+**Consequences.** Any agent-arm A/B measuring under ~14 entries is unresolved. The
+registrar route context's attributable effect is +2 entries / 0 regressions on the
+lane it touches — directionally positive, too small to resolve here. G3 below is
+downgraded from falsified to unresolved.
+
+**Protocol additions, both now mandatory.** `cmp` the prompt sets and count
+differing lanes before reading any delta — if one lane differs, the arm speaks about
+one lane. And run a same-prompt repeat to establish the noise floor before
+interpreting an effect against it.
+
+### G3 — Trace-specificity instruction — **UNRESOLVED, not falsified**
+
+**Correction.** An earlier version of this entry called this falsified on a
+"3 improved / 7 worsened" split. That split sits inside G0's +-14 band. It is
+unresolved. It remains unshipped — there is no evidence *for* it — but it must not
+be cited as tested.
 
 The prompt gives no guidance on which line to cite, and the residual is dominated
 by findings that cite the construct containing a defect rather than the statement

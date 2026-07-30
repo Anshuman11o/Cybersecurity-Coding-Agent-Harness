@@ -188,7 +188,7 @@ measurement plus an offline counterfactual, not on a full run 6.
 
 ## 5. What was tested and rejected
 
-**Trace-specificity instruction — FALSIFIED.** The prompt says nothing about which
+**Trace-specificity instruction — UNRESOLVED (see §7; earlier called falsified).** The prompt says nothing about which
 line to cite for a defect, only "use these line numbers EXACTLY", which forbids
 inventing a number and is silent on choosing among real ones. Given §1's
 mechanism, an instruction to cite the innermost statement rather than the
@@ -267,7 +267,9 @@ without repeating any setup.
 3. **Keep it single-variable.** Do not bundle the registrar route context; it is
    unmeasured, and run 4's lesson was that two variables destroy attribution.
    Measure it after, on the 40-lane platform.
-4. **Do not ship the specificity instruction.**
+4. **Do not ship the specificity instruction** — but note §7: it is unresolved
+   rather than falsified, and re-testing it needs an instrument that can resolve
+   effects under ~14 entries.
 5. **Restore API credits first — nothing below is executable without them.** Then
    run the two arms already staged: `terra` full and `luna-fixed` full. `luna-fixed`
    is what separates the fix contribution from the model contribution; run it even
@@ -278,3 +280,77 @@ without repeating any setup.
 Everything the last four runs were tuning — playbook coverage, class labelling,
 lane topology — was being tuned against the family's cheapest tier. That is the
 finding.
+
+---
+
+## 7. The combined run — and a measurement error it exposed in my own arms
+
+The combined-fix arm finally ran (40/40 lanes, Claude subagents as the inference
+model, the platform the user asked for). Scored against the matched control:
+
+| arm | findings | recall | localization | blind loc | hedging | precision |
+|---|---|---|---|---|---|---|
+| control (PEM fix only) | 308 | 66/97 = 68.0% | 90/97 = 92.8% | 96.9% | 2.250 | 42.5% |
+| combined (+ registrar route context) | 322 | **74/97 = 76.3%** | **94/97 = 96.9%** | 99.0% | 2.140 | 43.5% |
+
+Transitions: 13 improved, 81 unchanged, 3 worsened, with hedging *falling* and
+precision *rising*. On its face that is a clean win on both targets.
+
+**It is not. Most of that delta is noise, and I nearly reported it as a result.**
+
+The registrar route context only adds text to a file that *declares* routes. In
+this 40-lane set exactly **one** file does. Verified with `cmp`: **39 of 40 prompts
+are byte-identical between the two arms**; only the registrar lane differs.
+
+So the movement splits:
+
+| | improved | worsened |
+|---|---|---|
+| on the 39 **byte-identical** prompts | **11** | **3** |
+| on the one lane the fix actually changes | **2** | **0** |
+
+Eleven of the fourteen movements happened on input that did not change. They cannot
+be the fix.
+
+### The calibration this yields, which the project did not have
+
+**Identical input moved 14 of 97 entries — 14.4%, net +8.** That is the run-to-run
+noise floor of this agent-based platform: **±14 entries, ≈±14 points on 97.**
+
+The project's prior variance estimate was ±2 entries per 42 (≈±4.6 points on 97),
+measured from a *Luna* arm — one structured HTTP completion per lane. An agent loop
+is a different and far noisier instrument: it re-reads, self-checks and revises, and
+those choices vary between runs. **The two numbers are not interchangeable, and I
+used the wrong one.**
+
+### What this forces me to retract
+
+- **The +8 recall headline is not the fix.** The registrar route context's
+  attributable effect is **+2 entries with 0 regressions**, on the single lane it
+  touches. Directionally positive, mechanistically consistent (the file that got
+  new text is the file that improved), and far too small for this platform to
+  resolve on its own.
+- **The trace-specificity instruction is NOT falsified.** I reported "3 improved,
+  7 worsened" as a falsification. That split sits *inside* a ±14 band. The honest
+  verdict is **unresolved**, not failed. It should not be described as tested.
+- **Any agent-arm A/B in this document measuring under ~14 entries is
+  unresolved**, including the §4.2 upper bound's precise value.
+
+### What still stands, and why
+
+- **The PEM line-number fix (+3 entries).** Measured by re-scoring run 5's actual
+  findings offline with the shift undone. No inference, no sampling, fully
+  deterministic — variance does not apply.
+- **The `terra` result (+14 entries on 82).** Measured through the real Stage 2:
+  one structured completion per lane, the regime where the project's ±2/42 estimate
+  applies. +14 is far outside that band. It was not repeated, so its own variance is
+  unbounded — but it is the strongest measured result here and the only one taken
+  through the production code path.
+
+### Methodological rule this earns
+
+**Before reading any arm delta, `cmp` the prompt sets and count how many lanes
+actually differ.** If the answer is "one", the arm can only speak about one lane,
+whatever the aggregate says. Pair that with a same-prompt repeat to establish the
+instrument's noise floor before interpreting any effect against it. Neither check
+was in the arm protocol; both are now.
