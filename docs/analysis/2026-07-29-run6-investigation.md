@@ -883,10 +883,17 @@ Bootstrap over the observed per-lane deltas:
 
 | paired lanes | median p | P(reaching p < 0.05) |
 |---|---|---|
-| 18 (what exists) | 0.313 | 18% |
-| 40 | 0.117 | 38% |
-| **80** | **0.003** | **85%** |
-| 120 | 0.001 | 95% |
+| 18 (what exists) | 0.25–0.31 | **10–18%** |
+| 30–40 | 0.12 | 33–38% |
+| 50 | 0.033 | 60% |
+| **80** | **0.004** | **86%** |
+| 120 | ~0.000 | 97% |
+
+Run twice at different precisions (60 bootstraps and 1,000) and the load-bearing
+rows agree closely: 80 lanes gives 85–86%, 120 gives 95–97%. The n=18 row is the
+noisiest and the higher-precision run puts current power at **10%** rather than the
+18% the quick pass suggested — so the existing sample is, if anything, slightly
+weaker than first reported. Nothing downstream changes.
 
 **Certification needs ~80–120 paired lanes — 160–240 single-lane agent calls, 8–13×
 the measurement already spent, for one prompt instruction.** That is the wrong
