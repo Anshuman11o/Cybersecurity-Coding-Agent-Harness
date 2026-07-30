@@ -851,3 +851,68 @@ exhausted** (`429 no credits remaining`, verified again at 12:21 UTC).
 Total measurement spent here: 6 full 40-lane arms, 6 single-lane replicates, and 12
 paired lane replicates — 24 independent lane-level observations plus six arms. The
 limit reached is the instrument's resolution, not the effort.
+
+---
+
+## 15. Doubling the sample — the effect holds, and the power requirement is now known
+
+§14's design was extended from 9 to 18 paired lane observations, adding the five
+untested near-miss lanes and repeating four tested ones. Same design: one agent per
+lane, lanes selected from the control arm's near-miss pool only, paired per lane.
+
+| | 9 pairs | **18 pairs** |
+|---|---|---|
+| near-miss entries covered | 19 | **33** |
+| control conversions | 5 (26.3%) | 8 (24.2%) |
+| trace conversions | 8 (42.1%) | **12 (36.4%)** |
+| lanes better / worse / tied | 3 / 1 / 5 | **4 / 1 / 13** |
+| sign test | p = 0.625 | p = 0.375 |
+| paired permutation test | p = 0.500 | **p = 0.313** |
+
+**The effect held as the sample doubled** — net +3 → +4, conversion advantage +15.8
+→ **+12.2 points** — and p moved 0.500 → 0.313, exactly the way a real effect
+behaves under added sample. It is still not significant.
+
+### Why, precisely — and what would fix it
+
+**13 of 18 lanes are ties.** Lanes carry only 1–3 near-miss entries each, so most
+show no change either way and contribute nothing to a paired test. The tie rate, not
+the effect size, is what starves the statistic.
+
+Bootstrap over the observed per-lane deltas:
+
+| paired lanes | median p | P(reaching p < 0.05) |
+|---|---|---|
+| 18 (what exists) | 0.313 | 18% |
+| 40 | 0.117 | 38% |
+| **80** | **0.003** | **85%** |
+| 120 | 0.001 | 95% |
+
+**Certification needs ~80–120 paired lanes — 160–240 single-lane agent calls, 8–13×
+the measurement already spent, for one prompt instruction.** That is the wrong
+instrument for the job, and now demonstrably so rather than merely suspected.
+
+**The real Stage 2 path is the cheaper instrument**: one independent structured
+completion per lane, no agent loop, no clustering, all 97 entries per run. Two full
+541-lane `luna` runs — control and control + trace completeness — cost about **$12
+together** and would settle in one pass what 240 agent calls would struggle to.
+That is blocked only on OpenAI credit.
+
+### Final state of trace completeness
+
+**Consistently positive across four independent designs, never certified:**
+
+| design | result |
+|---|---|
+| 40-lane arm | +8 recall, +5 localization; mechanism observable, precision up, findings down |
+| lane-level paired, 9 pairs | conversion 26.3% → 42.1% |
+| lane-level paired, 18 pairs | conversion 24.2% → **36.4%**, p = 0.313 |
+| registrar-file replicate triple | recall flat, localization variance collapsed to 8/8/8 |
+
+Four designs, one direction, no contradiction — and a known, quantified reason the
+p-value has not followed. It is in the tree, labelled unconfirmed, with the exact
+experiment that would confirm it written down.
+
+**This is the most that can honestly be said about a prompt-level fix on this
+benchmark with the instruments available, and it is now a measured statement rather
+than an impression.**
