@@ -785,3 +785,69 @@ separate prompt-level fixes for it produced zero confirmed recall gains, while a
 deterministic bug fix and a model-tier change produced two. On this benchmark, at this
 point, the remaining gap is not a prompting problem — it is a model-capability problem
 with a harness bug on top, and that is where run 6 should spend.
+
+---
+
+## 14. The properly-designed test of trace completeness
+
+§12's replicate test was criticised — correctly — for testing the wrong lane. The
+registrar file was the whole locus of the route-context fix, but trace completeness
+changes all 40 lanes and its conversions landed elsewhere. So a third design:
+
+- **unit = one lane answered by one agent**, so observations are independent (fixes
+  §11's clustering)
+- **lanes = those carrying the CONTROL arm's `LINE_MISS_NEAR` entries.** That
+  selection depends on the control alone, never on the treatment, so it is the locus
+  the mechanism predicts *chosen without looking at whether the treatment worked
+  there* — not circular
+- **paired per lane**, so per-lane difficulty cancels
+- **outcome = exact-line hits among that lane's near-miss entries**, which is exactly
+  what the instruction is supposed to convert
+
+| lane | near-miss entries | control hits | trace hits | Δ |
+|---|---|---|---|---|
+| `lib/insecurity.ts` | 2 | 0 | 2 | **+2** |
+| `models/feedback.ts` | 2 | 1 | 2 | **+1** |
+| `frontend/.../app.routing.ts` | 2 | 1 | 1 | 0 |
+| `models/user.ts` | 2 | 1 | 1 | 0 |
+| `routes/currentUser.ts` | 2 | 1 | 1 | 0 |
+| `routes/chat.ts` | 3 | 0 | 0 | 0 |
+| registrar file, rep 1 | 2 | 0 | 0 | 0 |
+| registrar file, rep 2 | 2 | 0 | 1 | **+1** |
+| registrar file, rep 3 | 2 | 1 | 0 | **−1** |
+| **total** | **19** | **5** | **8** | **+3** |
+
+**Conversion rate 26.3% → 42.1%.** Nine paired observations: 3 lanes better, 1 worse,
+5 tied. Sign test over lanes: **p = 0.625.**
+
+### The result, stated exactly
+
+**Direction positive, significance unreachable at this sample size.** Only 4 of 9
+lanes were discordant, and with 4 discordant pairs even a perfect 4–0 split gives
+p = 0.125. **This design cannot produce a significant result without roughly 10+
+discordant lanes**, which needs several times the replication budget available. The
+p-value here reports the sample size, not the absence of an effect.
+
+What has accumulated across three independent designs:
+
+| design | result |
+|---|---|
+| 40-lane arm (all prompts differ) | +8 recall, +5 localization, mechanism observable, precision up, findings down |
+| lane-level paired on the control's near-miss pool | conversion 26.3% → 42.1%, 3 lanes better / 1 worse |
+| registrar-file replicate triple | recall flat, localization variance collapsed to 8/8/8 |
+
+**Every design points the same way and none reaches significance.** That is the
+honest state: a mechanistically sound instruction with a consistently positive but
+uncertified effect.
+
+### What would settle it, and why I stopped
+
+The real Stage 2 path — one independent structured completion per lane, no agent
+loop, no clustering, and the regime where the project's ±2-per-42 variance estimate
+genuinely applies. Two full 541-lane runs (`luna` control and `luna` + trace
+completeness) would settle it at ~$12 total. **That needs OpenAI credit, which is
+exhausted** (`429 no credits remaining`, verified again at 12:21 UTC).
+
+Total measurement spent here: 6 full 40-lane arms, 6 single-lane replicates, and 12
+paired lane replicates — 24 independent lane-level observations plus six arms. The
+limit reached is the instrument's resolution, not the effort.
