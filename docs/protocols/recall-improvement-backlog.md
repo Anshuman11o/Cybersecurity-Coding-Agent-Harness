@@ -1063,6 +1063,26 @@ HIT->CATEGORY_MISS. Same mechanism as sample 1 — it breaks entries that were a
 exact-line hits. Pooled: 6 improved, 15 worsened, no positive sample. Do not ship;
 still not a clean falsification.
 
+### G0a — Per-entry statistics on the agent platform are invalid — **do not compute them**
+
+Pooling arms to beat the noise floor failed, informatively. The sign test on the
+contrast where **39 of 40 prompts are byte-identical** returns **p = 0.021** — a
+significant result on identical input.
+
+Cause: each agent answers 4-6 lanes, so entries sharing an agent share its
+judgement and move together. The 97 entries are ~8 clustered observations, not 97
+independent ones. A per-entry test divides by a sample size an order of magnitude
+too large and manufactures significance, always in the direction that flatters what
+is being tested.
+
+**The effective n is the number of agents.** A valid test needs either one lane per
+agent, or the real Stage 2 path where each lane is one independent completion and
+the +-2-per-42 estimate applies. The latter is cheaper and already built — another
+reason the terra result is the one to act on.
+
+**The 40-lane agent platform is for directional reconnaissance and harness-bug
+hunting (it found G1). It cannot certify a small effect.**
+
 ### G3 — Trace-specificity instruction — **UNRESOLVED, not falsified**
 
 **Correction.** An earlier version of this entry called this falsified on a

@@ -595,3 +595,77 @@ instruction must be judged on trace length as well as recall.
 Arm `trace` = registrar block + a completeness instruction, with all 40 prompts
 differing from the `route` arm (verified by `cmp`), so it is a genuine single-variable
 contrast rather than the one-lane contrast that misled §7.
+
+## 11. Pooling the arms — and why per-entry statistics on this platform lie
+
+No further inference was available (both providers exhausted), so the last step
+used only data already collected: five completed 40-lane arms, pooled to try to
+resolve effects below a single arm's ±14 noise floor. Noise is per-entry and
+independent between runs; a real effect is not. A paired sign test across
+independent replications of the same contrast should therefore resolve what
+neither replication can alone — the instrument the project already used for the
+class-split A/B.
+
+It does not work here, and finding out why is the useful part.
+
+### The control test that should have been null came back significant
+
+Run the sign test on the contrast where **39 of 40 prompts are byte-identical**:
+
+    13 improved, 3 worsened, two-sided exact sign test p = 0.021
+
+**A significant result on identical input.** Whatever that p-value is measuring, it
+is not an effect of the prompt, because the prompt barely changed. The test is
+broken, not the finding.
+
+### Why: movements cluster by agent, so entries are not independent
+
+Each agent in the fleet answered 4–6 lanes. Grouping that contrast's 16 movements
+by which agent produced them:
+
+| agent batch | improved | worsened |
+|---|---|---|
+| batch 1 | 3 | 0 |
+| batch 2 | 3 | 0 |
+| batch 3 | 2 | 0 |
+| batch 0 | 3 | 2 |
+| batches 4, 6, 7 | 1 | 1 (total 2) |
+
+Entries sharing an agent share that agent's judgement — if one agent reads a file
+better on a given run, every ground-truth entry in its lanes moves together. So the
+97 entries are **not 97 independent observations; they are ~8 clustered ones.** A
+per-entry sign test assumes independence, so it divides by a sample size an order of
+magnitude too large and manufactures significance.
+
+**The effective n is the number of agents, not the number of entries.** Every
+p-value computed per-entry on this platform is invalid in the direction that
+flatters whatever is being tested.
+
+### What this leaves for the specificity instruction
+
+Pooled across both independent replications: **6 improved, 15 worsened**, and the
+directions agree (both negative). Per-entry that reads p = 0.078; by the argument
+above that number should be discarded, and the honest summary is descriptive:
+
+- two independent replications, both negative on recall (−2 and −5)
+- **11 of the 15 regressions destroyed an entry that was already an exact HIT**
+  (`HIT → LINE_MISS_NEAR` ×8, `HIT → CATEGORY_MISS` ×2, `HIT → LINE_MISS_FAR` ×1)
+- no replication anywhere showed net benefit
+
+That is a consistent direction with a consistent, mechanistically sensible failure
+mode — the instruction pulls citations off lines the model already had exactly
+right. It is a sound reason **not to ship**, and it is not a significance claim.
+
+### What a valid test would need
+
+Either **(a)** cluster-aware analysis — one lane per agent so entries do not share a
+judgement, or a test that treats the agent as the unit; or **(b)** the real Stage 2
+path, where each lane is one independent structured completion and the project's
+±2-per-42 estimate genuinely applies. **(b)** is cheaper and already built. The
+`terra` result is the only measurement in this investigation that came through it,
+which is a further reason it is the one to act on.
+
+**Recorded as a standing caveat on the 40-lane agent platform**: it is excellent for
+cheap directional reconnaissance and for finding harness bugs — it found the PEM
+defect — and it must not be used to certify a small effect, with or without a
+p-value.
