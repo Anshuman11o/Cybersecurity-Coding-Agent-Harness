@@ -450,7 +450,23 @@ Each finding must have:
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
 - "severity_estimate": "low" | "medium" | "high" | "critical"
-- "confidence": number 0-1`
+- "confidence": number 0-1
+
+## Trace completeness — a trace is a path, not a pair of endpoints
+Between the entrypoint and the sink, emit one "propagation" step for **every** line the
+value or the control decision actually passes through on the way: each reassignment,
+each call that forwards it, each conditional that lets it continue, each transformation
+applied to it.
+
+If your entrypoint is line A and your sink is line Z and the defect depends on what
+happens between them, those lines are propagation steps and belong in the trace. A
+trace naming only A and Z asserts that the defect is those two lines alone, which is
+rarely true.
+
+Do not pad — include a line only if the value or the control genuinely passes through
+it. But do not compress either. Someone fixing this defect needs every line they must
+change or check, and the line where a missing control belongs is usually one of the
+intermediate ones, not the endpoint.`
   segments.push({ segment_type: 'file_content', chars: fileContentBlock.length })
   parts.push(fileContentBlock)
 
@@ -624,18 +640,16 @@ async function huntLane(
   const routeContext = archSummary
     ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
     : { handWritten: [], autoCrud: [] }
-  let routeContextSection = renderRouteContext(routeContext)
-
-  // A file can both declare registrations and export handlers. The registrar
-  // block goes first because it is the one carrying line numbers.
-  const registrarSection = archSummary
-    ? renderRegistrarRouteContext(lane.target_file, archSummary.route_table)
-    : undefined
-  if (registrarSection) {
-    routeContextSection = routeContextSection
-      ? `${registrarSection}\n\n${routeContextSection}`
-      : registrarSection
-  }
+  // NOTE: renderRegistrarRouteContext() below supplies the registrar file with a
+  // line-numbered, guard-annotated inventory of the registrations it declares.
+  // It is NOT wired in here. A cluster-free replicate test (one agent per lane,
+  // 3 replicates per arm, on the only lane it changes) found no effect: exact
+  // hits [4,4,5] -> [4,5,5] and localization identical at 7.33/8. The function is
+  // kept because the gap it addresses is real — matchRoutesForFile() matches by
+  // exported symbols, so the file that declares the routes matches nothing — but
+  // closing that gap does not move the benchmark. Do not re-enable it expecting
+  // recall; see docs/analysis/2026-07-29-run6-investigation.md.
+  const routeContextSection = renderRouteContext(routeContext)
 
   const allFindings: CandidateFinding[] = []
   let totalTokens = 0
