@@ -35,6 +35,42 @@
       "notes": "GPT-5.x reasoning models reject max_tokens with a 400 and are inconsistent about accepting non-default sampling values, so sampling is omitted and steering happens through the prompt. base_url null means the SDK default, https://api.openai.com/v1. Requires api.openai.com on the environment's egress allowlist."
     },
 
+    "terra": {
+      "label": "GPT-5.6 Terra",
+      "model": "gpt-5.6-terra",
+      "model_env": "OPENAI_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "base_url": null,
+      "base_url_env": "OPENAI_BASE_URL",
+      "token_limit_param": "max_completion_tokens",
+      "sampling": {},
+      "notes": "Middle tier of the GPT-5.6 family, same endpoint and key as luna. $2.50/$15 per MTok against luna's $1.00/$6.00. Added 2026-07-29 because every run to date has used the family's cheapest tier: docs/'Cybersecurity models pricing research' records luna as 'the smallest step up available' from qwen on cost grounds, so model capability has never been isolated as a variable."
+    },
+
+    "sol": {
+      "label": "GPT-5.6 Sol",
+      "model": "gpt-5.6-sol",
+      "model_env": "OPENAI_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "base_url": null,
+      "base_url_env": "OPENAI_BASE_URL",
+      "token_limit_param": "max_completion_tokens",
+      "sampling": {},
+      "notes": "Top tier of the GPT-5.6 family, same endpoint and key as luna. $5.00/$30 per MTok, ~5x luna on input. Rated 96.7% on OpenAI's internal CTF suite, which they describe as saturated — read it as 'not capability-limited on security reasoning', not as a percentage of anything. See the pricing research doc's caveats before treating that number as a ranking."
+    },
+
+    "luna-fixed": {
+      "label": "GPT-5.6 Luna (post-fix arm)",
+      "model": "gpt-5.6-luna",
+      "model_env": "OPENAI_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "base_url": null,
+      "base_url_env": "OPENAI_BASE_URL",
+      "token_limit_param": "max_completion_tokens",
+      "sampling": {},
+      "notes": "Same model as luna. A separate key so the run-5 artifacts in runs/luna/ stay untouched while the same model is re-measured with the 2026-07-29 fixes in force. Exists to separate 'the fixes helped' from 'the model tier helped' — without it, a terra-vs-run-5 delta confounds both. Experiment arm: do not merge to main."
+    },
+
     "qwen": {
       "label": "Qwen 3.6 Plus",
       "model": "qwen-plus",

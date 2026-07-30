@@ -29,6 +29,35 @@ repo does the conversion. `scanner.jsonl` keeps its original lines and adds
 `*-rebased97` re-score lines, per the never-rewrite rule. See
 `protocols/eval-howto.md`.
 
+## ⚠ Recall to date is understated by 3 entries — and the model tier was never tested
+
+Two findings from the 2026-07-29 run-6 investigation
+(`analysis/2026-07-29-run6-investigation.md`) change how every row below should be
+read.
+
+**1. A line-number bug cost 3 exact-line hits in every run.**
+`sanitizePemPrivateKey()` changed a file's line count, so the numbers shown to the
+model drifted 2 above the numbers the scorer reads. Re-scoring run 5 with the
+shift corrected gives **recall 45/97 = 46.4%** against the published 43.3%, with
+localization unchanged — a 2-line shift is invisible to a ±15 window and fatal to
+exact-line recall. Fixed on 2026-07-29 with 7 regression tests. Runs 1–5 are left
+as published; add ~3 entries when comparing any of them to a post-fix run.
+
+**⚠ No run 6 exists. The full-pipeline combined-fix run was launched and died on
+`no credits remaining` — the OpenAI account is out of credits.** The `terra` and
+`luna-fixed` full manifests are staged and checkpoints cleared, so both runs are
+executable the moment credits are restored. The same wall is why `sol` is
+unmeasured; an earlier note attributing that to rate limiting was wrong — all 248
+of its 429s carried `no credits remaining`.
+
+**2. Every scored run used the cheapest tier of its model family.** `luna` was
+chosen on cost as "the smallest step up" from `qwen`. A 129-lane arm on `terra`,
+same prompts and same shared Stage 0, scored **50/82 = 61.0% recall against luna's
+36/82 = 43.9%** — +17.1 points, the largest measured effect in the project's
+history. That arm completed cleanly (0 retries, 0 fatal) before credits ran out, so
+it stands; it is a 129-lane result, not a full run. Four runs of playbook and labelling work were tuned against a model that
+was itself the binding constraint.
+
 ## Scored runs, v2 per-file
 
 | Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Run 4 · `bab0ad2` | Run 5 · `c9c2cf0` | Target |
