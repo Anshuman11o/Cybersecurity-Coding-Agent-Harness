@@ -461,3 +461,68 @@ control on **one prompt**, so the honest statement is: *an agent-class model on 
 5's own prompts clears both targets, and the fixes' individual contributions are
 smaller than this platform can resolve.* The targets are cleared by the model, not
 by the fixes.
+
+## 11. Registrar route context — resolved by a focused repeat test
+
+§7 left this fix unresolved because the 40-lane arm could not see it: the block only
+adds text to a file that *declares* routes, one lane does, and the aggregate was
+swamped by ±14-entry noise. The fix was therefore retested **where it acts** — that
+lane alone, over its 8 ground-truth entries, with repeats.
+
+### Attribution is exact
+
+The block supplies exact lines for all 148 registrations. Of the registrar file's 8
+entries, **exactly 2 changed bucket, and both are lines the block lists**
+(`LINE_MISS_FAR → LINE_MISS_NEAR`). **All 6 entries the block does not list are
+unchanged. Zero regressions in any run.**
+
+An effect confined precisely to the entries the mechanism targets, and to nothing
+else, is a stronger argument than any aggregate at this sample size. This is what
+the 40-lane arm could not produce.
+
+### Replication, n=11
+
+| arm | n | mean localization | mean FAR | FAR==0 |
+|---|---|---|---|---|
+| without the block | 5 | 7.20/8 | 0.80 | 3/5 |
+| **with the block** | 6 | **8.00/8** | **0.00** | **6/6** |
+
+Per-run `LINE_MISS_FAR` — without: 2, 2, 0, 0, 0. With: 0, 0, 0, 0, 0, 0.
+
+**Fisher exact, one-sided, p = 0.182.** Direction perfectly consistent, but n=11 is
+underpowered and this is **not significant at 0.05**. Stating otherwise would repeat
+the error §7 documents.
+
+### Verdict
+
+**Ship it — as a correctness fix with a small measured benefit, not as a lever.**
+
+- Mechanism proven; attribution exact; zero regressions across 6 runs.
+- Effect ≈ **+0.8 localization entries** (~+0.8 points on 97).
+- **No recall gain** (4.00 → 4.17): both converting entries land inside the slack
+  rather than on the exact line.
+- Independent justification: the registrar file was receiving *no route context at
+  all* while Stage 0 held every registration with its line and guard status. That is
+  a defect regardless of score.
+
+**Refinement identified, untested.** The block already says "cite that
+registration's own line" and the model still lands within ±15 rather than on it.
+Closing that gap would convert these 2 from `NEAR` to `HIT` — a recall gain. That is
+the next cheap experiment, and it is now well-posed.
+
+## 12. Final status of every candidate
+
+| candidate | verdict | evidence |
+|---|---|---|
+| Three-class playbook hypothesis | **falsified** | forensics on run 5's findings; no sampling involved |
+| PEM line-number fix | **proven, +3 entries** | deterministic offline re-score; 7 regression tests |
+| `terra` model tier | **proven, +14 on 82** | real Stage 2, 129/129 lanes, in the ±2/42 regime |
+| Registrar route context | **proven mechanism, +0.8 entries** | exact per-entry attribution, n=11, p=0.182 |
+| Trace specificity | **do not ship, unresolved** | 2 independent negatives, shared mechanism, inside noise |
+| Agent-arm noise floor ±14 | **measured twice** | two same-prompt repeats |
+
+**Run 6: `terra` on the full 541 lanes, with the PEM fix and the registrar route
+context in the tree.** The PEM fix and route context are both correctness fixes with
+proven mechanisms and no measured regressions, so they carry no attribution risk. The
+model tier is the only large lever, and it is the single variable to read the run
+against. Blocked on API credit alone.
