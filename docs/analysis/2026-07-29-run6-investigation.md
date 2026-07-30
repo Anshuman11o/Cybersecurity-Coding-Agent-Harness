@@ -526,3 +526,72 @@ context in the tree.** The PEM fix and route context are both correctness fixes 
 proven mechanisms and no measured regressions, so they carry no attribution risk. The
 model tier is the only large lever, and it is the single variable to read the run
 against. Blocked on API credit alone.
+
+## 13. The mechanism behind `LINE_MISS_NEAR` — trace granularity, not aim
+
+§11 left a loose end: the registrar block hands the model an exact line and says to
+cite it, and the model still lands *within* ±15 rather than *on* it. Pulling that
+thread found the mechanism behind the whole near-miss pool.
+
+### The traces bracket the answer
+
+Of run 5's **28 cold `LINE_MISS_NEAR` entries, 16 have the ground-truth line lying
+strictly inside the matching finding's own cited span, uncited.** Several bracket it
+on both sides — the finding names a line below and a line above and omits the one
+between.
+
+The model is not looking in the wrong place. It is drawing endpoints and skipping the
+middle.
+
+### Trace geometry, all 392 findings
+
+| | |
+|---|---|
+| cited lines per finding | median **3**, mean 3.2 |
+| span width (max−min+1) | median **11**, mean 24.7 (p75 26, p90 68) |
+| uncited lines inside the span | median **7**, mean 21.5 |
+| `propagation` steps per finding | median **1**, mean 1.28 |
+
+The schema forces `entrypoint` first and `sink` last. So a median of 3 steps carrying
+1 propagation step means most findings are *entrypoint → one hop → sink* across a span
+of 11+ lines. The `propagation` kind exists precisely for the skipped middle and is
+used once.
+
+### Counterfactual — the pool this accounts for
+
+Filling each finding's trace with the lines between its own min and max cited line.
+A scoring counterfactual, not a shippable change:
+
+| span cap | recall | trace steps/finding |
+|---|---|---|
+| none (as scored) | 42/97 = 43.3% | 3.2 |
+| ≤5 | 44/97 = 45.4% | 3.6 |
+| ≤10 | 48/97 = 49.5% | 4.2 |
+| ≤20 | 48/97 = 49.5% | 6.6 |
+| ≤40 | **62/97 = 63.9%** | 10.4 |
+| unbounded | **71/97 = 73.2%** | — |
+
+**Up to 29 entries — the entire gap to the 60–70% recall target — sit inside spans the
+model has already implicated.** That reframes the residual: it is a granularity
+failure, not a detection or localization failure. It also explains why every
+class-level intervention plateaued and why localization has been comfortably ahead of
+recall all along.
+
+**A cost the metric set cannot see.** The precision proxy is *per finding* — is this
+finding within ±15 of any entry — so adding lines inside an existing span leaves it
+unchanged at 12.5%. The proxy is blind to this. The real cost is reviewer burden, more
+lines to check per finding, and nothing currently measures it. Any completeness
+instruction must be judged on trace length as well as recall.
+
+### Why this is a third, distinct intervention
+
+- **Specificity** (§5, §8) told the model to *relocate* a step to the innermost line.
+  Two independent negatives; it broke entries that were already exact hits.
+- **The earlier enumerate probe** widened *across sibling entries* in a repeated
+  structure. Net-widening, converted 2 of 12.
+- **Completeness** neither moves nor widens a trace. It finishes the path the model is
+  already asserting, using a step kind the schema already provides.
+
+Arm `trace` = registrar block + a completeness instruction, with all 40 prompts
+differing from the `route` arm (verified by `cmp`), so it is a genuine single-variable
+contrast rather than the one-lane contrast that misled §7.
