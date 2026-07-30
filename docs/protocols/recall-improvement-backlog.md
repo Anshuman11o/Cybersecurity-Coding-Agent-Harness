@@ -1052,6 +1052,17 @@ differing lanes before reading any delta — if one lane differs, the arm speaks
 one lane. And run a same-prompt repeat to establish the noise floor before
 interpreting an effect against it.
 
+**Confirmed a second time.** A third arm gave a 39-lane set excluding the registrar
+file — the only lane the route fix changes — so the control and route arms were
+byte-identical across all 39. They still differed by +8 recall and +2 localization
+(11 up, 3 down). Two independent same-prompt repeats now agree on ~+-14 entries.
+
+**G2b — specificity, second sample.** (route+spec) vs route across all 40 lanes:
+recall -5, 3 improved / 8 worsened, and the losses are 5 HIT->NEAR plus 2
+HIT->CATEGORY_MISS. Same mechanism as sample 1 — it breaks entries that were already
+exact-line hits. Pooled: 6 improved, 15 worsened, no positive sample. Do not ship;
+still not a clean falsification.
+
 ### G3 — Trace-specificity instruction — **UNRESOLVED, not falsified**
 
 **Correction.** An earlier version of this entry called this falsified on a

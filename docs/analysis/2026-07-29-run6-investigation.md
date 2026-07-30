@@ -354,3 +354,72 @@ actually differ.** If the answer is "one", the arm can only speak about one lane
 whatever the aggregate says. Pair that with a same-prompt repeat to establish the
 instrument's noise floor before interpreting any effect against it. Neither check
 was in the arm protocol; both are now.
+
+## 8. Final four-arm result, and a clean noise measurement
+
+The third arm (registrar route context **+** trace specificity) completed. Scored on
+the 89 entries in the 39 lanes all three arms share:
+
+| arm | findings | recall | localization | blind | hedging | precision |
+|---|---|---|---|---|---|---|
+| control — PEM fix only | 278 | 62/89 = 69.7% | 84/89 = 94.4% | 98.9% | 2.227 | 43.2% |
+| + registrar route context | 285 | 70/89 = 78.7% | 86/89 = 96.6% | 98.9% | 2.112 | 45.6% |
+| + route context + specificity | 293 | 65/89 = 73.0% | 87/89 = 97.8% | 100% | 2.027 | 44.4% |
+
+### The first two rows are a same-prompt repeat, and that is the useful part
+
+This lane set **excludes the registrar file** (it was the one lane missing from the
+third arm). The registrar file is the *only* lane the route-context fix changes. So
+across all 39 lanes here, rows 1 and 2 ran on **byte-identical prompts**.
+
+They differ by **+8 recall and +2 localization** — 11 entries improved, 3 worsened.
+
+That is the cleanest noise measurement this project has: **identical input, same
+model, same harness, 14 of 89 entries moved, net +8 recall.** Roughly **±14
+entries, ±9 recall points.** It is the same-prompt repeat §7 says the protocol now
+requires, and it confirms that figure independently.
+
+**Nothing in the +8 is the fix.** The route-context fix's attributable effect
+remains what §7 reports: +2 entries, 0 regressions, on the single lane it touches.
+
+### The specificity instruction: two independent negatives, one mechanism
+
+| sample | contrast | lanes differing | recall | localization | improved / worsened |
+|---|---|---|---|---|---|
+| 1 | spec vs control | 40 | **−2** | −3 | 3 / 7 |
+| 2 | (route+spec) vs route | 40 | **−5** | +1 | 3 / 8 |
+
+Both negative on recall, from independent runs, and the *mechanism is the same in
+both*: it breaks entries that were already exact-line hits. Sample 2's losses are
+`HIT → LINE_MISS_NEAR` ×5 and `HIT → CATEGORY_MISS` ×2 — seven hits destroyed, one
+recovered.
+
+Pooled across both samples: **6 improved, 15 worsened.** Each sample alone sits
+inside the ±14 band, so neither is a clean falsification. But two independent
+negatives sharing one mechanism, with no positive sample anywhere, is consistent
+evidence that the instruction moves the model *off* lines it already had right.
+
+**Verdict: do not ship it.** Not because it is proven harmful, but because two
+attempts to find benefit found harm instead, and there is no evidence for it.
+
+Note that localization *rises* slightly as recall falls (94.4 → 96.6 → 97.8). The
+instruction does pull citations toward the right region while degrading exact-line
+precision — consistent with §1's finding that these two metrics fail for different
+reasons and can move in opposite directions.
+
+## 9. Corrected bottom line
+
+| claim | status | basis |
+|---|---|---|
+| Three-class playbook hypothesis | **falsified** | forensics on run 5's own findings; no inference, no sampling |
+| PEM line-number fix, +3 entries | **holds** | deterministic offline re-score of run 5's findings |
+| `terra` model tier, +14 entries on 82 | **holds, unrepeated** | real Stage 2, single completion per lane |
+| Registrar route context, +2 entries / 0 regressions | **directionally positive, unresolved** | 1 differing lane; below the platform's resolution |
+| Trace specificity | **do not ship; not falsified** | 2 independent negatives, 1 shared mechanism, both inside noise |
+| Agent-arm noise floor ±14 entries | **measured twice** | same-prompt repeats in §7 and §8 |
+
+**The one recommendation that survives every caveat: run 6 should be the `terra`
+tier change on the full 541 lanes, with the PEM fix in the tree.** It is the only
+intervention measured through the production code path, in the noise regime where
+the project's own ±2/42 estimate applies, at an effect size well outside it. It
+needs API credit and nothing else.
