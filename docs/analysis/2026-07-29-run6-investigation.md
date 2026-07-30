@@ -669,3 +669,119 @@ which is a further reason it is the one to act on.
 cheap directional reconnaissance and for finding harness bugs — it found the PEM
 defect — and it must not be used to certify a small effect, with or without a
 p-value.
+
+---
+
+## 12. The fix that works: trace completeness
+
+The residual's dominant pool is 28 entries with the right code, inside the ±15
+window, wrong exact line — 25 of them within 5 lines (§1). Two earlier attempts to
+move it tried to change *which* line a trace cites: the specificity instruction
+(§5, two independent negatives) and the older enumerate-don't-exemplify probe
+(net-widening). Both failed the same way — they relocate a citation and can just as
+easily relocate it off a line that was already right.
+
+The trace-completeness instruction does something different: it **adds** steps rather
+than moving them. A trace naming only an entrypoint and a sink asserts the defect is
+those two lines. Asking for a propagation step on every line the value or control
+decision actually passes through means the intermediate line — which is where a
+missing control usually belongs — gets cited too. The scorer takes the closest
+matching step, so a complete path has more chances to contain the exact line without
+any citation being moved off a correct one.
+
+Measured on the full 40-lane set, all 40 prompts differing:
+
+| | control | + trace completeness |
+|---|---|---|
+| recall | 66/97 = 68.0% | **74/97 = 76.3%** |
+| localization | 90/97 = 92.8% | **95/97 = 97.9%** |
+| localization, category-blind | 94/97 = 96.9% | 96/97 = 99.0% |
+| precision proxy | 42.5% | **45.9%** |
+| hedging | 2.250 | 2.183 |
+| findings | 308 | **290** |
+| trace steps per finding | 3.0 | **4.8** |
+| `LINE_MISS_FAR` | 5 | 1 |
+
+Transitions: **13 improved, 81 unchanged, 3 worsened** — `LINE_MISS_NEAR → HIT` ×8
+and `LINE_MISS_FAR → NEAR` ×4, which is precisely the movement the mechanism
+predicts.
+
+**Excluding the three hot lines** (24/24 in both arms, so they contribute nothing to
+the delta): recall 57.5% → **68.5%**, localization 90.4% → **97.3%**. The gain is
+broad-based, not a favourable draw on the crowded locations.
+
+### Replicate test — the recall gain does NOT reproduce
+
+Same cluster-free design as the route-context test (one agent per replicate, three
+per arm, `server.ts`, 8 entries):
+
+| | control | + trace completeness |
+|---|---|---|
+| exact hits | [4, 4, 5] mean 4.33 | [4, 5, 3] mean **4.00** |
+| localization | [8, 6, 8] mean 7.33 | [8, 8, 8] mean **8.00** |
+
+**No recall gain — marginally negative.** Localization becomes perfectly stable
+(8/8 in all three replicates against 8/6/8), which is a variance reduction rather
+than a level change.
+
+**How much weight this carries.** Less than the route-context replicate did, and the
+reason matters. `server.ts` was the *only* lane the route-context fix changed, so
+testing that lane tested the whole fix. Trace completeness changes **all 40** lanes,
+and the 8 `LINE_MISS_NEAR → HIT` conversions in the 40-lane arm are spread across
+other files — `server.ts` is not where its gains landed. So this is a weak test of
+the hypothesis: it shows the instruction does not help *this* lane's exact-line
+recall, not that it fails generally.
+
+### Where that leaves it
+
+Four mechanistic signals support it (mechanism observable at 3.0 → 4.8 steps, gain in
+the predicted bucket, precision up, findings down) and one cluster-free replicate
+triple declines to reproduce the recall half on the one lane it could test.
+
+**That is not "proven".** It is the strongest prompt-level candidate found, with its
+recall effect unconfirmed and its localization effect looking more robust than its
+recall effect. It is in the tree because the mechanism is sound and nothing measured
+argues it is harmful — not because the +8 is established.
+
+### The pattern across every prompt fix tested
+
+| fix | 40-lane arm | cluster-free replicate | verdict |
+|---|---|---|---|
+| registrar route context | +8 recall (39/40 prompts identical — void) | no effect | **falsified** |
+| trace specificity | −2 and −5 recall, twice | not run | **negative twice** |
+| trace completeness | +8 recall, mechanism verified | no recall gain | **unconfirmed** |
+
+**Three prompt-level interventions, zero confirmed recall gains.** Meanwhile the two
+interventions that *are* confirmed are not prompt work at all: a deterministic harness
+bug fix (+3) and a model-tier change (+14 through the real pipeline).
+
+That convergence is the investigation's real conclusion. The residual was correctly
+localised — 28 entries, right code, wrong exact line, characterised down to the
+mechanism — but **prompt engineering against it is at or below the resolution of any
+instrument available here, while the model tier moved it immediately and measurably.**
+
+## 13. Final answer
+
+**Both standing targets are cleared by this arm: localization 97.9% against a 90%
+target, recall 76.3% against a 60–70% band — and they hold excluding the hot lines.**
+
+| intervention | verdict | evidence |
+|---|---|---|
+| Three-class playbook hypothesis | **falsified** | forensics on run 5's findings; no sampling involved |
+| PEM line-number fix | **ship — proven** | deterministic offline re-score, +3 entries |
+| **Trace completeness** | **in the tree, unconfirmed** | 40-lane contrast +8 recall / +5 localization with mechanism observable, precision up, findings down — but a cluster-free replicate did not reproduce the recall gain |
+| `terra` model tier | **ship — proven** | real Stage 2, +14 entries on 82 |
+| Registrar route context | **do not ship** | cluster-free replicate test: hits [4,4,5] → [4,5,5], localization unchanged |
+| Trace specificity | **do not ship** | two independent negatives, 11/15 regressions destroyed exact hits |
+
+**Run 6 should be: PEM fix + `terra`, full 541 lanes.** Those are the two confirmed
+interventions. Trace completeness is in the tree and can ride along — it is not
+harmful on any measurement — but it must be reported as unconfirmed, and if run 6 is
+meant to attribute anything cleanly it should be held out instead.
+
+**The honest headline for the user's question.** The three-class hypothesis is
+falsified and the residual is line attribution, characterised precisely. But three
+separate prompt-level fixes for it produced zero confirmed recall gains, while a
+deterministic bug fix and a model-tier change produced two. On this benchmark, at this
+point, the remaining gap is not a prompting problem — it is a model-capability problem
+with a harness bug on top, and that is where run 6 should spend.
