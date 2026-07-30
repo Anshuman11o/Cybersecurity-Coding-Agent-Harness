@@ -419,7 +419,45 @@ reasons and can move in opposite directions.
 | Agent-arm noise floor ±14 entries | **measured twice** | same-prompt repeats in §7 and §8 |
 
 **The one recommendation that survives every caveat: run 6 should be the `terra`
-tier change on the full 541 lanes, with the PEM fix in the tree.** It is the only
+tier change on the full 541 lanes, with the PEM fix in the tree.** (§10 adds the
+completed full-set numbers; they do not change this.) It is the only
 intervention measured through the production code path, in the noise regime where
 the project's own ±2/42 estimate applies, at an effect size well outside it. It
 needs API credit and nothing else.
+
+## 10. All three arms at full 40/40 — final numbers
+
+The last lane landed, so all three arms are complete on all 97 entries:
+
+| arm | findings | recall | localization | blind loc | FAR bucket | hedging |
+|---|---|---|---|---|---|---|
+| control — PEM fix only | 308 | 66/97 = 68.0% | 90/97 = 92.8% | 96.9% | 5 | 2.250 |
+| + registrar route context | 322 | **74/97 = 76.3%** | 94/97 = 96.9% | 99.0% | 1 | 2.140 |
+| + route context + specificity | 326 | 69/97 = 71.1% | **95/97 = 97.9%** | **97/97 = 100%** | **0** | 2.055 |
+
+Two trends are monotonic across the three arms and worth naming, even though a
+single sample per arm cannot establish them against a ±14 noise floor:
+
+- **Localization rises throughout** (92.8 → 96.9 → 97.9), and category-blind
+  localization reaches **100%** — every reachable entry has some finding within ±15.
+- **`LINE_MISS_FAR` falls to zero** (5 → 1 → 0).
+
+**Recall peaks in the middle** (68.0 → 76.3 → 71.1). The specificity instruction's
+transitions against the control explain why: it converts `LINE_MISS_FAR → NEAR` ×5
+— pulling citations into the right neighbourhood — while also pushing `HIT → NEAR`
+×2. It trades exact-line precision for regional coverage.
+
+That is a coherent mechanism rather than a random walk, and it is consistent with §1:
+localization and exact-line recall fail for different reasons and can move in
+opposite directions. It is *not* enough to ship on. If the instruction is revisited,
+the hypothesis to test is narrow and now well-posed: **does it move entries out of
+`LINE_MISS_FAR` without disturbing entries that are already exact hits?** Testing
+that needs an instrument with a noise floor well under 5 entries — which this one is
+not.
+
+**Both standing targets are cleared by the middle arm** — localization 96.9% against
+a 90% target, recall 76.3% against a 60–70% band. But that arm differs from its
+control on **one prompt**, so the honest statement is: *an agent-class model on run
+5's own prompts clears both targets, and the fixes' individual contributions are
+smaller than this platform can resolve.* The targets are cleared by the model, not
+by the fixes.
