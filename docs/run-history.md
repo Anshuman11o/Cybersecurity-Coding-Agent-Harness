@@ -58,6 +58,202 @@ history. That arm completed cleanly (0 retries, 0 fatal) before credits ran out,
 it stands; it is a 129-lane result, not a full run. Four runs of playbook and labelling work were tuned against a model that
 was itself the binding constraint.
 
+## 2026-08-01 — Stage 2 per-lane agent loop, and the output cap
+
+Seven arms on the 40-lane benchmark-bearing platform, `luna`, **$11.88 total**.
+No full 541-lane run: the platform measures recall and localization *exactly*
+(§2 of `analysis/2026-07-29-run6-investigation.md`), and the budget for this
+investigation bought seven contrasts rather than two full runs. Full-run cost is
+projected, not measured, and is labelled as such.
+
+Architecture and the reasoning behind each turn's wording:
+`architecture/stage2-lane-loop.md`. Located evidence: answer-key repo,
+`analysis/2026-08-01-loop-located.md`.
+
+**Shipped as a result of this investigation:** `HUNT_LOOP=trace` is now Stage 2's
+default, paired with the registry's `reasoning_effort: high` and 24,000-token
+cap — the `trace-high` row below, at 67.0% recall and 85.6% localization. That
+was the user's call, made against the two qualifications stated in full here:
+the loop's recall increment over high effort alone is not distinguishable from
+its extra cited lines, and the pairing costs 91% more than either half on its
+own for +1 entry over the loop alone and +3 over the effort alone. Both halves
+reach the 60–70% band separately and more cheaply. `HUNT_LOOP=none` with
+`SCANNER_REASONING_EFFORT=` and `SCANNER_MAX_OUTPUT_TOKENS=8000` still
+reproduces runs 1–5 byte-for-byte.
+
+**Role note.** CLAUDE.md reserves scanner source edits for Qwen. `acpx qwen` is
+not installed in this environment and the user directed this investigation
+directly, so that split is suspended here, as it was for the run-6
+investigation. Every claim below is verified against artifacts.
+
+### Platform validation, before any arm was cited
+
+- Restricting run 5's committed findings to the 40 lanes reproduces its
+  published metrics to the entry: 42/97 recall, 78/97 localization, 87/97 blind.
+- Rebuilding each arm lane's prompt and comparing to run 5's recorded
+  `prompt_breakdown.total_chars`: **38 of 40 byte-identical**. The two that
+  differ are exactly the two documented post-run-5 changes — the PEM
+  line-count fix (+1 char, on the one file carrying a private key) and
+  `renderRegistrarRouteContext()` (+14,176 chars, on the file that declares
+  routes). No unexplained drift.
+
+### Results
+
+All recall and localization figures are over the same 97 reachable entries and
+are therefore directly comparable to every run in the table below.
+
+| arm | loop | effort | recall | localization | blind loc | lines cited | arm $ | projected 541-lane $ |
+|---|---|---|---|---|---|---|---|---|
+| `ctl-def` | none | default | 52/97 = 53.6% | 77.3% | 89.7% | 254 | 0.74 | **5.73** |
+| `ctl-high` | none | high | 62/97 = 63.9% | 81.4% | 93.8% | 365 | 1.93 | 12.59 |
+| `trace-def` | trace | default | **64/97 = 66.0%** | **84.5%** | 92.8% | 632 | 1.61 | 12.45 |
+| `reflect-def` | reflect | default | 64/97 = 66.0% | 77.3% | 90.7% | 608 | 1.65 | 12.70 |
+| `trace-high` | trace | high | **65/97 = 67.0%** | **85.6%** | 93.8% | 691 | 3.56 | 23.75 |
+| `trace-def-v2` | trace, strict wording | default | 51/97 = 52.6% | 71.1% | 90.7% | 489 | 1.51 | 12.3 |
+
+The cost projection reproduces run 5's published $5.73 exactly on the `ctl-def`
+row, which is what makes the other rows trustworthy. It scales the input and
+output legs separately against run 5's own per-lane records, because the
+benchmark-bearing lanes are output-heavy — 1,664 output tokens per lane against
+663 across all 541 — and a flat 541/40 scaling overstates a full run by ~2x.
+
+### ⚠ Read every row against its budget-matched null, not against the control
+
+Every ground-truth-denominated metric is monotone non-decreasing in trace
+length. A loop that asks for more trace steps **must** raise recall to some
+degree whether or not it understood anything. Inflating the loop-free control's
+own traces mechanically — no model involved — to each arm's exact line budget,
+nearest-already-cited-line first:
+
+| contrast | arm recall | matched null | attributable to the change |
+|---|---|---|---|
+| `ctl-high` vs `ctl-def` @ 365 lines | 63.9% | 55.7% | **+8.2** |
+| `trace-def` vs `ctl-def` @ 632 lines | 66.0% | 58.8% | **+7.2** |
+| `trace-high` vs `ctl-def` @ 691 lines | 67.0% | 59.8% | **+7.2** |
+| `trace-high` vs **`ctl-high`** @ 691 lines | 67.0% | **68.0%** | **≈ 0** |
+| `trace-def-v2` vs `ctl-def` @ 489 lines | 52.6% | 56.7% | **−4.1** |
+
+**The loop and the reasoning effort are substitutes, not complements.** Each is
+worth about +7 to +8 null-adjusted points on its own; together they are worth
+the same +7.2 as either alone. Stacking them costs 91% more and buys one entry.
+
+Localization is the metric padding cannot fake — a ±15 window barely moves when
+lines are added next to lines already cited, and in every null it moves by at
+most a point. `trace-def` raised it 77.3% → 84.5% and `trace-high` to 85.6%,
+which is a change in *which* lines are cited, not how many.
+
+### The wording of the completion instruction is the largest single effect measured
+
+`trace-def-v2` is `trace-def` with a stricter completion instruction: each added
+line must be justified in its own description, and an already-complete trace may
+be re-emitted unchanged. It was written in response to a correct review finding
+— nothing in the original wording stops the model padding a trace.
+
+It does not merely remove the padding. Recall **66.0% → 52.6%**, localization
+**84.5% → 71.1%**, and the arm lands *below* a mechanical inflation of the
+control to the same line budget. Suppressing the padding suppressed the
+completion the loop exists to produce. The default keeps the measured wording;
+the strict variant is retained behind `HUNT_LOOP_STRICT_TRACE=1` and documented
+as measured-worse, because the concern is real and the right wording is
+probably between the two.
+
+### Nondeterminism floor: ±7 entries, and read the asymmetry
+
+Re-running the loop-free control on prompts verified byte-identical to run 5's
+moved **17 of 84 entries — 12 gained, 5 lost, net +7**. That is the noise on
+identical input.
+
+So no net difference under ~7 entries is a result on its own. What separates
+these arms from noise is the *shape* of their transitions, not the net:
+
+| arm, vs `ctl-def` | gained | lost |
+|---|---|---|
+| noise floor (identical prompts) | 12 | 5 |
+| `ctl-high` | 10 | **0** |
+| `trace-def` | 13 | 1 |
+| `trace-high` | 14 | 1 |
+| `trace-def-v2` | 6 | 7 |
+
+Noise moves entries in both directions at roughly 2:1. `ctl-high` and
+`trace-def` do not. `trace-def-v2` does — it is indistinguishable from the
+control.
+
+### The output-token cap: it is a truncation risk, not a cost control
+
+The user's separate question. Reasoning tokens are billed as output *and*
+counted against `max_completion_tokens`, and Stage 2 records an unparseable body
+as a lane that found nothing rather than as a failure — so a binding cap looks
+exactly like a model with nothing to say.
+
+Measured completion tokens per call:
+
+| arm | mean | p90 | max | calls ≥ 8000 | calls ≥ 16000 |
+|---|---|---|---|---|---|
+| default effort, no loop | 1,664 | 2,616 | 3,546 | 0% | 0% |
+| default effort, `trace` loop | 1,863 | 3,080 | 4,112 | 0% | 0% |
+| **effort `high`, no loop** | 6,637 | 11,938 | 14,584 | **42%** | 0% |
+| effort `high`, `trace` loop | 5,878 | 12,083 | 13,766 | 29% | 0% |
+
+Dropping every lane whose first call would have been truncated, computed from
+the arm's own measurements:
+
+| cap at effort `high` | lanes truncated | recall |
+|---|---|---|
+| 24,000 (shipped) | 0 | 63.9% |
+| 16,000 | 0 | 63.9% |
+| 12,000 | 3 | 55.7% |
+| **8,000 (runs 1–5)** | **17 of 40** | **37.1%** |
+
+**Three conclusions.** The registry's 8,000 → 24,000 move alongside
+`reasoning_effort: high` was load-bearing, not housekeeping — at 8,000 the
+high-effort arm would have scored *below* the default-effort control while
+costing 2.6x more, and nothing in the logs would have said why. Raising the cap
+**cannot** buy further recall: the ceiling is 14,584 against a 24,000 cap, so
+16,000 would do and 24,000 is already slack. And at default effort the cap is
+irrelevant — the loop adds only ~200 output tokens per call and stays an order
+of magnitude clear of 8,000.
+
+### What is not measured
+
+- **No full 541-lane run.** Every recall figure is exact; every cost figure
+  beyond the arm is projected.
+- **The shipped combination — measured wording plus the corrected merge — has
+  no full-arm number.** The merge defects below were found in review *after*
+  the arms ran. A 20-lane paired validation of the shipped default gained 6 and
+  lost 0 against the control on the same lanes, the same one-sided shape as
+  `trace-def`, so it does not regress; but 40-lane recall for that exact
+  combination is inferred, not measured.
+- **`sweep` mode is implemented and unmeasured.** Do not claim it works.
+- **One arm per configuration.** Against a ±7 noise floor, treat any single row
+  as ±7 and lean on the transition asymmetry instead.
+
+### Defects found and fixed during the investigation
+
+All found by review, all before any of them reached a shipped default:
+
+1. **A class added by a follow-up turn never reached `categories[]`**, which is
+   what category-aware scoring reads — so the loop could correctly notice a
+   second class and the OWASP codes would not follow it. The arms above ran with
+   this defect; it can only have understated them.
+2. **The merge could *shrink* a trace.** It deduplicated by line and line-sorted
+   the whole trace, deleting repeated lines and reordering causal ones —
+   affecting the ~14% of findings that repeat a line and the ~15% whose trace
+   runs backwards. Now only genuinely new lines are added and every existing
+   step keeps its line, kind and position.
+3. **A distinct defect sharing one line and one class was absorbed** into an
+   existing finding, losing its own sink and title while reporting that nothing
+   was added — the exact shape `gap` mode produces. Identity now requires a kept
+   title or two shared lines.
+4. `chunk_count` counted turns rather than chunks, which would have made
+   `buildRunLevelRollup` bill every follow-up turn as re-sent boilerplate.
+5. `findings_emitted` was written on `none` runs too, so a reproduction of an
+   archived run no longer matched it byte-for-byte.
+6. Failed follow-up and sweep calls left no consumption record.
+7. `parseInt` accepted `"1e5"` as a cap of 1 — a truncation of every response,
+   which reads downstream as an empty findings array.
+8. `meta.json` did not record the loop arm, and the arm is an env var, so
+   `git_sha` could not tell two arms of one tree apart.
+
 ## Scored runs, v2 per-file
 
 | Metric | Run 1 · `0c5c907` | Run 2 · `e3307ec` | Run 3 · `c9e3e94` | Run 4 · `bab0ad2` | Run 5 · `c9c2cf0` | Target |

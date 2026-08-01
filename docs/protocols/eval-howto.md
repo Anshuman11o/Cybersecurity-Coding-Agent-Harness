@@ -124,7 +124,27 @@ and found nothing new. That is a legitimate result but must be reported as such.
 Read category-blind recall, category-blind localization and file-level together —
 all three are independent of the label.
 
-**3. Precision has nothing downstream to recover it in v2.** Stage 3 reads the v1
+**3. Every metric here is monotone in trace length, so any change that lengthens
+traces must be reported with a budget-matched null.** A finding matches an entry
+when *some* step of its trace is on the entry's line, and the precision proxy is
+per-finding within ±15 lines — so citing more lines cannot lower any number in
+the table above. A single finding whose trace enumerated its whole file would
+score near-perfectly on all of them.
+
+This is not hypothetical: the Stage 2 agent loop asks for more trace steps by
+construction, and a mechanical inflation of the loop-free control's own findings
+to the same line budget accounts for 5 of its 12 gained entries. Report, always:
+
+- **distinct lines cited**, and that as a share of the corpus lines in scope;
+- **a budget-matched null** — the control's findings inflated to the same line
+  count, nearest-already-cited-line first, with no model involved
+  (`loop-null-model.py` in the answer-key repo);
+- **localization alongside recall**. A ±15 window barely moves when lines are
+  added next to lines already cited — in every measured null it moves by at most
+  a point — so a localization gain is evidence about *which* lines are cited
+  rather than how many.
+
+**4. Precision has nothing downstream to recover it in v2.** Stage 3 reads the v1
 output. Any change that raises emission lowers precision with no validator to
 claw it back.
 

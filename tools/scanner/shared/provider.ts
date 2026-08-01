@@ -113,7 +113,37 @@ export function tokenLimitParam(
  * the prompt instead.
  */
 export function samplingParams(provider: Provider): Record<string, number | string> {
-  return { ...targetFor(provider).sampling }
+  const params = { ...targetFor(provider).sampling }
+
+  // SCANNER_REASONING_EFFORT overrides the registry for one invocation. It is
+  // configuration, not a model branch: the registry entry stays the shipped
+  // value and nothing in a stage learns a model name from it.
+  //
+  // It exists because reasoning effort is the largest single cost multiplier in
+  // a run and had never been varied under measurement — an A/B needs to move it
+  // without editing, committing and reverting models.json between arms, which
+  // is exactly the kind of uncommitted-tree drift the runbook warns about. Set
+  // it to the empty string to send no effort parameter at all, which is what
+  // runs 1-5 did.
+  const effort = process.env.SCANNER_REASONING_EFFORT
+  if (effort !== undefined) {
+    if (effort === '') {
+      delete params.reasoning_effort
+    } else {
+      // Validated against the accepted set rather than passed through. An
+      // unrecognised value is a 400 several hundred paid calls into a run, and
+      // the override exists precisely to be set by hand between arms.
+      const accepted = ['low', 'medium', 'high']
+      if (!accepted.includes(effort)) {
+        throw new Error(
+          `SCANNER_REASONING_EFFORT="${effort}" is not one of: ${accepted.join(', ')} ` +
+            `(or empty, to send none at all)`,
+        )
+      }
+      params.reasoning_effort = effort
+    }
+  }
+  return params
 }
 
 /**
@@ -128,5 +158,19 @@ export function samplingParams(provider: Provider): Record<string, number | stri
  * as an empty findings array rather than as a failure.
  */
 export function outputTokenCap(provider: Provider, fallback: number): number {
+  // SCANNER_MAX_OUTPUT_TOKENS overrides the registry for one invocation, for
+  // the same reason SCANNER_REASONING_EFFORT does: the cap and the effort are
+  // coupled — reasoning is billed and counted as output — so testing either
+  // one means moving both without rewriting the registry between arms.
+  const raw = process.env.SCANNER_MAX_OUTPUT_TOKENS
+  if (raw !== undefined) {
+    // Stricter than parseInt on purpose: parseInt("1e5") is 1, and a cap of 1
+    // truncates every response body, which this stage records as a lane that
+    // found nothing rather than as a failure. A malformed cap must fail loudly.
+    if (!/^[0-9]+$/.test(raw.trim()) || Number(raw.trim()) <= 0) {
+      throw new Error(`SCANNER_MAX_OUTPUT_TOKENS="${raw}" is not a positive integer`)
+    }
+    return Number(raw.trim())
+  }
   return targetFor(provider).max_output_tokens ?? fallback
 }

@@ -163,6 +163,23 @@ export interface ChunkTokenRecord {
   prompt_breakdown: PromptBreakdown;
   segment_attribution: DerivedSegmentAttribution[];
   measured: MeasuredTokens;
+  /**
+   * Which follow-up turn of the per-lane agent loop this record covers.
+   * Absent on the lane's first turn, which is the only turn a `none` lane has,
+   * so a run made before the loop existed reads back unchanged.
+   */
+  loop_pass?: number;
+  /** The loop mode in force. Absent for the first turn, as above. */
+  loop_mode?: string;
+  /**
+   * How many findings this turn emitted, and what the merge did with them.
+   * A loop whose later turns emit findings that all merge away has produced
+   * tokens and no information; without these three numbers that is invisible
+   * in the artifact and shows up only as a cost line.
+   */
+  findings_emitted?: number;
+  findings_added?: number;
+  traces_extended?: number;
 }
 
 /**

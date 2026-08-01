@@ -89,6 +89,40 @@ Stage order for v2:
 Running stage by stage, with a check between each, is preferred over `all-v2`
 when anything upstream has changed.
 
+### Selecting the lane agent loop and the model parameters
+
+**The shipped arm is `HUNT_LOOP=trace` with the registry's `reasoning_effort:
+high` and its 24,000-token cap. A plain `run.sh luna stage2-hunt-lanes-perfile`
+gets you that and needs no env var.** To reproduce runs 1–5 instead:
+
+    HUNT_LOOP=none SCANNER_REASONING_EFFORT= SCANNER_MAX_OUTPUT_TOKENS=8000
+
+Four env vars change what Stage 2 does without changing the tree, so **the git
+sha does not identify the run** — this is the "verify the tree, not the intent"
+hazard in its runtime form. All four are recorded in `meta.json`; state them in
+the run report as well.
+
+| var | default | what it does |
+|---|---|---|
+| `HUNT_LOOP` | **`trace`** | `none` \| `trace` \| `gap` \| `reflect` \| `sweep` — see `../architecture/stage2-lane-loop.md` |
+| `HUNT_LOOP_PASSES` | `1` | follow-up turns per chunk; the loop stops early on an unproductive turn |
+| `HUNT_LOOP_STRICT_TRACE` | unset | `1` selects the stricter completion wording — **measured worse**, recall 66.0% → 52.6% |
+| `HUNT_SWEEP_GROUP` | `3` | classes per group in `sweep` mode |
+
+And two that override the registry for one invocation, so an A/B does not need
+`models.json` edited, committed and reverted between arms:
+
+| var | what it does |
+|---|---|
+| `SCANNER_REASONING_EFFORT` | `low` \| `medium` \| `high`, or empty to send none at all (what runs 1–5 did) |
+| `SCANNER_MAX_OUTPUT_TOKENS` | output cap; **must move with the effort** |
+
+The last pairing is the one to get right. At `reasoning_effort: high` a cap of
+8,000 truncates 42% of lanes, and a truncated body is unparseable JSON that this
+stage records as *a lane that found nothing* — measured recall 63.9% → 37.1%
+with nothing in the log to say why. Raising the cap past ~16,000 buys nothing:
+the highest completion measured is 14,584.
+
 ### Concurrency and rate limits
 
 `HUNT_CONCURRENCY` (default 8) caps concurrent lanes. **Derive it from the

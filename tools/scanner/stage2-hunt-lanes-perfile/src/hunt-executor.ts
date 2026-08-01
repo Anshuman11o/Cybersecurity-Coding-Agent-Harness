@@ -55,6 +55,7 @@ import type {
   LaneTokenRecordV2,
   RunLevelRollupV2,
   VulnClassRegistry,
+  TraceStep,
   FindingClassRef,
 } from './types.js'
 
@@ -78,6 +79,95 @@ const MODEL = modelFor(PROVIDER)
 export const DEFAULT_OUTPUT_TOKEN_CAP = 8000
 const OUTPUT_TOKEN_CAP = outputTokenCap(PROVIDER, DEFAULT_OUTPUT_TOKEN_CAP)
 const STARTED = new Date().toISOString()
+
+// ── Per-lane agent loop ───────────────────────────────────────────────────
+/**
+ * A lane may answer in more than one turn.
+ *
+ * `trace` is the shipped default, paired with the registry's
+ * `reasoning_effort: high` and its 24,000-token output cap. Measured on the
+ * 40-lane benchmark-bearing platform: recall 67.0%, localization 85.6%, the
+ * best of either metric recorded, and the first configuration to leave no
+ * reachable entry uncited in its own file. See docs/run-history.md §2026-08-01.
+ *
+ * `none` is the historic behaviour — one structured completion per chunk — and
+ * is what runs 1 to 5 used. It is preserved exactly, and setting `HUNT_LOOP=none`
+ * with `SCANNER_REASONING_EFFORT=` and `SCANNER_MAX_OUTPUT_TOKENS=8000`
+ * reproduces those runs byte-for-byte, artifacts included.
+ *
+ * The non-`none` modes continue the SAME conversation rather than building a
+ * fresh prompt. That is deliberate on two counts. It is what an agent loop
+ * actually is: the model can see what it already said and act on it. And it is
+ * the cheap option — the file, the playbooks and the architecture context are
+ * already in the transcript, so a follow-up turn adds only its own instruction
+ * plus the assistant message rather than re-sending an ~8k-token prompt. Input
+ * grows 13%; the rest of a loop's cost is the second turn's own output.
+ *
+ *   none     one turn (runs 1-5)
+ *   trace    + one turn asking for the intermediate lines of each trace  [default]
+ *   gap      + one turn asking only for defects the first turn did not report
+ *   reflect  + one turn asking for both, in that order
+ *   sweep    re-hunts the lane in class groups, one conversation per group
+ *
+ * `HUNT_LOOP_PASSES` bounds the follow-up turns for the conversational modes
+ * (default 1). With more than one, the loop stops early as soon as a turn adds
+ * nothing new — an unproductive turn is the natural termination signal, and
+ * paying for a second one has no upside.
+ *
+ * `HUNT_SWEEP_GROUP` is the number of classes per group in `sweep` mode.
+ *
+ * Findings are UNIONED across turns, never replaced: a later turn can add a
+ * finding or add lines to one, and cannot delete either. Recall is the metric
+ * this loop exists to move, and union is the only merge rule that cannot lose
+ * a hit the first turn already had. The cost is precision, which v2 has no
+ * validator to recover — see docs/protocols/eval-howto.md §3.
+ */
+export type LoopMode = 'none' | 'trace' | 'gap' | 'reflect' | 'sweep'
+const LOOP_MODES: LoopMode[] = ['none', 'trace', 'gap', 'reflect', 'sweep']
+
+/**
+ * The shipped arm. Exported so a test asserts what the stage actually defaults
+ * to rather than what a doc says it defaults to — the loop is selected by env
+ * var, so nothing in the commit graph records which arm a run executed.
+ */
+export const DEFAULT_LOOP_MODE: LoopMode = 'trace'
+
+const LOOP_MODE: LoopMode = (() => {
+  const raw = process.env.HUNT_LOOP
+  if (raw === undefined || raw === '') return DEFAULT_LOOP_MODE
+  if ((LOOP_MODES as string[]).includes(raw)) return raw as LoopMode
+  throw new Error(`HUNT_LOOP="${raw}" is not one of: ${LOOP_MODES.join(', ')}`)
+})()
+
+/**
+ * A positive integer from the environment, or the fallback when unset.
+ *
+ * Deliberately stricter than parseInt: `parseInt("1e5")` is 1, which as an
+ * output-token cap silently truncates every response and reads downstream as
+ * "the model found nothing" rather than as a misconfiguration. An empty string
+ * is a typo, not a request for the default, and is rejected too.
+ */
+function positiveEnvInt(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (raw === undefined) return fallback
+  if (!/^[0-9]+$/.test(raw.trim()) || Number(raw.trim()) <= 0) {
+    throw new Error(`${name}="${raw}" is not a positive integer`)
+  }
+  return Number(raw.trim())
+}
+
+const LOOP_PASSES = positiveEnvInt('HUNT_LOOP_PASSES', 1)
+const SWEEP_GROUP_SIZE = positiveEnvInt('HUNT_SWEEP_GROUP', 3)
+
+/**
+ * Use the stricter wording of the trace-completion instruction, which requires
+ * each added line to be justified in its description and blesses re-emitting an
+ * already-complete trace unchanged.
+ *
+ * Off by default because it was measured and it costs more than it saves — see
+ * the comment at the wording itself in buildFollowUpTurn().
+ */
+const LOOP_STRICT_TRACE = process.env.HUNT_LOOP_STRICT_TRACE === '1'
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
 export const SINGLE_PASS_LINE_BUDGET = 2000
@@ -265,10 +355,10 @@ export function lineNumberContent(content: string, startLine: number): string {
 
 // ── Playbook loading and validation ───────────────────────────────────────
 
-async function loadPlaybooksForClasses(classIds: string[]): Promise<Map<string, string>> {
+export async function loadPlaybooksForClasses(classIds: string[]): Promise<Map<string, string>> {
   const loaded = new Map<string, string>()
   for (const classId of classIds) {
-    const entry = registry![classId]
+    const entry = loadRegistry()[classId]
     if (!entry) continue
     const modName = entry.playbook
     if (loaded.has(modName)) continue
@@ -481,6 +571,312 @@ Each finding must have:
   return { prompt, breakdown: { segments, total_chars: prompt.length } }
 }
 
+// ── Agent-loop follow-up turns ────────────────────────────────────────────
+
+/**
+ * Compact rendering of what the lane has reported so far.
+ *
+ * The findings are already in the transcript as the assistant's own JSON, so
+ * this is not the model's only view of them. It is here because after two or
+ * three turns that JSON is far up the context and interleaved with reasoning;
+ * restating the current union as a short numbered list is what makes "do not
+ * repeat these" and "complete these" unambiguous.
+ */
+function renderReportedSoFar(findings: CandidateFinding[]): string {
+  if (findings.length === 0) return '(nothing yet)'
+  return findings
+    .map((f, i) => {
+      const cls = f.finding_classes.map(c => c.class).join(', ')
+      const lines = f.trace.map(s => s.line).join(', ')
+      return `${i + 1}. [${cls}] ${f.title} — trace lines ${lines}`
+    })
+    .join('\n')
+}
+
+/**
+ * The instruction for a follow-up turn.
+ *
+ * TRACE targets the largest measured residual pool. Run 5's cold near-miss
+ * pool was 28 entries that already carried the right class and already sat
+ * within the localization window, failing only the exact-line test — and in 16
+ * of them the line the scorer wanted lay strictly INSIDE the span the finding
+ * had already cited, uncited, because the trace named its endpoints and skipped
+ * the path between them (median 3 lines named across a median span of 11).
+ * Asking for the intermediate lines is therefore a completeness request about
+ * a path the model has already drawn, not a relocation request. That
+ * distinction matters: the one instruction that told the model to *move* a
+ * step to a narrower line was measured and falsified — it broke four exact
+ * hits to fix three.
+ *
+ * GAP targets emission. Across scored runs the model emits about a third of
+ * the classes a lane is assigned, and no run has ever asked it a second time.
+ * The turn is deliberately non-binding — it may not suppress an earlier
+ * finding — because run 4 made a per-class sweep authoritative over labelling
+ * and lost 20 hits to it.
+ */
+export function buildFollowUpTurn(
+  mode: Exclude<LoopMode, 'none' | 'sweep'>,
+  classes: string[],
+  reported: CandidateFinding[],
+  strictTrace: boolean = LOOP_STRICT_TRACE,
+): string {
+  const unreported = classes.filter(
+    c => !reported.some(f => f.finding_classes.some(fc => fc.class === c)))
+
+  const soFar = `## Index of what this lane has reported so far
+This is an index, not the findings themselves — titles, classes and cited lines only.
+Your own JSON above is the record; work from that.
+
+${renderReportedSoFar(reported)}
+`
+
+  // Two wordings of the same request, and the difference between them is the
+  // largest single effect measured in this investigation — larger than the
+  // reasoning effort. The default is the one that was measured to work.
+  //
+  // STRICT adds what a review correctly identified as the missing guard: every
+  // scored metric is monotone in trace length, so nothing in the default
+  // wording stops the model padding a trace until it hits something. STRICT
+  // attaches a justification cost to each added line and blesses re-emitting an
+  // already-complete trace unchanged.
+  //
+  // It was measured, on the same 40 lanes, and it does not merely remove the
+  // padding: recall 66.0% -> 52.6%, localization 84.5% -> 71.1%, below a
+  // mechanical inflation of the loop-free control to the same line budget. So
+  // the guard as written suppresses the completion the loop exists to produce.
+  // It is kept, behind a flag, because the concern it addresses is real and the
+  // right wording is probably between the two — but the default has to be the
+  // one with a measurement behind it. See docs/architecture/stage2-lane-loop.md §5.
+  const completeTraces = strictTrace
+    ? `### 1. Name the lines each finding's path actually passes through
+For each finding, the trace should name every line the value or the control decision
+passes through between its entrypoint and its sink: each reassignment of it, each call
+that forwards it, each conditional whose outcome decides whether it reaches the sink,
+each transformation applied to it. A trace that names only its two endpoints asserts
+that nothing happens to the value in between, and the line someone has to change is
+often one of the ones skipped.
+
+Two limits on that, and they matter as much as the request:
+
+- **This is an addition, not a relocation.** Keep every finding and keep the line you
+  already chose for each step. Do not move a step to a different line and do not drop
+  one.
+- **A line is a step only if the path goes through it.** Every line you add must be one
+  the value or the control decision actually passes through, and its description must
+  say what that line does to it — the assignment, the call, the branch it turns on. If
+  you cannot say what a line does to the value, it is not a step; leave it out. A line
+  that carries no part of the path makes the finding harder to act on, not stronger.
+
+Some findings are genuinely two lines: a hardcoded constant, a weak algorithm chosen in
+one place, a single missing check. When a trace is already complete, say so in the sink
+step's description and re-emit it exactly as it is. You are not being asked to lengthen
+every trace.`
+    : `### 1. Complete the path of every finding above
+For each finding, the trace must name **every** line the value or the control decision
+actually passes through between its entrypoint and its sink: each reassignment, each
+call that forwards it, each conditional that lets it continue, each transformation
+applied to it. A trace that names only its two endpoints asserts that the defect is
+those two lines alone, which is rarely true — the line someone has to change is
+usually one of the ones in between.
+
+Keep every finding and keep the line you already chose for each step. This is an
+addition, not a relocation: do not move a step to a different line, and do not drop a
+step. Add the lines you skipped.`
+
+  const findMissed = `### ${mode === 'reflect' ? '2' : '1'}. Report what you did not report
+Work through your assigned class list one class at a time: ${classes.join(', ')}.
+For each class in turn, ask whether this file contains an instance of it that is not
+already in the index above. A class you considered and rejected on the first pass is
+worth reconsidering now — you have the whole file in front of you and you know what you
+already claimed.${unreported.length ? `
+
+No finding yet carries any of these assigned classes: ${unreported.join(', ')}. Start
+there.` : ''}
+
+"Not already in the index" means a different defect, not a different location. Two
+distinct defects on the same lines are two findings; only the same defect found again
+is a repeat.
+
+You are not being asked to manufacture an instance — if a class has nothing in this
+file, report nothing for it. But "I cannot confirm this from this file alone" is not
+nothing: that is a 0.1-0.3 finding, and the confidence bands from the first pass still
+apply. Report it low rather than not at all.
+
+Every new finding's trace must still begin with an \`entrypoint\` step and end with a
+\`sink\` step, exactly as on the first pass. If the real entrypoint is outside this
+file, make the first step the line where this file receives the data, mark it
+\`entrypoint\`, and say so in its description.
+
+Nothing here overrides the first pass. You cannot withdraw a finding above by not
+repeating it, and a class you now judge absent stays on any finding that already
+carries it.`
+
+  const header = `${soFar}\nThis is another pass over the same file. `
+
+  const body =
+    mode === 'trace' ? `${header}One job.\n\n${completeTraces}`
+    : mode === 'gap' ? `${header}One job.\n\n${findMissed}`
+    : `${header}Two jobs, in this order.\n\n${completeTraces}\n\n${findMissed}`
+
+  const common = `Every trace step must cite a line of the numbered content above, in
+that same file, using the line numbers exactly as shown.`
+
+  const output = mode === 'gap'
+    ? `\n\n## Output
+Respond in the same JSON schema as before, containing **only the new findings**. Do not
+restate the findings in the index. If there are none, return an empty "findings" array.
+${common}`
+    : `\n\n## Output
+Respond in the same JSON schema as before: re-emit every finding above, followed by any
+new one. When you re-emit a finding, keep its exact title and every line number it
+already cites, so it is recognisable as the same finding rather than a new one. Set each
+class's \`justified_by_step\` to that class's index in the trace you are emitting now.
+${common}`
+
+  return body + output
+}
+
+/**
+ * Merge a follow-up turn's findings into the accumulated set.
+ *
+ * A returned finding is a REVISION of an existing one when it shares a class
+ * and either kept the exact title it was told to keep or agrees on two cited
+ * lines. Anything else is a new finding. The two-line floor matters: a shared
+ * class and a single shared line is the ordinary shape of a *different* defect
+ * entering at the same place, and `gap` mode returns nothing but new findings,
+ * so a looser rule absorbs them — losing their sink and their title while
+ * reporting that nothing was added.
+ *
+ * A revision adds the lines the accumulated finding did not have and changes
+ * nothing else about it. Every existing step keeps its line, its kind and its
+ * position, because a trace may legitimately repeat a line and may legitimately
+ * run backwards — a helper defined below its call site — and deduplicating or
+ * line-sorting the whole trace would delete and reorder cited evidence. New
+ * steps go in line order between the existing entrypoint and sink, and the
+ * sink's `justified_by_step` references are re-anchored to follow it.
+ *
+ * Nothing is ever removed: not a finding, not a class, not a cited line. See
+ * the LoopMode comment for why that is the only safe rule here.
+ */
+export function mergeFindings(
+  accumulated: CandidateFinding[],
+  incoming: CandidateFinding[],
+): { merged: CandidateFinding[]; added: number; revised: number } {
+  // Deep enough that nothing the caller passed in is ever mutated: the merge
+  // rewrites step kinds and re-anchors justified_by_step, both of which would
+  // otherwise reach back into the previous turn's arrays.
+  const clone = (f: CandidateFinding): CandidateFinding => ({
+    ...f,
+    trace: f.trace.map(s => ({ ...s })),
+    finding_classes: f.finding_classes.map(c => ({ ...c })),
+    categories: [...f.categories],
+  })
+  const out = accumulated.map(clone)
+  let added = 0
+  let revised = 0
+
+  for (const f of incoming) {
+    const fClasses = new Set(f.finding_classes.map(c => c.class))
+
+    // Identity. A shared class plus a single shared line is far too loose: a
+    // genuinely new defect that happens to enter at the same line — the common
+    // shape in `gap` mode, which returns only new findings — would be absorbed
+    // into an existing one, losing its own sink and its title while reporting
+    // itself as nothing added. Require the turn to look like a re-emission:
+    // either it kept the title it was told to keep, or it agrees on two lines.
+    let bestIdx = -1
+    let bestScore = 0
+    for (let i = 0; i < out.length; i++) {
+      const g = out[i]
+      if (!g.finding_classes.some(c => fClasses.has(c.class))) continue
+      const gLines = new Set(g.trace.map(s => s.line))
+      const overlap = [...new Set(f.trace.map(s => s.line))].filter(l => gLines.has(l)).length
+      if (overlap === 0) continue
+      const sameTitle = g.title.trim() === f.title.trim()
+      if (overlap < 2 && !sameTitle) continue
+      const score = overlap * 2 + (sameTitle ? 1 : 0)
+      if (score > bestScore) {
+        bestScore = score
+        bestIdx = i
+      }
+    }
+
+    if (bestIdx < 0) {
+      out.push({ ...f, trace: [...f.trace], finding_classes: [...f.finding_classes] })
+      added++
+      continue
+    }
+
+    // Extension. Every step the accumulated finding already had is kept exactly
+    // as it was — same line, same kind, same order. A trace may legitimately
+    // repeat a line and may legitimately run backwards (a helper defined below
+    // its call site), so deduplicating or line-sorting the whole trace would
+    // silently delete and reorder cited evidence. Only genuinely new lines are
+    // added, and they are inserted in line order between the existing
+    // entrypoint and sink so the shape the schema validation enforced still
+    // holds.
+    const g = out[bestIdx]
+    const present = new Set(g.trace.map(s => s.line))
+    const fresh: TraceStep[] = []
+    for (const s of f.trace) {
+      if (present.has(s.line)) continue
+      present.add(s.line)
+      fresh.push({ ...s, kind: 'propagation' })
+    }
+    fresh.sort((a, b) => a.line - b.line)
+
+    if (fresh.length > 0) {
+      const oldLastIdx = g.trace.length - 1
+      if (oldLastIdx === 0) {
+        // Defensive: normalizeTurnFindings requires the first step to be an
+        // entrypoint and the last a sink, which a one-step trace cannot satisfy,
+        // so this is unreachable today. Keep the invariant anyway rather than
+        // emitting a trace that ends on a propagation step.
+        g.trace = [g.trace[0], ...fresh]
+        g.trace[g.trace.length - 1] = { ...g.trace[g.trace.length - 1], kind: 'sink' }
+      } else {
+        g.trace = [...g.trace.slice(0, oldLastIdx), ...fresh, g.trace[oldLastIdx]]
+      }
+      const newLastIdx = g.trace.length - 1
+      // Only the sink's index moved; every earlier step kept its position, so
+      // this is the whole of the re-anchoring `justified_by_step` needs.
+      for (const c of g.finding_classes) {
+        if (c.justified_by_step === oldLastIdx) c.justified_by_step = newLastIdx
+      }
+      revised++
+    }
+
+    for (const c of f.finding_classes) {
+      if (!g.finding_classes.some(e => e.class === c.class)) {
+        // The step index the incoming turn cited indexes ITS trace, not the
+        // merged one. Re-anchoring it correctly is not possible in general, and
+        // an out-of-range index is clamped downstream anyway, so pin it to the
+        // sink — the step every class in this finding is at least reachable from.
+        g.finding_classes.push({ class: c.class, justified_by_step: Math.max(0, g.trace.length - 1) })
+      }
+    }
+
+    // `categories` is the OWASP-code expansion of `finding_classes`, and it is
+    // what category-aware scoring reads. It is computed once per turn in
+    // normalizeTurnFindings, so a class the merge adds here would otherwise
+    // carry no codes — the loop would correctly notice that a finding is also a
+    // crypto-auth defect and the codes would not follow it. Re-expand.
+    g.categories = unionCodesForClasses(g.finding_classes, loadRegistry())
+
+    if (g.description.length < f.description.length) g.description = f.description
+    g.confidence = Math.max(g.confidence, f.confidence)
+  }
+
+  return { merged: out, added, revised }
+}
+
+/** Split a lane's assigned classes into fixed-size groups for `sweep` mode. */
+export function classGroups(classes: string[], size: number): string[][] {
+  const groups: string[][] = []
+  for (let i = 0; i < classes.length; i += size) groups.push(classes.slice(i, i + size))
+  return groups
+}
+
 // ── LLM call with token tracking and retry ────────────────────────────────
 
 interface LlmCallResult {
@@ -507,9 +903,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+type ChatMessage = { role: 'user' | 'assistant'; content: string }
+
 async function callLlm(
   client: OpenAI,
-  prompt: string,
+  messages: ChatMessage[],
   schema: Record<string, unknown>,
   laneId: string,
 ): Promise<LlmCallResult | null> {
@@ -523,7 +921,7 @@ async function callLlm(
     try {
       const response = await client.chat.completions.create({
         model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
+        messages: messages,
         ...samplingParams(PROVIDER),
         ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
         response_format: {
@@ -544,7 +942,7 @@ async function callLlm(
         try {
           const response = await client.chat.completions.create({
             model: MODEL,
-            messages: [{ role: 'user', content: prompt }],
+            messages: messages,
             ...samplingParams(PROVIDER),
             ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
             response_format: { type: 'json_object' },
@@ -605,7 +1003,7 @@ function unionCodesForClasses(classes: FindingClassRef[], reg: VulnClassRegistry
   return result
 }
 
-async function huntLane(
+export async function huntLane(
   client: OpenAI,
   lane: LaneAssignmentEntry,
   targetDir: string,
@@ -681,7 +1079,8 @@ async function huntLane(
     )
 
     const t0 = Date.now()
-    const result = await callLlm(client, huntResult.prompt, schema, lane.lane_id)
+    const result = await callLlm(
+      client, [{ role: 'user', content: huntResult.prompt }], schema, lane.lane_id)
     const elapsed = (Date.now() - t0) / 1000
 
     if (!result) {
@@ -715,86 +1114,270 @@ async function huntLane(
       measured: result.measured,
     })
 
-    let parsed: LaneHuntResponse
-    try {
-      const jsonStr = extractJson(result.text)
-      parsed = JSON.parse(jsonStr) as LaneHuntResponse
-    } catch {
-      console.log(`  [${lane.lane_id}] [WARN] chunk ${chunk.index} returned unparseable content`)
-      continue
+    const turnFindings = normalizeTurnFindings(result.text, lane, classIds, `chunk ${chunk.index}`)
+    for (const f of turnFindings) allFindings.push(f)
+    // Only under a loop mode. A `none` run must write the same six-key chunk
+    // record it has always written, or every archived budget-consumption.json
+    // stops being comparable to a fresh reproduction of the run that made it.
+    if (LOOP_MODE !== 'none') {
+      chunkRecords[chunkRecords.length - 1].findings_emitted = turnFindings.length
     }
 
-    if (parsed.findings && Array.isArray(parsed.findings)) {
-      for (const f of parsed.findings) {
-        if (!f.trace || !Array.isArray(f.trace) || f.trace.length === 0) {
-          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty trace — dropping`)
-          continue
-        }
-        if (f.trace[0].kind !== 'entrypoint') {
-          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't start with entrypoint — dropping`)
-          continue
-        }
-        if (f.trace[f.trace.length - 1].kind !== 'sink') {
-          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't end with sink — dropping`)
-          continue
+    // ── Follow-up turns ───────────────────────────────────────────────────
+    // The conversation carries the file, the playbooks and the context that
+    // turn 1 already paid for, so a follow-up turn adds only the assistant
+    // message and its own instruction.
+    if (LOOP_MODE !== 'none' && LOOP_MODE !== 'sweep') {
+      const messages: ChatMessage[] = [
+        { role: 'user', content: huntResult.prompt },
+        { role: 'assistant', content: result.text },
+      ]
+      let accumulated = turnFindings
+
+      for (let pass = 1; pass <= LOOP_PASSES; pass++) {
+        const instruction = buildFollowUpTurn(LOOP_MODE, classIds, accumulated)
+        messages.push({ role: 'user', content: instruction })
+
+        const tPass = Date.now()
+        const followUp = await callLlm(client, messages, schema, lane.lane_id)
+        const passElapsed = (Date.now() - tPass) / 1000
+        if (!followUp) {
+          console.error(`  [${lane.lane_id}] [ERROR] chunk ${chunk.index} pass ${pass} LLM call failed`)
+          // The call was made and may have been billed. Record it with null
+          // measurements, exactly as a failed turn-1 call is recorded, so the
+          // consumption artifact has one entry per call attempted.
+          const breakdown = followUpBreakdown(messages, instruction)
+          chunkRecords.push({
+            chunk_index: chunk.index,
+            start_line: chunk.start_line,
+            end_line: chunk.end_line,
+            loop_pass: pass,
+            loop_mode: LOOP_MODE,
+            prompt_breakdown: breakdown,
+            segment_attribution: deriveSegmentAttribution(
+              breakdown, { prompt_tokens: null, completion_tokens: null, total_tokens: null }),
+            measured: { prompt_tokens: null, completion_tokens: null, total_tokens: null },
+          })
+          break
         }
 
-        // Validate and normalize finding_classes
-        const rawClasses = (f as any).finding_classes
-        if (!rawClasses || !Array.isArray(rawClasses) || rawClasses.length === 0) {
-          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty or missing finding_classes — dropping`)
-          continue
-        }
+        totalTokens += followUp.measured.total_tokens ?? 0
+        const breakdown = followUpBreakdown(messages, instruction)
+        chunkRecords.push({
+          chunk_index: chunk.index,
+          start_line: chunk.start_line,
+          end_line: chunk.end_line,
+          loop_pass: pass,
+          loop_mode: LOOP_MODE,
+          prompt_breakdown: breakdown,
+          segment_attribution: deriveSegmentAttribution(breakdown, followUp.measured),
+          measured: followUp.measured,
+        })
 
-        // Filter to only classes that are in this lane's assigned set
-        const assignedClassSet = new Set(classIds)
-        const validFindingClasses: FindingClassRef[] = []
-        for (const fc of rawClasses) {
-          if (!assignedClassSet.has(fc.class)) {
-            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has off-list class "${fc.class}" — skipping that class`)
-            continue
-          }
-          // Validate justified_by_step is within trace range
-          const stepIdx = fc.justified_by_step
-          if (typeof stepIdx !== 'number' || stepIdx < 0 || stepIdx >= f.trace.length) {
-            console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" class "${fc.class}" justified_by_step=${stepIdx} out of range (trace length ${f.trace.length}) — clamping to 0`)
-            validFindingClasses.push({ class: fc.class, justified_by_step: 0 })
-          } else {
-            validFindingClasses.push({ class: fc.class, justified_by_step: stepIdx })
-          }
-        }
+        const incoming = normalizeTurnFindings(
+          followUp.text, lane, classIds, `chunk ${chunk.index} pass ${pass}`)
+        const { merged, added, revised } = mergeFindings(accumulated, incoming)
+        accumulated = merged
+        messages.push({ role: 'assistant', content: followUp.text })
+        Object.assign(chunkRecords[chunkRecords.length - 1], {
+          findings_emitted: incoming.length, findings_added: added, traces_extended: revised,
+        })
 
-        if (validFindingClasses.length === 0) {
-          console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has no valid finding_classes after filtering — dropping`)
-          continue
-        }
+        console.log(
+          `  [${lane.lane_id}] chunk ${chunk.index} pass ${pass} (${LOOP_MODE}): ` +
+          `${(followUp.measured.total_tokens ?? 0).toLocaleString()} tokens, ` +
+          `${passElapsed.toFixed(1)}s, +${added} new, ${revised} traces extended`)
 
-        // Expand to OWASP code strings
-        const categories = unionCodesForClasses(validFindingClasses, registry!)
-
-        // Runtime assertion: every emitted finding must have at least one code
-        if (categories.length === 0) {
-          console.error(`  [${lane.lane_id}] [FATAL] Finding "${f.title}" has empty categories after class expansion — this is a bug`)
-          process.exit(1)
-        }
-
-        const finding: CandidateFinding = {
-          finding_id: nextFindingId(),
-          lane_id: lane.lane_id,
-          finding_classes: validFindingClasses,
-          categories: categories,
-          title: f.title,
-          description: f.description,
-          trace: f.trace,
-          severity_estimate: f.severity_estimate,
-          confidence: f.confidence,
-        }
-        allFindings.push(finding)
+        // An unproductive turn is the termination signal: the model has said it
+        // has nothing further, and a further turn costs the same and returns the
+        // same. Stop rather than spend the remaining passes.
+        if (added === 0 && revised === 0) break
       }
+
+      // Replace this chunk's turn-1 findings with the accumulated union.
+      allFindings.length -= turnFindings.length
+      for (const f of accumulated) allFindings.push(f)
+    }
+
+    // ── sweep mode ──────────────────────────────────────────────────────────
+    // A separate conversation per class group, each carrying only that group's
+    // playbooks. This is the one mode that is not a follow-up turn: it re-hunts
+    // the same chunk with a narrower question, on the measured finding that a
+    // lane assigned 8.22 classes answers about the two or three that dominate
+    // the file.
+    if (LOOP_MODE === 'sweep') {
+      let accumulated = turnFindings
+      for (const group of classGroups(classIds, SWEEP_GROUP_SIZE)) {
+        const groupPlaybooks = new Map<string, string>()
+        for (const [name, text] of playbooks) {
+          if (group.some(c => loadRegistry()[c]?.playbook === name)) groupPlaybooks.set(name, text)
+        }
+        const built = buildHuntPrompt(
+          lane.target_file, lineNumbered, group, groupPlaybooks,
+          { chunkIndex: chunk.index, totalChunks: lane.chunk_plan.total_chunks },
+          archSummarySnippet, routeContextSection,
+        )
+        const tGroup = Date.now()
+        const res = await callLlm(
+          client, [{ role: 'user', content: built.prompt }], buildHuntSchema(group), lane.lane_id)
+        // The group is named in the record. Per-group cost and yield is the one
+        // question sweep mode exists to answer, and it is unanswerable if every
+        // group's record is indistinguishable from every other's.
+        const groupMode = `sweep:${group.join('+')}`
+        const nullMeasured = { prompt_tokens: null, completion_tokens: null, total_tokens: null }
+        if (!res) {
+          console.error(`  [${lane.lane_id}] [ERROR] sweep group ${group.join('+')} failed`)
+          // The call was made and may have been billed — record it, as a failed
+          // turn-1 call is recorded, so there is one entry per call attempted.
+          chunkRecords.push({
+            chunk_index: chunk.index,
+            start_line: chunk.start_line,
+            end_line: chunk.end_line,
+            loop_pass: 1,
+            loop_mode: groupMode,
+            prompt_breakdown: built.breakdown,
+            segment_attribution: deriveSegmentAttribution(built.breakdown, nullMeasured),
+            measured: nullMeasured,
+          })
+          continue
+        }
+        totalTokens += res.measured.total_tokens ?? 0
+        chunkRecords.push({
+          chunk_index: chunk.index,
+          start_line: chunk.start_line,
+          end_line: chunk.end_line,
+          loop_pass: 1,
+          loop_mode: groupMode,
+          prompt_breakdown: built.breakdown,
+          segment_attribution: deriveSegmentAttribution(built.breakdown, res.measured),
+          measured: res.measured,
+        })
+        const incoming = normalizeTurnFindings(
+          res.text, lane, group, `sweep ${group.join('+')}`)
+        const { merged, added, revised } = mergeFindings(accumulated, incoming)
+        accumulated = merged
+        Object.assign(chunkRecords[chunkRecords.length - 1], {
+          findings_emitted: incoming.length, findings_added: added, traces_extended: revised,
+        })
+        console.log(
+          `  [${lane.lane_id}] sweep ${group.join('+')}: ` +
+          `${(res.measured.total_tokens ?? 0).toLocaleString()} tokens, ` +
+          `${((Date.now() - tGroup) / 1000).toFixed(1)}s, +${added} new, ${revised} extended`)
+      }
+      allFindings.length -= turnFindings.length
+      for (const f of accumulated) allFindings.push(f)
     }
   }
 
   return { findings: allFindings, tokensUsed: totalTokens, chunkRecords }
+}
+
+/**
+ * Character breakdown of a follow-up turn.
+ *
+ * The turn's own instruction is the only new text; everything else is the
+ * transcript the conversation already carries, and the endpoint re-bills it as
+ * input. Attributing it to a `conversation` segment rather than folding it into
+ * `boilerplate` keeps the run-level rollup honest about where a loop's input
+ * tokens actually go.
+ */
+function followUpBreakdown(messages: ChatMessage[], instruction: string): PromptBreakdown {
+  const carried = messages.reduce((s, m) => s + m.content.length, 0) - instruction.length
+  return {
+    segments: [
+      { segment_type: 'conversation', chars: carried },
+      { segment_type: 'loop_instruction', chars: instruction.length },
+    ],
+    total_chars: carried + instruction.length,
+  }
+}
+
+/**
+ * Parse one turn's response and apply every validation the stage has always
+ * applied: trace shape, assigned-class filtering, `justified_by_step` range,
+ * and code expansion.
+ *
+ * Extracted from the turn-1 body unchanged when the agent loop was added, so
+ * every turn of a loop is held to exactly the same contract as a single-turn
+ * lane. An unparseable body yields no findings, which is what it did before.
+ */
+function normalizeTurnFindings(
+  text: string,
+  lane: LaneAssignmentEntry,
+  classIds: string[],
+  label: string,
+): CandidateFinding[] {
+  let parsed: LaneHuntResponse
+  try {
+    parsed = JSON.parse(extractJson(text)) as LaneHuntResponse
+  } catch {
+    console.log(`  [${lane.lane_id}] [WARN] ${label} returned unparseable content`)
+    return []
+  }
+  if (!parsed.findings || !Array.isArray(parsed.findings)) return []
+
+  const out: CandidateFinding[] = []
+  const assignedClassSet = new Set(classIds)
+
+  for (const f of parsed.findings) {
+    if (!f.trace || !Array.isArray(f.trace) || f.trace.length === 0) {
+      console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty trace — dropping`)
+      continue
+    }
+    if (f.trace[0].kind !== 'entrypoint') {
+      console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't start with entrypoint — dropping`)
+      continue
+    }
+    if (f.trace[f.trace.length - 1].kind !== 'sink') {
+      console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" trace doesn't end with sink — dropping`)
+      continue
+    }
+
+    const rawClasses = (f as any).finding_classes
+    if (!rawClasses || !Array.isArray(rawClasses) || rawClasses.length === 0) {
+      console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has empty or missing finding_classes — dropping`)
+      continue
+    }
+
+    const validFindingClasses: FindingClassRef[] = []
+    for (const fc of rawClasses) {
+      if (!assignedClassSet.has(fc.class)) {
+        console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has off-list class "${fc.class}" — skipping that class`)
+        continue
+      }
+      const stepIdx = fc.justified_by_step
+      if (typeof stepIdx !== 'number' || stepIdx < 0 || stepIdx >= f.trace.length) {
+        console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" class "${fc.class}" justified_by_step=${stepIdx} out of range (trace length ${f.trace.length}) — clamping to 0`)
+        validFindingClasses.push({ class: fc.class, justified_by_step: 0 })
+      } else {
+        validFindingClasses.push({ class: fc.class, justified_by_step: stepIdx })
+      }
+    }
+
+    if (validFindingClasses.length === 0) {
+      console.log(`  [${lane.lane_id}] [WARN] Finding "${f.title}" has no valid finding_classes after filtering — dropping`)
+      continue
+    }
+
+    const categories = unionCodesForClasses(validFindingClasses, loadRegistry())
+    if (categories.length === 0) {
+      console.error(`  [${lane.lane_id}] [FATAL] Finding "${f.title}" has empty categories after class expansion — this is a bug`)
+      process.exit(1)
+    }
+
+    out.push({
+      finding_id: nextFindingId(),
+      lane_id: lane.lane_id,
+      finding_classes: validFindingClasses,
+      categories,
+      title: f.title,
+      description: f.description,
+      trace: f.trace,
+      severity_estimate: f.severity_estimate,
+      confidence: f.confidence,
+    })
+  }
+  return out
 }
 
 /**
@@ -1188,7 +1771,7 @@ function getExtraMiddleware(middleware: string[] | undefined, handler: string): 
 
 // ── Load architecture summary (optional context) ──────────────────────────
 
-function loadArchSummarySnippet(archPath: string): string | undefined {
+export function loadArchSummarySnippet(archPath: string): string | undefined {
   if (!existsSync(archPath)) {
     console.warn(`  [loadArchSummarySnippet] File not found: ${archPath}`)
     return undefined
@@ -1626,7 +2209,12 @@ async function main() {
           lane_id: lane.lane_id,
           target_file: lane.target_file,
           file_bytes: lane.file_bytes,
-          chunk_count: result.chunkRecords.length,
+          // Chunks, not calls. A loop mode writes one record per TURN, so
+          // counting records here would report every single-chunk lane as
+          // multi-chunk and would make buildRunLevelRollup bill each extra turn
+          // as "boilerplate re-sent across a multi-chunk lane" — which is
+          // exactly what a conversational follow-up does NOT do.
+          chunk_count: new Set(result.chunkRecords.map(c => c.chunk_index)).size,
           chunks: result.chunkRecords,
           lane_totals: {
             prompt_tokens: hasAllMeasured ? laneTotalsPrompt : null,
@@ -1701,9 +2289,15 @@ async function main() {
   writeFileSync(v2Tmp, JSON.stringify(v2Output, null, 2) + '\n')
   renameSync(v2Tmp, v2Path)
 
+  // The loop is selected by env var, so `git_sha` cannot distinguish two runs
+  // of the same tree under different modes. Record the arm in the artifact —
+  // "verify the tree, not the intent" applies to runtime configuration too.
   writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED, 0, guardStats().blocked, {
     sampling: samplingParams(PROVIDER),
     max_output_tokens: OUTPUT_TOKEN_CAP,
+    loop_mode: LOOP_MODE,
+    ...(LOOP_MODE !== 'none' ? { loop_passes: LOOP_PASSES } : {}),
+    ...(LOOP_MODE === 'sweep' ? { sweep_group_size: SWEEP_GROUP_SIZE } : {}),
   })
 
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')

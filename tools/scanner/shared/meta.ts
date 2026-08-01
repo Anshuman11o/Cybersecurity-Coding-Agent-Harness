@@ -37,6 +37,18 @@ export interface RunMeta {
   sampling?: Record<string, number | string>
   /** Output-token cap the run actually sent. */
   max_output_tokens?: number
+  /**
+   * The per-lane agent loop the run executed under, for the same reason
+   * `sampling` is here: the loop is selected by env var, so `git_sha` cannot
+   * tell two runs of the same tree apart, and an artifact that does not name
+   * its arm gets cited later as a baseline for an arm it never ran.
+   * `"none"` is the historic single-turn behaviour.
+   */
+  loop_mode?: string
+  /** Follow-up turns permitted per chunk. Absent when loop_mode is "none". */
+  loop_passes?: number
+  /** Classes per group in sweep mode. Absent for every other mode. */
+  sweep_group_size?: number
 }
 
 function gitSha(): string {
@@ -58,7 +70,8 @@ export function writeMeta(
   startedIso: string,
   exitCode = 0,
   blockedReads = 0,
-  extra: Pick<RunMeta, 'sampling' | 'max_output_tokens'> = {},
+  extra: Pick<RunMeta,
+    'sampling' | 'max_output_tokens' | 'loop_mode' | 'loop_passes' | 'sweep_group_size'> = {},
 ): void {
   const dir = runPath(provider, stage)
   mkdirSync(dir, { recursive: true })
