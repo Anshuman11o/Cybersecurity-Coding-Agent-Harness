@@ -2,5 +2,15 @@
   "name": "scanner-shared",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "preflight": "tsx preflight.ts",
+    "test": "tsx --test guard.test.ts"
+  },
+  "dependencies": {
+    "openai": "^6.49.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
 }
