@@ -30,8 +30,6 @@
     "gemini-3.5-flash-cyber": "gemini-cyber",
     "moonshot": "kimi",
     "kimi-k3": "kimi",
-    "zai": "glm",
-    "glm-5.2": "glm",
     "deepseek-v4": "deepseek",
     "qwen3.7-plus": "qwen37"
   },
@@ -167,18 +165,6 @@
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "Highest-scoring open-weight model on the July 2026 CyberBench snapshot (79.03%, rank 4). Publishes a 90% cached-input discount, which matters disproportionately here: a v2 run is ~3.4M input against ~0.39M output, so cache behaviour moves the bill far more than headline price does."
-    },
-
-    "glm": {
-      "label": "GLM-5.2",
-      "model": "glm-5.2",
-      "model_env": "GLM_MODEL",
-      "api_key_env": "ZAI_API_KEY",
-      "base_url": "https://api.z.ai/api/paas/v4",
-      "base_url_env": "GLM_BASE_URL",
-      "token_limit_param": "max_tokens",
-      "sampling": { "temperature": 0.1 },
-      "notes": "MIT-licensed open weights, CyberBench rank 5 (77.36%). The licence is the point as much as the score: a self-hostable model is the only option for teams that cannot send proprietary source to a third-party API, which is a large share of the audience for a scanner result."
     },
 
     "deepseek": {

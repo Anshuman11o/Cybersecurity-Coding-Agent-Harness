@@ -43,10 +43,11 @@ or a credential.
 | `gemini-pro` | Gemini 3.1 Pro | `gemini-3.1-pro` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 | `gemini-cyber` | Gemini 3.5 Flash Cyber | `gemini-3.5-flash-cyber` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 | `kimi` | Kimi K3 | `kimi-k3` | `api.moonshot.ai` | `MOONSHOT_API_KEY` |
-| `glm` | GLM-5.2 | `glm-5.2` | `api.z.ai` | `ZAI_API_KEY` |
 | `deepseek` | DeepSeek V4 | `deepseek-v4` | `api.deepseek.com` | `DEEPSEEK_API_KEY` |
 
-The last eight were added on 2026-08-01 for the twelve-model benchmark. Every
+The last seven were added on 2026-08-01 for the eleven-model benchmark.
+(GLM-5.2 was registered alongside them and removed the same day, before any
+call — the benchmark is eleven models, not twelve.) Every
 one of them reaches the same `openai` SDK through `base_url`; there is no
 second client, no vendor SDK, and no code path that knows any of them exist.
 
