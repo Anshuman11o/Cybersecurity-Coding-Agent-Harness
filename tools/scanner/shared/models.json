@@ -103,7 +103,7 @@
       "model_env": "QWEN37_MODEL",
       "api_key_env": "DASHSCOPE_API_KEY",
       "base_url": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
-      "base_url_env": "DASHSCOPE_BASE_URL",
+      "base_url_env": "QWEN37_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "Same endpoint and credential as qwen, one generation newer, so a qwen-vs-qwen37 diff is an in-family generational delta on the model this project started from. Distinct model_env (QWEN37_MODEL, not QWEN_MODEL) so pinning one snapshot cannot silently move the other."
@@ -113,21 +113,21 @@
       "label": "Claude Opus 5",
       "model": "claude-opus-5",
       "model_env": "OPUS5_MODEL",
-      "api_key_env": "ANTHROPIC_API_KEY",
+      "api_key_env": "SCANNER_ANTHROPIC_API_KEY",
       "base_url": "https://api.anthropic.com/v1/",
-      "base_url_env": "ANTHROPIC_BASE_URL",
+      "base_url_env": "OPUS5_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
-      "notes": "Anthropic's OpenAI-compatible endpoint. Selected because the system card's profile — strong at vulnerability identification, weaker at exploitation — is the closest published match to this scanner's task, which is defensive static analysis rather than CTF. Shares a key and base_url_env with sonnet5 but keys its own run tree, per the key-on-the-model rule."
+      "notes": "Anthropic's OpenAI-compatible endpoint. Selected because the system card's profile — strong at vulnerability identification, weaker at exploitation — is the closest published match to this scanner's task, which is defensive static analysis rather than CTF. Credential and base_url env vars are deliberately NOT the vendor-standard ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL: the Claude Code harness that edits this repo sets ANTHROPIC_BASE_URL itself (to a value with no /v1 suffix), so declaring it here let the agent's own configuration silently redirect the scanner's endpoint. Found 2026-08-01 before any paid call. A registry env var must be owned by this registry alone."
     },
 
     "sonnet5": {
       "label": "Claude Sonnet 5",
       "model": "claude-sonnet-5",
       "model_env": "SONNET5_MODEL",
-      "api_key_env": "ANTHROPIC_API_KEY",
+      "api_key_env": "SCANNER_ANTHROPIC_API_KEY",
       "base_url": "https://api.anthropic.com/v1/",
-      "base_url_env": "ANTHROPIC_BASE_URL",
+      "base_url_env": "SONNET5_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "The mid tier most teams actually run in production, so it answers 'what will our existing stack do' rather than 'what is the ceiling'. Pairs with opus5 as an intra-vendor capability ladder, the same role terra/sol play for the GPT-5.6 family."
@@ -139,7 +139,7 @@
       "model_env": "GEMINI_PRO_MODEL",
       "api_key_env": "GEMINI_API_KEY",
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-      "base_url_env": "GEMINI_BASE_URL",
+      "base_url_env": "GEMINI_PRO_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "Google's OpenAI-compatible endpoint. Third frontier lab in the comparison; without it the benchmark reads as OpenAI vs Anthropic. Confirm before a run whether a 3.5 Pro has shipped — the 3.5 line currently exposes Flash and Flash Lite only, so 3.1 Pro is the current Pro tier."
@@ -151,7 +151,7 @@
       "model_env": "GEMINI_CYBER_MODEL",
       "api_key_env": "GEMINI_API_KEY",
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-      "base_url_env": "GEMINI_BASE_URL",
+      "base_url_env": "GEMINI_CYBER_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "A domain-tuned security variant rather than a general model — the only entry in the registry that is. Against gemini-pro it isolates a question nothing else here asks: whether security tuning beats raw capability on defensive static analysis. Note the published claim is on CyberGym, an offensive benchmark, so it is a hypothesis this run tests rather than evidence for the result."
@@ -163,7 +163,7 @@
       "model_env": "KIMI_MODEL",
       "api_key_env": "MOONSHOT_API_KEY",
       "base_url": "https://api.moonshot.ai/v1",
-      "base_url_env": "MOONSHOT_BASE_URL",
+      "base_url_env": "KIMI_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "Highest-scoring open-weight model on the July 2026 CyberBench snapshot (79.03%, rank 4). Publishes a 90% cached-input discount, which matters disproportionately here: a v2 run is ~3.4M input against ~0.39M output, so cache behaviour moves the bill far more than headline price does."
@@ -175,7 +175,7 @@
       "model_env": "GLM_MODEL",
       "api_key_env": "ZAI_API_KEY",
       "base_url": "https://api.z.ai/api/paas/v4",
-      "base_url_env": "ZAI_BASE_URL",
+      "base_url_env": "GLM_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
       "notes": "MIT-licensed open weights, CyberBench rank 5 (77.36%). The licence is the point as much as the score: a self-hostable model is the only option for teams that cannot send proprietary source to a third-party API, which is a large share of the audience for a scanner result."

@@ -38,8 +38,8 @@ or a credential.
 | `luna-fixed` | GPT-5.6 Luna (post-fix arm) | `gpt-5.6-luna` | `api.openai.com` | `OPENAI_API_KEY` |
 | `qwen` | Qwen 3.6 Plus | `qwen-plus` | DashScope OpenAI-compatible | `DASHSCOPE_API_KEY` |
 | `qwen37` | Qwen 3.7 Plus | `qwen3.7-plus` | DashScope OpenAI-compatible | `DASHSCOPE_API_KEY` |
-| `opus5` | Claude Opus 5 | `claude-opus-5` | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| `sonnet5` | Claude Sonnet 5 | `claude-sonnet-5` | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| `opus5` | Claude Opus 5 | `claude-opus-5` | `api.anthropic.com` | `SCANNER_ANTHROPIC_API_KEY` |
+| `sonnet5` | Claude Sonnet 5 | `claude-sonnet-5` | `api.anthropic.com` | `SCANNER_ANTHROPIC_API_KEY` |
 | `gemini-pro` | Gemini 3.1 Pro | `gemini-3.1-pro` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 | `gemini-cyber` | Gemini 3.5 Flash Cyber | `gemini-3.5-flash-cyber` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 | `kimi` | Kimi K3 | `kimi-k3` | `api.moonshot.ai` | `MOONSHOT_API_KEY` |
@@ -53,6 +53,38 @@ second client, no vendor SDK, and no code path that knows any of them exist.
 **Every non-`api.openai.com` host above must be on the environment's egress
 allowlist**, or the first API call fails with "Host not in allowlist" rather
 than an auth error — see §8.
+
+### A registry env var must be owned by this registry alone
+
+`clientConfigFor()` prefers `process.env[base_url_env]` over the declared
+`base_url`. So any env var named here is a live redirect of the scanner's
+traffic, and naming a *vendor-standard* variable hands that redirect to whatever
+else in the environment happens to set it.
+
+This was not hypothetical. The `opus5`/`sonnet5` entries originally declared
+`ANTHROPIC_BASE_URL` — which **the Claude Code harness that edits this repo
+already sets**, to `https://api.anthropic.com` with no `/v1` suffix. The scanner
+would have resolved its endpoint from the coding agent's own configuration and
+POSTed to `…/chat/completions` instead of `…/v1/chat/completions`. Caught
+2026-08-01 by diffing every declared env var name against the live environment,
+before any paid call.
+
+The failure is silent in the worst way: a redirected `base_url` produces a 404
+or a wrong-model response, not an auth error, so it reads as a model problem
+rather than a configuration one.
+
+Therefore every target added from 2026-08-01 uses **model-scoped** names
+(`OPUS5_BASE_URL`, `KIMI_BASE_URL`, …) and, where the vendor name is one the
+agent harness also uses, a scanner-private credential var
+(`SCANNER_ANTHROPIC_API_KEY`). The pre-existing `luna`/`terra`/`sol`/`qwen`
+entries still declare `OPENAI_BASE_URL` and `DASHSCOPE_BASE_URL`; neither is set
+in the current environment, so they are correct today, but they carry the same
+latent risk and should be checked before a run rather than assumed.
+
+    # before any run, confirm nothing outside the registry is steering an endpoint
+    node -e "const r=require('./tools/scanner/shared/models.json');
+      for(const [k,t] of Object.entries(r.targets))
+        if(process.env[t.base_url_env]) console.log('OVERRIDDEN', k, t.base_url_env, process.env[t.base_url_env])"
 
 Aliases are accepted everywhere a key is and canonicalized before anything
 touches disk: `openai` and `gpt-5.6-luna` → `luna`; `dashscope` and `qwen-plus`
