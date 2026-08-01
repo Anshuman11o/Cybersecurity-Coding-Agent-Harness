@@ -89,7 +89,7 @@ latent risk and should be checked before a run rather than assumed.
 
 Aliases are accepted everywhere a key is and canonicalized before anything
 touches disk: `openai` and `gpt-5.6-luna` → `luna`; `dashscope` and `qwen-plus`
-→ `qwen`; `opus`, `sonnet`, `cyber`, `moonshot`, `zai` and each model id map to
+→ `qwen`; `opus`, `sonnet`, `cyber`, `moonshot` and each model id map to
 their target. `run.sh openai …` and `run.sh luna …` are the same run.
 
 Every provider executes **byte-identical scanner logic** against a
