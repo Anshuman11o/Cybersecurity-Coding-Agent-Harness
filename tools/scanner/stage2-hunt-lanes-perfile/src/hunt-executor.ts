@@ -942,6 +942,7 @@ async function callLlm(
 function captureMeasuredTokens(usage: OpenAI.Completions.CompletionUsage | undefined): MeasuredTokens {
   return {
     cached_prompt_tokens: (usage as any)?.prompt_tokens_details?.cached_tokens ?? null,
+    cache_write_prompt_tokens: (usage as any)?.prompt_tokens_details?.cache_write_tokens ?? null,
     prompt_tokens: usage?.prompt_tokens ?? null,
     completion_tokens: usage?.completion_tokens ?? null,
     total_tokens: usage?.total_tokens ?? null,

@@ -78,7 +78,7 @@ export interface ModelTarget {
    * output leg is ~68% of a run's bill, because reasoning tokens are billed as
    * output. A projection that models only input is not a cost projection.
    */
-  price_per_mtok?: { input: number; cached_input?: number; output: number }
+  price_per_mtok?: { input: number; cached_input?: number; cache_write?: number; output: number } | null
   /**
    * The date the prices above were read off the vendor's pricing page.
    *
@@ -90,6 +90,13 @@ export interface ModelTarget {
    * when this date is old, and never take a price from a doc.
    */
   price_asof?: string
+  /**
+   * Which column of the vendor's price list these rates came from. Standard
+   * service tier at short context is what this scanner is billed at; Batch and
+   * Flex are half, Fast mode is double, and long context is double again. A
+   * rate without its tier is not checkable.
+   */
+  price_tier?: string
   /** Free text: quirks, endpoint requirements, why a field is set as it is. */
   notes?: string
 }

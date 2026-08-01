@@ -164,7 +164,7 @@ export function samplingParams(provider: Provider): Record<string, number | stri
  */
 export function pricingFor(
   provider: Provider,
-): { input: number; cached_input?: number; output: number } | null {
+): { input: number; cached_input?: number; cache_write?: number; output: number } | null {
   return targetFor(provider).price_per_mtok ?? null
 }
 
@@ -179,6 +179,7 @@ export function costUsd(
   inputTokens: number,
   outputTokens: number,
   cachedInputTokens = 0,
+  cacheWriteTokens = 0,
 ): number | null {
   const p = pricingFor(provider)
   if (!p) return null
@@ -187,9 +188,14 @@ export function costUsd(
   // the prefix of its second turn, which is exactly the shape a prefix cache
   // serves, so ignoring the cached rate overstates a looped run specifically.
   const cached = Math.min(cachedInputTokens, inputTokens)
-  const fresh = inputTokens - cached
+  const written = Math.min(cacheWriteTokens, inputTokens - cached)
+  const fresh = inputTokens - cached - written
   const cachedRate = p.cached_input ?? p.input
-  return (fresh / 1e6) * p.input + (cached / 1e6) * cachedRate + (outputTokens / 1e6) * p.output
+  const writeRate = p.cache_write ?? p.input
+  return (fresh / 1e6) * p.input +
+    (cached / 1e6) * cachedRate +
+    (written / 1e6) * writeRate +
+    (outputTokens / 1e6) * p.output
 }
 
 export function outputTokenCap(provider: Provider, fallback: number): number {

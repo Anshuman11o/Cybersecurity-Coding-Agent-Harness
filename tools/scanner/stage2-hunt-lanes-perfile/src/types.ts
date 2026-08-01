@@ -151,6 +151,13 @@ export interface MeasuredTokens {
    * expensive than it is. Null when the provider omits the detail.
    */
   cached_prompt_tokens?: number | null;
+  /**
+   * Input tokens written INTO the prefix cache, billed above the fresh-input
+   * rate. The other half of the cache trade: a loop's first turn pays a premium
+   * to write the prefix its follow-up then reads cheaply, and a cost model that
+   * counts only the discount overstates the saving.
+   */
+  cache_write_prompt_tokens?: number | null;
 }
 
 /**

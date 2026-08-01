@@ -200,6 +200,8 @@ export interface UsageReportV2 {
   input_tokens: number | null;
   /** Of `input_tokens`, how many were served from the prefix cache. */
   cached_input_tokens: number | null;
+  /** Of `input_tokens`, how many were written into it, billed above fresh. */
+  cache_write_tokens: number | null;
   output_tokens: number | null;
   total_tokens: number | null;
   input_cost_usd: number | null;
@@ -775,6 +777,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
 
   let input: number | null = null
   let cached: number | null = null
+  let written: number | null = null
   let output: number | null = null
   let total: number | null = null
   let calls: number | null = null
@@ -787,7 +790,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
     total = raw.reduce((s: number, e: any) => s + (e.tokens_used ?? 0), 0)
   } else if (Array.isArray(raw.lanes)) {
     laneCount = raw.lanes.length
-    input = 0; output = 0; total = 0; calls = 0; cached = 0
+    input = 0; output = 0; total = 0; calls = 0; cached = 0; written = 0
     for (const lane of raw.lanes) {
       const t = lane.lane_totals ?? {}
       if (t.prompt_tokens == null && t.completion_tokens == null) missing++
@@ -797,6 +800,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
       calls += Array.isArray(lane.chunks) ? lane.chunks.length : 0
       for (const ch of lane.chunks ?? []) {
         cached += ch?.measured?.cached_prompt_tokens ?? 0
+        written += ch?.measured?.cache_write_prompt_tokens ?? 0
       }
     }
   }
@@ -817,10 +821,8 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
   }
 
   const price = pricingFor(PROVIDER)
-  const freshIn = input != null ? input - Math.min(cached ?? 0, input) : null
-  const inputCost = price && input != null && freshIn != null
-    ? (freshIn / 1e6) * price.input +
-      (Math.min(cached ?? 0, input) / 1e6) * (price.cached_input ?? price.input)
+  const inputCost = price && input != null
+    ? costUsd(PROVIDER, input, 0, cached ?? 0, written ?? 0)
     : null
   const outputCost = price && output != null ? (output / 1e6) * price.output : null
 
@@ -842,6 +844,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
     price_asof: priceAsOf(PROVIDER),
     input_tokens: input,
     cached_input_tokens: cached,
+    cache_write_tokens: written,
     output_tokens: output,
     total_tokens: total,
     input_cost_usd: inputCost,
