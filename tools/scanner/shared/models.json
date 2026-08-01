@@ -152,7 +152,7 @@
       "label": "Claude Opus 5",
       "model": "claude-opus-5",
       "model_env": "ANTHROPIC_MODEL",
-      "api_key_env": "ANTHROPIC_API_KEY",
+      "api_key_env": "SCANNER_ANTHROPIC_API_KEY",
       "base_url": "https://api.anthropic.com/v1",
       "base_url_env": "SCANNER_ANTHROPIC_BASE_URL",
       "token_limit_param": "max_tokens",
@@ -160,14 +160,14 @@
       "max_output_tokens": 24000,
       "price_per_mtok": { "input": 5.0, "output": 25.0 },
       "price_verified": "2026-08-01, vendor list price for base input and output. Prompt-caching multipliers (writes 1.25x/2x, reads 0.1x) and the batch discount are not modelled.",
-      "notes": "Added 2026-08-01. UNVERIFIED — registered from documentation, never exercised, because ANTHROPIC_API_KEY is not set in this environment. What IS confirmed is the transport: api.anthropic.com/v1/chat/completions exists and returns an OpenAI-shaped error envelope, so this reaches the existing SDK client with no code change. What is NOT confirmed: that the model id resolves, that json_schema strict is honoured (the stages fall back to json_object if not), and that max_tokens is the accepted cap parameter. Run shared/preflight.ts against this target before citing any number from it."
+      "notes": "Added 2026-08-01. UNVERIFIED — registered from documentation, never exercised, because no Anthropic credential is present in this environment. The credential var is SCANNER_ANTHROPIC_API_KEY, not ANTHROPIC_API_KEY: this runs inside Claude Code, whose harness withholds ANTHROPIC_API_KEY from the container (its own sessions authenticate through the account), so that name cannot carry a scanner credential here. Same reason base_url_env is SCANNER_ANTHROPIC_BASE_URL — the ambient ANTHROPIC_BASE_URL is set without the /v1 suffix and would resolve every call to a 404 path. What IS confirmed is the transport: api.anthropic.com/v1/chat/completions exists and returns an OpenAI-shaped error envelope, so this reaches the existing SDK client with no code change. What is NOT confirmed: that the model id resolves, that json_schema strict is honoured (the stages fall back to json_object if not), and that max_tokens is the accepted cap parameter. Run shared/preflight.ts against this target before citing any number from it."
     },
 
     "sonnet5": {
       "label": "Claude Sonnet 5",
       "model": "claude-sonnet-5",
       "model_env": "ANTHROPIC_MODEL",
-      "api_key_env": "ANTHROPIC_API_KEY",
+      "api_key_env": "SCANNER_ANTHROPIC_API_KEY",
       "base_url": "https://api.anthropic.com/v1",
       "base_url_env": "SCANNER_ANTHROPIC_BASE_URL",
       "token_limit_param": "max_tokens",
@@ -175,7 +175,7 @@
       "max_output_tokens": 24000,
       "price_per_mtok": { "input": 2.0, "output": 10.0 },
       "price_verified": "2026-08-01, vendor list price — but this is INTRODUCTORY pricing that expires 2026-08-31. From 2026-09-01 the rate becomes 3.0/15.0, a 50% increase. This entry must be updated on that date or every run after it under-reports cost by a third. Caching multipliers and the batch discount are not modelled.",
-      "notes": "Added 2026-08-01. UNVERIFIED for the same reason as opus5 — no ANTHROPIC_API_KEY in this environment. Same transport, same open questions (model id resolution, json_schema strict support, cap parameter). Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. Run shared/preflight.ts before citing any number from it."
+      "notes": "Added 2026-08-01. UNVERIFIED for the same reason as opus5 — no Anthropic credential present; see that entry for why the var is SCANNER_ANTHROPIC_API_KEY. Same transport, same open questions (model id resolution, json_schema strict support, cap parameter). Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. Run shared/preflight.ts before citing any number from it."
     }
   }
 }
