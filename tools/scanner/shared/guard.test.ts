@@ -2,7 +2,7 @@
 import { readCorpusFile, isCorpusReadable, guardStats } from './read-guard.js'
 import { runPath, RUNS_ROOT, STAGES } from './run-paths.js'
 import {
-  resolveProvider, modelFor, tokenLimitParam, samplingParams,
+  resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap,
   listProviders, defaultProvider, targetFor, apiKeyEnvFor, clientConfigFor,
 } from './provider.js'
 
@@ -131,7 +131,12 @@ check('luna model id',            modelFor('luna') === 'gpt-5.6-luna')
 check('qwen model id',            modelFor('qwen') === 'qwen-plus')
 check('luna max_completion_tokens','max_completion_tokens' in tokenLimitParam('luna', 100))
 check('qwen max_tokens',          'max_tokens' in tokenLimitParam('qwen', 100))
-check('luna omits sampling',      Object.keys(samplingParams('luna')).length === 0)
+// luna declared no sampling at all until 2026-07-31. It now sets reasoning_effort,
+// because runs 1-5 all ran at the endpoint's default effort and that was the
+// single largest recoverable loss measured at a fixed model. The cap must move
+// with it — see the output-token block below.
+check('luna sets reasoning_effort', samplingParams('luna').reasoning_effort === 'high')
+check('luna sets nothing else',    Object.keys(samplingParams('luna')).length === 1)
 check('qwen has temperature',     'temperature' in samplingParams('qwen'))
 check('luna uses SDK default URL', clientConfigFor('luna').baseURL === undefined)
 check('qwen overrides baseURL',    typeof clientConfigFor('qwen').baseURL === 'string')
@@ -217,6 +222,32 @@ console.log('\n-- line-number fidelity: what the model is told must be what the 
     }
     check('no line other than the key declaration moved', drift === 0)
   }
+}
+
+console.log('\n-- output-token cap is registry data, and every shipped target keeps the stage default --')
+// Reasoning tokens are billed as output AND counted against this cap. A target
+// that raises reasoning_effort without raising the cap can spend the whole
+// budget thinking and return a truncated body — which arrives downstream as an
+// empty findings array, i.e. as a reasoning result rather than as a failure.
+{
+  for (const p of listProviders()) {
+    const t = targetFor(p)
+    if (t.max_output_tokens == null) {
+      check(`${p}: no cap declared, stage default passes through`,
+        outputTokenCap(p, 8000) === 8000)
+    } else {
+      check(`${p}: declared cap overrides the stage default`,
+        outputTokenCap(p, 8000) === t.max_output_tokens && t.max_output_tokens > 8000)
+    }
+  }
+  // Targets that have produced a scored run and are NOT raising effort must keep
+  // the historical cap, or their artifacts stop being comparable to runs 1-5.
+  for (const p of ['terra', 'sol', 'qwen']) {
+    check(`${p}: output cap unchanged at the historical 8000`, outputTokenCap(p, 8000) === 8000)
+  }
+  check('a target raising reasoning_effort also raises the cap',
+    listProviders().every(p =>
+      !('reasoning_effort' in targetFor(p).sampling) || outputTokenCap(p, 8000) > 8000))
 }
 
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)

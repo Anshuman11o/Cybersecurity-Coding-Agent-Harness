@@ -46,8 +46,26 @@ export interface ModelTarget {
   base_url_env: string | null
   /** Which output-token cap parameter this API accepts. */
   token_limit_param: TokenLimitParam
-  /** Sampling params to send. Empty for models that reject non-defaults. */
-  sampling: Record<string, number>
+  /**
+   * Sampling params to send. Empty for models that reject non-defaults.
+   *
+   * Values may be numbers or strings: the GPT-5.x family takes
+   * `reasoning_effort` as one of "low" | "medium" | "high", and it belongs
+   * here rather than in stage code for the same reason the model id does —
+   * it is a property of the target, not of the hunting logic.
+   */
+  sampling: Record<string, number | string>
+  /**
+   * Output-token cap for a stage's model calls. Optional; stages supply their
+   * own default when it is absent.
+   *
+   * It lives here because reasoning tokens are billed and counted as output:
+   * a target running at a higher reasoning effort can spend the whole of a cap
+   * that was ample at the default effort and return a truncated body, which
+   * surfaces as "the model found nothing" rather than as an error. The cap has
+   * to move with the effort, and both are properties of the target.
+   */
+  max_output_tokens?: number
   /** Free text: quirks, endpoint requirements, why a field is set as it is. */
   notes?: string
 }
@@ -84,6 +102,13 @@ const REGISTRY: Registry = (() => {
     }
     if (t.sampling == null || typeof t.sampling !== 'object') {
       throw new Error(`models.json: target "${key}" has a non-object "sampling"`)
+    }
+    if (t.max_output_tokens != null &&
+        (!Number.isInteger(t.max_output_tokens) || t.max_output_tokens <= 0)) {
+      throw new Error(
+        `models.json: target "${key}" has max_output_tokens ` +
+          `"${t.max_output_tokens}"; expected a positive integer`,
+      )
     }
   }
 

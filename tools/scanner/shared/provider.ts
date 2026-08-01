@@ -112,6 +112,21 @@ export function tokenLimitParam(
  * accepting non-default sampling values declare `{}` and are steered through
  * the prompt instead.
  */
-export function samplingParams(provider: Provider): Record<string, number> {
+export function samplingParams(provider: Provider): Record<string, number | string> {
   return { ...targetFor(provider).sampling }
+}
+
+/**
+ * Output-token cap for this target, or the caller's default when the registry
+ * does not set one.
+ *
+ * Every target that has run to date omits it and therefore keeps the stage
+ * default byte-for-byte. It exists so that a target raising `reasoning_effort`
+ * can raise the ceiling in the same registry entry: reasoning tokens are billed
+ * as output AND counted against this cap, so a cap tuned at the default effort
+ * silently truncates the response body at a higher one — which reads downstream
+ * as an empty findings array rather than as a failure.
+ */
+export function outputTokenCap(provider: Provider, fallback: number): number {
+  return targetFor(provider).max_output_tokens ?? fallback
 }

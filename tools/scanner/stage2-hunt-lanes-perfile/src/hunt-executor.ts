@@ -34,7 +34,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from '
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams } from '../../shared/provider.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
@@ -63,6 +63,20 @@ const REPO_ROOT = join(__dirname, '../../../..')
 
 const PROVIDER: Provider = resolveProvider('stage2perfile')
 const MODEL = modelFor(PROVIDER)
+
+/**
+ * Output-token cap for a hunt call when the registry does not set one.
+ *
+ * 8000 was ample for every run to date, all of which sent no reasoning_effort
+ * and so ran at the endpoint's default. It is not ample at a higher effort:
+ * reasoning tokens are billed as output AND counted against this cap, so the
+ * body gets truncated once reasoning grows into it — and a truncated body is
+ * unparseable JSON, which this stage records as a lane that found nothing
+ * rather than as a failure. A target that raises the effort raises the cap in
+ * the same registry entry; see max_output_tokens in models.json.
+ */
+export const DEFAULT_OUTPUT_TOKEN_CAP = 8000
+const OUTPUT_TOKEN_CAP = outputTokenCap(PROVIDER, DEFAULT_OUTPUT_TOKEN_CAP)
 const STARTED = new Date().toISOString()
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
@@ -511,7 +525,7 @@ async function callLlm(
         model: MODEL,
         messages: [{ role: 'user', content: prompt }],
         ...samplingParams(PROVIDER),
-        ...tokenLimitParam(PROVIDER, 8000),
+        ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
         response_format: {
           type: 'json_schema',
           json_schema: {
@@ -532,7 +546,7 @@ async function callLlm(
             model: MODEL,
             messages: [{ role: 'user', content: prompt }],
             ...samplingParams(PROVIDER),
-            ...tokenLimitParam(PROVIDER, 8000),
+            ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
             response_format: { type: 'json_object' },
           } as any)
           const text = response.choices[0]?.message?.content
@@ -1687,7 +1701,10 @@ async function main() {
   writeFileSync(v2Tmp, JSON.stringify(v2Output, null, 2) + '\n')
   renameSync(v2Tmp, v2Path)
 
-  writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED, 0, guardStats().blocked)
+  writeMeta(PROVIDER, 'stage2-hunt-lanes-perfile', MODEL, STARTED, 0, guardStats().blocked, {
+    sampling: samplingParams(PROVIDER),
+    max_output_tokens: OUTPUT_TOKEN_CAP,
+  })
 
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)
