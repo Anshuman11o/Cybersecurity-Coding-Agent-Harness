@@ -19,7 +19,16 @@
     "openai": "luna",
     "gpt-5.6-luna": "luna",
     "dashscope": "qwen",
-    "qwen-plus": "qwen"
+    "qwen-plus": "qwen",
+    "claude-opus-5": "opus5",
+    "opus-5": "opus5",
+    "claude-sonnet-5": "sonnet5",
+    "sonnet-5": "sonnet5",
+    "gemini-3.1-pro": "gemini31pro",
+    "gemini-3.1-pro-preview": "gemini31pro",
+    "glm-5.2": "glm52",
+    "zai": "glm52",
+    "qwen3.7-plus": "qwen37"
   },
 
   "targets": {
@@ -35,7 +44,8 @@
         "reasoning_effort": "high"
       },
       "max_output_tokens": 24000,
-      "price_per_mtok": { "input": 1.0, "output": 6.0 },
+      "price_per_mtok": { "input": 0.2, "output": 1.2 },
+      "price_verified": "2026-08-01 against the vendor's published standard short-context rate. CORRECTION: this entry previously carried 1.0/6.0, which was never the published rate for this model. Every cost figure reported for luna before 2026-08-01 is overstated 5x and must not be compared against a post-correction figure without restating it. Long-context (>272K prompt) rates are 0.4/1.8 and are NOT modelled here; the registry carries one rate pair, so a long-context run under-reports.",
       "notes": "GPT-5.x reasoning models reject max_tokens with a 400, and reject any temperature but the default, so steering happens through the prompt and through reasoning_effort. reasoning_effort was added 2026-07-31: runs 1-5 sent none at all and therefore ran at the endpoint's default, so four rounds of playbook work were tuned against the cheapest tier of the family at that tier's own cheapest effort. Re-measured 2026-08-01 on the 40-lane platform against a matched control: high effort alone is recall 53.6% -> 63.9%, 10 entries gained and 0 lost. Paired with Stage 2's default trace loop it is 67.0% recall and 85.6% localization, the shipped arm — see docs/run-history.md 2026-08-01 and docs/architecture/stage2-lane-loop.md. max_output_tokens must move with the effort: reasoning tokens are billed as output AND counted against the cap, and at this effort 42% of calls exceed 8000, where a truncated body is unparseable JSON that Stage 2 records as a lane that found nothing — measured recall 63.9% -> 37.1% at an 8000 cap. 24000 is slack: the highest completion measured is 14584, so raising it further cannot buy recall and 16000 would do. 'medium' is untested. To reproduce runs 1-5 exactly, set SCANNER_REASONING_EFFORT= and SCANNER_MAX_OUTPUT_TOKENS=8000 and HUNT_LOOP=none rather than editing this entry. base_url null means the SDK default, https://api.openai.com/v1. Requires api.openai.com on the environment's egress allowlist."
     },
 
@@ -48,7 +58,8 @@
       "base_url_env": "OPENAI_BASE_URL",
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
-      "price_per_mtok": { "input": 2.5, "output": 15.0 },
+      "price_per_mtok": { "input": 2.0, "output": 12.0 },
+      "price_verified": "2026-08-01 against the vendor's published standard short-context rate. CORRECTION: previously 2.5/15.0. Long-context (>272K prompt) rates are 4.0/18.0 and are not modelled here.",
       "notes": "Middle tier of the GPT-5.6 family, same endpoint and key as luna. $2.50/$15 per MTok against luna's $1.00/$6.00. Added 2026-07-29 because every run to date has used the family's cheapest tier: docs/'Cybersecurity models pricing research' records luna as 'the smallest step up available' from qwen on cost grounds, so model capability has never been isolated as a variable."
     },
 
@@ -62,6 +73,7 @@
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
       "price_per_mtok": { "input": 5.0, "output": 30.0 },
+      "price_verified": "2026-08-01 against the vendor's published standard short-context rate — unchanged, this entry was already correct. Long-context (>272K prompt) rates are 10.0/45.0 and are not modelled here.",
       "notes": "Top tier of the GPT-5.6 family, same endpoint and key as luna. $5.00/$30 per MTok, ~5x luna on input. Rated 96.7% on OpenAI's internal CTF suite, which they describe as saturated — read it as 'not capability-limited on security reasoning', not as a percentage of anything. See the pricing research doc's caveats before treating that number as a ranking."
     },
 
@@ -74,7 +86,8 @@
       "base_url_env": "OPENAI_BASE_URL",
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
-      "price_per_mtok": { "input": 1.0, "output": 6.0 },
+      "price_per_mtok": { "input": 0.2, "output": 1.2 },
+      "price_verified": "2026-08-01. Corrected from 1.0/6.0 in step with luna, which is the same model.",
       "notes": "Same model as luna. A separate key so the run-5 artifacts in runs/luna/ stay untouched while the same model is re-measured with the 2026-07-29 fixes in force. Exists to separate 'the fixes helped' from 'the model tier helped' — without it, a terra-vs-run-5 delta confounds both. Experiment arm: do not merge to main."
     },
 
@@ -87,7 +100,82 @@
       "base_url_env": "DASHSCOPE_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
-      "notes": "DashScope's OpenAI-compatible endpoint. Accepts only max_tokens. This was the default target before the registry existed; it is kept so the committed runs/qwen/ baseline stays reproducible."
+      "notes": "DashScope's OpenAI-compatible endpoint. Accepts only max_tokens. This was the default target before the registry existed; it is kept so the committed runs/qwen/ baseline stays reproducible. Deliberately unpriced: the vendor bills this model's output at two different rates depending on whether the request runs in thinking mode, and the registry carries one rate pair. A single number here would be wrong for one of the two modes, and pricingFor() returning null prints no cost rather than a wrong one."
+    },
+
+    "qwen37": {
+      "label": "Qwen 3.7 Plus",
+      "model": "qwen3.7-plus",
+      "model_env": "QWEN_MODEL",
+      "api_key_env": "DASHSCOPE_API_KEY",
+      "base_url": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
+      "base_url_env": "DASHSCOPE_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": { "temperature": 0.1 },
+      "max_output_tokens": 24000,
+      "price_per_mtok": { "input": 0.4, "output": 1.6 },
+      "price_verified": "2026-08-01, vendor list price for prompts <=256K, thinking and non-thinking output priced alike. Two caveats: the vendor advertises a limited-time 20% discount, so actual spend will run below this projection until it lapses; and the published table is regional, this figure is the one listed alongside the endpoint in base_url. The >256K tier is 1.2/4.8 and is not modelled.",
+      "notes": "Added 2026-08-01. A separate target from `qwen` rather than a bump of it: `qwen` pins Qwen 3.6 Plus so the committed runs/qwen/ baseline stays reproducible, and reusing the key would silently repoint that baseline's namespace. Verified 2026-08-01 on the endpoint above: plain completion 200, json_schema strict honoured, temperature 0.1 accepted. Shares DASHSCOPE_API_KEY and QWEN_MODEL with `qwen` — setting QWEN_MODEL therefore overrides BOTH targets at once, which would silently collapse a 3.6-vs-3.7 comparison into one model. Leave it unset."
+    },
+
+    "gemini31pro": {
+      "label": "Gemini 3.1 Pro",
+      "model": "gemini-3.1-pro-preview",
+      "model_env": "GEMINI_MODEL",
+      "api_key_env": "GEMINI_API_KEY",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "base_url_env": "GEMINI_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": {},
+      "max_output_tokens": 24000,
+      "price_per_mtok": { "input": 2.0, "output": 12.0 },
+      "price_verified": "2026-08-01, vendor list price for prompts <=200K. Output price includes thinking tokens. The >200K tier is 4.0/18.0 and is not modelled — a lane whose prompt crosses 200K under-reports cost by ~50%.",
+      "notes": "Added 2026-08-01. Reached through Google's OpenAI-compatibility layer, so it runs the existing SDK client with no code change; the /v1beta/openai suffix on base_url is what selects that layer. The model id is gemini-3.1-pro-preview — the bare 'gemini-3.1-pro' 404s with NOT_FOUND. Verified 2026-08-01: plain completion 200, json_schema strict honoured. max_output_tokens is set high for the same reason as luna's and matters MORE here: a 16-token probe returned finish_reason 'length' with completion_tokens 0 and an empty body, because thinking consumed the entire budget before any content was emitted. Downstream that is indistinguishable from a lane that found nothing, so do not lower this cap without re-measuring. 24000 is inherited from luna's slack rather than measured on this model — the highest completion actually observed here is unknown."
+    },
+
+    "glm52": {
+      "label": "GLM-5.2",
+      "model": "glm-5.2",
+      "model_env": "GLM_MODEL",
+      "api_key_env": "ZAI_API_KEY",
+      "base_url": "https://api.z.ai/api/paas/v4",
+      "base_url_env": "ZAI_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": {},
+      "max_output_tokens": 24000,
+      "price_per_mtok": { "input": 1.4, "output": 4.4 },
+      "price_verified": "2026-08-01, vendor list price, flat-rate with no context tier. Cached input is 0.26 and cache storage is free for a limited period; neither is modelled, so a cache-heavy run over-reports.",
+      "notes": "Added 2026-08-01. Z.ai's OpenAI-compatible endpoint, so it runs the existing SDK client with no code change. Credential env var is ZAI_API_KEY, not a GLM_-prefixed name. Verified 2026-08-01: plain completion 200, json_schema strict honoured. A first attempt on 2026-08-01 returned HTTP 429 code 1113 'Insufficient balance' — auth had already succeeded at that point, so read a 1113 as an unfunded account rather than a bad key. The same model is also resold through DashScope at the same list price; this entry uses the vendor endpoint directly."
+    },
+
+    "opus5": {
+      "label": "Claude Opus 5",
+      "model": "claude-opus-5",
+      "model_env": "ANTHROPIC_MODEL",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "base_url": "https://api.anthropic.com/v1",
+      "base_url_env": "ANTHROPIC_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": {},
+      "max_output_tokens": 24000,
+      "price_per_mtok": { "input": 5.0, "output": 25.0 },
+      "price_verified": "2026-08-01, vendor list price for base input and output. Prompt-caching multipliers (writes 1.25x/2x, reads 0.1x) and the batch discount are not modelled.",
+      "notes": "Added 2026-08-01. UNVERIFIED — registered from documentation, never exercised, because ANTHROPIC_API_KEY is not set in this environment. What IS confirmed is the transport: api.anthropic.com/v1/chat/completions exists and returns an OpenAI-shaped error envelope, so this reaches the existing SDK client with no code change. What is NOT confirmed: that the model id resolves, that json_schema strict is honoured (the stages fall back to json_object if not), and that max_tokens is the accepted cap parameter. Run shared/preflight.ts against this target before citing any number from it."
+    },
+
+    "sonnet5": {
+      "label": "Claude Sonnet 5",
+      "model": "claude-sonnet-5",
+      "model_env": "ANTHROPIC_MODEL",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "base_url": "https://api.anthropic.com/v1",
+      "base_url_env": "ANTHROPIC_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": {},
+      "max_output_tokens": 24000,
+      "price_per_mtok": { "input": 2.0, "output": 10.0 },
+      "price_verified": "2026-08-01, vendor list price — but this is INTRODUCTORY pricing that expires 2026-08-31. From 2026-09-01 the rate becomes 3.0/15.0, a 50% increase. This entry must be updated on that date or every run after it under-reports cost by a third. Caching multipliers and the batch discount are not modelled.",
+      "notes": "Added 2026-08-01. UNVERIFIED for the same reason as opus5 — no ANTHROPIC_API_KEY in this environment. Same transport, same open questions (model id resolution, json_schema strict support, cap parameter). Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. Run shared/preflight.ts before citing any number from it."
     }
   }
 }
