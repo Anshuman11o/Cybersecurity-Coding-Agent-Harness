@@ -29,6 +29,22 @@ repo does the conversion. `scanner.jsonl` keeps its original lines and adds
 `*-rebased97` re-score lines, per the never-rewrite rule. See
 `protocols/eval-howto.md`.
 
+## Where this stands after run 6
+
+Run 6 (2026-08-01) is the current best and the current architecture: recall
+**71.1%**, localization **88.7%**, on the shipped `HUNT_LOOP=trace` +
+`reasoning_effort: high` arm. Its entry is immediately below; the run-1-to-5
+table further down is the history it improved on.
+
+Two things to carry when reading any row in this file:
+
+- **Recall is monotone in trace length.** Run 6 cites 3.6x the lines run 5 did,
+  and a budget-matched mechanical null accounts for +16.5 of its +27.8 points.
+  Rows before run 6 all sit at a similar low line budget and are comparable to
+  each other; comparing any of them to run 6 without the null is not.
+- **The nondeterminism floor is ±7 entries** on byte-identical prompts. Nothing
+  smaller than that is a result on its own.
+
 ## ⚠ Recall to date is understated by 3 entries — and the model tier was never tested
 
 Two findings from the 2026-07-29 run-6 investigation
@@ -43,12 +59,19 @@ localization unchanged — a 2-line shift is invisible to a ±15 window and fata
 exact-line recall. Fixed on 2026-07-29 with 7 regression tests. Runs 1–5 are left
 as published; add ~3 entries when comparing any of them to a post-fix run.
 
-**⚠ No run 6 exists. The full-pipeline combined-fix run was launched and died on
-`no credits remaining` — the OpenAI account is out of credits.** The `terra` and
-`luna-fixed` full manifests are staged and checkpoints cleared, so both runs are
-executable the moment credits are restored. The same wall is why `sol` is
-unmeasured; an earlier note attributing that to rate limiting was wrong — all 248
-of its 429s carried `no credits remaining`.
+**Superseded 2026-08-01: run 6 now exists and is recorded below.** This
+paragraph previously read "No run 6 exists": the 2026-07-29 full-pipeline
+combined-fix attempt was launched and died on `no credits remaining`, and the
+`terra` and `luna-fixed` full manifests were left staged for whenever credits
+returned. Credits did return, and the run that eventually took the name went a
+different way — Stage 2's agent loop on `luna` rather than a model-tier change
+on `terra`. The original attempt is left recorded here because a run that died
+is part of the history; what changed is only that the gap it left is now filled.
+
+`terra`, `luna-fixed` and `sol` remain **unmeasured on the full corpus**, all
+three for the same billing reason rather than any capability one. An earlier
+note attributing `sol`'s failure to rate limiting was wrong — all 248 of its
+429s carried `no credits remaining`.
 
 **2. Every scored run used the cheapest tier of its model family.** `luna` was
 chosen on cost as "the smallest step up" from `qwen`. A 129-lane arm on `terra`,
@@ -57,6 +80,96 @@ same prompts and same shared Stage 0, scored **50/82 = 61.0% recall against luna
 history. That arm completed cleanly (0 retries, 0 fatal) before credits ran out, so
 it stands; it is a 129-lane result, not a full run. Four runs of playbook and labelling work were tuned against a model that
 was itself the binding constraint.
+
+### Run 6 — 2026-08-01T19:19Z, `stage1-2-v2-perfile-trace-loop`, `luna`, `20889d4`
+
+**The shipped arm on the full corpus: recall 69/97 = 71.1%, localization
+88.7%.** Both are the best recorded by a wide margin, and recall is above the
+60–70% band the arm was selected for.
+
+Stages 0 and 0.5 were carried over from run 3 unchanged — the same artifacts
+run 5 used — so the lane manifest and per-lane class assignments are identical
+and this is single-variable against run 5 in Stage 2's arm.
+
+| Metric | Run 5 | **Run 6** | Target |
+|---|---|---|---|
+| Recall (file + exact line + category) | 42/97 = 43.3% | **69/97 = 71.1%** | ≥90% |
+| Localization (±15 lines) | 78/97 = 80.4% | **86/97 = 88.7%** | ≥90% |
+| File-level (any line) | 97/97 = 100% | 97/97 = 100% | — |
+| Precision proxy (category-aware) | 12.5% | 12.5% | ≥95% |
+| Hedging | 1.518 | **1.418** | baseline 1.000 |
+| Recall, category-blind | 55/97 = 56.7% | **77/97 = 79.4%** | — |
+| Localization, category-blind | 87/97 = 89.7% | **93/97 = 95.9%** | — |
+| Precision proxy, category-blind | 19.1% | 22.4% | — |
+| Findings | 392 | 553 | — |
+| Lanes emitting ≥1 finding | 244/541 = 45.1% | 268/541 = 49.5% | — |
+| Max classes on one finding | 3 | 4 | — |
+| Tokens | 3,786,720 | **9,618,943** | — |
+| Cost | $5.73 | **$21.84** | — |
+| Wall clock | 4m38s @ C=16 | 13m04s @ C=32 | — |
+| Retries / fatal | 0 / 0 | **0 / 0** | — |
+
+| Bucket | Run 5 | Run 6 | Δ |
+|---|---|---|---|
+| HIT | 42 | **69** | **+27** |
+| CATEGORY_MISS | 13 | 8 | −5 |
+| LINE_MISS_NEAR | 28 | **14** | **−14** |
+| LINE_MISS_FAR | 12 | 5 | −7 |
+| FILE_ONLY | 2 | 1 | −1 |
+| NOT_FOUND | 0 | 0 | 0 |
+
+Recall transitions: **28 gained, 1 lost.**
+
+**The gain is broad-based, and this is the number that says so.** Run 6's 69
+hits span **40 of the 66 distinct ground-truth locations**, against run 5's 42
+hits over 23. Every previous headline in this file carried the caveat that
+recall is location-weighted and a single crowded line can swing it by 11 points;
+this run nearly doubles the distinct locations covered, which no amount of
+hot-line luck produces.
+
+`LINE_MISS_NEAR` — the dominant residual pool since run 5, and the one the
+`trace` loop was built to target — **halved, 28 → 14**. That is the intervention
+working on the mechanism it was designed for.
+
+**Execution.** 541/541 hunt lanes, **0 retries, 0 fatal, 0 blocked reads**,
+`degraded: false`, single clean pass. 1,082 model calls — exactly 2 per lane, so
+the loop fired on every one. All three token accounting sources agree at
+9,618,943 with no duplicate `lane_id` and no failed lane. Actual cost $21.84
+against Stage 1's $23.11 projection, **5.5% under**.
+
+#### ⚠ How much of this is detection, and how much is cited lines
+
+Every ground-truth-denominated metric is monotone in trace length, so this must
+be reported with its line budget and a budget-matched null — see
+`protocols/eval-howto.md` §3. Run 6 cites **881 distinct lines across the
+benchmark-bearing lanes, 20.8% of their 4,245 lines**, against run 5's 244
+(5.7%). Inflating run 5's own findings mechanically to the same 881-line budget,
+with no model involved:
+
+| | recall | localization | blind loc |
+|---|---|---|---|
+| Run 5 | 43.3% | 80.4% | 89.7% |
+| **Run 6** | **71.1%** | **88.7%** | **95.9%** |
+| Null, matched to 881 lines | 59.8% | 83.5% | 94.8% |
+| Null, fill every span (1,812 lines) | 73.2% | 83.5% | 92.8% |
+
+So of the +27.8 recall points, **+16.5 is line count and +11.3 is
+attributable**; of the +8.3 localization points, +3.1 is line count and **+5.2
+is attributable**. Category-blind localization is almost entirely line count.
+Run 6's 71.1% sits just under the 73.2% a purely mechanical span-fill reaches.
+
+**Read the attributable figures when comparing architectures, and the headline
+when reporting what the scanner produced.** Both are true; neither alone is.
+
+Other qualifications: one arm against a **±7-entry nondeterminism floor** (the
+28-gained/1-lost shape is far outside it, but the exact figure is not
+reproducible to the entry); precision has no Stage 3 validator in v2 to recover
+it; and `ai-llm-agency` remains 0/4, unchanged across every run to date.
+
+Archived at `runs/2026-08-01T19-19Z__stage1-2-v2-perfile-trace-loop__luna__20889d4/`
+in the answer-key repo.
+
+---
 
 ## 2026-08-01 — Stage 2 per-lane agent loop, and the output cap
 

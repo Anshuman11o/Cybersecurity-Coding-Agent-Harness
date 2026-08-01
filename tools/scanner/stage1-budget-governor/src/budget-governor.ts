@@ -173,59 +173,33 @@ export interface BudgetPlanV2 {
   model: string;
 }
 
-/** Reconciliation result for one lane. */
-export interface LaneReconciliation {
-  lane_id: string;
-  target_file: string;
-  projected_input_tokens: number;
-  projected_output_tokens: number;
-  projected_calls: number;
-  actual_input_tokens: number | null;
-  actual_output_tokens: number | null;
-  actual_total_tokens: number | null;
-  /** Calls the lane actually made — one chunk record per call. */
-  actual_calls: number | null;
-  divergence: number | null;         // actual - projected (null when actual missing)
-  divergence_pct: number | null;     // (actual - projected) / projected
-}
-
-/** Full v2 reconciliation output. */
-export interface ReconciliationV2 {
+/**
+ * Actual usage for a completed v2 run.
+ *
+ * No projected fields and no divergence: the budget plan is a pre-run go/no-go
+ * estimate, and after the run the number that matters is what it spent. Nulls
+ * are honest — a v1-format consumption artifact never split input from output,
+ * and an unpriced target gets no cost rather than a wrong one.
+ */
+export interface UsageReportV2 {
   generated_at: string;
-  plan_source: string;
   consumption_source: string;
-  lanes: LaneReconciliation[];
-  overall: {
-    total_projected_input: number;
-    total_projected_output: number;
-    total_projected_calls: number;
-    total_projected_cost_usd: number | null;
-    total_actual_input: number | null;
-    total_actual_output: number | null;
-    total_actual_total: number | null;
-    total_actual_calls: number | null;
-    total_actual_cost_usd: number | null;
-    overall_divergence: number | null;
-    overall_divergence_pct: number | null;
-    output_divergence: number | null;
-    output_divergence_pct: number | null;
-    /**
-     * The arm the plan assumed against the arm the run recorded. When these
-     * disagree, every divergence below is explained by that and nothing else
-     * should be read into them.
-     */
-    plan_loop_mode: string | null;
-    run_loop_mode: string | null;
-    arm_matches: boolean | null;
-  };
-  largest_divergences: Array<{
-    lane_id: string;
-    target_file: string;
-    divergence: number;
-    divergence_pct: number;
-    projected: number;
-    actual: number | null;
-  }>;
+  provider: string;
+  model: string;
+  /** The arm Stage 2 recorded. Null when its meta.json is absent or unreadable. */
+  loop_mode: string | null;
+  reasoning_effort: string | null;
+  lane_count: number;
+  /** Lanes whose token counts the provider did not return. Should be 0. */
+  lanes_missing_measurement: number;
+  /** One per API call, every loop turn included. */
+  calls: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  input_cost_usd: number | null;
+  output_cost_usd: number | null;
+  cost_usd: number | null;
 }
 
 // ── Task A: Pre-run cost estimator ─────────────────────────────────────────
@@ -775,167 +749,84 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
   }
 }
 
-// ── v2: Reconciliation ────────────────────────────────────────────────────
+// ── v2: Post-run usage ────────────────────────────────────────────────────
 
-function reconcileV2(
-  plan: BudgetPlanV2,
-  consumptionPath: string,
-): ReconciliationV2 {
-  // Read consumption file — could be v1 (legacy array) or v2 (full structure)
-  const consumptionRaw = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
+/**
+ * Actual usage for a completed v2 run, read from Stage 2's own consumption
+ * artifact.
+ *
+ * This reports what the run spent. It deliberately does NOT compare against the
+ * plan: the plan is a pre-run go/no-go estimate, and a divergence between an
+ * estimate and a measurement is a fact about the estimate, not about the run.
+ * The number anyone needs afterwards is what it cost.
+ *
+ * Token counts come from `lane_totals`, which sums the per-call records — every
+ * turn of a lane's agent loop included — so a looped run is counted in full
+ * rather than at its first turn. `calls` is the record count, which is what
+ * makes a looped run legible: 2 calls per single-chunk lane means the loop ran.
+ */
+function usageReportV2(consumptionPath: string): UsageReportV2 {
+  const raw = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
 
-  // Which arm the run actually executed, from Stage 2's own meta.json. The loop
-  // is chosen by env var, so this is the only record of it that travels with
-  // the artifacts.
-  let runLoopMode: string | null = null
+  let input: number | null = null
+  let output: number | null = null
+  let total: number | null = null
+  let calls: number | null = null
+  let laneCount = 0
+  let missing = 0
+
+  if (Array.isArray(raw)) {
+    // v1 legacy format: total tokens only, never split.
+    laneCount = raw.length
+    total = raw.reduce((s: number, e: any) => s + (e.tokens_used ?? 0), 0)
+  } else if (Array.isArray(raw.lanes)) {
+    laneCount = raw.lanes.length
+    input = 0; output = 0; total = 0; calls = 0
+    for (const lane of raw.lanes) {
+      const t = lane.lane_totals ?? {}
+      if (t.prompt_tokens == null && t.completion_tokens == null) missing++
+      input += t.prompt_tokens ?? 0
+      output += t.completion_tokens ?? 0
+      total += t.total_tokens ?? 0
+      calls += Array.isArray(lane.chunks) ? lane.chunks.length : 0
+    }
+  }
+
+  // The arm is chosen by env var, so Stage 2's meta.json is the only record of
+  // it that travels with the artifacts.
+  let loopMode: string | null = null
+  let effort: string | null = null
   try {
     const metaPath = join(runPath(PROVIDER, 'stage2-hunt-lanes-perfile'), 'meta.json')
     if (existsSync(metaPath)) {
-      runLoopMode = JSON.parse(readFileSync(metaPath, 'utf-8')).loop_mode ?? null
+      const meta = JSON.parse(readFileSync(metaPath, 'utf-8'))
+      loopMode = meta.loop_mode ?? null
+      effort = meta.sampling?.reasoning_effort ?? null
     }
   } catch {
-    // A missing or malformed meta.json leaves the arm unknown, which the
-    // reconciliation reports as null rather than guessing.
+    // Unknown rather than guessed.
   }
 
-  // Build lane map from consumption
-  const actualByLane = new Map<string, {
-    input: number | null; output: number | null; total: number | null; calls: number | null
-  }>()
-
-  if (Array.isArray(consumptionRaw)) {
-    // v1 legacy format: array of { lane_id, tokens_used, ... }
-    // tokens_used is total_tokens, not split — mark input as null
-    for (const entry of consumptionRaw) {
-      actualByLane.set(entry.lane_id, {
-        input: null,
-        output: null,
-        total: entry.tokens_used,
-        calls: null,
-      })
-    }
-  } else if (consumptionRaw.lanes && Array.isArray(consumptionRaw.lanes)) {
-    // v2 format
-    for (const lane of consumptionRaw.lanes) {
-      actualByLane.set(lane.lane_id, {
-        input: lane.lane_totals?.prompt_tokens ?? null,
-        output: lane.lane_totals?.completion_tokens ?? null,
-        total: lane.lane_totals?.total_tokens ?? null,
-        // One chunk record per API call, follow-up turns included. This is what
-        // makes a looped run's divergence readable: if actual_calls is twice
-        // projected_calls, the plan projected the wrong arm and every other
-        // number below follows from that alone.
-        calls: Array.isArray(lane.chunks) ? lane.chunks.length : null,
-      })
-    }
-  }
-
-  // Build per-lane reconciliation
-  const laneResults: LaneReconciliation[] = []
-  let totalProjected = 0
-  let totalProjectedOutput = 0
-  let totalProjectedCalls = 0
-  let totalActualInput = 0
-  let totalActualOutput = 0
-  let totalActualTotal = 0
-  let totalActualCalls = 0
-  let inputMeasured = 0
-  let outputMeasured = 0
-  let callsMeasured = 0
-
-  for (const planLane of plan.lanes) {
-    const actual = actualByLane.get(planLane.lane_id)
-    const actualInput = actual?.input ?? null
-    const actualOutput = actual?.output ?? null
-    const actualTotal = actual?.total ?? null
-    const actualCalls = actual?.calls ?? null
-    const divergence = actualInput != null ? actualInput - planLane.projected_input_tokens : null
-    const divergencePct = actualInput != null && planLane.projected_input_tokens > 0
-      ? (actualInput - planLane.projected_input_tokens) / planLane.projected_input_tokens
-      : null
-
-    totalProjected += planLane.projected_input_tokens
-    totalProjectedOutput += planLane.projected_output_tokens ?? 0
-    totalProjectedCalls += planLane.projected_calls ?? 0
-    if (actualInput != null) {
-      totalActualInput += actualInput
-      inputMeasured++
-    }
-    if (actualOutput != null) {
-      totalActualOutput += actualOutput
-      outputMeasured++
-    }
-    if (actualCalls != null) {
-      totalActualCalls += actualCalls
-      callsMeasured++
-    }
-    if (actualTotal != null) totalActualTotal += actualTotal
-
-    laneResults.push({
-      lane_id: planLane.lane_id,
-      target_file: planLane.target_file,
-      projected_input_tokens: planLane.projected_input_tokens,
-      projected_output_tokens: planLane.projected_output_tokens ?? 0,
-      projected_calls: planLane.projected_calls ?? 0,
-      actual_input_tokens: actualInput,
-      actual_output_tokens: actualOutput,
-      actual_total_tokens: actualTotal,
-      actual_calls: actualCalls,
-      divergence,
-      divergence_pct: divergencePct,
-    })
-  }
-
-  // Top divergences (absolute)
-  const ranked = laneResults
-    .filter(r => r.divergence != null)
-    .sort((a, b) => Math.abs(b.divergence!) - Math.abs(a.divergence!))
-    .slice(0, 10)
-    .map(r => ({
-      lane_id: r.lane_id,
-      target_file: r.target_file,
-      divergence: r.divergence!,
-      divergence_pct: r.divergence_pct!,
-      projected: r.projected_input_tokens,
-      actual: r.actual_input_tokens,
-    }))
+  const price = pricingFor(PROVIDER)
+  const inputCost = price && input != null ? (input / 1e6) * price.input : null
+  const outputCost = price && output != null ? (output / 1e6) * price.output : null
 
   return {
     generated_at: new Date().toISOString(),
-    plan_source: 'budget-plan-v2.json',
     consumption_source: consumptionPath,
-    lanes: laneResults,
-    overall: {
-      total_projected_input: totalProjected,
-      total_projected_output: totalProjectedOutput,
-      total_projected_calls: totalProjectedCalls,
-      total_projected_cost_usd: plan.total_projected_cost_usd ?? null,
-      total_actual_input: inputMeasured > 0 ? totalActualInput : null,
-      total_actual_output: outputMeasured > 0 ? totalActualOutput : null,
-      total_actual_total: totalActualTotal,
-      total_actual_calls: callsMeasured > 0 ? totalActualCalls : null,
-      total_actual_cost_usd:
-        inputMeasured > 0 && outputMeasured > 0
-          ? costUsd(PROVIDER, totalActualInput, totalActualOutput)
-          : null,
-      overall_divergence: inputMeasured > 0 ? totalActualInput - totalProjected : null,
-      overall_divergence_pct: inputMeasured > 0 && totalProjected > 0
-        ? (totalActualInput - totalProjected) / totalProjected
-        : null,
-      output_divergence: outputMeasured > 0 ? totalActualOutput - totalProjectedOutput : null,
-      output_divergence_pct: outputMeasured > 0 && totalProjectedOutput > 0
-        ? (totalActualOutput - totalProjectedOutput) / totalProjectedOutput
-        : null,
-      // A plan projects one arm; a run records another in its own meta.json.
-      // When they differ, the divergences above are that difference and mean
-      // nothing about the estimator.
-      plan_loop_mode: plan.loop_mode ?? null,
-      run_loop_mode: runLoopMode,
-      arm_matches: runLoopMode != null && plan.loop_mode != null
-        ? runLoopMode === plan.loop_mode
-        : null,
-    },
-    largest_divergences: ranked,
+    provider: PROVIDER,
+    model: modelFor(PROVIDER),
+    loop_mode: loopMode,
+    reasoning_effort: effort,
+    lane_count: laneCount,
+    lanes_missing_measurement: missing,
+    calls,
+    input_tokens: input,
+    output_tokens: output,
+    total_tokens: total,
+    input_cost_usd: inputCost,
+    output_cost_usd: outputCost,
+    cost_usd: inputCost != null && outputCost != null ? inputCost + outputCost : null,
   }
 }
 
@@ -997,7 +888,7 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
     console.log('─'.repeat(100))
     console.log(`Total (all ${plan.lane_count} lanes): ${plan.total_projected_input_tokens.toLocaleString()} projected input tokens`)
   } else if (mode === 'reconcile') {
-    console.log('=== Stage 1 v2: Post-run reconciliation ===\n')
+    console.log('=== Stage 1 v2: Post-run usage ===\n')
 
     const planPath = join(outDir, 'budget-plan-v2.json')
     if (!existsSync(planPath)) {
@@ -1019,43 +910,26 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
       process.exit(1)
     }
 
-    const reconciliation = reconcileV2(plan, consumptionPath)
-    const outPath = join(outDir, 'reconciliation-v2.json')
-    writeFileSync(outPath, JSON.stringify(reconciliation, null, 2) + '\n')
+    const usage = usageReportV2(consumptionPath)
+    const outPath = join(outDir, 'usage-v2.json')
+    writeFileSync(outPath, JSON.stringify(usage, null, 2) + '\n')
 
-    console.log(`Reconciliation written to ${outPath}`)
+    console.log(`Usage report written to ${outPath}`)
     console.log()
-    console.log(`Overall:`)
-    console.log(`  Projected input tokens: ${reconciliation.overall.total_projected_input.toLocaleString()}`)
-    if (reconciliation.overall.total_actual_input != null) {
-      console.log(`  Actual input tokens:    ${reconciliation.overall.total_actual_input.toLocaleString()}`)
-      console.log(`  Divergence:             ${reconciliation.overall.overall_divergence != null ? reconciliation.overall.overall_divergence.toLocaleString() : 'null'} (${reconciliation.overall.overall_divergence_pct != null ? (reconciliation.overall.overall_divergence_pct * 100).toFixed(1) + '%' : 'null'})`)
-    } else {
-      console.log(`  Actual input tokens:    not measured (v1 consumption data)`)
-    }
-    console.log(`  Actual total tokens:    ${reconciliation.overall.total_actual_total != null ? reconciliation.overall.total_actual_total.toLocaleString() : 'not measured'}`)
-    console.log()
-
-    if (reconciliation.largest_divergences.length > 0) {
-      console.log('Top 10 largest divergences:')
-      console.log('─'.repeat(100))
-      console.log(
-        'Lane'.padEnd(40) +
-        'Projected'.padStart(12) +
-        'Actual'.padStart(12) +
-        'Divergence'.padStart(12) +
-        'Pct'.padStart(10)
-      )
-      console.log('─'.repeat(100))
-      for (const d of reconciliation.largest_divergences) {
-        console.log(
-          d.lane_id.padEnd(40) +
-          d.projected.toLocaleString().padStart(12) +
-          (d.actual != null ? d.actual.toLocaleString() : 'null').padStart(12) +
-          d.divergence.toLocaleString().padStart(12) +
-          (d.divergence_pct != null ? (d.divergence_pct * 100).toFixed(1) + '%' : 'null').padStart(10)
-        )
-      }
+    console.log(`Provider/model:  ${usage.provider} / ${usage.model}`)
+    console.log(`Arm:             HUNT_LOOP=${usage.loop_mode ?? 'unknown'}` +
+      `, reasoning_effort=${usage.reasoning_effort ?? '(none sent)'}`)
+    console.log(`Lanes:           ${usage.lane_count.toLocaleString()}`)
+    console.log(`Model calls:     ${usage.calls != null ? usage.calls.toLocaleString() : 'not measured'}`)
+    console.log(`Input tokens:    ${usage.input_tokens != null ? usage.input_tokens.toLocaleString() : 'not measured'}`)
+    console.log(`Output tokens:   ${usage.output_tokens != null ? usage.output_tokens.toLocaleString() : 'not measured'}`)
+    console.log(`Total tokens:    ${usage.total_tokens != null ? usage.total_tokens.toLocaleString() : 'not measured'}`)
+    console.log(`Cost:            ` + (usage.cost_usd != null
+      ? `$${usage.cost_usd.toFixed(2)}  (input $${usage.input_cost_usd!.toFixed(2)} + output $${usage.output_cost_usd!.toFixed(2)})`
+      : '(target is unpriced in models.json)'))
+    if (usage.lanes_missing_measurement > 0) {
+      console.log(`\n[WARN] ${usage.lanes_missing_measurement} lane(s) reported no measured tokens — ` +
+        `the totals above are incomplete.`)
     }
   }
 

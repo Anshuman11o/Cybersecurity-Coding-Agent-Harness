@@ -86,6 +86,14 @@ Stage order for v2:
     stage0-recon → stage05-lane-selector-perfile → stage1-budget-governor-perfile
     → stage2-hunt-lanes-perfile → reconcile-v2
 
+`stage1-budget-governor-perfile` writes the pre-run projection
+(`budget-plan-v2.json`): calls, input, output and cost for the arm the env
+selects. `reconcile-v2` is the post-run pass over the same stage and writes
+`usage-v2.json` — what the run actually spent, read from Stage 2's own
+consumption artifact. It reports actuals only; it does not compare them to the
+plan, because a gap between an estimate and a measurement is a fact about the
+estimate and the number wanted afterwards is the cost.
+
 Running stage by stage, with a check between each, is preferred over `all-v2`
 when anything upstream has changed.
 
@@ -153,6 +161,20 @@ above the mean. RPM is never the binding constraint at this lane size — at the
 
 At the current ceiling that gives **`HUNT_CONCURRENCY=16`** (~828k TPM, 41% of
 ceiling, ~4 min wall clock). Run 5 used it: **541/541 lanes, 0 fatal.**
+
+**That 51,700 figure is a default-effort number and does not carry.** At
+`reasoning_effort: high` a call spends far longer producing far more tokens, and
+the throughput per unit of concurrency collapses. Measured on the 40-lane
+platform at `HUNT_CONCURRENCY=8`:
+
+| arm | tokens | wall clock | TPM | TPM per unit of concurrency |
+|---|---|---|---|---|
+| `none`, effort `high` | 603,017 | 5m11s | 116k | **14,500** |
+| `trace`, effort `high` | 1,210,802 | 9m30s | 127k | **15,900** |
+
+So the shipped arm is ~16k TPM per unit, a third of the default-effort rate.
+Re-derive from that table, not from the run-3 line above, for any high-effort
+run: `C = (target share of ceiling) / 16,000`.
 
 History, for calibration: at the old **200,000 TPM** ceiling, 8 lost 52 of 541
 lanes and 4 was the safe value — 4 already sat at ~207k TPM, right on that
