@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T19:06:24.941Z",
+  "generated_at": "2026-08-01T19:47:50.239Z",
   "target_dir": "/home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind",
   "lanes": [
     {
@@ -11126,7 +11126,7 @@
   "total_projected_input_tokens": 6657601,
   "total_projected_output_tokens": 2742329,
   "total_projected_calls": 1082,
-  "total_projected_cost_usd": 23.111575,
+  "total_projected_cost_usd": 4.6223149999999995,
   "total_file_bytes": 1955672,
   "total_chunks": 541,
   "lane_count": 541,

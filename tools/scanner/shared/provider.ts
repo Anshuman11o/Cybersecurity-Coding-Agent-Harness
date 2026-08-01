@@ -164,8 +164,13 @@ export function samplingParams(provider: Provider): Record<string, number | stri
  */
 export function pricingFor(
   provider: Provider,
-): { input: number; output: number } | null {
+): { input: number; cached_input?: number; output: number } | null {
   return targetFor(provider).price_per_mtok ?? null
+}
+
+/** When the registry's prices were last read off the vendor's page. */
+export function priceAsOf(provider: Provider): string | null {
+  return targetFor(provider).price_asof ?? null
 }
 
 /** Cost in USD for a measured or projected token split. */
@@ -173,10 +178,18 @@ export function costUsd(
   provider: Provider,
   inputTokens: number,
   outputTokens: number,
+  cachedInputTokens = 0,
 ): number | null {
   const p = pricingFor(provider)
   if (!p) return null
-  return (inputTokens / 1e6) * p.input + (outputTokens / 1e6) * p.output
+  // Cached input is billed at its own, much lower rate — an order of magnitude
+  // on this family. A conversational loop re-sends its whole first prompt as
+  // the prefix of its second turn, which is exactly the shape a prefix cache
+  // serves, so ignoring the cached rate overstates a looped run specifically.
+  const cached = Math.min(cachedInputTokens, inputTokens)
+  const fresh = inputTokens - cached
+  const cachedRate = p.cached_input ?? p.input
+  return (fresh / 1e6) * p.input + (cached / 1e6) * cachedRate + (outputTokens / 1e6) * p.output
 }
 
 export function outputTokenCap(provider: Provider, fallback: number): number {

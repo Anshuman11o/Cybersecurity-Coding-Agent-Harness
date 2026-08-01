@@ -7,7 +7,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
 import {
-  resolveProvider, modelFor, costUsd, pricingFor, samplingParams,
+  resolveProvider, modelFor, costUsd, pricingFor, priceAsOf, samplingParams,
 } from "../../shared/provider.js";
 import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
 
@@ -194,7 +194,12 @@ export interface UsageReportV2 {
   lanes_missing_measurement: number;
   /** One per API call, every loop turn included. */
   calls: number | null;
+  /** The rate the cost below was computed at, and when it was last verified. */
+  price_per_mtok: { input: number; cached_input?: number; output: number } | null;
+  price_asof: string | null;
   input_tokens: number | null;
+  /** Of `input_tokens`, how many were served from the prefix cache. */
+  cached_input_tokens: number | null;
   output_tokens: number | null;
   total_tokens: number | null;
   input_cost_usd: number | null;
@@ -769,6 +774,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
   const raw = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
 
   let input: number | null = null
+  let cached: number | null = null
   let output: number | null = null
   let total: number | null = null
   let calls: number | null = null
@@ -781,7 +787,7 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
     total = raw.reduce((s: number, e: any) => s + (e.tokens_used ?? 0), 0)
   } else if (Array.isArray(raw.lanes)) {
     laneCount = raw.lanes.length
-    input = 0; output = 0; total = 0; calls = 0
+    input = 0; output = 0; total = 0; calls = 0; cached = 0
     for (const lane of raw.lanes) {
       const t = lane.lane_totals ?? {}
       if (t.prompt_tokens == null && t.completion_tokens == null) missing++
@@ -789,6 +795,9 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
       output += t.completion_tokens ?? 0
       total += t.total_tokens ?? 0
       calls += Array.isArray(lane.chunks) ? lane.chunks.length : 0
+      for (const ch of lane.chunks ?? []) {
+        cached += ch?.measured?.cached_prompt_tokens ?? 0
+      }
     }
   }
 
@@ -808,7 +817,11 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
   }
 
   const price = pricingFor(PROVIDER)
-  const inputCost = price && input != null ? (input / 1e6) * price.input : null
+  const freshIn = input != null ? input - Math.min(cached ?? 0, input) : null
+  const inputCost = price && input != null && freshIn != null
+    ? (freshIn / 1e6) * price.input +
+      (Math.min(cached ?? 0, input) / 1e6) * (price.cached_input ?? price.input)
+    : null
   const outputCost = price && output != null ? (output / 1e6) * price.output : null
 
   return {
@@ -821,7 +834,14 @@ function usageReportV2(consumptionPath: string): UsageReportV2 {
     lane_count: laneCount,
     lanes_missing_measurement: missing,
     calls,
+    // The rate that produced the cost below, and when it was read off the
+    // vendor's page. A cost figure without its rate cannot be checked, and a
+    // stale rate is invisible: this repo reported a $4.37 run at $21.84 for
+    // exactly that reason.
+    price_per_mtok: price,
+    price_asof: priceAsOf(PROVIDER),
     input_tokens: input,
+    cached_input_tokens: cached,
     output_tokens: output,
     total_tokens: total,
     input_cost_usd: inputCost,
@@ -860,6 +880,11 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
       (plan.total_projected_cost_usd != null
         ? `$${plan.total_projected_cost_usd.toFixed(2)}`
         : '(target is unpriced in models.json)'))
+    const planPrice = pricingFor(PROVIDER)
+    if (planPrice) {
+      console.log(`Rate: $${planPrice.input}/$${planPrice.output} per MTok` +
+        (priceAsOf(PROVIDER) ? `, as of ${priceAsOf(PROVIDER)}` : ', date unknown'))
+    }
     console.log(`Output projection basis: ${plan.projection_basis.source}`)
     console.log()
 
@@ -921,12 +946,17 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
       `, reasoning_effort=${usage.reasoning_effort ?? '(none sent)'}`)
     console.log(`Lanes:           ${usage.lane_count.toLocaleString()}`)
     console.log(`Model calls:     ${usage.calls != null ? usage.calls.toLocaleString() : 'not measured'}`)
-    console.log(`Input tokens:    ${usage.input_tokens != null ? usage.input_tokens.toLocaleString() : 'not measured'}`)
+    console.log(`Input tokens:    ${usage.input_tokens != null ? usage.input_tokens.toLocaleString() : 'not measured'}` +
+      (usage.cached_input_tokens ? `  (${usage.cached_input_tokens.toLocaleString()} cached)` : ''))
     console.log(`Output tokens:   ${usage.output_tokens != null ? usage.output_tokens.toLocaleString() : 'not measured'}`)
     console.log(`Total tokens:    ${usage.total_tokens != null ? usage.total_tokens.toLocaleString() : 'not measured'}`)
     console.log(`Cost:            ` + (usage.cost_usd != null
       ? `$${usage.cost_usd.toFixed(2)}  (input $${usage.input_cost_usd!.toFixed(2)} + output $${usage.output_cost_usd!.toFixed(2)})`
       : '(target is unpriced in models.json)'))
+    if (usage.price_per_mtok) {
+      console.log(`Rate:            $${usage.price_per_mtok.input}/$${usage.price_per_mtok.output} per MTok` +
+        (usage.price_asof ? `, as of ${usage.price_asof}` : ', date unknown'))
+    }
     if (usage.lanes_missing_measurement > 0) {
       console.log(`\n[WARN] ${usage.lanes_missing_measurement} lane(s) reported no measured tokens — ` +
         `the totals above are incomplete.`)
