@@ -8,35 +8,6 @@ A run not listed here either was not scored or was not blind. Both cases are
 recorded, because an unmarked non-blind number gets cited later as if it were a
 baseline.
 
-## ⚠ Every cost figure below is overstated 5x (correction, 2026-08-01)
-
-`models.json` priced `luna` at $1.00/$6.00 per MTok. That was never the
-published rate for `gpt-5.6-luna`, which is **$0.20/$1.20**. The registry was
-corrected on 2026-08-01; the dollar figures in this file were computed before
-that and have **not** been recomputed.
-
-Every `Cost` row, every cost projection, and every "$N total" in this document
-is therefore **5x too high**. Recall, localization, hedging, token counts and
-every other metric are unaffected — this is a pricing-table error, not a
-measurement error.
-
-Run 6 restated, the only one with a recoverable token split:
-
-| | Published | Actual |
-|---|---|---|
-| Tokens | 9,618,943 | 9,618,943 (unchanged) |
-| Input / output | — | 7,174,732 / 2,444,211 |
-| Cost | $21.84 | **$4.37** |
-
-The other runs are **not** restated here. Dividing by five is not sound: the
-input:output split drives the correction and only run 6 published enough to
-recover it. Treat the remaining figures as upper bounds until their archived
-usage records are re-read.
-
-**Do not compare any cost in this file against a post-2026-08-01 figure without
-restating it first.** Longer-context tiers, cache multipliers and batch
-discounts are still not modelled in the registry at all.
-
 ## The denominator is 97
 
 One of the answer key's 98 entries sits in a file on `SEED_DENYLIST`. Stage 0.5
