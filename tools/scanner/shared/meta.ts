@@ -28,6 +28,15 @@ export interface RunMeta {
   /** True if any LLM call fell back to deterministic analysis. */
   degraded: boolean
   degraded_reasons?: string[]
+  /**
+   * Sampling / effort parameters the run actually sent, as resolved from the
+   * registry. Recorded because a run's behaviour is otherwise recoverable only
+   * from the git sha, and an artifact that does not say which reasoning effort
+   * produced it can be cited later as a baseline for an effort it never ran at.
+   */
+  sampling?: Record<string, number | string>
+  /** Output-token cap the run actually sent. */
+  max_output_tokens?: number
 }
 
 function gitSha(): string {
@@ -49,6 +58,7 @@ export function writeMeta(
   startedIso: string,
   exitCode = 0,
   blockedReads = 0,
+  extra: Pick<RunMeta, 'sampling' | 'max_output_tokens'> = {},
 ): void {
   const dir = runPath(provider, stage)
   mkdirSync(dir, { recursive: true })
@@ -63,6 +73,7 @@ export function writeMeta(
     blocked_reads: blockedReads,
     degraded: isDegraded(),
     ...(isDegraded() ? { degraded_reasons: degradedReasons() } : {}),
+    ...extra,
   }
   writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
 }
