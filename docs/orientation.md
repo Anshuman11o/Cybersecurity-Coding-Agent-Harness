@@ -102,4 +102,5 @@ lane assignment is reproducible from the same recon output.
 | What may the scanner never see? | `protocols/blind-development.md` |
 | What is being changed next, and why? | `protocols/recall-improvement-backlog.md` |
 | What does one stage read and write? | `stages/<stage>.md` |
+| How does a Stage 2 lane loop, and why is a null model mandatory? | `architecture/stage2-lane-loop.md` |
 | What is the intended end state? | `architecture/scanner-plan.md` |

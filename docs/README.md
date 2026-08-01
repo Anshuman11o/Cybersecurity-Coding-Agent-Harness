@@ -15,6 +15,7 @@ real time.
 | How does the scanner run under any given LLM, and how do I add one? | `architecture/multi-model-architecture.md` |
 | What is the scanner meant to be, stage by stage? | `architecture/scanner-plan.md` |
 | What contract do the v2 per-file components share? | `architecture/perfile-lane-contract.md` |
+| How does a lane answer in more than one turn, and how do I read the result? | `architecture/stage2-lane-loop.md` |
 | How do signals, classes and OWASP codes relate? | `architecture/vulnerability-class-model.md`, `architecture/taxonomy-data-flow.md` |
 | How much data does a dev-time eval run against? | `protocols/dev-loop-protocol.md` |
 | What may the scanner never be allowed to see? | `protocols/blind-development.md` |

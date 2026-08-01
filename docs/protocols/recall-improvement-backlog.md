@@ -38,6 +38,69 @@ presence in the tree that runs.
 
 ---
 
+## TESTED 2026-08-01 — the Stage 2 per-lane agent loop
+
+Full results: `../run-history.md`, section "2026-08-01". Architecture:
+`../architecture/stage2-lane-loop.md`. Located evidence: answer-key repo,
+`analysis/2026-08-01-loop-located.md`.
+
+### L1 — `trace` loop: one follow-up turn completing each trace's path — **WORKS, shipped as the recommended arm**
+
+Targets the residual G6 identified and no run had acted on: the dominant cold
+pool is entries carrying the right class, inside the localization window, failing
+only the exact-line test, with the wanted line lying *inside* a span the finding
+had already bracketed but not cited.
+
+Measured at default effort: recall **53.6% → 66.0%**, localization
+**77.3% → 84.5%**, 13 gained / 1 lost. Against a budget-matched mechanical null,
+**+7.2 points attributable**, and the whole of the localization gain. Projected
+$12.45 for 541 lanes against $5.73 without it.
+
+### L2 — the loop and `reasoning_effort` are substitutes, not complements — **the load-bearing finding**
+
+Each is worth about +7 to +8 null-adjusted recall points alone. Together they are
+worth +7.2 — the same as either — while costing 91% more. `trace-high` reaches
+67.0% against `ctl-high`'s 63.9%, and a mechanical inflation of `ctl-high`'s own
+findings to `trace-high`'s line budget reaches 68.0%. **Do not bundle them.**
+
+### L3 — the completion instruction's wording outweighs the model tier — **do not tighten it without measuring**
+
+A rewrite requiring each added line to be justified in its description, and
+blessing an already-complete trace, took recall **66.0% → 52.6%** and
+localization **84.5% → 71.1%** — below the matched null. Retained behind
+`HUNT_LOOP_STRICT_TRACE=1` and documented as measured-worse. The right wording is
+probably between the two, and is unmeasured.
+
+### L4 — every ground-truth metric is monotone in trace length — **now a reporting requirement**
+
+Filling the span between each finding's own endpoints, with no model involved,
+scores 72.2% recall — above every real arm. Any change that lengthens traces must
+be reported with its line budget and a budget-matched null. `eval-howto.md` §3
+now says so.
+
+### L5 — output cap: 8,000 was load-bearing at `reasoning_effort: high` — **answered**
+
+42% of high-effort calls exceed 8,000 output tokens, and a truncated body is
+unparseable JSON that Stage 2 records as a lane that found nothing. At an 8,000
+cap the high-effort arm scores **37.1%** — below the default-effort control while
+costing 2.6x more. Above ~16,000 the cap is slack (maximum completion measured:
+14,584), so **raising it further cannot buy recall**. At default effort it is
+irrelevant: the loop adds ~200 output tokens per call against a 3,546 maximum.
+
+### L6 — nondeterminism floor is ±7 entries — **applies to every arm, past and future**
+
+Byte-identical prompts, same model, same parameters: 17 of 84 entries moved,
+12 gained / 5 lost, net +7. For anything smaller, read the transition asymmetry
+rather than the net.
+
+### L7 — `gap` and `sweep` — **under-measured and unmeasured**
+
+`gap` ran with a defect that stopped a class it added from reaching
+`categories[]`, which is what category-aware scoring reads, so `reflect-def`'s
+result understates it. `sweep` is implemented and has never been run.
+
+---
+
 ## CONFIRMED
 
 ### C1 — Drop the `general-catchall` class — **SHIPPED**
