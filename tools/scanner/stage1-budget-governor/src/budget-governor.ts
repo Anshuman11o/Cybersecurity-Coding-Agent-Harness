@@ -6,7 +6,11 @@ import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSy
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
-import { resolveProvider, modelFor } from "../../shared/provider.js";
+import {
+  resolveProvider, modelFor, costUsd, pricingFor, samplingParams,
+} from "../../shared/provider.js";
+import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
+
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +22,59 @@ const STARTED = new Date().toISOString();
 // load-bearing and may run under the same provider, so v2 gets its own stage
 // key rather than overwriting v1's budget plan.
 const V2_STAGE = "stage1-budget-governor-perfile" as const;
+
+// ── v2: projection coefficients ───────────────────────────────────────────
+//
+// The input side of the plan is derived from the prompt the executor will
+// build, so it needs no coefficient. The output side cannot be — how much a
+// model says is not a function of anything available before it says it — so it
+// is projected from measurement, and the measurements are named here rather
+// than buried as literals, because a plan that diverges is diagnosable only if
+// its basis is legible.
+//
+// Re-derive these when a run disagrees with them. They are a calibration, not
+// a constant of nature.
+
+/**
+ * Output tokens per call, measured on run 5: 388,398 output tokens across 541
+ * single-turn hunt lanes at the endpoint's default reasoning effort.
+ */
+const BASE_OUTPUT_TOKENS_PER_CALL = 718;
+
+/**
+ * How much a reasoning effort multiplies output. Reasoning tokens are billed
+ * as output and counted against the cap, so this is the dominant term in a
+ * cost projection, not a refinement.
+ *
+ * `high` measured 3.53x on the 40-lane platform, holding lanes, prompts and
+ * everything else fixed (5,878 output tokens per call against 1,664). `low`
+ * and `medium` have never been run: they project at the default rate, which
+ * will understate them, and the plan says so in `projection_basis.source`.
+ */
+const EFFORT_OUTPUT_MULTIPLIER: Record<string, number> = { high: 3.53 };
+
+/**
+ * A follow-up turn's input as a multiple of the turn-1 prompt.
+ *
+ * A conversational follow-up does not re-send the prompt — it continues the
+ * transcript, so it pays for the prompt again plus the assistant's answer plus
+ * its own instruction. Measured 1.19x on the 40-lane platform. Treating it as a
+ * second full prompt would overstate a looped run's input by about 40%.
+ */
+const FOLLOW_UP_INPUT_MULTIPLIER = 1.19;
+
+const LOOP = resolveLoopConfig();
+
+const EFFORT: string = String(samplingParams(resolveProvider("stage1")).reasoning_effort ?? "");
+const OUTPUT_TOKENS_PER_CALL =
+  BASE_OUTPUT_TOKENS_PER_CALL * (EFFORT_OUTPUT_MULTIPLIER[EFFORT] ?? 1);
+const OUTPUT_BASIS_SOURCE =
+  `run 5 measured ${BASE_OUTPUT_TOKENS_PER_CALL} output tokens/call at the default effort; ` +
+  (EFFORT_OUTPUT_MULTIPLIER[EFFORT] != null
+    ? `effort "${EFFORT}" multiplies that by ${EFFORT_OUTPUT_MULTIPLIER[EFFORT]} (40-lane platform, 2026-08-01)`
+    : EFFORT
+      ? `effort "${EFFORT}" is uncalibrated and projects at the default rate — expect an understatement`
+      : `no reasoning_effort sent, so the base rate applies unmodified`);
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -76,8 +133,12 @@ export interface BudgetPlanEntryV2 {
   estimated_boilerplate_tokens: number;
   estimated_playbook_tokens: number;
   estimated_file_content_tokens: number;
-  // Projected total input tokens for this lane (sum across chunks)
+  // Projected total input tokens for this lane (sum across chunks AND turns)
   projected_input_tokens: number;
+  /** Model calls this lane will make: chunks x turns-per-chunk. */
+  projected_calls: number;
+  /** Projected output tokens, reasoning included — see OUTPUT_TOKENS_PER_CALL. */
+  projected_output_tokens: number;
 }
 
 /** Run-level v2 budget plan. */
@@ -86,9 +147,27 @@ export interface BudgetPlanV2 {
   target_dir: string;
   lanes: BudgetPlanEntryV2[];
   total_projected_input_tokens: number;
+  total_projected_output_tokens: number;
+  total_projected_calls: number;
+  /** Null when the registry does not price this target. */
+  total_projected_cost_usd: number | null;
   total_file_bytes: number;
   total_chunks: number;
   lane_count: number;
+  /**
+   * The arm the plan assumes, resolved from the same env vars Stage 2 reads.
+   * Recorded because the loop is selected at runtime, so neither the git sha
+   * nor the plan's inputs otherwise say which arm it projects.
+   */
+  loop_mode: string;
+  loop_passes: number;
+  reasoning_effort: string | null;
+  /** Coefficients the output projection used, so a divergence is diagnosable. */
+  projection_basis: {
+    output_tokens_per_call: number;
+    follow_up_input_multiplier: number;
+    source: string;
+  };
   /** Provider key the plan was computed for. Optional: predates the registry. */
   provider?: string;
   model: string;
@@ -99,8 +178,13 @@ export interface LaneReconciliation {
   lane_id: string;
   target_file: string;
   projected_input_tokens: number;
+  projected_output_tokens: number;
+  projected_calls: number;
   actual_input_tokens: number | null;
+  actual_output_tokens: number | null;
   actual_total_tokens: number | null;
+  /** Calls the lane actually made — one chunk record per call. */
+  actual_calls: number | null;
   divergence: number | null;         // actual - projected (null when actual missing)
   divergence_pct: number | null;     // (actual - projected) / projected
 }
@@ -113,10 +197,26 @@ export interface ReconciliationV2 {
   lanes: LaneReconciliation[];
   overall: {
     total_projected_input: number;
+    total_projected_output: number;
+    total_projected_calls: number;
+    total_projected_cost_usd: number | null;
     total_actual_input: number | null;
+    total_actual_output: number | null;
     total_actual_total: number | null;
+    total_actual_calls: number | null;
+    total_actual_cost_usd: number | null;
     overall_divergence: number | null;
     overall_divergence_pct: number | null;
+    output_divergence: number | null;
+    output_divergence_pct: number | null;
+    /**
+     * The arm the plan assumed against the arm the run recorded. When these
+     * disagree, every divergence below is explained by that and nothing else
+     * should be read into them.
+     */
+    plan_loop_mode: string | null;
+    run_loop_mode: string | null;
+    arm_matches: boolean | null;
   };
   largest_divergences: Array<{
     lane_id: string;
@@ -607,9 +707,25 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
       archContextChars,
     )
 
-    // Lane total = per-chunk × chunk count
+    // Lane total = per-chunk × chunk count × turns.
+    //
+    // A follow-up turn does NOT re-send the prompt: it continues the same
+    // conversation, so its input is the turn-1 prompt plus the assistant's
+    // answer plus the instruction. Measured at 1.19x the turn-1 prompt on the
+    // 40-lane platform. Counting it as a second full prompt would overstate a
+    // looped run's input by ~40%.
     const chunkCount = lane.chunk_plan.chunks.length
-    const projectedInputTokens = chunkInputTokens * chunkCount
+    const calls = callsPerChunk(LOOP, laneClasses.length)
+    const followUps = Math.max(0, calls - 1)
+    const perChunkInput =
+      LOOP.mode === 'sweep'
+        // sweep is not a conversation: each group is a fresh prompt carrying
+        // only its own playbooks, so its input is closer to a full re-send.
+        ? chunkInputTokens * calls
+        : chunkInputTokens * (1 + followUps * FOLLOW_UP_INPUT_MULTIPLIER)
+    const projectedInputTokens = Math.round(perChunkInput * chunkCount)
+    const projectedCalls = calls * chunkCount
+    const projectedOutputTokens = Math.round(projectedCalls * OUTPUT_TOKENS_PER_CALL)
 
     lanes.push({
       lane_id: lane.lane_id,
@@ -622,10 +738,14 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
       estimated_playbook_tokens: Math.round(playbookChars / 4),
       estimated_file_content_tokens: Math.round(fileContentChars / 4),
       projected_input_tokens: projectedInputTokens,
+      projected_calls: projectedCalls,
+      projected_output_tokens: projectedOutputTokens,
     })
   }
 
   const totalProjected = lanes.reduce((s, l) => s + l.projected_input_tokens, 0)
+  const totalOutput = lanes.reduce((s, l) => s + l.projected_output_tokens, 0)
+  const totalCalls = lanes.reduce((s, l) => s + l.projected_calls, 0)
   const totalFileBytes = lanes.reduce((s, l) => s + l.file_bytes, 0)
   const totalChunks = lanes.reduce((s, l) => s + l.chunk_count, 0)
 
@@ -634,9 +754,20 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
     target_dir: targetDir,
     lanes,
     total_projected_input_tokens: totalProjected,
+    total_projected_output_tokens: totalOutput,
+    total_projected_calls: totalCalls,
+    total_projected_cost_usd: costUsd(PROVIDER, totalProjected, totalOutput),
     total_file_bytes: totalFileBytes,
     total_chunks: totalChunks,
     lane_count: lanes.length,
+    loop_mode: LOOP.mode,
+    loop_passes: LOOP.passes,
+    reasoning_effort: String(samplingParams(PROVIDER).reasoning_effort ?? '') || null,
+    projection_basis: {
+      output_tokens_per_call: OUTPUT_TOKENS_PER_CALL,
+      follow_up_input_multiplier: FOLLOW_UP_INPUT_MULTIPLIER,
+      source: OUTPUT_BASIS_SOURCE,
+    },
     // The model Stage 2 will run under, so a plan and the run it projects can
     // be checked against each other.
     provider: PROVIDER,
@@ -653,8 +784,24 @@ function reconcileV2(
   // Read consumption file — could be v1 (legacy array) or v2 (full structure)
   const consumptionRaw = JSON.parse(readFileSync(consumptionPath, 'utf-8'))
 
+  // Which arm the run actually executed, from Stage 2's own meta.json. The loop
+  // is chosen by env var, so this is the only record of it that travels with
+  // the artifacts.
+  let runLoopMode: string | null = null
+  try {
+    const metaPath = join(runPath(PROVIDER, 'stage2-hunt-lanes-perfile'), 'meta.json')
+    if (existsSync(metaPath)) {
+      runLoopMode = JSON.parse(readFileSync(metaPath, 'utf-8')).loop_mode ?? null
+    }
+  } catch {
+    // A missing or malformed meta.json leaves the arm unknown, which the
+    // reconciliation reports as null rather than guessing.
+  }
+
   // Build lane map from consumption
-  const actualByLane = new Map<string, { input: number | null; total: number | null }>()
+  const actualByLane = new Map<string, {
+    input: number | null; output: number | null; total: number | null; calls: number | null
+  }>()
 
   if (Array.isArray(consumptionRaw)) {
     // v1 legacy format: array of { lane_id, tokens_used, ... }
@@ -662,7 +809,9 @@ function reconcileV2(
     for (const entry of consumptionRaw) {
       actualByLane.set(entry.lane_id, {
         input: null,
+        output: null,
         total: entry.tokens_used,
+        calls: null,
       })
     }
   } else if (consumptionRaw.lanes && Array.isArray(consumptionRaw.lanes)) {
@@ -670,7 +819,13 @@ function reconcileV2(
     for (const lane of consumptionRaw.lanes) {
       actualByLane.set(lane.lane_id, {
         input: lane.lane_totals?.prompt_tokens ?? null,
+        output: lane.lane_totals?.completion_tokens ?? null,
         total: lane.lane_totals?.total_tokens ?? null,
+        // One chunk record per API call, follow-up turns included. This is what
+        // makes a looped run's divergence readable: if actual_calls is twice
+        // projected_calls, the plan projected the wrong arm and every other
+        // number below follows from that alone.
+        calls: Array.isArray(lane.chunks) ? lane.chunks.length : null,
       })
     }
   }
@@ -678,23 +833,41 @@ function reconcileV2(
   // Build per-lane reconciliation
   const laneResults: LaneReconciliation[] = []
   let totalProjected = 0
+  let totalProjectedOutput = 0
+  let totalProjectedCalls = 0
   let totalActualInput = 0
+  let totalActualOutput = 0
   let totalActualTotal = 0
+  let totalActualCalls = 0
   let inputMeasured = 0
+  let outputMeasured = 0
+  let callsMeasured = 0
 
   for (const planLane of plan.lanes) {
     const actual = actualByLane.get(planLane.lane_id)
     const actualInput = actual?.input ?? null
+    const actualOutput = actual?.output ?? null
     const actualTotal = actual?.total ?? null
+    const actualCalls = actual?.calls ?? null
     const divergence = actualInput != null ? actualInput - planLane.projected_input_tokens : null
     const divergencePct = actualInput != null && planLane.projected_input_tokens > 0
       ? (actualInput - planLane.projected_input_tokens) / planLane.projected_input_tokens
       : null
 
     totalProjected += planLane.projected_input_tokens
+    totalProjectedOutput += planLane.projected_output_tokens ?? 0
+    totalProjectedCalls += planLane.projected_calls ?? 0
     if (actualInput != null) {
       totalActualInput += actualInput
       inputMeasured++
+    }
+    if (actualOutput != null) {
+      totalActualOutput += actualOutput
+      outputMeasured++
+    }
+    if (actualCalls != null) {
+      totalActualCalls += actualCalls
+      callsMeasured++
     }
     if (actualTotal != null) totalActualTotal += actualTotal
 
@@ -702,8 +875,12 @@ function reconcileV2(
       lane_id: planLane.lane_id,
       target_file: planLane.target_file,
       projected_input_tokens: planLane.projected_input_tokens,
+      projected_output_tokens: planLane.projected_output_tokens ?? 0,
+      projected_calls: planLane.projected_calls ?? 0,
       actual_input_tokens: actualInput,
+      actual_output_tokens: actualOutput,
       actual_total_tokens: actualTotal,
+      actual_calls: actualCalls,
       divergence,
       divergence_pct: divergencePct,
     })
@@ -730,11 +907,32 @@ function reconcileV2(
     lanes: laneResults,
     overall: {
       total_projected_input: totalProjected,
+      total_projected_output: totalProjectedOutput,
+      total_projected_calls: totalProjectedCalls,
+      total_projected_cost_usd: plan.total_projected_cost_usd ?? null,
       total_actual_input: inputMeasured > 0 ? totalActualInput : null,
+      total_actual_output: outputMeasured > 0 ? totalActualOutput : null,
       total_actual_total: totalActualTotal,
+      total_actual_calls: callsMeasured > 0 ? totalActualCalls : null,
+      total_actual_cost_usd:
+        inputMeasured > 0 && outputMeasured > 0
+          ? costUsd(PROVIDER, totalActualInput, totalActualOutput)
+          : null,
       overall_divergence: inputMeasured > 0 ? totalActualInput - totalProjected : null,
       overall_divergence_pct: inputMeasured > 0 && totalProjected > 0
         ? (totalActualInput - totalProjected) / totalProjected
+        : null,
+      output_divergence: outputMeasured > 0 ? totalActualOutput - totalProjectedOutput : null,
+      output_divergence_pct: outputMeasured > 0 && totalProjectedOutput > 0
+        ? (totalActualOutput - totalProjectedOutput) / totalProjectedOutput
+        : null,
+      // A plan projects one arm; a run records another in its own meta.json.
+      // When they differ, the divergences above are that difference and mean
+      // nothing about the estimator.
+      plan_loop_mode: plan.loop_mode ?? null,
+      run_loop_mode: runLoopMode,
+      arm_matches: runLoopMode != null && plan.loop_mode != null
+        ? runLoopMode === plan.loop_mode
         : null,
     },
     largest_divergences: ranked,
@@ -760,7 +958,18 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
     console.log(`Lanes: ${plan.lane_count}`)
     console.log(`Total chunks: ${plan.total_chunks}`)
     console.log(`Total file bytes: ${plan.total_file_bytes.toLocaleString()}`)
+    console.log(`Arm: HUNT_LOOP=${plan.loop_mode}` +
+      (plan.loop_mode !== 'none' ? ` (${plan.loop_passes} follow-up turn(s))` : '') +
+      `, reasoning_effort=${plan.reasoning_effort ?? '(none sent)'}`)
+    console.log(`Total projected calls: ${plan.total_projected_calls.toLocaleString()}`)
     console.log(`Total projected input tokens: ${plan.total_projected_input_tokens.toLocaleString()}`)
+    console.log(`Total projected output tokens: ${plan.total_projected_output_tokens.toLocaleString()}`)
+    console.log(
+      `Total projected cost: ` +
+      (plan.total_projected_cost_usd != null
+        ? `$${plan.total_projected_cost_usd.toFixed(2)}`
+        : '(target is unpriced in models.json)'))
+    console.log(`Output projection basis: ${plan.projection_basis.source}`)
     console.log()
 
     // Print top 20 most expensive lanes
