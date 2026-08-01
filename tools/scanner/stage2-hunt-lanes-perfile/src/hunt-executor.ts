@@ -34,6 +34,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from '
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
+import { resolveLoopConfig, DEFAULT_LOOP_MODE, type LoopMode } from '../../shared/loop-config.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
@@ -80,6 +81,9 @@ export const DEFAULT_OUTPUT_TOKEN_CAP = 8000
 const OUTPUT_TOKEN_CAP = outputTokenCap(PROVIDER, DEFAULT_OUTPUT_TOKEN_CAP)
 const STARTED = new Date().toISOString()
 
+export { DEFAULT_LOOP_MODE }
+export type { LoopMode }
+
 // ── Per-lane agent loop ───────────────────────────────────────────────────
 /**
  * A lane may answer in more than one turn.
@@ -122,52 +126,14 @@ const STARTED = new Date().toISOString()
  * a hit the first turn already had. The cost is precision, which v2 has no
  * validator to recover — see docs/protocols/eval-howto.md §3.
  */
-export type LoopMode = 'none' | 'trace' | 'gap' | 'reflect' | 'sweep'
-const LOOP_MODES: LoopMode[] = ['none', 'trace', 'gap', 'reflect', 'sweep']
-
-/**
- * The shipped arm. Exported so a test asserts what the stage actually defaults
- * to rather than what a doc says it defaults to — the loop is selected by env
- * var, so nothing in the commit graph records which arm a run executed.
- */
-export const DEFAULT_LOOP_MODE: LoopMode = 'trace'
-
-const LOOP_MODE: LoopMode = (() => {
-  const raw = process.env.HUNT_LOOP
-  if (raw === undefined || raw === '') return DEFAULT_LOOP_MODE
-  if ((LOOP_MODES as string[]).includes(raw)) return raw as LoopMode
-  throw new Error(`HUNT_LOOP="${raw}" is not one of: ${LOOP_MODES.join(', ')}`)
-})()
-
-/**
- * A positive integer from the environment, or the fallback when unset.
- *
- * Deliberately stricter than parseInt: `parseInt("1e5")` is 1, which as an
- * output-token cap silently truncates every response and reads downstream as
- * "the model found nothing" rather than as a misconfiguration. An empty string
- * is a typo, not a request for the default, and is rejected too.
- */
-function positiveEnvInt(name: string, fallback: number): number {
-  const raw = process.env[name]
-  if (raw === undefined) return fallback
-  if (!/^[0-9]+$/.test(raw.trim()) || Number(raw.trim()) <= 0) {
-    throw new Error(`${name}="${raw}" is not a positive integer`)
-  }
-  return Number(raw.trim())
-}
-
-const LOOP_PASSES = positiveEnvInt('HUNT_LOOP_PASSES', 1)
-const SWEEP_GROUP_SIZE = positiveEnvInt('HUNT_SWEEP_GROUP', 3)
-
-/**
- * Use the stricter wording of the trace-completion instruction, which requires
- * each added line to be justified in its description and blesses re-emitting an
- * already-complete trace unchanged.
- *
- * Off by default because it was measured and it costs more than it saves — see
- * the comment at the wording itself in buildFollowUpTurn().
- */
-const LOOP_STRICT_TRACE = process.env.HUNT_LOOP_STRICT_TRACE === '1'
+// Resolved in shared/loop-config.ts, not here: Stage 1 has to project the same
+// arm Stage 2 executes, and two stages resolving the same env vars
+// independently is how the seed denylist came to be missing from v2.
+const LOOP = resolveLoopConfig()
+const LOOP_MODE = LOOP.mode
+const LOOP_PASSES = LOOP.passes
+const SWEEP_GROUP_SIZE = LOOP.sweepGroupSize
+const LOOP_STRICT_TRACE = LOOP.strictTrace
 
 // ── Constant: single-pass line budget ─────────────────────────────────────
 export const SINGLE_PASS_LINE_BUDGET = 2000

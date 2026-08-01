@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-29T16:54:23.016Z",
+  "generated_at": "2026-08-01T18:57:20.045Z",
   "target_dir": "/home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind",
   "lanes": [
     {
@@ -16,7 +16,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 97,
-      "projected_input_tokens": 2473
+      "projected_input_tokens": 5416,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0002",
@@ -33,7 +35,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2643,
       "estimated_file_content_tokens": 652,
-      "projected_input_tokens": 3504
+      "projected_input_tokens": 7674,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0003",
@@ -49,7 +53,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 394,
-      "projected_input_tokens": 2770
+      "projected_input_tokens": 6066,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0005",
@@ -65,7 +71,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 89,
-      "projected_input_tokens": 2466
+      "projected_input_tokens": 5401,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0006",
@@ -83,7 +91,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2446,
-      "projected_input_tokens": 6621
+      "projected_input_tokens": 14500,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0007",
@@ -105,7 +115,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7908,
       "estimated_file_content_tokens": 604,
-      "projected_input_tokens": 8722
+      "projected_input_tokens": 19101,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0008",
@@ -121,7 +133,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 360,
-      "projected_input_tokens": 2737
+      "projected_input_tokens": 5994,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0009",
@@ -137,7 +151,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 86,
-      "projected_input_tokens": 2463
+      "projected_input_tokens": 5394,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0010",
@@ -153,7 +169,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 170,
-      "projected_input_tokens": 2546
+      "projected_input_tokens": 5576,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0011",
@@ -169,7 +187,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 58,
-      "projected_input_tokens": 2434
+      "projected_input_tokens": 5330,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0012",
@@ -185,7 +205,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 59,
-      "projected_input_tokens": 2435
+      "projected_input_tokens": 5333,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0013",
@@ -201,7 +223,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 84,
-      "projected_input_tokens": 2461
+      "projected_input_tokens": 5390,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0014",
@@ -217,7 +241,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 50,
-      "projected_input_tokens": 2426
+      "projected_input_tokens": 5313,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0015",
@@ -233,7 +259,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 48,
-      "projected_input_tokens": 2424
+      "projected_input_tokens": 5309,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0016",
@@ -254,7 +282,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 1123,
-      "projected_input_tokens": 7833
+      "projected_input_tokens": 17154,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0017",
@@ -274,7 +304,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6140,
       "estimated_file_content_tokens": 331,
-      "projected_input_tokens": 6681
+      "projected_input_tokens": 14631,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0018",
@@ -291,7 +323,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 503,
-      "projected_input_tokens": 4030
+      "projected_input_tokens": 8826,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0019",
@@ -309,7 +343,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 194,
-      "projected_input_tokens": 4469
+      "projected_input_tokens": 9787,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0020",
@@ -331,7 +367,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 2205,
-      "projected_input_tokens": 9564
+      "projected_input_tokens": 20945,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0021",
@@ -354,7 +392,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1640,
-      "projected_input_tokens": 10333
+      "projected_input_tokens": 22629,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0022",
@@ -371,7 +411,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 474,
-      "projected_input_tokens": 4002
+      "projected_input_tokens": 8764,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0023",
@@ -389,7 +431,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 166,
-      "projected_input_tokens": 4442
+      "projected_input_tokens": 9728,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0024",
@@ -406,7 +450,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 2717,
-      "projected_input_tokens": 6244
+      "projected_input_tokens": 13674,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0025",
@@ -424,7 +470,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 584,
-      "projected_input_tokens": 4860
+      "projected_input_tokens": 10643,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0026",
@@ -444,7 +492,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5298,
       "estimated_file_content_tokens": 1035,
-      "projected_input_tokens": 6543
+      "projected_input_tokens": 14329,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0027",
@@ -468,7 +518,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 9240,
       "estimated_file_content_tokens": 759,
-      "projected_input_tokens": 10209
+      "projected_input_tokens": 22358,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0028",
@@ -485,7 +537,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 610,
-      "projected_input_tokens": 4137
+      "projected_input_tokens": 9060,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0029",
@@ -503,7 +557,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 257,
-      "projected_input_tokens": 4533
+      "projected_input_tokens": 9927,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0030",
@@ -520,7 +576,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 491,
-      "projected_input_tokens": 4018
+      "projected_input_tokens": 8799,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0031",
@@ -536,7 +594,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 232,
-      "projected_input_tokens": 2608
+      "projected_input_tokens": 5712,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0032",
@@ -557,7 +617,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 489,
-      "projected_input_tokens": 7199
+      "projected_input_tokens": 15766,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0033",
@@ -575,7 +637,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 182,
-      "projected_input_tokens": 4457
+      "projected_input_tokens": 9761,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0034",
@@ -592,7 +656,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 566,
-      "projected_input_tokens": 4093
+      "projected_input_tokens": 8964,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0035",
@@ -609,7 +675,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 755,
-      "projected_input_tokens": 4282
+      "projected_input_tokens": 9378,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0036",
@@ -631,7 +699,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 2385,
-      "projected_input_tokens": 9744
+      "projected_input_tokens": 21339,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0037",
@@ -651,7 +721,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 407,
-      "projected_input_tokens": 5966
+      "projected_input_tokens": 13066,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0038",
@@ -668,7 +740,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 501,
-      "projected_input_tokens": 4028
+      "projected_input_tokens": 8821,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0039",
@@ -686,7 +760,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 161,
-      "projected_input_tokens": 4437
+      "projected_input_tokens": 9717,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0040",
@@ -702,7 +778,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 163,
-      "projected_input_tokens": 2539
+      "projected_input_tokens": 5560,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0041",
@@ -719,7 +797,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 790,
-      "projected_input_tokens": 4317
+      "projected_input_tokens": 9454,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0042",
@@ -737,7 +817,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 213,
-      "projected_input_tokens": 4488
+      "projected_input_tokens": 9829,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0043",
@@ -754,7 +836,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 753,
-      "projected_input_tokens": 4280
+      "projected_input_tokens": 9373,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0044",
@@ -772,7 +856,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 285,
-      "projected_input_tokens": 4561
+      "projected_input_tokens": 9989,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0045",
@@ -793,7 +879,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 1060,
-      "projected_input_tokens": 7771
+      "projected_input_tokens": 17018,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0046",
@@ -811,7 +899,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 264,
-      "projected_input_tokens": 4539
+      "projected_input_tokens": 9940,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0047",
@@ -829,7 +919,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 248,
-      "projected_input_tokens": 4524
+      "projected_input_tokens": 9908,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0048",
@@ -846,7 +938,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 753,
-      "projected_input_tokens": 4281
+      "projected_input_tokens": 9375,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0049",
@@ -863,7 +957,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 481,
-      "projected_input_tokens": 4008
+      "projected_input_tokens": 8778,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0050",
@@ -881,7 +977,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 159,
-      "projected_input_tokens": 4434
+      "projected_input_tokens": 9710,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0051",
@@ -898,7 +996,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 1445,
-      "projected_input_tokens": 4972
+      "projected_input_tokens": 10889,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0052",
@@ -916,7 +1016,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 471,
-      "projected_input_tokens": 4746
+      "projected_input_tokens": 10394,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0053",
@@ -933,7 +1035,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 476,
-      "projected_input_tokens": 4003
+      "projected_input_tokens": 8767,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0054",
@@ -949,7 +1053,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 157,
-      "projected_input_tokens": 2534
+      "projected_input_tokens": 5549,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0055",
@@ -969,7 +1075,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 1138,
-      "projected_input_tokens": 6698
+      "projected_input_tokens": 14669,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0056",
@@ -991,7 +1099,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7332,
       "estimated_file_content_tokens": 1227,
-      "projected_input_tokens": 8769
+      "projected_input_tokens": 19204,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0057",
@@ -1008,7 +1118,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 1048,
-      "projected_input_tokens": 4576
+      "projected_input_tokens": 10021,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0058",
@@ -1026,7 +1138,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 264,
-      "projected_input_tokens": 4539
+      "projected_input_tokens": 9940,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0059",
@@ -1047,7 +1161,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 982,
-      "projected_input_tokens": 7692
+      "projected_input_tokens": 16845,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0060",
@@ -1067,7 +1183,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6140,
       "estimated_file_content_tokens": 290,
-      "projected_input_tokens": 6640
+      "projected_input_tokens": 14542,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0061",
@@ -1084,7 +1202,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 756,
-      "projected_input_tokens": 4283
+      "projected_input_tokens": 9380,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0062",
@@ -1102,7 +1222,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 253,
-      "projected_input_tokens": 4528
+      "projected_input_tokens": 9916,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0063",
@@ -1121,7 +1243,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5361,
       "estimated_file_content_tokens": 1139,
-      "projected_input_tokens": 6710
+      "projected_input_tokens": 14695,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0064",
@@ -1141,7 +1265,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6140,
       "estimated_file_content_tokens": 340,
-      "projected_input_tokens": 6690
+      "projected_input_tokens": 14651,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0065",
@@ -1158,7 +1284,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 916,
-      "projected_input_tokens": 4443
+      "projected_input_tokens": 9730,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0066",
@@ -1176,7 +1304,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 326,
-      "projected_input_tokens": 4601
+      "projected_input_tokens": 10076,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0067",
@@ -1193,7 +1323,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 783,
-      "projected_input_tokens": 4310
+      "projected_input_tokens": 9439,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0068",
@@ -1211,7 +1343,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 220,
-      "projected_input_tokens": 4495
+      "projected_input_tokens": 9844,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0069",
@@ -1232,7 +1366,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 626,
-      "projected_input_tokens": 7337
+      "projected_input_tokens": 16068,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0070",
@@ -1250,7 +1386,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 226,
-      "projected_input_tokens": 4501
+      "projected_input_tokens": 9857,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0071",
@@ -1268,7 +1406,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 216,
-      "projected_input_tokens": 4392
+      "projected_input_tokens": 9618,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0072",
@@ -1289,7 +1429,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6501,
       "estimated_file_content_tokens": 505,
-      "projected_input_tokens": 7216
+      "projected_input_tokens": 15803,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0073",
@@ -1307,7 +1449,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 189,
-      "projected_input_tokens": 4464
+      "projected_input_tokens": 9776,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0074",
@@ -1327,7 +1471,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5957,
       "estimated_file_content_tokens": 667,
-      "projected_input_tokens": 6834
+      "projected_input_tokens": 14966,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0075",
@@ -1345,7 +1491,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 244,
-      "projected_input_tokens": 4519
+      "projected_input_tokens": 9897,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0076",
@@ -1361,7 +1509,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 244,
-      "projected_input_tokens": 2621
+      "projected_input_tokens": 5740,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0077",
@@ -1381,7 +1531,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 230,
-      "projected_input_tokens": 6653
+      "projected_input_tokens": 14570,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0078",
@@ -1397,7 +1549,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 131,
-      "projected_input_tokens": 2508
+      "projected_input_tokens": 5493,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0079",
@@ -1413,7 +1567,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 220,
-      "projected_input_tokens": 2596
+      "projected_input_tokens": 5685,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0080",
@@ -1430,7 +1586,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 496,
-      "projected_input_tokens": 4023
+      "projected_input_tokens": 8810,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0081",
@@ -1446,7 +1604,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 193,
-      "projected_input_tokens": 2569
+      "projected_input_tokens": 5626,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0082",
@@ -1464,7 +1624,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1493,
-      "projected_input_tokens": 5668
+      "projected_input_tokens": 12413,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0083",
@@ -1482,7 +1644,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 479,
-      "projected_input_tokens": 4654
+      "projected_input_tokens": 10192,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0084",
@@ -1504,7 +1668,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 2163,
-      "projected_input_tokens": 9522
+      "projected_input_tokens": 20853,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0085",
@@ -1524,7 +1690,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 763,
-      "projected_input_tokens": 6837
+      "projected_input_tokens": 14973,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0086",
@@ -1541,7 +1709,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 485,
-      "projected_input_tokens": 4012
+      "projected_input_tokens": 8786,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0087",
@@ -1559,7 +1729,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 184,
-      "projected_input_tokens": 4459
+      "projected_input_tokens": 9765,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0088",
@@ -1576,7 +1748,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 755,
-      "projected_input_tokens": 4282
+      "projected_input_tokens": 9378,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0089",
@@ -1594,7 +1768,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 212,
-      "projected_input_tokens": 4487
+      "projected_input_tokens": 9827,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0090",
@@ -1610,7 +1786,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 133,
-      "projected_input_tokens": 2509
+      "projected_input_tokens": 5495,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0091",
@@ -1626,7 +1804,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 85,
-      "projected_input_tokens": 2462
+      "projected_input_tokens": 5392,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0092",
@@ -1644,7 +1824,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 3103,
-      "projected_input_tokens": 7652
+      "projected_input_tokens": 16758,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0093",
@@ -1662,7 +1844,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 1305,
-      "projected_input_tokens": 5854
+      "projected_input_tokens": 12820,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0094",
@@ -1678,7 +1862,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 4176,
-      "projected_input_tokens": 6552
+      "projected_input_tokens": 14349,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0095",
@@ -1698,7 +1884,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1405,
-      "projected_input_tokens": 7828
+      "projected_input_tokens": 17143,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0096",
@@ -1718,7 +1906,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 2566,
-      "projected_input_tokens": 8126
+      "projected_input_tokens": 17796,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0097",
@@ -1740,7 +1930,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7332,
       "estimated_file_content_tokens": 1530,
-      "projected_input_tokens": 9072
+      "projected_input_tokens": 19868,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0098",
@@ -1756,7 +1948,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 925,
-      "projected_input_tokens": 3302
+      "projected_input_tokens": 7231,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0099",
@@ -1772,7 +1966,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 177,
-      "projected_input_tokens": 2553
+      "projected_input_tokens": 5591,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0100",
@@ -1790,7 +1986,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2329,
-      "projected_input_tokens": 6504
+      "projected_input_tokens": 14244,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0101",
@@ -1811,7 +2009,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 969,
-      "projected_input_tokens": 8543
+      "projected_input_tokens": 18709,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0102",
@@ -1832,7 +2032,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6138,
       "estimated_file_content_tokens": 1805,
-      "projected_input_tokens": 8154
+      "projected_input_tokens": 17857,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0103",
@@ -1856,7 +2058,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 9271,
       "estimated_file_content_tokens": 1295,
-      "projected_input_tokens": 10776
+      "projected_input_tokens": 23599,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0104",
@@ -1872,7 +2076,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 821,
-      "projected_input_tokens": 3197
+      "projected_input_tokens": 7001,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0105",
@@ -1888,7 +2094,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 321,
-      "projected_input_tokens": 2697
+      "projected_input_tokens": 5906,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0106",
@@ -1906,7 +2114,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1972,
-      "projected_input_tokens": 6148
+      "projected_input_tokens": 13464,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0107",
@@ -1924,7 +2134,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 504,
-      "projected_input_tokens": 4679
+      "projected_input_tokens": 10247,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0108",
@@ -1942,7 +2154,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2327,
-      "projected_input_tokens": 6502
+      "projected_input_tokens": 14239,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0109",
@@ -1960,7 +2174,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1499,
-      "projected_input_tokens": 5674
+      "projected_input_tokens": 12426,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0110",
@@ -1978,7 +2194,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 390,
-      "projected_input_tokens": 4565
+      "projected_input_tokens": 9997,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0111",
@@ -1994,7 +2212,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 4894,
-      "projected_input_tokens": 7270
+      "projected_input_tokens": 15921,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0112",
@@ -2014,7 +2234,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1457,
-      "projected_input_tokens": 7880
+      "projected_input_tokens": 17257,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0113",
@@ -2030,7 +2252,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1642,
-      "projected_input_tokens": 4019
+      "projected_input_tokens": 8802,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0114",
@@ -2046,7 +2270,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 409,
-      "projected_input_tokens": 2785
+      "projected_input_tokens": 6099,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0115",
@@ -2062,7 +2288,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1333,
-      "projected_input_tokens": 3710
+      "projected_input_tokens": 8125,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0116",
@@ -2078,7 +2306,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1017,
-      "projected_input_tokens": 3393
+      "projected_input_tokens": 7431,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0117",
@@ -2101,7 +2331,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7937,
       "estimated_file_content_tokens": 3893,
-      "projected_input_tokens": 12040
+      "projected_input_tokens": 26368,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0118",
@@ -2125,7 +2357,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8481,
       "estimated_file_content_tokens": 1515,
-      "projected_input_tokens": 10206
+      "projected_input_tokens": 22351,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0119",
@@ -2141,7 +2375,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 816,
-      "projected_input_tokens": 3192
+      "projected_input_tokens": 6990,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0120",
@@ -2157,7 +2393,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 352,
-      "projected_input_tokens": 2729
+      "projected_input_tokens": 5977,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0121",
@@ -2173,7 +2411,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 315,
-      "projected_input_tokens": 2691
+      "projected_input_tokens": 5893,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0122",
@@ -2189,7 +2429,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1675,
-      "projected_input_tokens": 4052
+      "projected_input_tokens": 8874,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0123",
@@ -2205,7 +2447,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 867,
-      "projected_input_tokens": 3243
+      "projected_input_tokens": 7102,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0124",
@@ -2225,7 +2469,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5298,
       "estimated_file_content_tokens": 124,
-      "projected_input_tokens": 5632
+      "projected_input_tokens": 12334,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0125",
@@ -2241,7 +2487,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 307,
-      "projected_input_tokens": 2684
+      "projected_input_tokens": 5878,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0126",
@@ -2257,7 +2505,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 124,
-      "projected_input_tokens": 2500
+      "projected_input_tokens": 5475,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0127",
@@ -2273,7 +2523,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 4276,
-      "projected_input_tokens": 6653
+      "projected_input_tokens": 14570,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0128",
@@ -2289,7 +2541,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 856,
-      "projected_input_tokens": 3232
+      "projected_input_tokens": 7078,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0129",
@@ -2305,7 +2559,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 64,
-      "projected_input_tokens": 2440
+      "projected_input_tokens": 5344,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0130",
@@ -2323,7 +2579,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 3272,
-      "projected_input_tokens": 7447
+      "projected_input_tokens": 16309,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0131",
@@ -2345,7 +2603,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 2974,
-      "projected_input_tokens": 10333
+      "projected_input_tokens": 22629,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0132",
@@ -2361,7 +2621,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 360,
-      "projected_input_tokens": 2736
+      "projected_input_tokens": 5992,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0133",
@@ -2377,7 +2639,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 178,
-      "projected_input_tokens": 2554
+      "projected_input_tokens": 5593,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0134",
@@ -2393,7 +2657,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1938,
-      "projected_input_tokens": 4314
+      "projected_input_tokens": 9448,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0135",
@@ -2413,7 +2679,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 1239,
-      "projected_input_tokens": 6799
+      "projected_input_tokens": 14890,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0136",
@@ -2429,7 +2697,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1211,
-      "projected_input_tokens": 3587
+      "projected_input_tokens": 7856,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0137",
@@ -2445,7 +2715,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 382,
-      "projected_input_tokens": 2758
+      "projected_input_tokens": 6040,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0138",
@@ -2461,7 +2733,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1216,
-      "projected_input_tokens": 3592
+      "projected_input_tokens": 7866,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0139",
@@ -2477,7 +2751,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 418,
-      "projected_input_tokens": 2794
+      "projected_input_tokens": 6119,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0140",
@@ -2497,7 +2773,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 2261,
-      "projected_input_tokens": 7821
+      "projected_input_tokens": 17128,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0141",
@@ -2519,7 +2797,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 1115,
-      "projected_input_tokens": 8474
+      "projected_input_tokens": 18558,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0142",
@@ -2539,7 +2819,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 2572,
-      "projected_input_tokens": 8132
+      "projected_input_tokens": 17809,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0143",
@@ -2561,7 +2843,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7332,
       "estimated_file_content_tokens": 1264,
-      "projected_input_tokens": 8806
+      "projected_input_tokens": 19285,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0144",
@@ -2577,7 +2861,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 2051,
-      "projected_input_tokens": 4427
+      "projected_input_tokens": 9695,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0145",
@@ -2593,7 +2879,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 601,
-      "projected_input_tokens": 2977
+      "projected_input_tokens": 6520,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0146",
@@ -2613,7 +2901,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 1302,
-      "projected_input_tokens": 6861
+      "projected_input_tokens": 15026,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0147",
@@ -2635,7 +2925,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7430,
       "estimated_file_content_tokens": 920,
-      "projected_input_tokens": 8560
+      "projected_input_tokens": 18746,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0148",
@@ -2653,7 +2945,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2139,
-      "projected_input_tokens": 6314
+      "projected_input_tokens": 13828,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0149",
@@ -2671,7 +2965,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 775,
-      "projected_input_tokens": 4950
+      "projected_input_tokens": 10841,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0150",
@@ -2689,7 +2985,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1359,
-      "projected_input_tokens": 5534
+      "projected_input_tokens": 12119,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0151",
@@ -2705,7 +3003,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 789,
-      "projected_input_tokens": 3166
+      "projected_input_tokens": 6934,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0152",
@@ -2721,7 +3021,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 323,
-      "projected_input_tokens": 2699
+      "projected_input_tokens": 5911,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0153",
@@ -2737,7 +3039,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 304,
-      "projected_input_tokens": 2680
+      "projected_input_tokens": 5869,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0154",
@@ -2758,7 +3062,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 2424,
-      "projected_input_tokens": 9998
+      "projected_input_tokens": 21896,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0155",
@@ -2774,7 +3080,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 383,
-      "projected_input_tokens": 2759
+      "projected_input_tokens": 6042,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0156",
@@ -2790,7 +3098,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 419,
-      "projected_input_tokens": 2795
+      "projected_input_tokens": 6121,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0157",
@@ -2806,7 +3116,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 262,
-      "projected_input_tokens": 2638
+      "projected_input_tokens": 5777,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0158",
@@ -2825,7 +3137,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 2128,
-      "projected_input_tokens": 7144
+      "projected_input_tokens": 15645,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0159",
@@ -2844,7 +3158,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 1494,
-      "projected_input_tokens": 6510
+      "projected_input_tokens": 14257,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0160",
@@ -2864,7 +3180,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6138,
       "estimated_file_content_tokens": 782,
-      "projected_input_tokens": 7130
+      "projected_input_tokens": 15615,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0161",
@@ -2884,7 +3202,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6138,
       "estimated_file_content_tokens": 286,
-      "projected_input_tokens": 6634
+      "projected_input_tokens": 14528,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0162",
@@ -2902,7 +3222,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 3656,
-      "projected_input_tokens": 7831
+      "projected_input_tokens": 17150,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0163",
@@ -2920,7 +3242,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1543,
-      "projected_input_tokens": 5718
+      "projected_input_tokens": 12522,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0164",
@@ -2936,7 +3260,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 257,
-      "projected_input_tokens": 2633
+      "projected_input_tokens": 5766,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0165",
@@ -2956,7 +3282,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1570,
-      "projected_input_tokens": 7993
+      "projected_input_tokens": 17505,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0166",
@@ -2976,7 +3304,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 551,
-      "projected_input_tokens": 6974
+      "projected_input_tokens": 15273,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0167",
@@ -2994,7 +3324,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 6071,
-      "projected_input_tokens": 10246
+      "projected_input_tokens": 22439,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0168",
@@ -3015,7 +3347,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 2466,
-      "projected_input_tokens": 10040
+      "projected_input_tokens": 21988,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0169",
@@ -3031,7 +3365,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1399,
-      "projected_input_tokens": 3776
+      "projected_input_tokens": 8269,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0170",
@@ -3047,7 +3383,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 513,
-      "projected_input_tokens": 2890
+      "projected_input_tokens": 6329,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0171",
@@ -3065,7 +3403,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1172,
-      "projected_input_tokens": 5347
+      "projected_input_tokens": 11710,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0172",
@@ -3087,7 +3427,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 691,
-      "projected_input_tokens": 8049
+      "projected_input_tokens": 17627,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0173",
@@ -3103,7 +3445,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 2205,
-      "projected_input_tokens": 4581
+      "projected_input_tokens": 10032,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0174",
@@ -3123,7 +3467,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1226,
-      "projected_input_tokens": 7649
+      "projected_input_tokens": 16751,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0175",
@@ -3139,7 +3485,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 2841,
-      "projected_input_tokens": 5217
+      "projected_input_tokens": 11425,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0176",
@@ -3159,7 +3507,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1061,
-      "projected_input_tokens": 7484
+      "projected_input_tokens": 16390,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0177",
@@ -3177,7 +3527,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1827,
-      "projected_input_tokens": 6002
+      "projected_input_tokens": 13144,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0178",
@@ -3198,7 +3550,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 946,
-      "projected_input_tokens": 8520
+      "projected_input_tokens": 18659,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0179",
@@ -3214,7 +3568,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1124,
-      "projected_input_tokens": 3501
+      "projected_input_tokens": 7667,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0180",
@@ -3230,7 +3586,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 323,
-      "projected_input_tokens": 2699
+      "projected_input_tokens": 5911,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0181",
@@ -3248,7 +3606,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 813,
-      "projected_input_tokens": 4988
+      "projected_input_tokens": 10924,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0182",
@@ -3264,7 +3624,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 494,
-      "projected_input_tokens": 2870
+      "projected_input_tokens": 6285,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0183",
@@ -3284,7 +3646,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 3305,
-      "projected_input_tokens": 8864
+      "projected_input_tokens": 19412,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0184",
@@ -3306,7 +3670,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7332,
       "estimated_file_content_tokens": 1325,
-      "projected_input_tokens": 8867
+      "projected_input_tokens": 19419,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0185",
@@ -3324,7 +3690,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 5829,
-      "projected_input_tokens": 10004
+      "projected_input_tokens": 21909,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0186",
@@ -3346,7 +3714,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7908,
       "estimated_file_content_tokens": 2847,
-      "projected_input_tokens": 10965
+      "projected_input_tokens": 24013,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0187",
@@ -3362,7 +3732,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 360,
-      "projected_input_tokens": 2736
+      "projected_input_tokens": 5992,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0188",
@@ -3384,7 +3756,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 3658,
-      "projected_input_tokens": 11016
+      "projected_input_tokens": 24125,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0189",
@@ -3405,7 +3779,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 1326,
-      "projected_input_tokens": 8900
+      "projected_input_tokens": 19491,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0190",
@@ -3421,7 +3797,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 681,
-      "projected_input_tokens": 3057
+      "projected_input_tokens": 6695,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0191",
@@ -3437,7 +3815,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 406,
-      "projected_input_tokens": 2782
+      "projected_input_tokens": 6093,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0192",
@@ -3453,7 +3833,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 236,
-      "projected_input_tokens": 2612
+      "projected_input_tokens": 5720,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0193",
@@ -3469,7 +3851,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 109,
-      "projected_input_tokens": 2485
+      "projected_input_tokens": 5442,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0194",
@@ -3488,7 +3872,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 2749,
-      "projected_input_tokens": 7765
+      "projected_input_tokens": 17005,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0195",
@@ -3510,7 +3896,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7908,
       "estimated_file_content_tokens": 1115,
-      "projected_input_tokens": 9233
+      "projected_input_tokens": 20220,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0196",
@@ -3529,7 +3917,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 978,
-      "projected_input_tokens": 5993
+      "projected_input_tokens": 13125,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0197",
@@ -3549,7 +3939,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 625,
-      "projected_input_tokens": 7048
+      "projected_input_tokens": 15435,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0198",
@@ -3567,7 +3959,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 3851,
-      "projected_input_tokens": 8027
+      "projected_input_tokens": 17579,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0199",
@@ -3590,7 +3984,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1731,
-      "projected_input_tokens": 10424
+      "projected_input_tokens": 22829,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0200",
@@ -3608,7 +4004,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 4808,
-      "projected_input_tokens": 8984
+      "projected_input_tokens": 19675,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0201",
@@ -3629,7 +4027,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 1670,
-      "projected_input_tokens": 9244
+      "projected_input_tokens": 20244,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0202",
@@ -3645,7 +4045,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 738,
-      "projected_input_tokens": 3114
+      "projected_input_tokens": 6820,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0203",
@@ -3661,7 +4063,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 311,
-      "projected_input_tokens": 2687
+      "projected_input_tokens": 5885,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0204",
@@ -3681,7 +4085,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 2581,
-      "projected_input_tokens": 8141
+      "projected_input_tokens": 17829,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0205",
@@ -3703,7 +4109,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7332,
       "estimated_file_content_tokens": 1399,
-      "projected_input_tokens": 8941
+      "projected_input_tokens": 19581,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0206",
@@ -3725,7 +4133,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 2351,
-      "projected_input_tokens": 9710
+      "projected_input_tokens": 21265,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0207",
@@ -3748,7 +4158,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1279,
-      "projected_input_tokens": 9972
+      "projected_input_tokens": 21839,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0208",
@@ -3764,7 +4176,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 59,
-      "projected_input_tokens": 2435
+      "projected_input_tokens": 5333,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0209",
@@ -3780,7 +4194,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 649,
-      "projected_input_tokens": 3025
+      "projected_input_tokens": 6625,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0210",
@@ -3796,7 +4212,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 111,
-      "projected_input_tokens": 2488
+      "projected_input_tokens": 5449,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0211",
@@ -3812,7 +4230,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 759,
-      "projected_input_tokens": 3135
+      "projected_input_tokens": 6866,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0212",
@@ -3828,7 +4248,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 143,
-      "projected_input_tokens": 2519
+      "projected_input_tokens": 5517,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0213",
@@ -3846,7 +4268,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 4434,
-      "projected_input_tokens": 8983
+      "projected_input_tokens": 19673,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0214",
@@ -3866,7 +4290,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 941,
-      "projected_input_tokens": 7364
+      "projected_input_tokens": 16127,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0215",
@@ -3882,7 +4308,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 965,
-      "projected_input_tokens": 3341
+      "projected_input_tokens": 7317,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0216",
@@ -3902,7 +4330,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 456,
-      "projected_input_tokens": 6016
+      "projected_input_tokens": 13175,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0217",
@@ -3918,7 +4348,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 253,
-      "projected_input_tokens": 2629
+      "projected_input_tokens": 5758,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0218",
@@ -3934,7 +4366,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 272,
-      "projected_input_tokens": 2648
+      "projected_input_tokens": 5799,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0219",
@@ -3950,7 +4384,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1030,
-      "projected_input_tokens": 3406
+      "projected_input_tokens": 7459,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0220",
@@ -3966,7 +4402,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 688,
-      "projected_input_tokens": 3064
+      "projected_input_tokens": 6710,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0221",
@@ -3982,7 +4420,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 81,
-      "projected_input_tokens": 2457
+      "projected_input_tokens": 5381,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0222",
@@ -3998,7 +4438,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 608,
-      "projected_input_tokens": 2985
+      "projected_input_tokens": 6537,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0223",
@@ -4014,7 +4456,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 473,
-      "projected_input_tokens": 2849
+      "projected_input_tokens": 6239,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0224",
@@ -4030,7 +4474,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 330,
-      "projected_input_tokens": 2706
+      "projected_input_tokens": 5926,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0225",
@@ -4046,7 +4492,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 219,
-      "projected_input_tokens": 2596
+      "projected_input_tokens": 5685,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0226",
@@ -4062,7 +4510,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1698,
-      "projected_input_tokens": 4074
+      "projected_input_tokens": 8922,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0227",
@@ -4082,7 +4532,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1042,
-      "projected_input_tokens": 7465
+      "projected_input_tokens": 16348,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0228",
@@ -4098,7 +4550,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 189,
-      "projected_input_tokens": 2565
+      "projected_input_tokens": 5617,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0229",
@@ -4114,7 +4568,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 399,
-      "projected_input_tokens": 2776
+      "projected_input_tokens": 6079,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0230",
@@ -4130,7 +4586,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 250,
-      "projected_input_tokens": 2627
+      "projected_input_tokens": 5753,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0231",
@@ -4146,7 +4604,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 190,
-      "projected_input_tokens": 2566
+      "projected_input_tokens": 5620,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0232",
@@ -4162,7 +4622,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 205,
-      "projected_input_tokens": 2581
+      "projected_input_tokens": 5652,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0233",
@@ -4178,7 +4640,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 133,
-      "projected_input_tokens": 2509
+      "projected_input_tokens": 5495,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0234",
@@ -4194,7 +4658,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 583,
-      "projected_input_tokens": 2960
+      "projected_input_tokens": 6482,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0235",
@@ -4210,7 +4676,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 257,
-      "projected_input_tokens": 2633
+      "projected_input_tokens": 5766,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0236",
@@ -4226,7 +4694,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 60,
-      "projected_input_tokens": 2436
+      "projected_input_tokens": 5335,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0237",
@@ -4242,7 +4712,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 272,
-      "projected_input_tokens": 2648
+      "projected_input_tokens": 5799,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0238",
@@ -4258,7 +4730,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 380,
-      "projected_input_tokens": 2756
+      "projected_input_tokens": 6036,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0239",
@@ -4276,7 +4750,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 854,
-      "projected_input_tokens": 5029
+      "projected_input_tokens": 11014,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0240",
@@ -4292,7 +4768,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 3746,
-      "projected_input_tokens": 6122
+      "projected_input_tokens": 13407,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0241",
@@ -4308,7 +4786,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 952,
-      "projected_input_tokens": 3328
+      "projected_input_tokens": 7288,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0242",
@@ -4324,7 +4804,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 679,
-      "projected_input_tokens": 3055
+      "projected_input_tokens": 6690,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0243",
@@ -4340,7 +4822,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 68,
-      "projected_input_tokens": 2444
+      "projected_input_tokens": 5352,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0244",
@@ -4356,7 +4840,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 2731,
-      "projected_input_tokens": 5108
+      "projected_input_tokens": 11187,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0245",
@@ -4374,7 +4860,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 2033,
-      "projected_input_tokens": 6582
+      "projected_input_tokens": 14415,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0246",
@@ -4390,7 +4878,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 64,
-      "projected_input_tokens": 2441
+      "projected_input_tokens": 5346,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0247",
@@ -4410,7 +4900,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6138,
       "estimated_file_content_tokens": 4578,
-      "projected_input_tokens": 10926
+      "projected_input_tokens": 23928,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0248",
@@ -4430,7 +4922,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6138,
       "estimated_file_content_tokens": 1879,
-      "projected_input_tokens": 8227
+      "projected_input_tokens": 18017,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0249",
@@ -4446,7 +4940,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1956,
-      "projected_input_tokens": 4333
+      "projected_input_tokens": 9489,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0250",
@@ -4464,7 +4960,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1050,
-      "projected_input_tokens": 5226
+      "projected_input_tokens": 11445,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0251",
@@ -4484,7 +4982,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 720,
-      "projected_input_tokens": 6280
+      "projected_input_tokens": 13753,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0252",
@@ -4500,7 +5000,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 297,
-      "projected_input_tokens": 2673
+      "projected_input_tokens": 5854,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0253",
@@ -4516,7 +5018,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 851,
-      "projected_input_tokens": 3228
+      "projected_input_tokens": 7069,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0254",
@@ -4534,7 +5038,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 5846,
-      "projected_input_tokens": 10021
+      "projected_input_tokens": 21946,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0255",
@@ -4552,7 +5058,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1423,
-      "projected_input_tokens": 5599
+      "projected_input_tokens": 12262,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0256",
@@ -4570,7 +5078,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 552,
-      "projected_input_tokens": 4728
+      "projected_input_tokens": 10354,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0257",
@@ -4588,7 +5098,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 409,
-      "projected_input_tokens": 4585
+      "projected_input_tokens": 10041,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0258",
@@ -4606,7 +5118,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 1726,
-      "projected_input_tokens": 6275
+      "projected_input_tokens": 13742,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0259",
@@ -4624,7 +5138,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4339,
       "estimated_file_content_tokens": 663,
-      "projected_input_tokens": 5212
+      "projected_input_tokens": 11414,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0260",
@@ -4642,7 +5158,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1252,
-      "projected_input_tokens": 5427
+      "projected_input_tokens": 11885,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0261",
@@ -4660,7 +5178,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 745,
-      "projected_input_tokens": 4920
+      "projected_input_tokens": 10775,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0262",
@@ -4678,7 +5198,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 3009,
-      "projected_input_tokens": 7184
+      "projected_input_tokens": 15733,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0263",
@@ -4698,7 +5220,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1133,
-      "projected_input_tokens": 7556
+      "projected_input_tokens": 16548,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0264",
@@ -4714,7 +5238,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 576,
-      "projected_input_tokens": 2953
+      "projected_input_tokens": 6467,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0265",
@@ -4730,7 +5256,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 342,
-      "projected_input_tokens": 2718
+      "projected_input_tokens": 5952,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0266",
@@ -4751,7 +5279,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 1408,
-      "projected_input_tokens": 8982
+      "projected_input_tokens": 19671,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0267",
@@ -4767,7 +5297,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 393,
-      "projected_input_tokens": 2769
+      "projected_input_tokens": 6064,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0268",
@@ -4783,7 +5315,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1059,
-      "projected_input_tokens": 3436
+      "projected_input_tokens": 7525,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0269",
@@ -4801,7 +5335,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 451,
-      "projected_input_tokens": 4626
+      "projected_input_tokens": 10131,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0270",
@@ -4826,7 +5362,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 9815,
       "estimated_file_content_tokens": 2644,
-      "projected_input_tokens": 12670
+      "projected_input_tokens": 27747,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0271",
@@ -4842,7 +5380,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 394,
-      "projected_input_tokens": 2770
+      "projected_input_tokens": 6066,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0272",
@@ -4858,7 +5398,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1834,
-      "projected_input_tokens": 4210
+      "projected_input_tokens": 9220,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0273",
@@ -4878,7 +5420,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 834,
-      "projected_input_tokens": 7257
+      "projected_input_tokens": 15893,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0274",
@@ -4894,7 +5438,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 875,
-      "projected_input_tokens": 3251
+      "projected_input_tokens": 7120,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0275",
@@ -4914,7 +5460,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 387,
-      "projected_input_tokens": 6810
+      "projected_input_tokens": 14914,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0276",
@@ -4932,7 +5480,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 5279,
-      "projected_input_tokens": 9455
+      "projected_input_tokens": 20706,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0277",
@@ -4950,7 +5500,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4210,
       "estimated_file_content_tokens": 217,
-      "projected_input_tokens": 4637
+      "projected_input_tokens": 10155,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0278",
@@ -4967,7 +5519,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2643,
       "estimated_file_content_tokens": 48,
-      "projected_input_tokens": 2900
+      "projected_input_tokens": 6351,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0279",
@@ -4984,7 +5538,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2643,
       "estimated_file_content_tokens": 198,
-      "projected_input_tokens": 3051
+      "projected_input_tokens": 6682,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0280",
@@ -5002,7 +5558,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1011,
-      "projected_input_tokens": 5186
+      "projected_input_tokens": 11357,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0281",
@@ -5018,7 +5576,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 585,
-      "projected_input_tokens": 2961
+      "projected_input_tokens": 6485,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0282",
@@ -5034,7 +5594,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 977,
-      "projected_input_tokens": 3353
+      "projected_input_tokens": 7343,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0283",
@@ -5053,7 +5615,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 1074,
-      "projected_input_tokens": 6090
+      "projected_input_tokens": 13337,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0284",
@@ -5071,7 +5635,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 563,
-      "projected_input_tokens": 4739
+      "projected_input_tokens": 10378,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0285",
@@ -5087,7 +5653,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 657,
-      "projected_input_tokens": 3033
+      "projected_input_tokens": 6642,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0286",
@@ -5108,7 +5676,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 1170,
-      "projected_input_tokens": 7985
+      "projected_input_tokens": 17487,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0287",
@@ -5126,7 +5696,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1018,
-      "projected_input_tokens": 5193
+      "projected_input_tokens": 11373,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0288",
@@ -5144,7 +5716,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 933,
-      "projected_input_tokens": 5108
+      "projected_input_tokens": 11187,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0289",
@@ -5162,7 +5736,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 778,
-      "projected_input_tokens": 4953
+      "projected_input_tokens": 10847,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0290",
@@ -5180,7 +5756,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 322,
-      "projected_input_tokens": 4497
+      "projected_input_tokens": 9848,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0291",
@@ -5198,7 +5776,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 860,
-      "projected_input_tokens": 5036
+      "projected_input_tokens": 11029,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0292",
@@ -5214,7 +5794,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 428,
-      "projected_input_tokens": 2804
+      "projected_input_tokens": 6141,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0293",
@@ -5232,7 +5814,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 791,
-      "projected_input_tokens": 4966
+      "projected_input_tokens": 10876,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0294",
@@ -5254,7 +5838,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7278,
       "estimated_file_content_tokens": 1756,
-      "projected_input_tokens": 9244
+      "projected_input_tokens": 20244,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0295",
@@ -5273,7 +5859,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5490,
       "estimated_file_content_tokens": 1681,
-      "projected_input_tokens": 7381
+      "projected_input_tokens": 16164,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0296",
@@ -5289,7 +5877,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 242,
-      "projected_input_tokens": 2618
+      "projected_input_tokens": 5733,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0297",
@@ -5305,7 +5895,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1662,
-      "projected_input_tokens": 4038
+      "projected_input_tokens": 8843,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0298",
@@ -5321,7 +5913,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 191,
-      "projected_input_tokens": 2567
+      "projected_input_tokens": 5622,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0299",
@@ -5338,7 +5932,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 552,
-      "projected_input_tokens": 4079
+      "projected_input_tokens": 8933,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0300",
@@ -5354,7 +5950,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 10,
-      "projected_input_tokens": 2387
+      "projected_input_tokens": 5228,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0301",
@@ -5370,7 +5968,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 605,
-      "projected_input_tokens": 2981
+      "projected_input_tokens": 6528,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0303",
@@ -5390,7 +5990,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5350,
       "estimated_file_content_tokens": 1343,
-      "projected_input_tokens": 6903
+      "projected_input_tokens": 15118,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0304",
@@ -5411,7 +6013,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6788,
       "estimated_file_content_tokens": 1110,
-      "projected_input_tokens": 8108
+      "projected_input_tokens": 17757,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0305",
@@ -5428,7 +6032,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2643,
       "estimated_file_content_tokens": 1852,
-      "projected_input_tokens": 4704
+      "projected_input_tokens": 10302,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0306",
@@ -5451,7 +6057,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1881,
-      "projected_input_tokens": 10574
+      "projected_input_tokens": 23157,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0307",
@@ -5471,7 +6079,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 192,
-      "projected_input_tokens": 6615
+      "projected_input_tokens": 14487,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0308",
@@ -5487,7 +6097,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 56,
-      "projected_input_tokens": 2432
+      "projected_input_tokens": 5326,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0309",
@@ -5503,7 +6115,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 64,
-      "projected_input_tokens": 2441
+      "projected_input_tokens": 5346,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0310",
@@ -5519,7 +6133,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 88,
-      "projected_input_tokens": 2464
+      "projected_input_tokens": 5396,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0311",
@@ -5538,7 +6154,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 472,
-      "projected_input_tokens": 5571
+      "projected_input_tokens": 12200,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0312",
@@ -5559,7 +6177,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6757,
       "estimated_file_content_tokens": 447,
-      "projected_input_tokens": 7414
+      "projected_input_tokens": 16237,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0313",
@@ -5579,7 +6199,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 145,
-      "projected_input_tokens": 6568
+      "projected_input_tokens": 14384,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0314",
@@ -5599,7 +6221,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1011,
-      "projected_input_tokens": 7434
+      "projected_input_tokens": 16280,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0315",
@@ -5615,7 +6239,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 393,
-      "projected_input_tokens": 2769
+      "projected_input_tokens": 6064,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0316",
@@ -5634,7 +6260,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 346,
-      "projected_input_tokens": 5362
+      "projected_input_tokens": 11743,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0317",
@@ -5654,7 +6282,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 309,
-      "projected_input_tokens": 6732
+      "projected_input_tokens": 14743,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0318",
@@ -5674,7 +6304,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 2205,
-      "projected_input_tokens": 8628
+      "projected_input_tokens": 18895,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0319",
@@ -5690,7 +6322,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 301,
-      "projected_input_tokens": 2677
+      "projected_input_tokens": 5863,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0320",
@@ -5706,7 +6340,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 192,
-      "projected_input_tokens": 2569
+      "projected_input_tokens": 5626,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0321",
@@ -5728,7 +6364,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7545,
       "estimated_file_content_tokens": 2781,
-      "projected_input_tokens": 10537
+      "projected_input_tokens": 23076,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0322",
@@ -5751,7 +6389,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1756,
-      "projected_input_tokens": 10449
+      "projected_input_tokens": 22883,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0323",
@@ -5769,7 +6409,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 342,
-      "projected_input_tokens": 4617
+      "projected_input_tokens": 10111,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0324",
@@ -5786,7 +6428,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3666,
       "estimated_file_content_tokens": 507,
-      "projected_input_tokens": 4383
+      "projected_input_tokens": 9599,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0325",
@@ -5805,7 +6449,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 383,
-      "projected_input_tokens": 5482
+      "projected_input_tokens": 12006,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0326",
@@ -5824,7 +6470,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 250,
-      "projected_input_tokens": 5349
+      "projected_input_tokens": 11714,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0327",
@@ -5843,7 +6491,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 243,
-      "projected_input_tokens": 5342
+      "projected_input_tokens": 11699,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0328",
@@ -5862,7 +6512,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 186,
-      "projected_input_tokens": 5285
+      "projected_input_tokens": 11574,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0329",
@@ -5881,7 +6533,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 346,
-      "projected_input_tokens": 5445
+      "projected_input_tokens": 11925,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0331",
@@ -5900,7 +6554,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 311,
-      "projected_input_tokens": 5410
+      "projected_input_tokens": 11848,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0332",
@@ -5919,7 +6575,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 237,
-      "projected_input_tokens": 5336
+      "projected_input_tokens": 11686,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0333",
@@ -5938,7 +6596,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 249,
-      "projected_input_tokens": 5348
+      "projected_input_tokens": 11712,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0334",
@@ -5957,7 +6617,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 413,
-      "projected_input_tokens": 5512
+      "projected_input_tokens": 12071,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0335",
@@ -5976,7 +6638,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 267,
-      "projected_input_tokens": 5366
+      "projected_input_tokens": 11752,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0336",
@@ -5995,7 +6659,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 253,
-      "projected_input_tokens": 5352
+      "projected_input_tokens": 11721,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0337",
@@ -6011,7 +6677,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 602,
-      "projected_input_tokens": 2978
+      "projected_input_tokens": 6522,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0338",
@@ -6030,7 +6698,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 227,
-      "projected_input_tokens": 5326
+      "projected_input_tokens": 11664,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0339",
@@ -6049,7 +6719,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 248,
-      "projected_input_tokens": 5347
+      "projected_input_tokens": 11710,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0340",
@@ -6068,7 +6740,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 427,
-      "projected_input_tokens": 5526
+      "projected_input_tokens": 12102,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0341",
@@ -6087,7 +6761,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 282,
-      "projected_input_tokens": 5381
+      "projected_input_tokens": 11784,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0342",
@@ -6106,7 +6782,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 272,
-      "projected_input_tokens": 5371
+      "projected_input_tokens": 11762,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0343",
@@ -6122,7 +6800,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 888,
-      "projected_input_tokens": 3264
+      "projected_input_tokens": 7148,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0344",
@@ -6142,7 +6822,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6040,
       "estimated_file_content_tokens": 304,
-      "projected_input_tokens": 6554
+      "projected_input_tokens": 14353,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0345",
@@ -6161,7 +6843,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 219,
-      "projected_input_tokens": 5318
+      "projected_input_tokens": 11646,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0346",
@@ -6181,7 +6865,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6040,
       "estimated_file_content_tokens": 936,
-      "projected_input_tokens": 7186
+      "projected_input_tokens": 15737,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0347",
@@ -6200,7 +6886,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4889,
       "estimated_file_content_tokens": 241,
-      "projected_input_tokens": 5340
+      "projected_input_tokens": 11695,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0348",
@@ -6222,7 +6910,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 1242,
-      "projected_input_tokens": 8600
+      "projected_input_tokens": 18834,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0349",
@@ -6243,7 +6933,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 319,
-      "projected_input_tokens": 7134
+      "projected_input_tokens": 15623,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0350",
@@ -6263,7 +6955,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 148,
-      "projected_input_tokens": 6571
+      "projected_input_tokens": 14390,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0351",
@@ -6284,7 +6978,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 128,
-      "projected_input_tokens": 6942
+      "projected_input_tokens": 15203,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0352",
@@ -6305,7 +7001,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 110,
-      "projected_input_tokens": 6924
+      "projected_input_tokens": 15164,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0353",
@@ -6326,7 +7024,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 287,
-      "projected_input_tokens": 7102
+      "projected_input_tokens": 15553,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0354",
@@ -6347,7 +7047,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 428,
-      "projected_input_tokens": 7243
+      "projected_input_tokens": 15862,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0355",
@@ -6368,7 +7070,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 278,
-      "projected_input_tokens": 7093
+      "projected_input_tokens": 15534,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0356",
@@ -6390,7 +7094,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 879,
-      "projected_input_tokens": 8237
+      "projected_input_tokens": 18039,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0357",
@@ -6412,7 +7118,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 389,
-      "projected_input_tokens": 7748
+      "projected_input_tokens": 16968,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0358",
@@ -6434,7 +7142,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 475,
-      "projected_input_tokens": 7834
+      "projected_input_tokens": 17156,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0359",
@@ -6455,7 +7165,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 457,
-      "projected_input_tokens": 7272
+      "projected_input_tokens": 15926,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0360",
@@ -6476,7 +7188,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 470,
-      "projected_input_tokens": 7284
+      "projected_input_tokens": 15952,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0361",
@@ -6497,7 +7211,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 206,
-      "projected_input_tokens": 7021
+      "projected_input_tokens": 15376,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0362",
@@ -6519,7 +7235,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 263,
-      "projected_input_tokens": 7622
+      "projected_input_tokens": 16692,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0363",
@@ -6540,7 +7258,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 231,
-      "projected_input_tokens": 7046
+      "projected_input_tokens": 15431,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0364",
@@ -6561,7 +7281,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 487,
-      "projected_input_tokens": 7302
+      "projected_input_tokens": 15991,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0365",
@@ -6584,7 +7306,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1126,
-      "projected_input_tokens": 9819
+      "projected_input_tokens": 21504,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0366",
@@ -6605,7 +7329,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 906,
-      "projected_input_tokens": 7721
+      "projected_input_tokens": 16909,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0367",
@@ -6626,7 +7352,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 371,
-      "projected_input_tokens": 7185
+      "projected_input_tokens": 15735,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0368",
@@ -6648,7 +7376,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 751,
-      "projected_input_tokens": 8110
+      "projected_input_tokens": 17761,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0369",
@@ -6670,7 +7400,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 121,
-      "projected_input_tokens": 8270
+      "projected_input_tokens": 18111,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0370",
@@ -6692,7 +7424,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 340,
-      "projected_input_tokens": 8489
+      "projected_input_tokens": 18591,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0371",
@@ -6713,7 +7447,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6757,
       "estimated_file_content_tokens": 1233,
-      "projected_input_tokens": 8200
+      "projected_input_tokens": 17958,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0372",
@@ -6735,7 +7471,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 480,
-      "projected_input_tokens": 7839
+      "projected_input_tokens": 17167,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0373",
@@ -6757,7 +7495,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 141,
-      "projected_input_tokens": 8290
+      "projected_input_tokens": 18155,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0374",
@@ -6780,7 +7520,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 869,
-      "projected_input_tokens": 9562
+      "projected_input_tokens": 20941,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0375",
@@ -6802,7 +7544,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 475,
-      "projected_input_tokens": 7834
+      "projected_input_tokens": 17156,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0376",
@@ -6824,7 +7568,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 139,
-      "projected_input_tokens": 8288
+      "projected_input_tokens": 18151,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0377",
@@ -6845,7 +7591,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 582,
-      "projected_input_tokens": 7397
+      "projected_input_tokens": 16199,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0378",
@@ -6867,7 +7615,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 229,
-      "projected_input_tokens": 7587
+      "projected_input_tokens": 16616,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0379",
@@ -6888,7 +7638,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 2152,
-      "projected_input_tokens": 8967
+      "projected_input_tokens": 19638,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0380",
@@ -6909,7 +7661,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 503,
-      "projected_input_tokens": 7318
+      "projected_input_tokens": 16026,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0381",
@@ -6932,7 +7686,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 2377,
-      "projected_input_tokens": 11070
+      "projected_input_tokens": 24243,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0382",
@@ -6954,7 +7710,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 376,
-      "projected_input_tokens": 7735
+      "projected_input_tokens": 16940,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0383",
@@ -6975,7 +7733,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 633,
-      "projected_input_tokens": 7448
+      "projected_input_tokens": 16311,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0384",
@@ -6997,7 +7757,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 127,
-      "projected_input_tokens": 8276
+      "projected_input_tokens": 18124,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0385",
@@ -7019,7 +7781,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 122,
-      "projected_input_tokens": 8271
+      "projected_input_tokens": 18113,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0386",
@@ -7042,7 +7806,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 515,
-      "projected_input_tokens": 9208
+      "projected_input_tokens": 20166,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0387",
@@ -7065,7 +7831,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 569,
-      "projected_input_tokens": 9262
+      "projected_input_tokens": 20284,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0388",
@@ -7087,7 +7855,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 145,
-      "projected_input_tokens": 8294
+      "projected_input_tokens": 18164,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0389",
@@ -7109,7 +7879,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 199,
-      "projected_input_tokens": 7558
+      "projected_input_tokens": 16552,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0390",
@@ -7130,7 +7902,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 237,
-      "projected_input_tokens": 7052
+      "projected_input_tokens": 15444,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0391",
@@ -7151,7 +7925,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 149,
-      "projected_input_tokens": 6964
+      "projected_input_tokens": 15251,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0392",
@@ -7173,7 +7949,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 485,
-      "projected_input_tokens": 7844
+      "projected_input_tokens": 17178,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0393",
@@ -7194,7 +7972,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 695,
-      "projected_input_tokens": 7509
+      "projected_input_tokens": 16445,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0394",
@@ -7216,7 +7996,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 339,
-      "projected_input_tokens": 7698
+      "projected_input_tokens": 16859,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0395",
@@ -7237,7 +8019,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 280,
-      "projected_input_tokens": 7095
+      "projected_input_tokens": 15538,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0396",
@@ -7258,7 +8042,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 234,
-      "projected_input_tokens": 7049
+      "projected_input_tokens": 15437,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0397",
@@ -7279,7 +8065,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 435,
-      "projected_input_tokens": 7249
+      "projected_input_tokens": 15875,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0398",
@@ -7300,7 +8088,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 243,
-      "projected_input_tokens": 7058
+      "projected_input_tokens": 15457,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0399",
@@ -7322,7 +8112,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 216,
-      "projected_input_tokens": 7575
+      "projected_input_tokens": 16589,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0400",
@@ -7344,7 +8136,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7149,
       "estimated_file_content_tokens": 350,
-      "projected_input_tokens": 7709
+      "projected_input_tokens": 16883,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0401",
@@ -7366,7 +8160,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 818,
-      "projected_input_tokens": 8967
+      "projected_input_tokens": 19638,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0402",
@@ -7387,7 +8183,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 674,
-      "projected_input_tokens": 7489
+      "projected_input_tokens": 16401,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0403",
@@ -7409,7 +8207,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 865,
-      "projected_input_tokens": 9014
+      "projected_input_tokens": 19741,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0404",
@@ -7432,7 +8232,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 695,
-      "projected_input_tokens": 9388
+      "projected_input_tokens": 20560,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0405",
@@ -7455,7 +8257,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 1069,
-      "projected_input_tokens": 9762
+      "projected_input_tokens": 21379,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0406",
@@ -7476,7 +8280,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 326,
-      "projected_input_tokens": 7141
+      "projected_input_tokens": 15639,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0407",
@@ -7497,7 +8303,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6605,
       "estimated_file_content_tokens": 391,
-      "projected_input_tokens": 7205
+      "projected_input_tokens": 15779,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0408",
@@ -7517,7 +8325,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 3173,
-      "projected_input_tokens": 9247
+      "projected_input_tokens": 20251,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0409",
@@ -7537,7 +8347,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1398,
-      "projected_input_tokens": 7473
+      "projected_input_tokens": 16366,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0410",
@@ -7555,7 +8367,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 321,
-      "projected_input_tokens": 4596
+      "projected_input_tokens": 10065,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0411",
@@ -7573,7 +8387,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 355,
-      "projected_input_tokens": 4630
+      "projected_input_tokens": 10140,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0412",
@@ -7591,7 +8407,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 278,
-      "projected_input_tokens": 4553
+      "projected_input_tokens": 9971,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0413",
@@ -7611,7 +8429,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 441,
-      "projected_input_tokens": 6515
+      "projected_input_tokens": 14268,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0414",
@@ -7631,7 +8451,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 471,
-      "projected_input_tokens": 6545
+      "projected_input_tokens": 14334,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0415",
@@ -7653,7 +8475,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 2036,
-      "projected_input_tokens": 10185
+      "projected_input_tokens": 22305,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0416",
@@ -7673,7 +8497,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 2115,
-      "projected_input_tokens": 8189
+      "projected_input_tokens": 17934,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0417",
@@ -7693,7 +8519,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1307,
-      "projected_input_tokens": 7381
+      "projected_input_tokens": 16164,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0418",
@@ -7717,7 +8545,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 9240,
       "estimated_file_content_tokens": 3571,
-      "projected_input_tokens": 13022
+      "projected_input_tokens": 28518,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0419",
@@ -7735,7 +8565,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 855,
-      "projected_input_tokens": 5130
+      "projected_input_tokens": 11235,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0420",
@@ -7755,7 +8587,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 565,
-      "projected_input_tokens": 6639
+      "projected_input_tokens": 14539,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0421",
@@ -7773,7 +8607,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 174,
-      "projected_input_tokens": 4449
+      "projected_input_tokens": 9743,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0422",
@@ -7795,7 +8631,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7908,
       "estimated_file_content_tokens": 4075,
-      "projected_input_tokens": 12193
+      "projected_input_tokens": 26703,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0423",
@@ -7815,7 +8653,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1103,
-      "projected_input_tokens": 7178
+      "projected_input_tokens": 15720,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0424",
@@ -7835,7 +8675,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1791,
-      "projected_input_tokens": 7866
+      "projected_input_tokens": 17227,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0425",
@@ -7855,7 +8697,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1035,
-      "projected_input_tokens": 7109
+      "projected_input_tokens": 15569,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0426",
@@ -7877,7 +8721,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7908,
       "estimated_file_content_tokens": 2263,
-      "projected_input_tokens": 10381
+      "projected_input_tokens": 22734,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0427",
@@ -7897,7 +8743,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1849,
-      "projected_input_tokens": 7923
+      "projected_input_tokens": 17351,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0428",
@@ -7917,7 +8765,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 801,
-      "projected_input_tokens": 7224
+      "projected_input_tokens": 15821,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0429",
@@ -7935,7 +8785,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 1335,
-      "projected_input_tokens": 5610
+      "projected_input_tokens": 12286,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0430",
@@ -7957,7 +8809,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 589,
-      "projected_input_tokens": 8738
+      "projected_input_tokens": 19136,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0431",
@@ -7973,7 +8827,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 97,
-      "projected_input_tokens": 2473
+      "projected_input_tokens": 5416,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0432",
@@ -7991,7 +8847,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 430,
-      "projected_input_tokens": 4705
+      "projected_input_tokens": 10304,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0433",
@@ -8007,7 +8865,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1079,
-      "projected_input_tokens": 3455
+      "projected_input_tokens": 7566,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0434",
@@ -8025,7 +8885,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 296,
-      "projected_input_tokens": 4571
+      "projected_input_tokens": 10010,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0435",
@@ -8043,7 +8905,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 285,
-      "projected_input_tokens": 4560
+      "projected_input_tokens": 9986,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0436",
@@ -8063,7 +8927,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1629,
-      "projected_input_tokens": 7704
+      "projected_input_tokens": 16872,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0437",
@@ -8084,7 +8950,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 881,
-      "projected_input_tokens": 8455
+      "projected_input_tokens": 18516,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0438",
@@ -8104,7 +8972,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 1351,
-      "projected_input_tokens": 7774
+      "projected_input_tokens": 17025,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0439",
@@ -8122,7 +8992,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 1095,
-      "projected_input_tokens": 5370
+      "projected_input_tokens": 11760,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0440",
@@ -8142,7 +9014,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1174,
-      "projected_input_tokens": 7248
+      "projected_input_tokens": 15873,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0441",
@@ -8162,7 +9036,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 2350,
-      "projected_input_tokens": 8424
+      "projected_input_tokens": 18449,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0442",
@@ -8182,7 +9058,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1296,
-      "projected_input_tokens": 7370
+      "projected_input_tokens": 16140,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0443",
@@ -8202,7 +9080,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 572,
-      "projected_input_tokens": 6646
+      "projected_input_tokens": 14555,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0444",
@@ -8222,7 +9102,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 1107,
-      "projected_input_tokens": 7181
+      "projected_input_tokens": 15726,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0445",
@@ -8244,7 +9126,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 1024,
-      "projected_input_tokens": 9173
+      "projected_input_tokens": 20089,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0446",
@@ -8267,7 +9151,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 2039,
-      "projected_input_tokens": 10732
+      "projected_input_tokens": 23503,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0447",
@@ -8285,7 +9171,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 304,
-      "projected_input_tokens": 4579
+      "projected_input_tokens": 10028,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0448",
@@ -8307,7 +9195,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 2059,
-      "projected_input_tokens": 10208
+      "projected_input_tokens": 22356,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0449",
@@ -8325,7 +9215,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 272,
-      "projected_input_tokens": 4548
+      "projected_input_tokens": 9960,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0450",
@@ -8345,7 +9237,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 737,
-      "projected_input_tokens": 6811
+      "projected_input_tokens": 14916,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0451",
@@ -8363,7 +9257,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 1202,
-      "projected_input_tokens": 5477
+      "projected_input_tokens": 11995,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0452",
@@ -8381,7 +9277,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 342,
-      "projected_input_tokens": 4617
+      "projected_input_tokens": 10111,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0453",
@@ -8399,7 +9297,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 704,
-      "projected_input_tokens": 4979
+      "projected_input_tokens": 10904,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0454",
@@ -8419,7 +9319,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 752,
-      "projected_input_tokens": 6826
+      "projected_input_tokens": 14949,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0455",
@@ -8441,7 +9343,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 856,
-      "projected_input_tokens": 9005
+      "projected_input_tokens": 19721,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0456",
@@ -8461,7 +9365,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 725,
-      "projected_input_tokens": 7148
+      "projected_input_tokens": 15654,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0457",
@@ -8477,7 +9383,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1838,
-      "projected_input_tokens": 4214
+      "projected_input_tokens": 9229,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0458",
@@ -8495,7 +9403,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 406,
-      "projected_input_tokens": 4681
+      "projected_input_tokens": 10251,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0459",
@@ -8515,7 +9425,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 524,
-      "projected_input_tokens": 6598
+      "projected_input_tokens": 14450,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0460",
@@ -8537,7 +9449,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 3003,
-      "projected_input_tokens": 11152
+      "projected_input_tokens": 24423,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0461",
@@ -8559,7 +9473,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7939,
       "estimated_file_content_tokens": 829,
-      "projected_input_tokens": 8978
+      "projected_input_tokens": 19662,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0462",
@@ -8577,7 +9493,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4065,
       "estimated_file_content_tokens": 494,
-      "projected_input_tokens": 4770
+      "projected_input_tokens": 10446,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0463",
@@ -8595,7 +9513,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 62,
-      "projected_input_tokens": 4237
+      "projected_input_tokens": 9279,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0464",
@@ -8611,7 +9531,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 33,
-      "projected_input_tokens": 2409
+      "projected_input_tokens": 5276,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0465",
@@ -8631,7 +9553,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 451,
-      "projected_input_tokens": 6526
+      "projected_input_tokens": 14292,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0466",
@@ -8649,7 +9573,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 182,
-      "projected_input_tokens": 4357
+      "projected_input_tokens": 9542,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0467",
@@ -8667,7 +9593,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 66,
-      "projected_input_tokens": 4241
+      "projected_input_tokens": 9288,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0468",
@@ -8685,7 +9613,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 235,
-      "projected_input_tokens": 4411
+      "projected_input_tokens": 9660,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0469",
@@ -8704,7 +9634,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5465,
       "estimated_file_content_tokens": 575,
-      "projected_input_tokens": 6250
+      "projected_input_tokens": 13688,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0470",
@@ -8722,7 +9654,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 40,
-      "projected_input_tokens": 4216
+      "projected_input_tokens": 9233,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0471",
@@ -8738,7 +9672,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 192,
-      "projected_input_tokens": 2568
+      "projected_input_tokens": 5624,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0472",
@@ -8754,7 +9690,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 37,
-      "projected_input_tokens": 2413
+      "projected_input_tokens": 5284,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0473",
@@ -8770,7 +9708,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 131,
-      "projected_input_tokens": 2507
+      "projected_input_tokens": 5490,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0474",
@@ -8786,7 +9726,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 32,
-      "projected_input_tokens": 2408
+      "projected_input_tokens": 5274,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0475",
@@ -8802,7 +9744,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 154,
-      "projected_input_tokens": 2530
+      "projected_input_tokens": 5541,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0476",
@@ -8818,7 +9762,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 75,
-      "projected_input_tokens": 2451
+      "projected_input_tokens": 5368,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0477",
@@ -8836,7 +9782,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 205,
-      "projected_input_tokens": 4380
+      "projected_input_tokens": 9592,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0478",
@@ -8852,7 +9800,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 22,
-      "projected_input_tokens": 2398
+      "projected_input_tokens": 5252,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0479",
@@ -8870,7 +9820,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 187,
-      "projected_input_tokens": 4362
+      "projected_input_tokens": 9553,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0480",
@@ -8888,7 +9840,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 37,
-      "projected_input_tokens": 4212
+      "projected_input_tokens": 9224,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0481",
@@ -8904,7 +9858,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 28,
-      "projected_input_tokens": 2404
+      "projected_input_tokens": 5265,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0482",
@@ -8922,7 +9878,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 602,
-      "projected_input_tokens": 4777
+      "projected_input_tokens": 10462,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0483",
@@ -8938,7 +9896,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 108,
-      "projected_input_tokens": 2485
+      "projected_input_tokens": 5442,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0484",
@@ -8954,7 +9914,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 114,
-      "projected_input_tokens": 2490
+      "projected_input_tokens": 5453,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0485",
@@ -8972,7 +9934,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 106,
-      "projected_input_tokens": 4281
+      "projected_input_tokens": 9375,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0486",
@@ -8992,7 +9956,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 505,
-      "projected_input_tokens": 6579
+      "projected_input_tokens": 14408,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0487",
@@ -9008,7 +9974,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 415,
-      "projected_input_tokens": 2792
+      "projected_input_tokens": 6114,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0488",
@@ -9026,7 +9994,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 286,
-      "projected_input_tokens": 4461
+      "projected_input_tokens": 9770,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0489",
@@ -9042,7 +10012,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 23,
-      "projected_input_tokens": 2399
+      "projected_input_tokens": 5254,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0490",
@@ -9060,7 +10032,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 356,
-      "projected_input_tokens": 4531
+      "projected_input_tokens": 9923,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0491",
@@ -9076,7 +10050,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 172,
-      "projected_input_tokens": 2549
+      "projected_input_tokens": 5582,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0492",
@@ -9096,7 +10072,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5864,
       "estimated_file_content_tokens": 495,
-      "projected_input_tokens": 6569
+      "projected_input_tokens": 14386,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0493",
@@ -9114,7 +10092,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 80,
-      "projected_input_tokens": 4256
+      "projected_input_tokens": 9321,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0494",
@@ -9130,7 +10110,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 39,
-      "projected_input_tokens": 2415
+      "projected_input_tokens": 5289,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0495",
@@ -9146,7 +10128,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 926,
-      "projected_input_tokens": 3302
+      "projected_input_tokens": 7231,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0496",
@@ -9162,7 +10146,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 325,
-      "projected_input_tokens": 2702
+      "projected_input_tokens": 5917,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0497",
@@ -9178,7 +10164,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 1247,
-      "projected_input_tokens": 3624
+      "projected_input_tokens": 7937,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0498",
@@ -9194,7 +10182,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 254,
-      "projected_input_tokens": 2630
+      "projected_input_tokens": 5760,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0499",
@@ -9210,7 +10200,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 193,
-      "projected_input_tokens": 2569
+      "projected_input_tokens": 5626,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0500",
@@ -9226,7 +10218,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 181,
-      "projected_input_tokens": 2557
+      "projected_input_tokens": 5600,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0501",
@@ -9247,7 +10241,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6788,
       "estimated_file_content_tokens": 598,
-      "projected_input_tokens": 7596
+      "projected_input_tokens": 16635,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0502",
@@ -9268,7 +10264,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6757,
       "estimated_file_content_tokens": 414,
-      "projected_input_tokens": 7381
+      "projected_input_tokens": 16164,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0503",
@@ -9289,7 +10287,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6757,
       "estimated_file_content_tokens": 273,
-      "projected_input_tokens": 7240
+      "projected_input_tokens": 15856,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0504",
@@ -9310,7 +10310,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6757,
       "estimated_file_content_tokens": 329,
-      "projected_input_tokens": 7296
+      "projected_input_tokens": 15978,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0505",
@@ -9329,7 +10331,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 4806,
       "estimated_file_content_tokens": 2500,
-      "projected_input_tokens": 7516
+      "projected_input_tokens": 16460,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0506",
@@ -9352,7 +10356,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7937,
       "estimated_file_content_tokens": 771,
-      "projected_input_tokens": 8918
+      "projected_input_tokens": 19530,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0507",
@@ -9368,7 +10374,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 416,
-      "projected_input_tokens": 2792
+      "projected_input_tokens": 6114,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0508",
@@ -9388,7 +10396,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 5957,
       "estimated_file_content_tokens": 3416,
-      "projected_input_tokens": 9583
+      "projected_input_tokens": 20987,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0509",
@@ -9404,7 +10414,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 370,
-      "projected_input_tokens": 2746
+      "projected_input_tokens": 6014,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0510",
@@ -9420,7 +10432,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 428,
-      "projected_input_tokens": 2804
+      "projected_input_tokens": 6141,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0511",
@@ -9438,7 +10452,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 578,
-      "projected_input_tokens": 4753
+      "projected_input_tokens": 10409,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0512",
@@ -9456,7 +10472,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 701,
-      "projected_input_tokens": 4876
+      "projected_input_tokens": 10678,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0513",
@@ -9472,7 +10490,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 227,
-      "projected_input_tokens": 2603
+      "projected_input_tokens": 5701,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0514",
@@ -9488,7 +10508,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 461,
-      "projected_input_tokens": 2837
+      "projected_input_tokens": 6213,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0515",
@@ -9504,7 +10526,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 198,
-      "projected_input_tokens": 2574
+      "projected_input_tokens": 5637,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0516",
@@ -9522,7 +10546,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2019,
-      "projected_input_tokens": 6195
+      "projected_input_tokens": 13567,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0517",
@@ -9542,7 +10568,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 392,
-      "projected_input_tokens": 6815
+      "projected_input_tokens": 14925,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0518",
@@ -9559,7 +10587,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3317,
       "estimated_file_content_tokens": 196,
-      "projected_input_tokens": 3724
+      "projected_input_tokens": 8156,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0519",
@@ -9575,7 +10605,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 928,
-      "projected_input_tokens": 3304
+      "projected_input_tokens": 7236,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0520",
@@ -9593,7 +10625,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2272,
-      "projected_input_tokens": 6447
+      "projected_input_tokens": 14119,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0521",
@@ -9615,7 +10649,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7545,
       "estimated_file_content_tokens": 2089,
-      "projected_input_tokens": 9844
+      "projected_input_tokens": 21558,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0522",
@@ -9631,7 +10667,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 241,
-      "projected_input_tokens": 2617
+      "projected_input_tokens": 5731,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0523",
@@ -9647,7 +10685,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 346,
-      "projected_input_tokens": 2722
+      "projected_input_tokens": 5961,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0524",
@@ -9665,7 +10705,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 513,
-      "projected_input_tokens": 4689
+      "projected_input_tokens": 10269,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0525",
@@ -9683,7 +10725,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 2613,
-      "projected_input_tokens": 6789
+      "projected_input_tokens": 14868,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0526",
@@ -9701,7 +10745,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1099,
-      "projected_input_tokens": 5274
+      "projected_input_tokens": 11550,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0527",
@@ -9721,7 +10767,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 6213,
       "estimated_file_content_tokens": 395,
-      "projected_input_tokens": 6818
+      "projected_input_tokens": 14931,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0528",
@@ -9737,7 +10785,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 174,
-      "projected_input_tokens": 2551
+      "projected_input_tokens": 5587,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0529",
@@ -9753,7 +10803,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 380,
-      "projected_input_tokens": 2756
+      "projected_input_tokens": 6036,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0851",
@@ -9771,7 +10823,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 1002,
-      "projected_input_tokens": 5177
+      "projected_input_tokens": 11338,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0852",
@@ -9789,7 +10843,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 170,
-      "projected_input_tokens": 4345
+      "projected_input_tokens": 9516,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0853",
@@ -9805,7 +10861,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 334,
-      "projected_input_tokens": 2710
+      "projected_input_tokens": 5935,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0854",
@@ -9823,7 +10881,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 297,
-      "projected_input_tokens": 4472
+      "projected_input_tokens": 9794,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0855",
@@ -9841,7 +10901,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 3965,
       "estimated_file_content_tokens": 326,
-      "projected_input_tokens": 4501
+      "projected_input_tokens": 9857,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0856",
@@ -9862,7 +10924,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 221,
-      "projected_input_tokens": 7795
+      "projected_input_tokens": 17071,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0857",
@@ -9883,7 +10947,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7364,
       "estimated_file_content_tokens": 181,
-      "projected_input_tokens": 7755
+      "projected_input_tokens": 16983,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0858",
@@ -9905,7 +10971,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8037,
       "estimated_file_content_tokens": 187,
-      "projected_input_tokens": 8434
+      "projected_input_tokens": 18470,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0859",
@@ -9921,7 +10989,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 411,
-      "projected_input_tokens": 2787
+      "projected_input_tokens": 6104,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0860",
@@ -9937,7 +11007,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 28,
-      "projected_input_tokens": 2404
+      "projected_input_tokens": 5265,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0861",
@@ -9953,7 +11025,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 335,
-      "projected_input_tokens": 2711
+      "projected_input_tokens": 5937,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0862",
@@ -9969,7 +11043,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 2166,
       "estimated_file_content_tokens": 221,
-      "projected_input_tokens": 2597
+      "projected_input_tokens": 5687,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0863",
@@ -9992,7 +11068,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 697,
-      "projected_input_tokens": 9390
+      "projected_input_tokens": 20564,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0864",
@@ -10015,7 +11093,9 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 7937,
       "estimated_file_content_tokens": 2802,
-      "projected_input_tokens": 10949
+      "projected_input_tokens": 23978,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     },
     {
       "lane_id": "file-0865",
@@ -10038,13 +11118,26 @@
       "estimated_boilerplate_tokens": 160,
       "estimated_playbook_tokens": 8483,
       "estimated_file_content_tokens": 9291,
-      "projected_input_tokens": 17984
+      "projected_input_tokens": 39385,
+      "projected_calls": 2,
+      "projected_output_tokens": 5069
     }
   ],
-  "total_projected_input_tokens": 3040003,
+  "total_projected_input_tokens": 6657601,
+  "total_projected_output_tokens": 2742329,
+  "total_projected_calls": 1082,
+  "total_projected_cost_usd": 23.111575,
   "total_file_bytes": 1955672,
   "total_chunks": 541,
   "lane_count": 541,
+  "loop_mode": "trace",
+  "loop_passes": 1,
+  "reasoning_effort": "high",
+  "projection_basis": {
+    "output_tokens_per_call": 2534.54,
+    "follow_up_input_multiplier": 1.19,
+    "source": "run 5 measured 718 output tokens/call at the default effort; effort \"high\" multiplies that by 3.53 (40-lane platform, 2026-08-01)"
+  },
   "provider": "luna",
   "model": "gpt-5.6-luna"
 }

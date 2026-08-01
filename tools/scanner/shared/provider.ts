@@ -157,6 +157,28 @@ export function samplingParams(provider: Provider): Record<string, number | stri
  * silently truncates the response body at a higher one — which reads downstream
  * as an empty findings array rather than as a failure.
  */
+/**
+ * USD per million tokens for a provider, or null when the registry does not
+ * price it. Null rather than a guess: a stage with no price prints no cost,
+ * which is honest, where a defaulted price would be quietly wrong.
+ */
+export function pricingFor(
+  provider: Provider,
+): { input: number; output: number } | null {
+  return targetFor(provider).price_per_mtok ?? null
+}
+
+/** Cost in USD for a measured or projected token split. */
+export function costUsd(
+  provider: Provider,
+  inputTokens: number,
+  outputTokens: number,
+): number | null {
+  const p = pricingFor(provider)
+  if (!p) return null
+  return (inputTokens / 1e6) * p.input + (outputTokens / 1e6) * p.output
+}
+
 export function outputTokenCap(provider: Provider, fallback: number): number {
   // SCANNER_MAX_OUTPUT_TOKENS overrides the registry for one invocation, for
   // the same reason SCANNER_REASONING_EFFORT does: the cap and the effort are

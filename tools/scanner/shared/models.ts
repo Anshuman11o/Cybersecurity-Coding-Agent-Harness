@@ -66,6 +66,19 @@ export interface ModelTarget {
    * to move with the effort, and both are properties of the target.
    */
   max_output_tokens?: number
+  /**
+   * USD per million tokens, input and output.
+   *
+   * Here rather than in a stage for the same reason the model id is: it is a
+   * property of the target, and a stage that hardcodes it is wrong the moment a
+   * second target exists. Optional — a target with no price simply produces no
+   * cost projection rather than a wrong one.
+   *
+   * Output dominates on a reasoning model: at `reasoning_effort: high` the
+   * output leg is ~68% of a run's bill, because reasoning tokens are billed as
+   * output. A projection that models only input is not a cost projection.
+   */
+  price_per_mtok?: { input: number; output: number }
   /** Free text: quirks, endpoint requirements, why a field is set as it is. */
   notes?: string
 }
@@ -109,6 +122,15 @@ const REGISTRY: Registry = (() => {
         `models.json: target "${key}" has max_output_tokens ` +
           `"${t.max_output_tokens}"; expected a positive integer`,
       )
+    }
+    if (t.price_per_mtok != null) {
+      const p = t.price_per_mtok
+      if (typeof p !== 'object' || !(p.input >= 0) || !(p.output >= 0)) {
+        throw new Error(
+          `models.json: target "${key}" has a malformed price_per_mtok; ` +
+            `expected { input: number, output: number }`,
+        )
+      }
     }
   }
 
