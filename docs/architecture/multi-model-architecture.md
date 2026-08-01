@@ -33,11 +33,31 @@ or a credential.
 | Provider key | Label | Model id | Endpoint | Credential |
 |---|---|---|---|---|
 | `luna` (default) | GPT-5.6 Luna | `gpt-5.6-luna` | `api.openai.com` | `OPENAI_API_KEY` |
+| `terra` | GPT-5.6 Terra | `gpt-5.6-terra` | `api.openai.com` | `OPENAI_API_KEY` |
+| `sol` | GPT-5.6 Sol | `gpt-5.6-sol` | `api.openai.com` | `OPENAI_API_KEY` |
+| `luna-fixed` | GPT-5.6 Luna (post-fix arm) | `gpt-5.6-luna` | `api.openai.com` | `OPENAI_API_KEY` |
 | `qwen` | Qwen 3.6 Plus | `qwen-plus` | DashScope OpenAI-compatible | `DASHSCOPE_API_KEY` |
+| `qwen37` | Qwen 3.7 Plus | `qwen3.7-plus` | DashScope OpenAI-compatible | `DASHSCOPE_API_KEY` |
+| `opus5` | Claude Opus 5 | `claude-opus-5` | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| `sonnet5` | Claude Sonnet 5 | `claude-sonnet-5` | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| `gemini-pro` | Gemini 3.1 Pro | `gemini-3.1-pro` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| `gemini-cyber` | Gemini 3.5 Flash Cyber | `gemini-3.5-flash-cyber` | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| `kimi` | Kimi K3 | `kimi-k3` | `api.moonshot.ai` | `MOONSHOT_API_KEY` |
+| `glm` | GLM-5.2 | `glm-5.2` | `api.z.ai` | `ZAI_API_KEY` |
+| `deepseek` | DeepSeek V4 | `deepseek-v4` | `api.deepseek.com` | `DEEPSEEK_API_KEY` |
+
+The last eight were added on 2026-08-01 for the twelve-model benchmark. Every
+one of them reaches the same `openai` SDK through `base_url`; there is no
+second client, no vendor SDK, and no code path that knows any of them exist.
+
+**Every non-`api.openai.com` host above must be on the environment's egress
+allowlist**, or the first API call fails with "Host not in allowlist" rather
+than an auth error — see §8.
 
 Aliases are accepted everywhere a key is and canonicalized before anything
 touches disk: `openai` and `gpt-5.6-luna` → `luna`; `dashscope` and `qwen-plus`
-→ `qwen`. `run.sh openai …` and `run.sh luna …` are the same run.
+→ `qwen`; `opus`, `sonnet`, `cyber`, `moonshot`, `zai` and each model id map to
+their target. `run.sh openai …` and `run.sh luna …` are the same run.
 
 Every provider executes **byte-identical scanner logic** against a
 **byte-identical corpus**, with identical prompts, schemas, and token budgets.
