@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T19:20:25.784Z",
+  "generated_at": "2026-08-01T20:28:56.885Z",
   "consumption_source": "/home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/luna/stage2-hunt-lanes-perfile/budget-consumption.json",
   "provider": "luna",
   "model": "gpt-5.6-luna",
@@ -8,10 +8,19 @@
   "lane_count": 541,
   "lanes_missing_measurement": 0,
   "calls": 1082,
+  "price_per_mtok": {
+    "input": 0.2,
+    "cached_input": 0.02,
+    "cache_write": 0.25,
+    "output": 1.2
+  },
+  "price_asof": "2026-08-01",
   "input_tokens": 7174088,
+  "cached_input_tokens": 0,
+  "cache_write_tokens": 0,
   "output_tokens": 2444855,
   "total_tokens": 9618943,
-  "input_cost_usd": 7.174088,
-  "output_cost_usd": 14.66913,
-  "cost_usd": 21.843218
+  "input_cost_usd": 1.4348176000000001,
+  "output_cost_usd": 2.933826,
+  "cost_usd": 4.3686436
 }

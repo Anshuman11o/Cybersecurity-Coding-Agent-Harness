@@ -3,7 +3,7 @@ import { readCorpusFile, isCorpusReadable, guardStats } from './read-guard.js'
 import { runPath, RUNS_ROOT, STAGES } from './run-paths.js'
 import {
   resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap,
-  listProviders, defaultProvider, targetFor, apiKeyEnvFor, clientConfigFor,
+  listProviders, defaultProvider, targetFor, apiKeyEnvFor, clientConfigFor, costUsd,
 } from './provider.js'
 
 let pass = 0, fail = 0
@@ -248,6 +248,46 @@ console.log('\n-- output-token cap is registry data, and every shipped target ke
   check('a target raising reasoning_effort also raises the cap',
     listProviders().every(p =>
       !('reasoning_effort' in targetFor(p).sampling) || outputTokenCap(p, 8000) > 8000))
+}
+
+console.log('\n-- pricing: verified rates, with the date they were verified --')
+// This exists because the registry once carried luna at $1.00/$6.00, copied
+// from this repo's own prose. It was self-consistent, reconciled against every
+// earlier run, and disagreed only with the bill — a full run was reported at
+// $21.84 having cost $4.37. A wrong price has no symptom a test can see, so
+// what is asserted here is the shape that makes staleness visible instead.
+{
+  for (const p of listProviders()) {
+    const t = targetFor(p)
+    if (t.price_per_mtok == null) {
+      // An unpriced target is a legitimate state — it prints no cost rather
+      // than a wrong one — but it must not silently produce a number.
+      check(`${p}: unpriced target yields no cost`, costUsd(p, 1e6, 1e6) === null)
+      continue
+    }
+    const price = t.price_per_mtok
+    check(`${p}: records the date its rates were verified`, Boolean(t.price_asof))
+    check(`${p}: records which price-list column it took`, Boolean(t.price_tier))
+    check(`${p}: cached input is cheaper than fresh input`,
+      price.cached_input == null || price.cached_input < price.input)
+    check(`${p}: cache writes cost at least fresh input`,
+      price.cache_write == null || price.cache_write >= price.input)
+    check(`${p}: output costs more than input`, price.output > price.input)
+    // Arithmetic, not a rate: 1M fresh input + 1M output must equal the sum of
+    // the two rates, or costUsd has stopped meaning what the registry says.
+    const expected = price.input + price.output
+    check(`${p}: costUsd matches its own declared rates`,
+      Math.abs((costUsd(p, 1e6, 1e6) ?? -1) - expected) < 1e-9)
+    // A cached million must cost less than a fresh million.
+    check(`${p}: cached input is priced through`,
+      price.cached_input == null ||
+      (costUsd(p, 1e6, 0, 1e6) ?? Infinity) < (costUsd(p, 1e6, 0) ?? 0))
+  }
+  // The default target is the one a plain run bills against; pin its rate so a
+  // silent edit fails here rather than in a report.
+  const luna = targetFor(defaultProvider())
+  check('default target priced at the 2026-08-01 verified rate',
+    luna.price_per_mtok?.input === 0.20 && luna.price_per_mtok?.output === 1.20)
 }
 
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)

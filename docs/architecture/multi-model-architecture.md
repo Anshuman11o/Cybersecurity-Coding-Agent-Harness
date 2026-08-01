@@ -102,16 +102,24 @@ inconsistent about accepting non-default sampling values, so `luna` declares
 
 ### Operational profile per model
 
-The registry declares what the API *accepts*. It deliberately does not declare
-rate limits or price — those are account properties, not model properties, and
-hardcoding them would rot. Measured values, for planning a run:
+The registry declares what the API *accepts*, and — since 2026-08-01 — what it
+*costs*. Rate limits stay out: those really are account properties. Price is
+not; it is on the vendor's public list and is the same for every account.
+
+This section previously argued that price did not belong in the registry because
+it would rot. The concern was right and the conclusion was backwards: kept out of
+the registry, the price rotted in *prose* instead, where nothing could check it,
+and the repo published five runs of cost figures 5x high. `price_per_mtok` now
+lives beside the model id with a `price_asof` date and a `price_tier`, and
+`guard.test.ts` asserts both are present — a stale date is the only visible
+symptom a stale price has. Measured values, for planning a run:
 
 | | `luna` / `gpt-5.6-luna` | `qwen` / `qwen-plus` |
 |---|---|---|
-| Tokens-per-minute ceiling | **200,000** (observed in 429 bodies) | not measured |
-| Safe `HUNT_CONCURRENCY` for 541 lanes | **4** — 8 lost 52 lanes to TPM | 8 used historically |
-| Price basis used for reported cost | $1.00/M in, $6.00/M output | — |
-| Full v2 Stage 2 run | ~20 min, ~4.0M tokens, ~$5.82 | — |
+| Tokens-per-minute ceiling | **2,000,000** (raised from 200,000 on 2026-07-29) | not measured |
+| Safe `HUNT_CONCURRENCY` for 541 lanes | **32** at the shipped high-effort arm — 0 retries on run 6 | 8 used historically |
+| Price basis used for reported cost | **$0.20/M in, $1.20/M out** (registry, verified 2026-08-01) | unpriced — DashScope rates not verified |
+| Full v2 Stage 2 run | 13m at C=32, 9.6M tokens, **$4.37** (run 6, the shipped loop arm) | — |
 
 Discover a new model's ceiling the same way: the 429 body states it verbatim
 (`Limit N, Used N, Requested N. Please try again in Xs`). Read it from the run

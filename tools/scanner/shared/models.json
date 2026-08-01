@@ -35,7 +35,9 @@
         "reasoning_effort": "high"
       },
       "max_output_tokens": 24000,
-      "price_per_mtok": { "input": 1.0, "output": 6.0 },
+      "price_per_mtok": { "input": 0.2, "cached_input": 0.02, "cache_write": 0.25, "output": 1.2 },
+      "price_tier": "standard, short context",
+      "price_asof": "2026-08-01",
       "notes": "GPT-5.x reasoning models reject max_tokens with a 400, and reject any temperature but the default, so steering happens through the prompt and through reasoning_effort. reasoning_effort was added 2026-07-31: runs 1-5 sent none at all and therefore ran at the endpoint's default, so four rounds of playbook work were tuned against the cheapest tier of the family at that tier's own cheapest effort. Re-measured 2026-08-01 on the 40-lane platform against a matched control: high effort alone is recall 53.6% -> 63.9%, 10 entries gained and 0 lost. Paired with Stage 2's default trace loop it is 67.0% recall and 85.6% localization, the shipped arm — see docs/run-history.md 2026-08-01 and docs/architecture/stage2-lane-loop.md. max_output_tokens must move with the effort: reasoning tokens are billed as output AND counted against the cap, and at this effort 42% of calls exceed 8000, where a truncated body is unparseable JSON that Stage 2 records as a lane that found nothing — measured recall 63.9% -> 37.1% at an 8000 cap. 24000 is slack: the highest completion measured is 14584, so raising it further cannot buy recall and 16000 would do. 'medium' is untested. To reproduce runs 1-5 exactly, set SCANNER_REASONING_EFFORT= and SCANNER_MAX_OUTPUT_TOKENS=8000 and HUNT_LOOP=none rather than editing this entry. base_url null means the SDK default, https://api.openai.com/v1. Requires api.openai.com on the environment's egress allowlist."
     },
 
@@ -48,8 +50,10 @@
       "base_url_env": "OPENAI_BASE_URL",
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
-      "price_per_mtok": { "input": 2.5, "output": 15.0 },
-      "notes": "Middle tier of the GPT-5.6 family, same endpoint and key as luna. $2.50/$15 per MTok against luna's $1.00/$6.00. Added 2026-07-29 because every run to date has used the family's cheapest tier: docs/'Cybersecurity models pricing research' records luna as 'the smallest step up available' from qwen on cost grounds, so model capability has never been isolated as a variable."
+      "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "cache_write": 2.5, "output": 12.0 },
+      "price_tier": "standard, short context",
+      "price_asof": "2026-08-01",
+      "notes": "Middle tier of the GPT-5.6 family, same endpoint and key as luna. $2.00/$12 per MTok against luna's $0.20/$1.20 (rates as of 2026-08-01). Added 2026-07-29 because every run to date has used the family's cheapest tier: docs/'Cybersecurity models pricing research' records luna as 'the smallest step up available' from qwen on cost grounds, so model capability has never been isolated as a variable."
     },
 
     "sol": {
@@ -61,8 +65,10 @@
       "base_url_env": "OPENAI_BASE_URL",
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
-      "price_per_mtok": { "input": 5.0, "output": 30.0 },
-      "notes": "Top tier of the GPT-5.6 family, same endpoint and key as luna. $5.00/$30 per MTok, ~5x luna on input. Rated 96.7% on OpenAI's internal CTF suite, which they describe as saturated — read it as 'not capability-limited on security reasoning', not as a percentage of anything. See the pricing research doc's caveats before treating that number as a ranking."
+      "price_per_mtok": { "input": 5.0, "cached_input": 0.5, "cache_write": 6.25, "output": 30.0 },
+      "price_tier": "standard, short context",
+      "price_asof": "2026-08-01",
+      "notes": "Top tier of the GPT-5.6 family, same endpoint and key as luna. $5.00/$30 per MTok, 25x luna on input (rates as of 2026-08-01). Rated 96.7% on OpenAI's internal CTF suite, which they describe as saturated — read it as 'not capability-limited on security reasoning', not as a percentage of anything. See the pricing research doc's caveats before treating that number as a ranking."
     },
 
     "luna-fixed": {
@@ -74,7 +80,9 @@
       "base_url_env": "OPENAI_BASE_URL",
       "token_limit_param": "max_completion_tokens",
       "sampling": {},
-      "price_per_mtok": { "input": 1.0, "output": 6.0 },
+      "price_per_mtok": { "input": 0.2, "cached_input": 0.02, "cache_write": 0.25, "output": 1.2 },
+      "price_tier": "standard, short context",
+      "price_asof": "2026-08-01",
       "notes": "Same model as luna. A separate key so the run-5 artifacts in runs/luna/ stay untouched while the same model is re-measured with the 2026-07-29 fixes in force. Exists to separate 'the fixes helped' from 'the model tier helped' — without it, a terra-vs-run-5 delta confounds both. Experiment arm: do not merge to main."
     },
 
@@ -87,7 +95,8 @@
       "base_url_env": "DASHSCOPE_BASE_URL",
       "token_limit_param": "max_tokens",
       "sampling": { "temperature": 0.1 },
-      "notes": "DashScope's OpenAI-compatible endpoint. Accepts only max_tokens. This was the default target before the registry existed; it is kept so the committed runs/qwen/ baseline stays reproducible."
+      "price_per_mtok": null,
+      "notes": "DashScope's OpenAI-compatible endpoint. Deliberately unpriced: the 2026-08-01 rate audit covered OpenAI's published price list only, and DashScope's was not verified. A null price makes every stage print no cost rather than a wrong one, which is the point — this repo once carried luna 5x high because a plausible-looking rate went unchecked. Accepts only max_tokens. This was the default target before the registry existed; it is kept so the committed runs/qwen/ baseline stays reproducible."
     }
   }
 }

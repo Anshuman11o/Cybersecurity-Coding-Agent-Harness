@@ -54,12 +54,14 @@ had already bracketed but not cited.
 Measured at default effort: recall **53.6% → 66.0%**, localization
 **77.3% → 84.5%**, 13 gained / 1 lost. Against a budget-matched mechanical null,
 **+7.2 points attributable**, and the whole of the localization gain. Projected
-$12.45 for 541 lanes against $5.73 without it.
+$2.49 for 541 lanes against $1.15 without it (luna at $0.20/$1.20 per MTok;
+see `../run-history.md` "A pricing correction").
 
 ### L2 — the loop and `reasoning_effort` are substitutes, not complements — **the load-bearing finding**
 
 Each is worth about +7 to +8 null-adjusted recall points alone. Together they are
-worth +7.2 — the same as either — while costing 91% more. `trace-high` reaches
+worth +7.2 — the same as either — while costing 91% more. Run 6 measured the
+stacked arm on the full corpus at 71.1% recall for $4.37. `trace-high` reaches
 67.0% against `ctl-high`'s 63.9%, and a mechanical inflation of `ctl-high`'s own
 findings to `trace-high`'s line budget reaches 68.0%. **Do not bundle them.**
 
