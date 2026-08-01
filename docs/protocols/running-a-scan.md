@@ -91,6 +91,12 @@ when anything upstream has changed.
 
 ### Selecting the lane agent loop and the model parameters
 
+**The shipped arm is `HUNT_LOOP=trace` with the registry's `reasoning_effort:
+high` and its 24,000-token cap. A plain `run.sh luna stage2-hunt-lanes-perfile`
+gets you that and needs no env var.** To reproduce runs 1–5 instead:
+
+    HUNT_LOOP=none SCANNER_REASONING_EFFORT= SCANNER_MAX_OUTPUT_TOKENS=8000
+
 Four env vars change what Stage 2 does without changing the tree, so **the git
 sha does not identify the run** — this is the "verify the tree, not the intent"
 hazard in its runtime form. All four are recorded in `meta.json`; state them in
@@ -98,7 +104,7 @@ the run report as well.
 
 | var | default | what it does |
 |---|---|---|
-| `HUNT_LOOP` | `none` | `none` \| `trace` \| `gap` \| `reflect` \| `sweep` — see `../architecture/stage2-lane-loop.md` |
+| `HUNT_LOOP` | **`trace`** | `none` \| `trace` \| `gap` \| `reflect` \| `sweep` — see `../architecture/stage2-lane-loop.md` |
 | `HUNT_LOOP_PASSES` | `1` | follow-up turns per chunk; the loop stops early on an unproductive turn |
 | `HUNT_LOOP_STRICT_TRACE` | unset | `1` selects the stricter completion wording — **measured worse**, recall 66.0% → 52.6% |
 | `HUNT_SWEEP_GROUP` | `3` | classes per group in `sweep` mode |

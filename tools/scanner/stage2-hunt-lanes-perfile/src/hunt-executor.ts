@@ -82,19 +82,29 @@ const STARTED = new Date().toISOString()
 
 // ── Per-lane agent loop ───────────────────────────────────────────────────
 /**
- * A lane may answer in more than one turn. `none` is the historic behaviour —
- * one structured completion per chunk — and is what every scored run to date
- * used; it is the default and its code path is unchanged.
+ * A lane may answer in more than one turn.
  *
- * The other modes continue the SAME conversation rather than building a fresh
- * prompt. That is deliberate on two counts. It is what an agent loop actually
- * is: the model can see what it already said and revise it. And it is the cheap
- * option — the file, the playbooks and the architecture context are already in
- * the transcript, so a follow-up turn adds only its own instruction plus the
- * assistant message, instead of re-sending an ~8k-token prompt.
+ * `trace` is the shipped default, paired with the registry's
+ * `reasoning_effort: high` and its 24,000-token output cap. Measured on the
+ * 40-lane benchmark-bearing platform: recall 67.0%, localization 85.6%, the
+ * best of either metric recorded, and the first configuration to leave no
+ * reachable entry uncited in its own file. See docs/run-history.md §2026-08-01.
  *
- *   none     one turn (baseline)
- *   trace    + one turn asking for the intermediate lines of each trace
+ * `none` is the historic behaviour — one structured completion per chunk — and
+ * is what runs 1 to 5 used. It is preserved exactly, and setting `HUNT_LOOP=none`
+ * with `SCANNER_REASONING_EFFORT=` and `SCANNER_MAX_OUTPUT_TOKENS=8000`
+ * reproduces those runs byte-for-byte, artifacts included.
+ *
+ * The non-`none` modes continue the SAME conversation rather than building a
+ * fresh prompt. That is deliberate on two counts. It is what an agent loop
+ * actually is: the model can see what it already said and act on it. And it is
+ * the cheap option — the file, the playbooks and the architecture context are
+ * already in the transcript, so a follow-up turn adds only its own instruction
+ * plus the assistant message rather than re-sending an ~8k-token prompt. Input
+ * grows 13%; the rest of a loop's cost is the second turn's own output.
+ *
+ *   none     one turn (runs 1-5)
+ *   trace    + one turn asking for the intermediate lines of each trace  [default]
  *   gap      + one turn asking only for defects the first turn did not report
  *   reflect  + one turn asking for both, in that order
  *   sweep    re-hunts the lane in class groups, one conversation per group
@@ -115,9 +125,16 @@ const STARTED = new Date().toISOString()
 export type LoopMode = 'none' | 'trace' | 'gap' | 'reflect' | 'sweep'
 const LOOP_MODES: LoopMode[] = ['none', 'trace', 'gap', 'reflect', 'sweep']
 
+/**
+ * The shipped arm. Exported so a test asserts what the stage actually defaults
+ * to rather than what a doc says it defaults to — the loop is selected by env
+ * var, so nothing in the commit graph records which arm a run executed.
+ */
+export const DEFAULT_LOOP_MODE: LoopMode = 'trace'
+
 const LOOP_MODE: LoopMode = (() => {
   const raw = process.env.HUNT_LOOP
-  if (!raw) return 'none'
+  if (raw === undefined || raw === '') return DEFAULT_LOOP_MODE
   if ((LOOP_MODES as string[]).includes(raw)) return raw as LoopMode
   throw new Error(`HUNT_LOOP="${raw}" is not one of: ${LOOP_MODES.join(', ')}`)
 })()

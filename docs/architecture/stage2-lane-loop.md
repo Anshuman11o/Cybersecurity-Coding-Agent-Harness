@@ -7,13 +7,39 @@ found the right line from a loop that cited more lines until it hit one.
 Aggregate metrics only. Located evidence lives in the answer-key repo, per
 `../protocols/blind-development.md`.
 
+## 0. The shipped configuration
+
+    HUNT_LOOP=trace                 (default — no env var needed)
+    HUNT_LOOP_PASSES=1              (default)
+    reasoning_effort: high          (models.json, luna)
+    max_output_tokens: 24000        (models.json, luna)
+
+Measured on the 40-lane benchmark-bearing platform: **recall 67.0%,
+localization 85.6%**, the best of either recorded, and the first configuration
+in which no reachable entry is left uncited in its own file. Projected $23.75
+for a 541-lane run.
+
+Runs 1–5 are still reproducible byte-for-byte, artifacts included:
+
+    HUNT_LOOP=none SCANNER_REASONING_EFFORT= SCANNER_MAX_OUTPUT_TOKENS=8000
+
+**Two things to know before citing the 67.0%.** The loop's recall increment
+over high effort *alone* (63.9%) is not distinguishable from the extra lines it
+cites — §5 explains how that was established and why it does not apply to the
+localization gain. And it costs 91% more than either half on its own: high
+effort alone projects to $12.59 and the loop at the endpoint's default effort to
+$12.45, both reaching the same 60–70% band. This arm is the highest measured,
+not the cheapest way into the band.
+
 ## 1. What a lane does now
 
-Before, a lane was one structured completion per chunk. It still is when
-`HUNT_LOOP=none`, which is the default and which every scored run to date used.
+A lane runs one hunt turn and then one follow-up turn in the same conversation.
+It is one structured completion per chunk, as before, only under
+`HUNT_LOOP=none` — which every scored run to date used and which is preserved
+exactly.
 
-With a loop mode set, the lane **continues the same conversation**. That choice
-is doing two jobs at once:
+Under a loop mode the lane **continues the same conversation**. That choice is
+doing two jobs at once:
 
 - It is what an agent loop actually is. The model can see what it already said
   and act on it, rather than being asked the same question again by a caller
@@ -25,8 +51,8 @@ is doing two jobs at once:
 
 | mode | turns | what the follow-up asks |
 |---|---|---|
-| `none` | 1 | — (baseline, unchanged) |
-| `trace` | 2+ | name the lines each finding's path actually passes through |
+| `none` | 1 | — (runs 1–5, preserved exactly) |
+| **`trace`** | 2+ | **name the lines each finding's path actually passes through — default** |
 | `gap` | 2+ | report defects of the assigned classes the first turn did not |
 | `reflect` | 2+ | both, in that order |
 | `sweep` | 1 per class group | re-hunt the chunk with a narrower class list |

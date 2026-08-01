@@ -70,6 +70,17 @@ Architecture and the reasoning behind each turn's wording:
 `architecture/stage2-lane-loop.md`. Located evidence: answer-key repo,
 `analysis/2026-08-01-loop-located.md`.
 
+**Shipped as a result of this investigation:** `HUNT_LOOP=trace` is now Stage 2's
+default, paired with the registry's `reasoning_effort: high` and 24,000-token
+cap — the `trace-high` row below, at 67.0% recall and 85.6% localization. That
+was the user's call, made against the two qualifications stated in full here:
+the loop's recall increment over high effort alone is not distinguishable from
+its extra cited lines, and the pairing costs 91% more than either half on its
+own for +1 entry over the loop alone and +3 over the effort alone. Both halves
+reach the 60–70% band separately and more cheaply. `HUNT_LOOP=none` with
+`SCANNER_REASONING_EFFORT=` and `SCANNER_MAX_OUTPUT_TOKENS=8000` still
+reproduces runs 1–5 byte-for-byte.
+
 **Role note.** CLAUDE.md reserves scanner source edits for Qwen. `acpx qwen` is
 not installed in this environment and the user directed this investigation
 directly, so that split is suspended here, as it was for the run-6

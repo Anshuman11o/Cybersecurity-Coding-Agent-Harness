@@ -12,7 +12,7 @@
 import { readFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { mergeFindings, classGroups, buildFollowUpTurn } from './hunt-executor.js'
+import { mergeFindings, classGroups, buildFollowUpTurn, DEFAULT_LOOP_MODE } from './hunt-executor.js'
 import type { CandidateFinding, TraceStep } from './types.js'
 
 let pass = 0, fail = 0
@@ -46,6 +46,27 @@ function finding(
 
 function lines(f: CandidateFinding): number[] {
   return f.trace.map(s => s.line)
+}
+
+console.log('\n-- the shipped arm --')
+{
+  // The loop is selected by env var, so nothing in the commit graph records
+  // which arm a run executed. Assert the default against the stage itself
+  // rather than against a doc, and assert the registry pairing that makes it
+  // safe: at this effort a cap tuned for the endpoint default truncates 42% of
+  // lanes, and a truncated body reads downstream as a lane that found nothing.
+  const H = dirname(fileURLToPath(import.meta.url))
+  const registry = JSON.parse(readFileSync(join(H, '../../shared/models.json'), 'utf-8'))
+  const luna = registry.targets[registry.default_provider]
+
+  check('Stage 2 defaults to the trace loop', DEFAULT_LOOP_MODE === 'trace')
+  check('the default provider runs at high reasoning effort',
+    luna.sampling.reasoning_effort === 'high')
+  check('its output cap clears the highest completion measured (14584)',
+    (luna.max_output_tokens ?? 0) > 14584)
+  check('every target raising reasoning_effort also raises the cap',
+    Object.values(registry.targets as Record<string, any>).every(
+      (t: any) => !('reasoning_effort' in (t.sampling ?? {})) || (t.max_output_tokens ?? 0) > 8000))
 }
 
 console.log('\n-- merge: a revision extends a trace and never replaces it --')

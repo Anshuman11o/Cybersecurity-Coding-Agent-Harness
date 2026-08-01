@@ -69,8 +69,13 @@ and unresolved: nothing downstream recovers v2 precision.
     Stage 0   recon              LLM           → architecture summary, file signals
     Stage 0.5 lane selector      deterministic → lane assignments (hunt | skip)
     Stage 1   budget governor    deterministic → token projection
-    Stage 2   hunt lanes         LLM           → candidate findings
+    Stage 2   hunt lanes         LLM x2/lane   → candidate findings
     Stage 3   validate           LLM           v1 only
+
+Stage 2 is two model turns per lane as of 2026-08-01: a hunt turn and a
+follow-up turn in the same conversation that completes each finding's trace.
+The arm is `HUNT_LOOP`, it defaults to `trace`, and it is **not** recorded in
+the git sha — see `architecture/stage2-lane-loop.md`.
 
 Only Stages 0 and 2 call a model. 0.5 and 1 are plain TypeScript, which is why
 lane assignment is reproducible from the same recon output.
