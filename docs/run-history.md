@@ -74,6 +74,48 @@ Two things to carry when reading any row in this file:
 - **The nondeterminism floor is ±7 entries** on byte-identical prompts. Nothing
   smaller than that is a result on its own.
 
+## ⚠ A pricing correction — every dollar figure before 2026-08-01 is 5x high
+
+`luna` is **$0.20 / $1.20 per MTok** (input / output), plus $0.02 for cached
+input. Verified against the vendor's pricing page on 2026-08-01 and recorded in
+`models.json` with a `price_asof` date.
+
+Every cost in this file was previously computed at **$1.00 / $6.00**, a figure
+that entered the repo as prose — a registry note and a runbook line — and was
+propagated from there rather than from the vendor. It was consistent with itself
+and with every earlier run, so nothing caught it; it disagreed only with the
+bill. Run 6 was reported at $21.84 and cost **$4.37**. The whole 2026-08-01 loop
+investigation was reported at $11.88 and cost **$2.38**.
+
+**Only the price was wrong.** Every token count in this file is measured and
+unchanged, and every ratio between configurations is unaffected, so no
+architectural conclusion moves.
+
+| what | as reported | corrected |
+|---|---|---|
+| Run 1 | $4.64 | $0.93 |
+| Run 2 | $5.82 | $1.16 |
+| Run 3 | $5.48 | $1.10 |
+| Run 4 | $6.46 | $1.29 |
+| Run 5 | $5.73 | $1.15 |
+| Run 6 | $21.84 | **$4.37** |
+| loop investigation, 7 arms | $11.88 | $2.38 |
+
+Runs 1–5's costs are restated here for comparability and left as originally
+published in their own entries below, per the never-rewrite rule. `scanner.jsonl`
+keeps its original lines and gains a `*-repriced` line, the same pattern the
+97-denominator re-base used.
+
+**Two lessons, both now enforced in code.** A price is a property of the target
+and lives in `models.json` beside the model id, never in a doc — `price_asof`
+records when it was last read off the vendor's page, and a stale date is the
+only visible symptom a stale price has. And cost is now always reported with the
+rate that produced it, in `usage-v2.json` and in `budget-plan-v2.json`, so a
+figure can never again travel without the number it was multiplied by.
+
+The same audit corrected `terra` ($2.50/$15 → **$2.00/$12**); `sol` ($5.00/$30)
+was already right.
+
 ## ⚠ Recall to date is understated by 3 entries — and the model tier was never tested
 
 Two findings from the 2026-07-29 run-6 investigation
@@ -134,7 +176,7 @@ and this is single-variable against run 5 in Stage 2's arm.
 | Lanes emitting ≥1 finding | 244/541 = 45.1% | 268/541 = 49.5% | — |
 | Max classes on one finding | 3 | 4 | — |
 | Tokens | 3,786,720 | **9,618,943** | — |
-| Cost | $5.73 | **$21.84** | — |
+| Cost | $1.15 | **$4.37** | — |
 | Wall clock | 4m38s @ C=16 | 13m04s @ C=32 | — |
 | Retries / fatal | 0 / 0 | **0 / 0** | — |
 
@@ -163,8 +205,14 @@ working on the mechanism it was designed for.
 **Execution.** 541/541 hunt lanes, **0 retries, 0 fatal, 0 blocked reads**,
 `degraded: false`, single clean pass. 1,082 model calls — exactly 2 per lane, so
 the loop fired on every one. All three token accounting sources agree at
-9,618,943 with no duplicate `lane_id` and no failed lane. Actual cost $21.84
-against Stage 1's $23.11 projection, **5.5% under**.
+9,618,943 with no duplicate `lane_id` and no failed lane. Actual cost **$4.37**
+against Stage 1's $4.62 projection, 5.5% under.
+
+**Both cost columns above are restated at luna's real rate, $0.20/$1.20 per
+MTok.** This run was first reported at $21.84 and run 5 at $5.73, both computed
+at $1.00/$6.00 — a figure copied from this repo's own prose that was correct
+when written and 5x high by 2026-08-01. The token counts never changed. See
+"A pricing correction" below.
 
 #### ⚠ How much of this is detection, and how much is cited lines
 
@@ -202,7 +250,9 @@ in the answer-key repo.
 
 ## 2026-08-01 — Stage 2 per-lane agent loop, and the output cap
 
-Seven arms on the 40-lane benchmark-bearing platform, `luna`, **$11.88 total**.
+Seven arms on the 40-lane benchmark-bearing platform, `luna`, **$2.38 total**
+(restated at the real rate; first reported as $11.88 — see "A pricing
+correction").
 No full 541-lane run: the platform measures recall and localization *exactly*
 (§2 of `analysis/2026-07-29-run6-investigation.md`), and the budget for this
 investigation bought seven contrasts rather than two full runs. Full-run cost is
@@ -246,15 +296,16 @@ are therefore directly comparable to every run in the table below.
 
 | arm | loop | effort | recall | localization | blind loc | lines cited | arm $ | projected 541-lane $ |
 |---|---|---|---|---|---|---|---|---|
-| `ctl-def` | none | default | 52/97 = 53.6% | 77.3% | 89.7% | 254 | 0.74 | **5.73** |
-| `ctl-high` | none | high | 62/97 = 63.9% | 81.4% | 93.8% | 365 | 1.93 | 12.59 |
-| `trace-def` | trace | default | **64/97 = 66.0%** | **84.5%** | 92.8% | 632 | 1.61 | 12.45 |
-| `reflect-def` | reflect | default | 64/97 = 66.0% | 77.3% | 90.7% | 608 | 1.65 | 12.70 |
-| `trace-high` | trace | high | **65/97 = 67.0%** | **85.6%** | 93.8% | 691 | 3.56 | 23.75 |
-| `trace-def-v2` | trace, strict wording | default | 51/97 = 52.6% | 71.1% | 90.7% | 489 | 1.51 | 12.3 |
+| `ctl-def` | none | default | 52/97 = 53.6% | 77.3% | 89.7% | 254 | 0.15 | **1.15** |
+| `ctl-high` | none | high | 62/97 = 63.9% | 81.4% | 93.8% | 365 | 0.39 | 2.52 |
+| `trace-def` | trace | default | **64/97 = 66.0%** | **84.5%** | 92.8% | 632 | 0.32 | 2.49 |
+| `reflect-def` | reflect | default | 64/97 = 66.0% | 77.3% | 90.7% | 608 | 0.33 | 2.54 |
+| `trace-high` | trace | high | **65/97 = 67.0%** | **85.6%** | 93.8% | 691 | 0.71 | 4.75 |
+| `trace-def-v2` | trace, strict wording | default | 51/97 = 52.6% | 71.1% | 90.7% | 489 | 0.30 | 2.46 |
 
-The cost projection reproduces run 5's published $5.73 exactly on the `ctl-def`
-row, which is what makes the other rows trustworthy. It scales the input and
+The cost projection reproduces run 5's token split exactly on the `ctl-def` row,
+which is what makes the other rows trustworthy — the arithmetic was always
+right, only the price it was multiplied by was wrong. It scales the input and
 output legs separately against run 5's own per-lane records, because the
 benchmark-bearing lanes are output-heavy — 1,664 output tokens per lane against
 663 across all 541 — and a flat 541/40 scaling overstates a full run by ~2x.

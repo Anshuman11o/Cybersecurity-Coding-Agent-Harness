@@ -78,7 +78,25 @@ export interface ModelTarget {
    * output leg is ~68% of a run's bill, because reasoning tokens are billed as
    * output. A projection that models only input is not a cost projection.
    */
-  price_per_mtok?: { input: number; output: number }
+  price_per_mtok?: { input: number; cached_input?: number; cache_write?: number; output: number } | null
+  /**
+   * The date the prices above were read off the vendor's pricing page.
+   *
+   * Load-bearing, not decoration. A stale price is invisible: it produces a
+   * plausible number that reconciles with older runs and disagrees only with
+   * the bill. This registry once carried luna at $1.00/$6.00 — figures copied
+   * from the repo's own prose, correct when written and 5x high by 2026-08-01 —
+   * and a full run was reported at $21.84 when it cost $4.37. Re-read the page
+   * when this date is old, and never take a price from a doc.
+   */
+  price_asof?: string
+  /**
+   * Which column of the vendor's price list these rates came from. Standard
+   * service tier at short context is what this scanner is billed at; Batch and
+   * Flex are half, Fast mode is double, and long context is double again. A
+   * rate without its tier is not checkable.
+   */
+  price_tier?: string
   /** Free text: quirks, endpoint requirements, why a field is set as it is. */
   notes?: string
 }
@@ -125,7 +143,8 @@ const REGISTRY: Registry = (() => {
     }
     if (t.price_per_mtok != null) {
       const p = t.price_per_mtok
-      if (typeof p !== 'object' || !(p.input >= 0) || !(p.output >= 0)) {
+      if (typeof p !== 'object' || !(p.input >= 0) || !(p.output >= 0) ||
+          (p.cached_input != null && !(p.cached_input >= 0))) {
         throw new Error(
           `models.json: target "${key}" has a malformed price_per_mtok; ` +
             `expected { input: number, output: number }`,

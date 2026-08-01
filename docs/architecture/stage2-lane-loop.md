@@ -16,8 +16,8 @@ Aggregate metrics only. Located evidence lives in the answer-key repo, per
 
 Measured on the 40-lane benchmark-bearing platform: **recall 67.0%,
 localization 85.6%**, the best of either recorded, and the first configuration
-in which no reachable entry is left uncited in its own file. Projected $23.75
-for a 541-lane run.
+in which no reachable entry is left uncited in its own file. Run 6 executed it
+on the full 541 lanes: **recall 71.1%, localization 88.7%, $4.37**.
 
 Runs 1–5 are still reproducible byte-for-byte, artifacts included:
 
@@ -27,9 +27,10 @@ Runs 1–5 are still reproducible byte-for-byte, artifacts included:
 over high effort *alone* (63.9%) is not distinguishable from the extra lines it
 cites — §5 explains how that was established and why it does not apply to the
 localization gain. And it costs 91% more than either half on its own: high
-effort alone projects to $12.59 and the loop at the endpoint's default effort to
-$12.45, both reaching the same 60–70% band. This arm is the highest measured,
-not the cheapest way into the band.
+effort alone projects to $2.52 for a full run and the loop at the endpoint's
+default effort to $2.49, both reaching the same 60–70% band against this arm's
+measured $4.37. This arm is the highest measured, not the cheapest way into the
+band.
 
 ## 1. What a lane does now
 
@@ -128,19 +129,28 @@ Measured on the 40-lane benchmark-bearing arm, `gpt-5.6-luna`, and projected to
 (the arm lanes are output-heavy — 1,664 output tokens per lane against 663
 across all 541 — so a flat 541/40 scaling would badly overstate a full run):
 
-| arm | turn 1 in | turn 1 out | turn 2 in | turn 2 out | arm $ | projected full run |
+| arm | turn 1 in | turn 1 out | turn 2 in | turn 2 out | arm $ | full run |
 |---|---|---|---|---|---|---|
-| `none`, default effort | 337,530 | 66,554 | — | — | $0.74 | **$5.73** |
-| `trace`, default effort | 337,530 | 68,998 | 380,557 | 80,043 | $1.61 | $12.45 |
-| `none`, effort `high` | 337,530 | 265,487 | — | — | $1.93 | $12.59 |
-| `trace`, effort `high` | 337,530 | 269,176 | 403,047 | 201,049 | $3.56 | $23.75 |
+| `none`, default effort | 337,530 | 66,554 | — | — | $0.15 | $1.15 |
+| `trace`, default effort | 337,530 | 68,998 | 380,557 | 80,043 | $0.32 | $2.49 |
+| `none`, effort `high` | 337,530 | 265,487 | — | — | $0.39 | $2.52 |
+| **`trace`, effort `high`** | 337,530 | 269,176 | 403,047 | 201,049 | $0.71 | **$4.37 (measured, run 6)** |
 
-The projection reproduces run 5's published $5.73 exactly on the `none`
-default-effort row, which is the check that the scaling is sound.
+Priced at luna's real $0.20/$1.20 per MTok. These figures were first published
+5x high, at $1.00/$6.00 — see `../run-history.md` "A pricing correction". The
+token columns are measured and never changed. Run 6 turned the last row from a
+projection into a measurement, and it landed within 6% of the projection.
 
 A follow-up turn adds only **+13% input** — the file, playbooks and context are
 already in the transcript — and roughly doubles output. Reasoning effort is the
 more expensive axis on its own: it multiplies output about fourfold.
+
+The input figure is an upper bound. A follow-up turn re-sends its first turn's
+entire prompt as a prefix, which is exactly what a provider's prefix cache
+serves, and cached input on this family bills at a tenth of fresh input. Stage 2
+now records `cached_prompt_tokens` per call so the real marginal cost of a loop
+turn is measurable; run 6 predates that field and its $4.37 is therefore an
+upper bound too.
 
 ## 5. How to read any number this produces
 

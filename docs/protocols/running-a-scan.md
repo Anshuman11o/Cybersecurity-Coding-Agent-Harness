@@ -250,7 +250,7 @@ Concrete numbers for calibration.
 | Stage 0.5 / Stage 1 | seconds each, deterministic |
 | Stage 2 | 20m19s at `HUNT_CONCURRENCY=4`, 541/541, 0 failures, 62 retries |
 | Tokens | 4,022,526 — 3,663,606 in / 358,920 out |
-| Cost | **$5.82** at $1.00/M input, $6.00/M output |
+| Cost | **$1.16** at $0.20/M input, $1.20/M output (restated; published at the time as $5.82 under a rate that was 5x high — see `../run-history.md` "A pricing correction") |
 
 A prior run at concurrency 8 took a similar wall clock but lost 52 lanes and
 needed a second pass. Throughput is bounded by TPM, not by concurrency, so

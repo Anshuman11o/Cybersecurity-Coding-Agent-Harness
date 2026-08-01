@@ -72,19 +72,43 @@ leaves ~354K input, which matches 16 lanes × ~14K plus 41 validator calls × ~3
 
 ## Table 3 — Estimated cost at 6,000,000 input + 25,000 output tokens
 
-Pricing as of 2026-07-27. "GPT-5.6" and "Qwen 3.6" are model *families*, not single
-models, so each tier is listed separately.
+> **⚠ Corrected 2026-08-01. The GPT-5.6 rates below were 5x high and this table
+> is where the error entered the project.** They were copied from here into
+> `models.json`'s prose and from there into every cost figure the repo published,
+> until a run reported at $21.84 turned out to have cost $4.37. Re-verified
+> against the vendor's published price list on 2026-08-01; the GPT-5.6 rows now
+> carry the current standard, short-context rates.
+>
+> **A price in a document is not a source of truth.** The authority is
+> `tools/scanner/shared/models.json`, whose `price_asof` field records when each
+> rate was last read off the vendor's page. Read that, not this. This table
+> exists to compare *families* at a glance, and even for that it decays.
+
+Pricing re-verified 2026-08-01 for the GPT-5.6 family (standard tier, short
+context). Non-OpenAI rows are as of 2026-07-27 and are **not** re-verified.
+"GPT-5.6" and "Qwen 3.6" are model *families*, not single models, so each tier is
+listed separately.
 
 | Model | Input $/MTok | Output $/MTok | Input cost | Output cost | **Total** |
 |---|---:|---:|---:|---:|---:|
+| **GPT-5.6 Luna** ✓ | **$0.20** | **$1.20** | $1.20 | $0.03 | **$1.23** |
 | Qwen 3.6 Flash | $0.1875 | $1.125 | $1.13 | $0.03 | **$1.15** |
 | Qwen 3.6 Plus | $0.325 | $1.95 | $1.95 | $0.05 | **$2.00** |
-| GPT-5.6 Luna | $1.00 | $6.00 | $6.00 | $0.15 | **$6.15** |
 | Gemini 3.5 Flash | $1.50 | $9.00 | $9.00 | $0.23 | **$9.23** |
-| GPT-5.6 Terra | $2.50 | $15.00 | $15.00 | $0.38 | **$15.38** |
+| **GPT-5.6 Terra** ✓ | **$2.00** | **$12.00** | $12.00 | $0.30 | **$12.30** |
 | Kimi K3 | $3.00 | $15.00 | $18.00 | $0.38 | **$18.38** |
 | Claude Opus 5 | $5.00 | $25.00 | $30.00 | $0.63 | **$30.63** |
-| GPT-5.6 Sol | $5.00 | $30.00 | $30.00 | $0.75 | **$30.75** |
+| **GPT-5.6 Sol** ✓ | **$5.00** | **$30.00** | $30.00 | $0.75 | **$30.75** |
+
+✓ = re-verified 2026-08-01. Luna also publishes $0.02/MTok cached input and
+$0.25/MTok cache writes; Batch and Flex are half these rates, Fast mode is
+double, and long context is double again.
+
+**The ordering changed, and so did a conclusion.** Luna was previously listed
+5th at $6.15 and is now the *cheapest* model in this table — below both Qwen
+tiers. The premise that Qwen was the economical choice and Luna "the smallest
+step up available" no longer holds; on current pricing Luna is cheaper than the
+model it was a step up from. Terra is now cheaper than Gemini 3.5 Flash.
 
 **Output is a rounding error at this workload shape.** At a 240:1 input:output ratio,
 output tokens are 1–3% of every bill. Input price is essentially the whole cost.
