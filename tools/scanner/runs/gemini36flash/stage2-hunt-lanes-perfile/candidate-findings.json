@@ -1,0 +1,1898 @@
+[
+  {
+    "finding_id": "FIND-0001",
+    "lane_id": "file-0007",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Path Traversal via Unsanitized File Parameter in loadStaticData",
+    "description": "The loadStaticData function accepts a string argument `file` from callers outside this module and concatenates it directly into a path resolve operation without sanitizing path traversal sequences (e.g., `../`). An attacker capable of influencing the `file` parameter could traverse out of the intended `./data/static/` directory and read arbitrary `.yml` files across the filesystem.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/staticData.ts",
+        "line": 7,
+        "description": "The function loadStaticData accepts an untrusted file parameter from external callers."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 8,
+        "description": "path.resolve constructs filePath by concatenating './data/static/' with user input without stripping directory traversal characters or verifying that the resolved path stays within the base directory."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 10,
+        "description": "The contents of the traversed file are parsed by safeLoad and returned to the caller."
+      },
+      {
+        "kind": "sink",
+        "file": "data/staticData.ts",
+        "line": 9,
+        "description": "readFile reads content from the arbitrarily resolved file path on disk."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0002",
+    "lane_id": "file-0002",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unrestricted Application Configuration Retrieval via Cypress Task",
+    "description": "The Cypress task 'GetFromConfig' accepts an arbitrary configuration variable name and directly queries application configuration via 'config.get(variable)'. Because no restriction or key filtering is applied, callers of this Cypress task can read sensitive application secrets and configuration values (such as database credentials or JWT secrets).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "cypress.config.ts",
+        "line": 46,
+        "description": "The 'GetFromConfig' Cypress task function receives an arbitrary 'variable' parameter."
+      },
+      {
+        "kind": "sink",
+        "file": "cypress.config.ts",
+        "line": 47,
+        "description": "Calls 'config.get(variable)' to return arbitrary configuration data without validation or key restrictions."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0003",
+    "lane_id": "file-0002",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Insecure Cleartext Base URL in Test Runner Configuration",
+    "description": "The Cypress configuration uses 'http://localhost:3000' as its base URL, transmitting test data over unencrypted HTTP. End-to-end test traffic, tokens, and payloads are exposed over plain text.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "cypress.config.ts",
+        "line": 8,
+        "description": "Cypress configuration defined."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 15,
+        "description": "The e2e configuration block is initialized."
+      },
+      {
+        "kind": "sink",
+        "file": "cypress.config.ts",
+        "line": 16,
+        "description": "baseUrl configured to use unencrypted HTTP protocol."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0007",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API3"
+    ],
+    "title": "Unrestricted Mass Assignment Payload Forwarding in Address Creation and Update",
+    "description": "AddressService accepts arbitrary caller-supplied parameter objects in save() and put() methods and forwards them directly to HTTP endpoints without filtering or allowlisting accepted attributes. Any additional properties attached to the input object by a client will be sent in the request payload.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 29,
+        "description": "save method receives external params object from caller component."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 30,
+        "description": "params object is passed without property filtering to http.post call."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 30,
+        "description": "http.post sends all object properties to backend API endpoint."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0008",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "Unsanitized Path Parameter Interpolation in Service API Requests",
+    "description": "The getById, put, and del methods accept an id parameter and interpolate it directly into the target URL string without using encodeURIComponent or validation. An attacker controlling the id parameter could perform client-side path traversal to alter the target endpoint.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 24,
+        "description": "getById accepts untrusted id input parameter from caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 26,
+        "description": "id parameter is interpolated directly into template literal URL string."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 26,
+        "description": "http.get issues request to unencoded string URL."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0011",
+    "lane_id": "file-0037",
+    "finding_classes": [
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A08"
+    ],
+    "title": "Unvalidated Deserialization of LocalStorage Data",
+    "description": "The `getAll` method reads raw values from `localStorage` and directly parses them using `JSON.parse` without `try...catch` block handling or structural schema validation. Client-side local storage can be modified by third-party scripts, browser extensions, or XSS vectors. Unhandled malformed JSON or unexpected object payloads can crash the service or introduce unexpected object state into application logic.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 26,
+        "description": "Retrieves unvalidated raw conversation data string from browser localStorage."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 27,
+        "description": "Checks whether raw data exists before passing to parsing logic."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 28,
+        "description": "Deserializes untrusted storage payload via JSON.parse without error handling or integrity checks."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0012",
+    "lane_id": "file-0037",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Use of Cryptographically Weak PRNG for ID Generation",
+    "description": "The `generateId` method relies on `Math.random()` to generate random characters for conversation identifiers. `Math.random()` is not cryptographically secure and produces predictable outputs once sufficient outputs are observed, making conversation IDs guessable.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 15,
+        "description": "generateId function called to produce a unique identifier for stored conversation."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 17,
+        "description": "Generates random characters using non-cryptographic Math.random() PRNG."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 16,
+        "description": "Defines character set used for identifier generation."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/conversation-storage.service.ts",
+        "line": 18,
+        "description": "Combines timestamp with weak PRNG string to form conversation ID."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0013",
+    "lane_id": "file-0040",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unvalidated URL Parameter in System-Wide Notification Service",
+    "description": "The fetchNotification method accepts an unvalidated arbitrary url string and passes it directly to HttpClient.get without origin validation or restricted relative path enforcement. This insecure design allows callers to fetch notification configurations from arbitrary cross-origin or untrusted endpoints, which can lead to spoofed system notification payloads or client-side request redirection.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/ctf-system-wide-notification.service.ts",
+        "line": 22,
+        "description": "fetchNotification method accepts caller-controlled url parameter from outside the file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/ctf-system-wide-notification.service.ts",
+        "line": 23,
+        "description": "The url string is passed to http.get without validation, sanitization, or origin restriction."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/ctf-system-wide-notification.service.ts",
+        "line": 23,
+        "description": "http.get performs an HTTP GET request to the specified untrusted URL parameter."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0017",
+    "lane_id": "file-0056",
+    "finding_classes": [
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 1
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A08",
+      "A04"
+    ],
+    "title": "Unsigned Local Backup File Restoration Enables Application State Manipulation",
+    "description": "The restore method in LocalBackupService processes user-supplied backup JSON files without any cryptographic signature or integrity verification. An attacker can craft or modify a backup file to inject arbitrary continue codes or cookie values, allowing them to restore unearned challenge progress and manipulate client state.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 64,
+        "description": "The restore method receives an external, untrusted backupFile argument."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 66,
+        "description": "JSON.parse parses the backup file contents into a Backup object without validating its integrity or authenticity."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 65,
+        "description": "backupFile.text() extracts the string contents from the uploaded backup file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 68,
+        "description": "The code checks if the backup version matches the expected VERSION constant."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 74,
+        "description": "restoreCookie writes the untrusted continueCode from the backup object into browser cookies."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 80,
+        "description": "The snackBar action callback triggers when the user clicks 'Apply changes now'."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/local-backup.service.ts",
+        "line": 81,
+        "description": "Unverified continueCode from the backup file is passed to challengeService.restoreProgress to alter challenge completion state."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0018",
+    "lane_id": "file-0060",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "API3"
+    ],
+    "title": "Unfiltered Parameter Payload Forwarding in PaymentService",
+    "description": "The save method accepts an unvalidated params object from external callers and forwards all its properties directly in the HTTP POST request payload to /api/Cards/ without applying an explicit field allow-list or filter.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/payment.service.ts",
+        "line": 29,
+        "description": "The save method accepts params object from caller components outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/payment.service.ts",
+        "line": 30,
+        "description": "The params object is passed directly into http.post without field allow-listing or parameter sanitization."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/payment.service.ts",
+        "line": 30,
+        "description": "http.post transmits all object properties directly to the backend /api/Cards/ endpoint."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0020",
+    "lane_id": "file-0062",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unvalidated User Caption Used as Upload Filename in Multipart Request",
+    "description": "The PhotoWallService.addMemory method accepts a user-provided caption string and passes it as the third parameter (filename) to FormData.append('image', image, caption). This design conflates user-provided display captioning with file metadata, allowing arbitrary string inputs (such as path traversal sequences or malicious file extensions) to dictate the filename header sent in the HTTP multipart request.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/photo-wall.service.ts",
+        "line": 20,
+        "description": "addMemory receives caption string and image File from external caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/photo-wall.service.ts",
+        "line": 22,
+        "description": "User-controlled caption is passed as the filename override argument in postData.append('image', image, caption)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/photo-wall.service.ts",
+        "line": 21,
+        "description": "FormData object postData is instantiated."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/photo-wall.service.ts",
+        "line": 23,
+        "description": "User-controlled caption is also appended as 'caption' form field."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/photo-wall.service.ts",
+        "line": 24,
+        "description": "HTTP POST request is dispatched to backend endpoint carrying the user-controlled caption as multipart filename metadata."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0023",
+    "lane_id": "file-0071",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 7
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unscoped HTTP Interceptor Leaks Authentication Credentials to Arbitrary Origins",
+    "description": "The RequestInterceptor automatically attaches the Bearer token and X-User-Email header from localStorage to all outgoing HTTP requests handled by Angular HttpClient without checking the destination URL or domain. If the application makes external requests to third-party endpoints or subdomains, sensitive authentication tokens and user identifying information will be leaked.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 12,
+        "description": "The intercept method receives an arbitrary outgoing HttpRequest object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 16,
+        "description": "The Bearer authentication token retrieved from localStorage is attached to the request Authorization header unconditionally."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 23,
+        "description": "The user email retrieved from localStorage is attached to the request X-User-Email header unconditionally."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 13,
+        "description": "The interceptor checks if a token exists in localStorage."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 14,
+        "description": "The request object is cloned to append authorization headers."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 20,
+        "description": "The interceptor checks if an email exists in localStorage."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 21,
+        "description": "The request object is cloned again to append identity headers."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/request.interceptor.ts",
+        "line": 27,
+        "description": "The modified request with sensitive credentials is dispatched via next.handle(req) without target URL origin validation."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0024",
+    "lane_id": "file-0075",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unauthenticated Security Question Retrieval via User Email",
+    "description": "The findBy method in SecurityQuestionService retrieves a user's security question by email address without requiring authentication or prerequisite verification steps. This design permits unauthenticated callers to enumerate registered accounts and harvest security questions.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/security-question.service.ts",
+        "line": 24,
+        "description": "findBy method receives caller-supplied email parameter from outside this service."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/security-question.service.ts",
+        "line": 26,
+        "description": "Extracts and returns the security question in the response stream to the caller."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/security-question.service.ts",
+        "line": 25,
+        "description": "Constructs and sends HTTP request to fetch security question for any email address without workflow authorization."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0027",
+    "lane_id": "file-0083",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Insecure Storage of 2FA Temporary Token in LocalStorage",
+    "description": "The verify method retrieves a temporary 2FA authentication token ('totp_tmp_token') directly from browser localStorage. Storing authentication tokens in localStorage exposes them to client-side scripts and XSS attacks compared to secure HttpOnly cookies.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/two-factor-auth-service.ts",
+        "line": 36,
+        "description": "verify method is invoked with totpToken input from an external caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/two-factor-auth-service.ts",
+        "line": 38,
+        "description": "The temporary authentication token 'totp_tmp_token' is retrieved from browser localStorage."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/two-factor-auth-service.ts",
+        "line": 39,
+        "description": "The totpToken parameter and tmpToken are bundled into the request payload."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/two-factor-auth-service.ts",
+        "line": 37,
+        "description": "The tmpToken fetched from localStorage is transmitted in the body of the POST request to the 2FA verification endpoint."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0028",
+    "lane_id": "file-0085",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A09",
+      "A04"
+    ],
+    "title": "Sensitive Credentials Transmitted via HTTP GET Query Parameters in changePassword",
+    "description": "The changePassword method constructs an HTTP GET request containing sensitive plain-text passwords (current, new, and repeat passwords) inside URL query parameters. Transmitting credentials in GET parameters leads to password leakage through web server access logs, browser history, proxy server logs, and Referer headers. Furthermore, using an HTTP GET method for a state-changing authentication operation violates secure design principles.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/user.service.ts",
+        "line": 53,
+        "description": "changePassword method receives Passwords object containing current, new, and repeat fields from a caller outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/user.service.ts",
+        "line": 54,
+        "description": "Sensitive password parameters are concatenated directly into the HTTP GET query string URL."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/user.service.ts",
+        "line": 55,
+        "description": "HttpClient.get executes the request, exposing plaintext credentials in the URL query string."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0029",
+    "lane_id": "file-0089",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unvalidated Client-Controlled Wallet Balance Modification Payload",
+    "description": "The put method accepts an arbitrary params object without type enforcement or validation and forwards it directly via an HTTP PUT request to /rest/wallet/balance. If the application design trusts caller-provided balance additions or values within this payload, it allows client-side trust assumptions to dictate wallet modifications.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/wallet.service.ts",
+        "line": 24,
+        "description": "The put method receives untyped params object from external Angular components."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/wallet.service.ts",
+        "line": 25,
+        "description": "The params payload is passed directly into http.put without any client-side schema or validation."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0032",
+    "lane_id": "file-0093",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Cross-Site Scripting (XSS) via DomSanitizer Bypass on Feedback Comments",
+    "description": "In `AboutComponent.populateSlideshowFromFeedbacks`, feedback comments retrieved from `FeedbackService.find()` are interpolated directly into an HTML template string (`<figcaption><p class=\"feedback-comment\">${feedbacks[i].comment}...</p>`). The component then calls `this.sanitizer.bypassSecurityTrustHtml` on this untrusted HTML string before passing it to `galleryRef.addImage()`. Explicitly bypassing Angular's built-in sanitization on user-supplied feedback comments allows stored cross-site scripting (XSS), executing arbitrary JavaScript in the context of any user viewing the About page.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 113,
+        "description": "User feedback comments are received from the API response via `feedbackService.find().subscribe((feedbacks) => ...)`."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 116,
+        "description": "The unescaped user comment `feedbacks[i].comment` is interpolated directly into an HTML markup string."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 119,
+        "description": "`this.sanitizer.bypassSecurityTrustHtml` is called on the HTML string containing the unescaped comment, disabling Angular's built-in XSS protection."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 114,
+        "description": "The application loops over each feedback object `feedbacks[i]` in the array."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 117,
+        "description": "The user-controlled `feedbacks[i].comment` property is interpolated without escaping into the HTML markup."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 120,
+        "description": "`feedbacks[i].comment` containing injected HTML is wrapped as trusted `SafeHtml`, bypassing standard Angular XSS sanitization."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 125,
+        "description": "The trusted HTML comment object is assigned to `args`, causing the raw markup and any injected script payload to be rendered into the DOM."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/about/about.component.ts",
+        "line": 123,
+        "description": "The trusted HTML object is passed to `this.galleryRef.addImage()`, rendering user-controlled HTML/script content into the DOM."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0035",
+    "lane_id": "file-0097",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Insecure Direct Object Reference (BOLA) in Address Retrieval and Update",
+    "description": "The AddressCreateComponent extracts the addressId parameter directly from the route URL without validating whether the currently authenticated user is authorized to view or modify that address. Calling addressService.getById and addressService.put with user-supplied address IDs allows an attacker to manipulate the addressId parameter to fetch or overwrite address records of other users.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/address-create/address-create.component.ts",
+        "line": 46,
+        "description": "ActivatedRoute paramMap subscription receives addressId parameter directly from the URL."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address-create/address-create.component.ts",
+        "line": 49,
+        "description": "The addressId parameter is assigned directly to this.addressId without ownership or authorization checks."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address-create/address-create.component.ts",
+        "line": 47,
+        "description": "Conditional check evaluates if paramMap contains addressId parameter."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address-create/address-create.component.ts",
+        "line": 48,
+        "description": "Component sets mode to edit without checking user ownership or authorization."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/address-create/address-create.component.ts",
+        "line": 50,
+        "description": "addressService.getById is invoked with the unvalidated addressId to retrieve the target address details."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0036",
+    "lane_id": "file-0095",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 3
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A04"
+    ],
+    "title": "Unrestricted Access and Execution of Accounting and Administrative Functions",
+    "description": "The AccountingComponent loads sensitive system-wide data (all customer order histories via orderHistoryService.getAll()) and exposes methods to modify product stock quantities, alter product pricing, and change order delivery statuses without performing any user authorization or role verification within the component logic.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 58,
+        "description": "Component lifecycle hook ngAfterViewInit automatically triggers data fetch requests upon component load."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 61,
+        "description": "ngAfterViewInit invokes loadOrders without verifying if the current user possesses accounting or administrative privileges."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 90,
+        "description": "loadOrders execution path begins."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 91,
+        "description": "loadOrders calls orderHistoryService.getAll() to fetch all order records without client-side role validation."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0037",
+    "lane_id": "file-0095",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Exposure of Detailed Backend Error Information to User Interface and Browser Console",
+    "description": "Error handling callbacks across quantity modification, price modification, and delivery status updates capture backend error objects (err) and output them directly to the browser console via console.log and to user-facing UI snackbar messages via snackBarHelperService.open(err.error). This can leak sensitive internal error details, stack traces, or backend architecture information to unauthenticated or low-privileged users.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 118,
+        "description": "modifyQuantity action is invoked and initiates backend service request."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 133,
+        "description": "Error response callback catches the backend error object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 119,
+        "description": "Calls quantityService.put with user parameter and subscribes to asynchronous HTTP observable."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/accounting/accounting.component.ts",
+        "line": 134,
+        "description": "Raw error message err.error is rendered directly in user notification snackbar and err is logged to console.log."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0039",
+    "lane_id": "file-0103",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 4
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Client-Side XSS via Unsanitized User Email HTML Bypass",
+    "description": "The AdministrationComponent calls DomSanitizer.bypassSecurityTrustHtml on user-supplied email strings returned from the backend userService. If an attacker's email contains malicious HTML/JavaScript payloads, Angular's built-in XSS protection is bypassed and the payload executes when rendered in the administration view.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 68,
+        "description": "UserService.find() receives user records from the API server."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 72,
+        "description": "Looping over user records containing attacker-controllable email field."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 69,
+        "description": "The next callback handles the users response array."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 70,
+        "description": "Users array is assigned to this.userDataSource."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 73,
+        "description": "Calling DomSanitizer.bypassSecurityTrustHtml directly on user.email wrapped in a span tag."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0040",
+    "lane_id": "file-0103",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 4
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Client-Side XSS via Unsanitized Feedback Comment HTML Bypass",
+    "description": "The AdministrationComponent calls DomSanitizer.bypassSecurityTrustHtml on user feedback comments returned from feedbackService. This explicitly disables Angular DOM sanitization for user-submitted feedback comments, allowing arbitrary HTML and script execution in the administration dashboard context.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 87,
+        "description": "FeedbackService.find() retrieves user feedback objects from the server."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 90,
+        "description": "Looping through feedback records containing user-submitted comments."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 88,
+        "description": "The next callback handles the feedbacks response array."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 89,
+        "description": "Feedbacks array is assigned to this.feedbackDataSource."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/administration/administration.component.ts",
+        "line": 91,
+        "description": "Calling DomSanitizer.bypassSecurityTrustHtml on untrusted feedback.comment."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0043",
+    "lane_id": "file-0101",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Sensitive Error Information Logged to Console",
+    "description": "The component logs raw HTTP error objects directly to the browser console using console.log(err) during address retrieval and deletion failures. Server error responses can contain internal stack traces, system paths, or sensitive backend details that become exposed to client-side inspection.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 59,
+        "description": "HTTP request error response returned from AddressService.get()"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 65,
+        "description": "Error object passed into error callback handler"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 66,
+        "description": "Error snackbar notification processed"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 67,
+        "description": "Raw error object logged directly to the browser console via console.log(err)"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0049",
+    "lane_id": "file-0101",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Sensitive Error Information Logged on Address Deletion Failure",
+    "description": "When address deletion fails in deleteAddress(), the raw error object is logged directly to the browser console. This can expose backend error details and stack traces to user-accessible developer logs.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 88,
+        "description": "HTTP request error response returned from AddressService.del(id)"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 101,
+        "description": "Error callback handler receives error object"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 102,
+        "description": "Error message extracted for snackbar display"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/address/address.component.ts",
+        "line": 103,
+        "description": "Raw error object logged to browser console via console.log(err)"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0046",
+    "lane_id": "file-0108",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Missing LoginGuard on Sensitive Frontend Routes",
+    "description": "Multiple sensitive routes including saved-payment-methods, order-history, wallet, order-completion, and privacy-security (with child routes like change-password, data-export, and two-factor-authentication) lack the LoginGuard route protection (canActivate: [LoginGuard]). While other user-specific routes like address/select and address/saved enforce LoginGuard, these sensitive routes allow unauthenticated users to navigate directly to private UI components.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 76,
+        "description": "Routes array definitions initialized"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 94,
+        "description": "LoginGuard is configured for address routes to restrict access to authenticated users"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 121,
+        "description": "Sensitive user routes such as saved-payment-methods, order-history, wallet, and privacy-security are defined without canActivate: [LoginGuard]"
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0047",
+    "lane_id": "file-0108",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Security Through Obscurity via Obfuscated Route Matcher",
+    "description": "The tokenMatcher function uses custom character manipulation functions token1 and token2 to hide a route URL pattern for token sale functionality. Relying on client-side code obfuscation to hide routes or secret functionality is an insecure design pattern that can easily be reversed.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 259,
+        "description": "tokenMatcher function configured as matcher for token sale route"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 290,
+        "description": "tokenMatcher receives UrlSegment array to perform path evaluation"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/app.routing.ts",
+        "line": 296,
+        "description": "tokenMatcher uses obfuscated strings derived from token1 and token2 to dynamically build a hidden route regex"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0050",
+    "lane_id": "file-0107",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Client-Side Role Verification and Unverified JWT Parsing in Route Guards",
+    "description": "AdminGuard, AccountingGuard, and DeluxeGuard rely on client-side decoding of JWT payload retrieved from local storage via jwtDecode without signature or expiration verification. An attacker can craft a forged JWT containing an arbitrary role claim in localStorage to bypass client-side route authorization controls.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 52,
+        "description": "Angular route activation triggers AdminGuard.canActivate() (caller is outside this file)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 53,
+        "description": "AdminGuard calls tokenDecode() which reads unverified JWT string from localStorage at line 35 and decodes unverified payload at line 38."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 35,
+        "description": "tokenDecode retrieves raw token string from localStorage."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 38,
+        "description": "jwtDecode decodes token payload without signature or expiration verification."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 43,
+        "description": "tokenDecode returns the unverified payload."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 54,
+        "description": "AdminGuard checks payload.data.role against roles.admin without verifying token signature or integrity, granting route access."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0051",
+    "lane_id": "file-0107",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Insufficient Authentication Check in LoginGuard",
+    "description": "LoginGuard.canActivate checks only the presence of a token key in localStorage without verifying token structure, validity, or expiration. Setting any non-empty string in localStorage for the key token passes the authentication guard.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 17,
+        "description": "Angular route activation triggers LoginGuard.canActivate() (caller is outside this file)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 18,
+        "description": "LoginGuard queries localStorage.getItem('token') without validating token format or expiration."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/app.guard.ts",
+        "line": 19,
+        "description": "canActivate returns true solely based on key existence in localStorage."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0058",
+    "lane_id": "file-0112",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-Controlled Challenge Verification via Socket.IO Emission",
+    "description": "The closeNotification function relies on client-side state (this.notifications) and UI events (shiftKey interaction) to signal challenge completion to the backend via the 'verifyCloseNotificationsChallenge' Socket.IO event. Because the server relies on client-managed state and client-initiated socket messages to verify challenge completion, an attacker can manipulate the notifications payload or emit the WebSocket event directly to bypass intended application workflow and achieve challenge completion.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts",
+        "line": 109,
+        "description": "User interacts with closeNotification with user-supplied index and shiftKey arguments."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts",
+        "line": 110,
+        "description": "The component checks shiftKey flag to determine whether to trigger bulk notification closure."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts",
+        "line": 111,
+        "description": "Execution enters ngZone.runOutsideAngular block to perform asynchronous socket communication."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts",
+        "line": 112,
+        "description": "The component emits 'verifyCloseNotificationsChallenge' with client-side notifications data to the backend via WebSocket, trusting client state for server-side verification logic."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0052",
+    "lane_id": "file-0114",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Unsanitized Error Details Logged to Client Console",
+    "description": "When the challenge repeat notification request fails, the error callback logs the complete error object directly to the browser console using console.log(err). Outputting raw error objects or HTTP failure responses in client-side console output can expose internal server response structures, error stack traces, or sensitive debug information to users.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts",
+        "line": 35,
+        "description": "The repeatNotification method is invoked from caller context outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts",
+        "line": 37,
+        "description": "The HTTP subscription returns an error response handled by the error callback."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts",
+        "line": 36,
+        "description": "The method checks if repeat notifications are allowed via allowRepeatNotifications."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts",
+        "line": 41,
+        "description": "The raw error object is written to the client browser log via console.log(err)."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0053",
+    "lane_id": "file-0110",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-Side Storage of Order Total in SessionStorage",
+    "description": "The getBonusPoints method writes the order total (total[0]) directly to sessionStorage under the key 'itemTotal'. Relying on client-controlled storage for financial or order calculation state allows users to tamper with order amounts in browser storage prior to checkout completion.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 47,
+        "description": "getBonusPoints receives total tuple from caller component outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 48,
+        "description": "Extracts total[0] representing the order monetary total."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 48,
+        "description": "Persists itemTotal in sessionStorage where it can be modified by the client."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0054",
+    "lane_id": "file-0110",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Insecure Client-Side Authentication Gate for Checkout Flow",
+    "description": "The checkout method checks for authentication by verifying whether the 'token' key exists in localStorage rather than validating token structure or server-side validity. An attacker can set any dummy value in localStorage to pass this check and navigate directly to the address selection view.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 30,
+        "description": "The checkout method is called when the user initiates checkout."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 31,
+        "description": "Evaluates whether localStorage.getItem('token') is null."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/basket/basket.component.ts",
+        "line": 40,
+        "description": "Navigates to /address/select based solely on key presence in localStorage."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0057",
+    "lane_id": "file-0116",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Non-blocking Password Complexity Check for Support Accounts",
+    "description": "The changePassword method performs a client-side check to enforce password complexity rules for support staff accounts (matching email support@.*). However, when the regex validation fails, it only outputs an error message to console.error and does not abort execution or return early. The function proceeds to call userService.changePassword(), allowing support users to set weak passwords in violation of password policy.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/change-password/change-password.component.ts",
+        "line": 76,
+        "description": "User triggers changePassword() upon form submission."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/change-password/change-password.component.ts",
+        "line": 78,
+        "description": "Application checks if local user email is support staff and whether the new password meets complexity criteria, but only logs an error on failure without returning."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/change-password/change-password.component.ts",
+        "line": 79,
+        "description": "Application tests new password against privileged account complexity regex."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/change-password/change-password.component.ts",
+        "line": 83,
+        "description": "When validation fails, console.error is called to log a message, but no error is thrown and execution is not halted."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/change-password/change-password.component.ts",
+        "line": 87,
+        "description": "Execution reaches userService.changePassword() unconditionally, allowing non-compliant passwords to be submitted."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0066",
+    "lane_id": "file-0118",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      },
+      {
+        "class": "ai-llm-agency",
+        "justified_by_step": 8
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 8
+      }
+    ],
+    "categories": [
+      "A04",
+      "LLM01",
+      "LLM02",
+      "LLM03",
+      "LLM06",
+      "LLM10",
+      "A03"
+    ],
+    "title": "Automated Prompt Execution via URL Query Parameter",
+    "description": "The component reads an unvalidated 'initialMessage' query parameter from the URL upon initialization and automatically invokes 'sendMessage()' without requiring user interaction or confirmation. An attacker can construct a malicious link containing prompt injection payloads or malicious commands. When an authenticated user clicks the link, the application immediately dispatches the untrusted prompt to the backend AI/LLM streaming service in the victim's session context.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 77,
+        "description": "The 'initialMessage' parameter is read directly from URL query parameters."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 80,
+        "description": "ngOnInit automatically calls sendMessage(initialMessage) on component mount without user confirmation."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 114,
+        "description": "sendMessage receives the URL-controlled content and appends it to the messages state array."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 78,
+        "description": "The presence of initialMessage triggers automatic message dispatch logic."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 115,
+        "description": "The method checks if content is truthy and not currently loading."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 117,
+        "description": "The message is appended to the reactive messages array signal."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 126,
+        "description": "The existing conversation messages are extracted from state to construct the API payload."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 129,
+        "description": "Messages are mapped into payload objects containing role and content."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts",
+        "line": 131,
+        "description": "chatService.streamMessages dispatches the attacker-controlled prompt to the backend LLM service."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0068",
+    "lane_id": "file-0123",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Irreversible Deletion of All Conversations Without Confirmation Control",
+    "description": "The deleteAllConversations method directly purges all conversation storage without triggering any confirmation modal or secondary verification step. According to insecure design principles, irreversible data destruction operations require compensating controls (such as user confirmation) to prevent accidental data loss.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 93,
+        "description": "User triggers action to delete all chat conversations, invoking deleteAllConversations from component view (caller outside this file)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 94,
+        "description": "Direct invocation of conversationStorage.deleteAll() occurs without any pre-execution confirmation or guard check."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 95,
+        "description": "All conversation state is permanently cleared in client storage and local signal state."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0069",
+    "lane_id": "file-0123",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Application Error Object Logged Directly to Browser Console",
+    "description": "The error handler for getApplicationConfiguration logs raw exception/error objects to the browser developer console via console.log(err). Logging raw error objects in client-side code can expose internal infrastructure details, backend endpoints, and sensitive stack traces to unauthenticated browser users.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 44,
+        "description": "getApplicationConfiguration observable pipeline is initialized."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 56,
+        "description": "An HTTP or parsing error occurs during application configuration fetch, passing err to the error callback."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts",
+        "line": 56,
+        "description": "console.log(err) outputs the unhandled error object directly into the browser console."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0067",
+    "lane_id": "file-0121",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Chat message transmitted via URL query parameters",
+    "description": "The onMessageSent method passes user-entered chat messages directly into the URL query parameters (initialMessage) during Angular router navigation. Exposing user message content in URL parameters can cause sensitive conversation data to be logged in browser history, proxy logs, and external Referer headers.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/chatbot/chat-welcome-page/chat-welcome-page.component.ts",
+        "line": 23,
+        "description": "User chat message string is received by onMessageSent event handler."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/chatbot/chat-welcome-page/chat-welcome-page.component.ts",
+        "line": 25,
+        "description": "User input is embedded directly into URL query parameters during router.navigate."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0074",
+    "lane_id": "file-0128",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Prerequisite Workflow Bypass via Eager Fetching of Fixes Solution Data",
+    "description": "The CodingChallengePageComponent component loads fix options unconditionally during initialization inside forkJoin via codeFixesService.get(this.challengeKey), before checking if the user has completed the prerequisite 'Find It' challenge stage (codingChallengeStatus >= 1). This exposes the solution choices for the 'Fix It' stage upfront regardless of workflow progress.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts",
+        "line": 46,
+        "description": "Route parameters trigger data loading in ngOnInit upon component initialization."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts",
+        "line": 55,
+        "description": "codeFixesService.get is called unconditionally inside forkJoin before verifying if the challenge's 'Find It' phase is completed."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts",
+        "line": 48,
+        "description": "Extracts challengeKey parameter from route params to use in API requests."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts",
+        "line": 61,
+        "description": "The subscribe callback receives the fetched fixes data along with challenges and snippet."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts",
+        "line": 69,
+        "description": "The fixes array is saved to the component property this.fixes regardless of whether findItSolved is true, allowing step 2 solutions to be retrieved prior to solving step 1."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0076",
+    "lane_id": "file-0141",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      },
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A08"
+    ],
+    "title": "Insecure Allowed MIME Types Configuration in File Upload Component",
+    "description": "The FileUploader instance in ComplaintComponent is configured with an allowedMimeType list that includes dangerous file formats such as XML ('application/xml', 'text/xml'), ZIP archives ('application/zip', etc.), and YAML ('application/yaml', 'text/yaml', etc.). Allowing these complex/executable data formats for complaint file attachments exposes the backend file-upload endpoint to security risks including XML External Entity (XXE) injection, YAML unsafe deserialization, and archive decompression bomb attacks.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/complaint/complaint.component.ts",
+        "line": 42,
+        "description": "FileUploader instance initialized on ComplaintComponent instantiation"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/complaint/complaint.component.ts",
+        "line": 43,
+        "description": "Uploader configures target URL pointing to backend file upload endpoint"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/complaint/complaint.component.ts",
+        "line": 45,
+        "description": "allowedMimeType explicitly permits unsafe file formats including XML, ZIP, and YAML"
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0079",
+    "lane_id": "file-0143",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 3
+      },
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "API3"
+    ],
+    "title": "Client-Controlled UserId Parameter in Feedback Submission",
+    "description": "The ContactComponent initializes userIdControl as an enabled form control and uses its value (this.userIdControl.value) to populate this.feedback.UserId when save() is invoked. Unlike authorControl which is disabled upon creation, userIdControl is fully enabled and mutable on the client side. This allows a user to tamper with the UserId parameter in the form state or request body, attributing feedback submissions to arbitrary user accounts (Broken Object Level Authorization / Mass Assignment).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 42,
+        "description": "The userIdControl UntypedFormControl is initialized as an enabled form control without restrictions or read-only enforcement."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 83,
+        "description": "In save(), this.feedback.UserId is assigned directly from this.userIdControl.value."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 54,
+        "description": "In ngOnInit(), userIdControl is initially populated with the authenticated user's ID from the UserService whoAmI response."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 84,
+        "description": "The feedback object containing the client-controlled UserId is sent to this.feedbackService.save(this.feedback) for persistence on the backend."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0080",
+    "lane_id": "file-0143",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "Unsanitized User Comment Input Persisted to Backend (Stored XSS Candidate)",
+    "description": "In save(), user input from feedbackControl is concatenated directly into this.feedback.comment without any sanitization or contextual HTML encoding. This payload is persisted via feedbackService.save(), introducing stored cross-site scripting (Stored XSS) data if rendered unescaped downstream in admin or feedback review views.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 40,
+        "description": "feedbackControl receives arbitrary free-form text entered by the user."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 81,
+        "description": "this.feedback.comment is constructed by concatenating feedbackControl.value without sanitization or HTML encoding."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/contact/contact.component.ts",
+        "line": 84,
+        "description": "this.feedbackService.save(this.feedback) sends the unsanitized comment string to be persisted in the application database."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.75
+  }
+]
