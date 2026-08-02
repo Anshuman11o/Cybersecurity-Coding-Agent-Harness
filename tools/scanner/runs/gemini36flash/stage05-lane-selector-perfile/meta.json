@@ -1,0 +1,11 @@
+{
+  "provider": "gemini36flash",
+  "model": "deterministic",
+  "stage": "stage05-lane-selector-perfile",
+  "git_sha": "2a31a5b",
+  "started": "2026-08-02T07:29:58.770Z",
+  "ended": "2026-08-02T07:29:58.891Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}

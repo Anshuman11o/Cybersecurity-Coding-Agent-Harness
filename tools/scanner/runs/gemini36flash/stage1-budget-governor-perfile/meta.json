@@ -1,0 +1,11 @@
+{
+  "provider": "gemini36flash",
+  "model": "deterministic",
+  "stage": "stage1-budget-governor-perfile",
+  "git_sha": "2a31a5b",
+  "started": "2026-08-02T07:30:19.578Z",
+  "ended": "2026-08-02T07:30:19.651Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
