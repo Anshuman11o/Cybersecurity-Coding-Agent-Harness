@@ -8985,5 +8985,141 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.15
+  },
+  {
+    "finding_id": "FIND-0303",
+    "lane_id": "file-0086",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 8
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded absolute backend URL (localhost:3000) revealed in service under test",
+    "description": "The spec asserts that VulnLinesService.check() posts to the absolute, hardcoded URL 'http://localhost:3000/snippets/verdict' rather than a relative API path or an environment-driven base URL. This confirms the underlying service (vuln-lines.service.ts, not shown here) hardcodes a development-only host/port. If this hardcoded value ships to production builds (or is not properly overridden per-environment), it can cause the app to send challenge-verification requests to the wrong/unreachable host, silently fail security-relevant functionality, or — if an attacker controls a local listener on port 3000 in a shared/dev environment — allow interception or spoofing of verdict responses. This is a configuration-management defect: connection endpoints should be sourced from environment configuration, not hardcoded literals baked into the client bundle. The same literal URL is exercised and confirmed a second time in the error-handling test, showing it is a fixed value used consistently across all call paths rather than a one-off test artifact.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 25,
+        "description": "Test invokes service.check('testChallenge', [1, 2]), the client-facing entrypoint into the service under test."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 26,
+        "description": "httpMock.expectOne('http://localhost:3000/snippets/verdict') confirms the service issues its HTTP request to a hardcoded absolute localhost URL rather than a relative/env-configured endpoint."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 27,
+        "description": "req.flush('apiResponse') completes the mocked request against the same hardcoded-URL request object, exercising the full request lifecycle tied to that fixed endpoint."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 28,
+        "description": "Assertion on req.request.method confirms the request captured against the hardcoded URL is the one produced by the service's check() implementation."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 29,
+        "description": "Assertion on req.request.body further ties the hardcoded-URL request to the service's internal request-construction logic, confirming the endpoint literal is baked into that logic."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 31,
+        "description": "httpMock.verify() closes out the first test's interaction with the hardcoded-endpoint mock, before the same endpoint is exercised again in the next test."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 35,
+        "description": "Second test re-injects VulnLinesService, which will again construct requests against the same hardcoded URL literal."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 39,
+        "description": "service.check('key', [3, 4]) is called again, routing through the same hardcoded-endpoint construction path as the first test."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 40,
+        "description": "Second test again confirms the same hardcoded absolute URL is used for the request, reinforcing that this endpoint is a fixed literal in the service rather than a configurable value."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0304",
+    "lane_id": "file-0086",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "No verification that failed challenge-verification requests are logged or monitored",
+    "description": "The error-handling test (lines 34-44) simulates a failed request to the snippets/verdict endpoint (a security-relevant operation — verification of a submitted coding-challenge 'fix') and only asserts that the HTTP status code is propagated to the caller. There is no assertion, mock, or expectation involving any logging/monitoring call (e.g., a logging service, analytics, or audit trail) being invoked on failure. Walking the full error path — service/httpMock setup, error variable declaration, the failing call, the mocked network error, and the final assertion — shows every step deals only with propagating the raw HTTP error to the subscriber; at no point is a security-relevant logging or alerting side-effect exercised or verified for this failure, even though repeated failed verdict submissions could indicate an attacker probing/brute-forcing challenge answers.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 39,
+        "description": "Test invokes service.check('key', [3, 4]) and expects an error callback path, simulating a failed verdict-verification request from outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 35,
+        "description": "Test injects VulnLinesService, the entrypoint object whose check() method will be invoked with externally-supplied challenge key and selected lines."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 36,
+        "description": "Test injects HttpTestingController to intercept and control the mocked network call, setting up the harness around the security-relevant request."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 38,
+        "description": "capturedError variable is declared to hold whatever the subscriber's error handler receives — the only artifact this test captures from the failure."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 40,
+        "description": "httpMock.expectOne(...) locates the outstanding request tied to the failed verdict check, immediately before the error is injected."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 41,
+        "description": "req.error(...) simulates the network/server failure (HTTP 400) that the service and its subscribers must handle; no logging/monitoring hook is invoked or asserted at this failure point."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/vuln-lines.service.spec.ts",
+        "line": 42,
+        "description": "Only the HTTP error status is asserted (capturedError.status).toBe(400); no logging/monitoring side-effect is exercised or verified for this security-relevant failure."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
   }
 ]
