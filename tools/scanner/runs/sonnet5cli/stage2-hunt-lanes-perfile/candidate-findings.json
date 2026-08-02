@@ -1604,5 +1604,520 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.15
+  },
+  {
+    "finding_id": "FIND-0061",
+    "lane_id": "file-0020",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 7
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A04"
+    ],
+    "title": "Basket resource identifier trusted from unauthenticated client-side storage (BOLA pattern)",
+    "description": "The BasketService reads the active basket identifier ('bid') from sessionStorage — a value that lives entirely on the client and can be freely edited via browser devtools or scripting — and uses it verbatim to construct REST calls that fetch and mutate basket contents (e.g. GET /rest/basket/{bid}). The tests confirm this flow: sessionStorage.setItem('bid', '42') at line 122 is picked up by updateNumberOfCartItems() and directly becomes the path parameter in the outgoing request at line 127. The surrounding setup shows the full path the value travels: localStorage token is set first so the service takes the authenticated (non-guest) branch that trusts the bid value (line 121), a totals array and subscription are established to observe the eventual result (lines 123-124), updateNumberOfCartItems() is invoked and internally reads the untrusted bid to build the request (line 126), the request is matched and its response supplies basket/product data (lines 129-136) which is then reduced into the emitted total (line 137) — all without any point in this path verifying that basket 42 belongs to the current session/user. If the real service and API mirror this test behavior, an authenticated user who edits their own sessionStorage 'bid' value to another user's numeric basket id would have that basket fetched/updated using the arbitrary id, which is the classic BOLA (Broken Object Level Authorization) pattern: the object identifier is fully attacker-controlled and used directly in a lookup with no ownership check visible anywhere in this flow.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 122,
+        "description": "Basket id 'bid' is written into sessionStorage — a purely client-controlled store, not a server-issued/signed reference — establishing the untrusted resource identifier that the service will trust."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 126,
+        "description": "service.updateNumberOfCartItems() is invoked; per the test setup this reads the 'bid' value from sessionStorage and uses it to determine which basket to query (actual implementation is in basket.service.ts, outside this file, but its behavior is exercised here)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 121,
+        "description": "localStorage token is set immediately before the bid is set, causing the service's internal logic to treat the caller as authenticated and take the bid-based (non-guest) fetch branch that consumes the untrusted id."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 123,
+        "description": "A totals array is declared to capture emitted cart-item totals, the observation point that will later reflect data fetched via the untrusted bid."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 124,
+        "description": "service.getItemTotal().subscribe(...) subscribes to the basket total stream that the untrusted-id-driven fetch will populate."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 129,
+        "description": "The mocked response supplies Products/BasketItem data for basket 42, which the service will use to compute totals — the data returned for whatever basket id was supplied, without ownership filtering."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 137,
+        "description": "The emitted total (5) confirms the fetched data for the untrusted basket id flowed all the way through to the observable consumed by the caller."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 127,
+        "description": "GET http://localhost:3000/rest/basket/42 is issued using the client-supplied id directly as the resource path, with no ownership/ authorization check evidenced in the surrounding flow."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0062",
+    "lane_id": "file-0020",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 10
+      },
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 10
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "API3"
+    ],
+    "title": "Caller-supplied basketId embedded unchecked into BasketItems create/update bodies (mass assignment / cross-basket write)",
+    "description": "mergeGuestBasketIntoUserBasket(basketId) takes a numeric basket identifier directly as a parameter and uses it both to look up the target basket (GET /rest/basket/{basketId}) and — critically — to populate the BasketId field of new BasketItem creation requests (POST /api/BasketItems/ with body { ProductId: 2, BasketId: 42, quantity: 3 } at line 228) as well as to select which existing item to PUT-update (PUT /api/BasketItems/100 at line 221). The full path shows the attacker-controlled guest-basket contents (set in sessionStorage at line 201, entirely client-editable) flowing through: the merge call is made with a caller-supplied basketId (line 208), the existing basket contents for that id are fetched (line 212) and its response supplies an existing item and quantity (line 213) which is combined with the guest quantity to compute a new value; the resulting PUT (line 221) explicitly sends quantity:7 (line 222-223) targeting an item that lives under the caller-chosen basket, and even when that write fails (line 224, simulated 500, swallowed as 'best effort') the flow proceeds to create a brand-new BasketItem via POST (line 226-227) whose body directly embeds BasketId:42 (line 228) taken from the caller-supplied parameter. Because the basketId parameter is caller-supplied (and, per the sibling test at lines 121-127, is itself sourced from an easily-edited sessionStorage value), an attacker can supply an arbitrary BasketId belonging to another user and have their guest-basket items merged/written into that basket. This is both an object-level authorization gap (writing into a resource selected by an attacker-controlled id) and a property-level authorization gap (the BasketId field of the creation payload is fully attacker-determined rather than being derived and enforced server-side from the authenticated session), and the swallowed PUT failure at line 224 shows the merge proceeds regardless of partial failures, further widening the write surface.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 208,
+        "description": "service.mergeGuestBasketIntoUserBasket(42) is called with an explicit numeric basketId; the real caller of this function lives outside this file and, per the related sessionStorage 'bid' tests, this id is client-controlled."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 212,
+        "description": "GET http://localhost:3000/rest/basket/42 uses the caller-supplied id to fetch a basket's existing items, with no visible check that basket 42 belongs to the requesting user."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 221,
+        "description": "PUT http://localhost:3000/api/BasketItems/100 updates an item quantity for an item found under the (unauthorized-for-caller) basket 42."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 201,
+        "description": "The guestBasket items merged by this call are themselves set into sessionStorage by the test/client, showing the merge source data is also attacker-editable client state."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 213,
+        "description": "The mocked response returns an existing BasketItem (id 100, quantity 4) for basket 42, which the service will use as the base value to merge the guest quantity into."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 222,
+        "description": "The request method is asserted as PUT, confirming a mutating write is being made against the item under the caller-chosen basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 223,
+        "description": "The PUT body {quantity:7} shows the merged quantity (existing 4 + guest-controlled quantities) is forwarded into the write with no re-validation of ownership."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 224,
+        "description": "The PUT is made to fail (simulated 500) but the merge flow is designed to continue regardless ('best effort'), meaning partial/failed writes do not halt further mutation of the caller-chosen basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 226,
+        "description": "A POST to http://localhost:3000/api/BasketItems/ is issued next, continuing the merge despite the prior failure."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 227,
+        "description": "The request method is asserted as POST, confirming a new BasketItem creation is being performed as part of the merge."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 228,
+        "description": "POST http://localhost:3000/api/BasketItems/ with body { ProductId: 2, BasketId: 42, quantity: 3 } embeds the caller-controlled BasketId directly into the created object with no ownership validation, allowing items to be written into an arbitrary basket."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0063",
+    "lane_id": "file-0020",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Client-side error logging may surface internal failure details in the browser console",
+    "description": "When updateNumberOfCartItems() encounters a request failure (500 Internal Error), the observed behavior is that console.log is invoked (asserted via consoleSpy at line 155). The full setup shows the conditions under which this occurs: an authenticated token is set (line 146) and a target basket id is set (line 147) so the fetch takes the real (non-guest) path, a spy is installed on console.log (line 148) and cleared to ensure a clean baseline (line 149), the update call is made (line 151), the corresponding request is matched (line 152) and then made to fail (line 153), and the only observable handling of that failure is a console.log call (line 155) with no structured, server-side, or otherwise monitored security log entry produced for the failed basket-fetch. Logging raw HTTP error details only to the browser console is a weak diagnostic control: it is not a security event log usable for detection/alerting (it only exists in the end-user's own browser), and depending on what is logged it may reveal internal error/status information to the user without any structured, server-side security logging occurring for the failed request. This does not itself leak other users' data, but it represents an absent/inadequate security-relevant logging path (client console output is not monitored) for what could be a symptom of backend abuse (e.g., repeated basket-fetch failures against invalid/foreign ids).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 151,
+        "description": "service.updateNumberOfCartItems() is invoked; the request path is exercised."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 153,
+        "description": "req.error(...) simulates a 500 Internal Error response for the basket fetch."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 146,
+        "description": "An auth token is set prior to the call, ensuring the service takes the real (non-guest) basket-fetch branch whose failure handling is under test."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 147,
+        "description": "A target basket id ('99') is set in sessionStorage, the resource the subsequent failing request will target."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 148,
+        "description": "A spy is installed on console.log to observe how the failure is reported."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 149,
+        "description": "The spy is cleared to ensure only the failure-handling call is captured."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 152,
+        "description": "The outgoing GET request for basket 99 is matched by the test harness."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.spec.ts",
+        "line": 155,
+        "description": "expect(consoleSpy).toHaveBeenCalled() confirms the error path only logs to console.log rather than any monitored/server-side security log."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
+  },
+  {
+    "finding_id": "FIND-0057",
+    "lane_id": "file-0021",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 8
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 8
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A04"
+    ],
+    "title": "Client-controlled basket identifier used for all basket operations without ownership verification (BOLA-enabling design)",
+    "description": "BasketService exposes get/put/del/checkout/applyCoupon/find methods that take an arbitrary numeric `id` and issue HTTP requests to `/api/BasketItems/:id` or `/rest/basket/:id` with no check that the identifier belongs to the currently authenticated user. The basket id consumed by updateNumberOfCartItems() is read directly from sessionStorage ('bid'), a value that lives in the browser and can be modified by the user via devtools or scripting. Nothing in this file derives the id from a trusted server-issued session claim, nor does it perform any ownership check before dispatching get/put/del/checkout calls. Because the object-level authorization decision is pushed entirely to whatever service consumes these calls, if the backend endpoint (outside this file) does not itself re-validate basket ownership per request, a user can substitute another user's basket id here and the client will happily submit get/update/delete/checkout requests for it. This is the classic BOLA pattern from the client side: the resource identifier is caller/browser controlled and no per-resource ownership gate exists in the code that assembles and sends the request.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 65,
+        "description": "updateNumberOfCartItems reads the basket id straight out of sessionStorage ('bid'), a client-controlled value, with no server-derived authorization context."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 36,
+        "description": "find(id) interpolates the untrusted id directly into the request URL and returns basket data for whatever id is supplied."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 43,
+        "description": "put(id, params) accepts the same style of caller-supplied id with no ownership check before mutating the target basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 32,
+        "description": "The shared `host` base URL used by get/put/del/save is built once from hostServer, with no per-call scoping to the current user's own basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 39,
+        "description": "get(id) method also takes an unrestricted id parameter and forwards it unchecked, same pattern as find()."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 40,
+        "description": "http.get(`${this.host}/${id}`) executes the fetch using the unchecked id, with no ownership gate between input and call."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 44,
+        "description": "http.put call actually sends the mutation request to `${this.host}/${id}` using the unverified id and caller-supplied params."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 48,
+        "description": "http.delete call actually deletes the resource for the id, completing the request with no ownership verification at any point in the chain; the equivalent absence of checks exists in checkout() at line 56 and applyCoupon() at line 60."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 47,
+        "description": "del(id) deletes the basket resource for the given id with no check that it belongs to the current user; equivalent absence of checks exists in checkout() at line 56 and applyCoupon() at line 60."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0058",
+    "lane_id": "file-0021",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 1
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 9
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A04"
+    ],
+    "title": "mergeGuestBasketIntoUserBasket accepts an unverified target basket id and merges/writes items into it",
+    "description": "mergeGuestBasketIntoUserBasket(targetBasketId) is a public method whose targetBasketId is supplied entirely by its caller (outside this file). The function immediately reduces the local guest basket into a per-product quantity map, then (if non-empty) uses targetBasketId to fetch a basket via find(), builds a map of that basket's existing products, and for each merged guest item either PUTs an updated quantity onto an existing BasketItem or POSTs a new BasketItem tied to targetBasketId via save(). There is no check anywhere in this file confirming that targetBasketId is the basket owned by the currently authenticated user before any of these reads or writes occur. If the caller can be tricked into supplying a different basket id — or if that id is itself derived from tamperable client state — this function will silently merge and persist guest-cart data into an arbitrary basket via multiple write requests, amplifying the BOLA risk described in the ownership finding above into an actual state-changing merge operation, after which the local guest basket is cleared as if the merge legitimately succeeded.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 148,
+        "description": "mergeGuestBasketIntoUserBasket(targetBasketId) receives the target basket id from a caller outside this file with no validation of its type/ownership."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 158,
+        "description": "targetBasketId is passed unchecked into find() to fetch the target basket's existing products."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 149,
+        "description": "Guest basket items are reduced into a Map keyed by ProductId, still independent of any check on targetBasketId."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 150,
+        "description": "basketMap.set combines quantities per product inside the reduce body, preparing the payload that will later be written to targetBasketId."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 154,
+        "description": "A guard only short-circuits when the merged map is empty; otherwise execution continues straight through to using the unverified targetBasketId."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 162,
+        "description": "switchMap iterates targetBasket.Products, building an existingProducts map from the contents of the unverified basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 166,
+        "description": "mergeRequests is built by mapping every merged guest item into a pending write against targetBasketId."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 167,
+        "description": "A conditional checks whether an existingBasketItem is present to decide between a put() update or a save() creation, still with no ownership gate."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 171,
+        "description": "save() creates a new BasketItem tied to the unverified targetBasketId, completing the unauthorized-capable write."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 169,
+        "description": "put()/save() calls (lines 169 and 171) persist quantity changes into the unverified targetBasketId, mutating that basket's contents."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0059",
+    "lane_id": "file-0021",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "Unencoded interpolation of user-supplied coupon and basket id into request URL path",
+    "description": "applyCoupon(id, coupon) builds the request URL by directly interpolating the `coupon` string (and `id`) into a template literal used as the HTTP PUT target: `${this.hostServer}/rest/basket/${id}/coupon/${coupon}`. Neither value is URI-encoded before being embedded into the URL path segment. The same pattern (unencoded id in the path) appears in find(), get(), put(), del(), checkout(). Because coupon is attacker/user-controlled free text (coupon codes entered by the user), a value containing path-manipulating characters (e.g. `../`, `%2e%2e/`, extra slashes) is inserted verbatim into the outbound request path, letting the constructed request path diverge from the intended `/rest/basket/:id/coupon/:coupon` route and instead target a different path on the same host than the developer intended. This is a URL/path-injection defect: user input reaches a code-interpreting sink (the HTTP client's URL parser/router) without validation or encoding.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 59,
+        "description": "applyCoupon(id, coupon) receives caller-supplied coupon text (ultimately typed by the user in the UI, outside this file) with no format validation."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 60,
+        "description": "coupon and id are interpolated unencoded directly into the request URL template literal."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 30,
+        "description": "hostServer (base URL) is established from environment config, forming the prefix onto which the unvalidated id/coupon are concatenated."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 60,
+        "description": "this.http.put() dispatches the request to the resulting attacker-influenced path."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0060",
+    "lane_id": "file-0021",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Basket fetch errors logged raw to browser console, and merge-request failures silently swallowed with no logging",
+    "description": "updateNumberOfCartItems() logs the raw error object from a failed basket fetch straight to the browser console (`console.log(err)`), which can include full HTTP response bodies/headers from the backend (potentially containing tokens or internal error detail) — visible to anyone with access to the browser's devtools/console, and to any script able to hook console output. Separately, mergeGuestBasketIntoUserBasket swallows failures at two distinct points — the initial find() during merge falls back to an empty basket via catchError with no logging, and each individual put()/save() failure during the merge is caught via `catchError(() => of(null))` — so a partial/failed merge of a user's guest basket into their account basket leaves no trace for diagnosing lost cart items or detecting abuse of the merge endpoint.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 65,
+        "description": "find() is subscribed to as part of updateNumberOfCartItems()."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 69,
+        "description": "On error, the raw error object is dumped to console.log with no redaction and no structured/security logging."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 36,
+        "description": "find()'s internal catchError rethrows the raw error unmodified, letting it flow through to the subscriber's error callback rather than being sanitized or logged with context here."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 148,
+        "description": "A separate function, mergeGuestBasketIntoUserBasket, contains another path where operational errors during a state-changing merge are discarded without logging."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 158,
+        "description": "find(targetBasketId) is called within the merge flow to fetch the target basket."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 159,
+        "description": "catchError swallows any find() failure into a default empty-basket fallback with no logging of the failure, hiding a potentially security-relevant fetch failure."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 167,
+        "description": "The put-vs-save branch is selected per merged item, each write subsequently wrapped in its own silent error handler."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 171,
+        "description": "save()'s catchError(() => of(null)) likewise discards write failures silently with no logging, and the merge subsequently proceeds to clearGuestBasket() at line 181 as if it fully succeeded."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/basket.service.ts",
+        "line": 169,
+        "description": "During basket merge, individual put/save failures are caught and converted to null with no logging, hiding the outcome of a state-changing operation (line 171 has the equivalent for save())."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
   }
 ]

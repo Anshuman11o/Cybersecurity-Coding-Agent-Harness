@@ -1,0 +1,17 @@
+{
+  "provider": "sonnet5cli",
+  "model": "claude-sonnet-5",
+  "stage": "stage2-hunt-lanes-perfile",
+  "git_sha": "87140a4",
+  "started": "2026-08-02T21:25:19.477Z",
+  "ended": "2026-08-02T21:32:46.427Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false,
+  "sampling": {
+    "reasoning_effort": "high"
+  },
+  "max_output_tokens": 64000,
+  "loop_mode": "trace",
+  "loop_passes": 1
+}
