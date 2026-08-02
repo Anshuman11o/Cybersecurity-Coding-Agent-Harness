@@ -39,29 +39,29 @@ All figures rebased to the **97 reachable** ground-truth entries. All runs use
 the v2 per-file pipeline, `HUNT_LOOP=trace`, `reasoning_effort: high`,
 `max_output_tokens: 64000`.
 
-| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) |
-|---|---|---|
-| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** |
-| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% |
-| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** |
-| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% |
-| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% |
-| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) |
-| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) |
-| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 |
-| **Total cost (USD)** | **$4.37** | **$17.01** |
-| **Input tokens** | **7,174,088** | **7,265,980** |
-| — of which prefix-cached | 0 | 3,278,400 |
-| **Output tokens** | **2,444,855** | **2,402,317** |
-| **Total tokens** | **9,618,943** | **9,668,297** |
-| **Model size** | no public record on model size | no public record on model size |
-| Findings emitted | 553 | 892 |
-| Hedging (classes/finding) | 1.418 | 1.459 |
-| Distinct lines cited | 3,597 | 4,577 |
-| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 |
-| Lanes | 541/541 | 541/541 |
-| Calls | 1,082 | 1,082 |
-| Degraded | false | false |
+| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) | `gemini36flash` (Gemini 3.6 Flash) |
+|---|---|---|---|
+| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** | **57/97 = 58.8%** |
+| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% | 67/97 = 69.1% |
+| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** | **73/97 = 75.3%** |
+| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% | 89/97 = 91.8% |
+| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% | 96/97 = 99.0% |
+| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) | **16.5%** (47/285) |
+| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) | 23.5% (67/285) |
+| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 | **32m12s** at C=8 |
+| **Total cost (USD)** | **$4.37** | **$17.01** | **$24.85** |
+| **Input tokens** | **7,174,088** | **7,265,980** | **7,585,865** |
+| — of which prefix-cached | 0 | 3,278,400 | 14,486 |
+| **Output tokens** | **2,444,855** | **2,402,317** | **1,795,715** |
+| **Total tokens** | **9,618,943** | **9,668,297** | **9,381,580** |
+| **Model size** | no public record on model size | no public record on model size | no public record on model size |
+| Findings emitted | 553 | 892 | 285 |
+| Hedging (classes/finding) | 1.418 | 1.459 | 1.512 |
+| Distinct lines cited | 3,597 | 4,577 | 1,181 |
+| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 4.56 / 13 |
+| Lanes | 541/541 | 541/541 | 541/541 |
+| Calls | 1,082 | 1,082 | 1,082 |
+| Degraded | false | false | false |
 
 ---
 
@@ -123,6 +123,93 @@ Per-class recall:
 | logging-monitoring | 1/1 = 100% | 1/1 |
 | ai-llm-agency | 0/4 = 0.0% | 4/4 |
 
+
+### 2.3 `gemini36flash` — Gemini 3.6 Flash
+
+| | |
+|---|---|
+| Model id | `gemini-3.6-flash` |
+| Run | 2026-08-02 |
+| Tree | `2a4bf04` |
+| Concurrency | **8** — a measured ceiling on this target, not a starting point |
+| Loop mode / effort | `trace` / `high` (Stage 2); Stage 0 probes at default effort |
+| Rate | $1.50 / $0.15 cached / $7.50 per MTok, `price_asof` 2026-08-02 |
+| Artifacts | `tools/scanner/runs/gemini36flash/` |
+| Archive | answer-key repo, `runs/2026-08-02T16-38Z__stage2-v2-perfile-trace-loop__gemini36flash__2a4bf04/` |
+
+Per-class recall:
+
+| Class | Recall | Localized |
+|---|---|---|
+| ssrf | 3/3 = 100% | 3/3 |
+| logging-monitoring | 1/1 = 100% | 1/1 |
+| injection | 15/18 = 83.3% | 18/18 |
+| crypto-auth | 20/25 = 80.0% | 23/25 |
+| api-property-auth | 3/4 = 75.0% | 4/4 |
+| integrity-failures | 2/3 = 66.7% | 2/3 |
+| resource-consumption | 1/2 = 50.0% | 2/2 |
+| insecure-design | 5/12 = 41.7% | 8/12 |
+| access-control | 6/16 = 37.5% | 9/16 |
+| ai-llm-agency | **1/4 = 25.0%** | 3/4 |
+| misconfiguration | 3/17 = 17.6% | 5/17 |
+
+**`ai-llm-agency` is 1/4 — the first non-zero score on that class by any model in
+this benchmark.** Both `luna` and `glm52` scored 0/4. It is one entry against a
+±7 nondeterminism floor and is not a ranking, but it is the only class where this
+model leads.
+
+**`misconfiguration` at 3/17 is the weakest per-class figure recorded here**,
+against `luna`'s 10/17 and `glm52`'s 4/17.
+
+Three things travel with this row:
+
+1. **The recall gap to `luna` is 12 entries** — outside the ±7 nondeterminism
+   floor of §9.5, unlike the `glm52`-vs-`luna` gap of 4. This one is a difference;
+   read it alongside point 2.
+2. **The trace-length confound runs against this model.** It cited **1,181
+   distinct lines** at mean 4.56 trace steps, against `luna`'s 3,597 at 8.74 and
+   `glm52`'s 4,577 at 6.64 — a third of either, on the same loop mode and the
+   same reasoning effort. Every ground-truth-denominated metric is monotone in
+   trace length (`eval-howto.md` §3), so part of the gap is line budget rather
+   than detection. No budget-matched null was computed for this run. Its
+   precision proxy — the highest of the three at 16.5% category-aware — is the
+   other side of the same coin: 285 findings, the fewest, and the least padded.
+3. **Stage 0 ran at default reasoning effort, Stage 2 at high.**
+   `stage0-recon/src/llm-probe.ts` hardcodes output caps of 500 and 5,000 rather
+   than reading `outputTokenCap()`, while still passing `samplingParams()`. At
+   high effort both probes return `finish_reason: length` — thinking consumes the
+   cap — and the truncated body falls into a silent deterministic fallback. At
+   default both return `stop`. This matches `luna` run 6, whose Stage 0/0.5 came
+   from run 3 and predate `reasoning_effort` existing. Stage 0 here recorded
+   `degraded: false`, and Stage 0.5's manifest is **identical to run 6's** — same
+   865 lane ids, same 541-lane hunt set, same target files, zero lanes with
+   differing assigned classes — so Stage 2's model is the only variable.
+
+Token accounting note, specific to Gemini: this vendor reports thinking tokens
+outside `completion_tokens`, so the output figure in §1 is
+visible output plus thinking, which is what the vendor bills and what makes it
+comparable to `luna`'s and `glm52`'s output columns. `costUsd()` prices the
+reported `completion_tokens` alone and therefore under-reports Gemini spend in
+`usage-v2.json`; see `protocols/benchmark-run-plan.md` §9.7. Total tokens come
+from `budget-consumption.json` → `legacy_entries`, which covers all 541 lanes.
+
+Runtime is the sum of measured per-lane elapsed across all 541 lanes (15,455s)
+divided by the concurrency of 8. The run completed across more than one launch —
+see below — so no single wall-clock reading spans it.
+
+**Execution.** 541/541 hunt lanes, 865 consumption entries (541 hunt + 324 skip),
+865 unique `lane_id`, 0 duplicates, **0 lanes with `failed: true`**, `exit_code
+0`, `degraded: false`, `blocked_reads: 0`, 1,082 calls = exactly 2 per lane.
+
+The completed run took three launches: the first was lost to container
+reclamation at 143 lanes (§9.0); the second was run at `HUNT_CONCURRENCY=16` and
+lost 53 lanes to a 429 storm after peaking at 1.63M TPM against the 2M tier-1
+ceiling; the third resumed at C=8 and finished 125/125 lanes with 0 retries, 0
+errors and 0 fatals. The 53 lanes were correctly re-queued and all completed, so
+the scored artifact covers every lane. Total program spend across the three
+launches was 11,597,180 tokens. Gemini rate limits and the concurrency derivation
+are recorded in `protocols/benchmark-run-plan.md` §6 and §9.4.
+
 ---
 
 ## 3. Method — how a row here is produced
@@ -166,7 +253,6 @@ recorded as the reason it could not be — as `model size` is recorded as
 
 | Model | Registry key | State |
 |---|---|---|
-| Gemini 3.6 Flash | `gemini36flash` | active, not yet run |
 | Qwen 3.7 Plus | `qwen37` | on hold |
 | Claude Sonnet 5 | `sonnet5` | on hold |
 | Claude Opus 5 | `opus5` | on hold |
