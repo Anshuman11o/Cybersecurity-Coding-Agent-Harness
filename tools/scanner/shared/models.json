@@ -26,6 +26,7 @@
     "sonnet-5": "sonnet5",
     "gemini-3.1-pro": "gemini31pro",
     "gemini-3.1-pro-preview": "gemini31pro",
+    "gemini-3.6-flash": "gemini36flash",
     "glm-5.2": "glm52",
     "zai": "glm52",
     "qwen3.7-plus": "qwen37"
@@ -121,6 +122,22 @@
       "price_asof": "2026-08-01",
       "price_tier": "standard, prompt <=256K, vendor LIST price",
       "notes": "The vendor advertises a limited-time 20% discount not applied here, so actual spend runs below projection until it lapses. The >256K tier is 1.2/4.8 and is not modelled. Added 2026-08-01. A separate target from `qwen` rather than a bump of it: `qwen` pins Qwen 3.6 Plus so the committed runs/qwen/ baseline stays reproducible, and reusing the key would silently repoint that baseline's namespace. Verified 2026-08-01 on the endpoint above: plain completion 200, json_schema strict honoured, temperature 0.1 accepted. Shares DASHSCOPE_API_KEY and QWEN_MODEL with `qwen` — setting QWEN_MODEL therefore overrides BOTH targets at once, which would silently collapse a 3.6-vs-3.7 comparison into one model. Leave it unset."
+    },
+
+    "gemini36flash": {
+      "label": "Gemini 3.6 Flash",
+      "model": "gemini-3.6-flash",
+      "model_env": "GEMINI_MODEL",
+      "api_key_env": "GEMINI_API_KEY",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "base_url_env": "GEMINI_BASE_URL",
+      "token_limit_param": "max_tokens",
+      "sampling": {},
+      "max_output_tokens": 64000,
+      "price_per_mtok": { "input": 1.5, "cached_input": 0.15, "output": 7.5 },
+      "price_asof": "2026-08-02",
+      "price_tier": "standard, flat-rate — the vendor publishes no context tier for this model",
+      "notes": "Added 2026-08-02. Reached through Google's OpenAI-compatibility layer, same endpoint and credential as gemini31pro, so it runs the existing SDK client with no code change. Output price includes thinking tokens. Cache storage ($1.00 per MTok-hour) is not modelled. Shares GEMINI_MODEL with gemini31pro, so setting that env var overrides BOTH targets at once and would collapse a pro-vs-flash comparison into one model — leave it unset. max_output_tokens 64000 matches the other benchmark targets so no model has less room to answer than another; it is not a measured ceiling for this model. Note gemini31pro was observed declining an exhaustive-enumeration task (862 output tokens where peers emitted 25k-31k); whether this model shares that behaviour is unmeasured, and it matters because recall is monotone in trace length."
     },
 
     "gemini31pro": {
