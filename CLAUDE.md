@@ -140,6 +140,17 @@ Invoke the `archive-run` skill. The next run overwrites stage outputs in place,
 so an unarchived run is unrecoverable. One run has already been lost this way
 (~3 million tokens).
 
+If the run was a benchmark model, append its result to
+`docs/benchmarking-results.md`. That file is the permanent, shared record every
+model's agent writes into, and it is **append-only** — each row cost a full paid
+run and cannot be reconstructed from anywhere else. Never overwrite, delete or
+rewrite a recorded row; correct one by adding a correction beneath it and
+leaving the original. `guard.test.ts` asserts the file exists and still records
+every model listed in it, so a deletion fails the suite rather than passing
+silently. Read that file's own rules before editing it: same scorer, same
+denominator, every number from a committed artifact, and any qualification
+travels in the row rather than in a footnote.
+
 ## Long-running work
 
 Scans take roughly an hour and outlive an agent session. Launch them with

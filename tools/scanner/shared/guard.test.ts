@@ -290,6 +290,40 @@ console.log('\n-- pricing: verified rates, with the date they were verified --')
     luna.price_per_mtok?.input === 0.20 && luna.price_per_mtok?.output === 1.20)
 }
 
+// ── The benchmark results ledger is append-only ───────────────────────────
+//
+// docs/benchmarking-results.md is the permanent record of every scored model.
+// Each row cost a full paid run to produce and cannot be reconstructed from
+// anywhere else, so a deletion here is unrecoverable in a way a code deletion
+// is not — and it would be invisible, because nothing else reads the file.
+//
+// This asserts only that the file exists and still contains each run recorded
+// in it. It cannot stop a rewrite, and it is not meant to: it stops the silent
+// cases — a file deleted in a cleanup, or a row dropped while editing the table
+// around it. Adding a model means adding its key here in the same commit.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { existsSync, readFileSync } = await import('fs')
+
+  const LEDGER = join(REPO_ROOT, 'docs/benchmarking-results.md')
+  const exists = existsSync(LEDGER)
+  check('benchmarking-results.md exists', exists)
+  if (exists) {
+    const text = readFileSync(LEDGER, 'utf8')
+    // Every model whose result has been recorded. Append, never remove.
+    for (const recorded of ['luna', 'glm52']) {
+      check(`benchmarking-results.md still records ${recorded}`,
+        text.includes(`\`${recorded}\``))
+    }
+    check('benchmarking-results.md still states the append-only rule',
+      /append-only/i.test(text))
+    // A results table with no denominator is not comparable to anything.
+    check('benchmarking-results.md states the 97-entry denominator',
+      text.includes('97'))
+  }
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)
