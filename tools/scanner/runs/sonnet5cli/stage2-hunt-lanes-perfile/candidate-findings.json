@@ -2119,5 +2119,177 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0064",
+    "lane_id": "file-0023",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Captcha fetch errors are swallowed without any security logging",
+    "description": "The getCaptcha() method wraps the HTTP GET to the captcha endpoint in an RxJS catchError operator that does nothing but re-throw the original error (`catchError((err) => { throw err })`). No log entry, correlation ID, or telemetry is emitted when a captcha request fails. Repeated failures against this endpoint (e.g. from automated tooling probing or abusing the captcha flow, or from a captcha bypass/DoS attempt against the backend) leave no client-side trace that could be aggregated for detection. While server-side logging may exist elsewhere, this file — the sole place client-side captcha errors are observed — discards the error context instead of recording it, which removes a potential signal used to detect automated abuse of the captcha-protected flow.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 20,
+        "description": "getCaptcha() is called by components elsewhere in the app (caller outside this file) to fetch a CAPTCHA challenge."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 21,
+        "description": "HTTP GET request is issued to host + '/rest/captcha/' and piped through catchError."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 15,
+        "description": "The injected HttpClient instance (this.http) is used to perform the outbound request; no interceptor or logging wrapper is attached here that would capture failures."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 17,
+        "description": "this.hostServer is read from environment.hostServer and used as the base for the captcha endpoint, without any logging of configuration or request context."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 18,
+        "description": "this.host is constructed by concatenating hostServer with '/rest/captcha'; this is the target URL that will be requested and whose failures go unlogged."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/captcha.service.ts",
+        "line": 21,
+        "description": "catchError handler performs no logging of the failure; it simply re-throws err, so no security-relevant event record is created for failed captcha retrieval attempts."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0065",
+    "lane_id": "file-0022",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Captcha endpoint communicates over plaintext HTTP (inferred from test expectations)",
+    "description": "The test suite's mocked HTTP expectations reveal that CaptchaService (defined in captcha.service.ts, not shown here) issues its GET request to a plaintext 'http://' URL rather than 'https://'. Both the success-path test (line 32) and the error-path test (line 45) assert the exact URL 'http://localhost:3000/rest/captcha/', which mirrors the URL construction logic in the actual service under test. The path runs through service instantiation, invocation of getCaptcha() (which internally builds and dispatches the request using whatever base URL the service is configured with), and then the httpMock assertion that pins down exactly what URL was produced — repeated in a second, independent test to confirm this is the service's consistent configured endpoint rather than a one-off artifact. If this base URL/protocol is carried into non-development environments (e.g., via an environment config that is not overridden for production), captcha responses/requests would be transmitted unencrypted, allowing network-level interception or tampering with the captcha challenge/response, which could undermine the anti-automation control the captcha is meant to provide. This finding is inferred indirectly from the spec file since the actual service source and environment configuration are not visible here; it is possible the http scheme is only used for local test/dev and is safely overridden by an environment file in production, which would make this a false positive.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 26,
+        "description": "Test invokes service.getCaptcha(), exercising the real HTTP request construction logic of CaptchaService (defined outside this file)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 32,
+        "description": "Test asserts the exact request URL used by the service is 'http://localhost:3000/rest/captcha/', confirming the service builds an unencrypted HTTP URL rather than HTTPS."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 27,
+        "description": "The real CaptchaService instance is obtained via TestBed.inject, so it carries whatever base URL/protocol it was configured with in captcha.service.ts."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 28,
+        "description": "HttpTestingController is injected to intercept and inspect the outgoing HTTP request the service will make, including its URL/protocol."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 30,
+        "description": "A variable is declared to capture the response emitted by the service's HTTP call."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 31,
+        "description": "service.getCaptcha() is invoked, causing the service to construct and dispatch its actual HTTP GET request using its configured (plaintext http) base URL."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 33,
+        "description": "The mocked request is flushed with a fake response, completing the first exercised request/response cycle over the asserted http URL."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 34,
+        "description": "Assertion confirms the method used (GET) on the same plaintext-URL request."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 35,
+        "description": "Assertion confirms the response payload propagated back through the same plaintext HTTP call."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 36,
+        "description": "httpMock.verify() closes out the first test, confirming no other requests were made besides the plaintext-URL one."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 39,
+        "description": "A second, independent test 'should handle error when getting captcha' begins, re-exercising the same service code path."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 40,
+        "description": "CaptchaService is injected again in this fresh test context, again carrying its configured base URL/protocol."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 41,
+        "description": "HttpTestingController is injected again to intercept the request in this second scenario."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 43,
+        "description": "A variable is declared to capture the error the service surfaces on request failure."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 44,
+        "description": "service.getCaptcha().subscribe(...) is invoked again, triggering the same request-construction logic and producing another outgoing HTTP request over the same configured URL/protocol."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/captcha.service.spec.ts",
+        "line": 45,
+        "description": "Second test (error path) again confirms the same plaintext HTTP URL is used for the captcha request, reinforcing that this is the service's configured protocol/endpoint rather than a one-off test artifact."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
   }
 ]

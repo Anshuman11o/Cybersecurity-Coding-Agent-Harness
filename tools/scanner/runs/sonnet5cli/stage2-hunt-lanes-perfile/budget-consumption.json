@@ -1,5525 +1,2084 @@
-{
-  "generated_at": "2026-08-02T21:32:46.411Z",
-  "provider": "sonnet5cli",
-  "model": "claude-sonnet-5",
-  "lanes": [
-    {
-      "lane_id": "file-0001",
-      "target_file": "app.ts",
-      "file_bytes": 388,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 18,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 678
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4136
-              }
-            ],
-            "total_chars": 15238
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 678,
-              "derived_prompt_tokens": 272
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1239
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 922
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1323
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 700
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4136,
-              "derived_prompt_tokens": 1661
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 6115,
-            "prompt_tokens": 6117,
-            "completion_tokens": 2699,
-            "total_tokens": 8816
-          },
-          "findings_emitted": 2
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 18,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 19341
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1729
-              }
-            ],
-            "total_chars": 21070
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 19341,
-              "derived_prompt_tokens": 8566
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1729,
-              "derived_prompt_tokens": 766
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6115,
-            "cache_write_prompt_tokens": 3215,
-            "prompt_tokens": 9332,
-            "completion_tokens": 3044,
-            "total_tokens": 12376
-          },
-          "findings_emitted": 2,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 15449,
-        "completion_tokens": 5743,
-        "total_tokens": 21192
-      }
-    },
-    {
-      "lane_id": "file-0005",
-      "target_file": "data/mongodb.ts",
-      "file_bytes": 357,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 11,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 687
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4086
-              }
-            ],
-            "total_chars": 15197
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 687,
-              "derived_prompt_tokens": 276
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1242
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 925
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1326
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 702
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4086,
-              "derived_prompt_tokens": 1645
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 6114,
-            "prompt_tokens": 6116,
-            "completion_tokens": 3672,
-            "total_tokens": 9788
-          },
-          "findings_emitted": 3
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 11,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 21348
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1856
-              }
-            ],
-            "total_chars": 23204
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 21348,
-              "derived_prompt_tokens": 9526
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1856,
-              "derived_prompt_tokens": 828
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6114,
-            "cache_write_prompt_tokens": 4238,
-            "prompt_tokens": 10354,
-            "completion_tokens": 3339,
-            "total_tokens": 13693
-          },
-          "findings_emitted": 3,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 16470,
-        "completion_tokens": 7011,
-        "total_tokens": 23481
-      }
-    },
-    {
-      "lane_id": "file-0006",
-      "target_file": "data/static/contractABIs.ts",
-      "file_bytes": 9784,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 570,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 728
-              },
-              {
-                "segment_type": "playbook:access-control",
-                "chars": 2595
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 16331
-              }
-            ],
-            "total_chars": 34682
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 728,
-              "derived_prompt_tokens": 688
-            },
-            {
-              "segment_type": "playbook:access-control",
-              "chars": 2595,
-              "derived_prompt_tokens": 2451
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 4349
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2915
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2171
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3113
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1647
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 16331,
-              "derived_prompt_tokens": 15425
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 13481,
-            "cache_write_prompt_tokens": 19274,
-            "prompt_tokens": 32759,
-            "completion_tokens": 7351,
-            "total_tokens": 40110
-          },
-          "findings_emitted": 2
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 570,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 39122
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1744
-              }
-            ],
-            "total_chars": 40866
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 39122,
-              "derived_prompt_tokens": 20524
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1744,
-              "derived_prompt_tokens": 915
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 19274,
-            "cache_write_prompt_tokens": 2163,
-            "prompt_tokens": 21439,
-            "completion_tokens": 4786,
-            "total_tokens": 26225
-          },
-          "findings_emitted": 2,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 54198,
-        "completion_tokens": 12137,
-        "total_tokens": 66335
-      }
-    },
-    {
-      "lane_id": "file-0009",
-      "target_file": "frontend/src/app/Models/backup.model.ts",
-      "file_bytes": 345,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 14,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 711
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4110
-              }
-            ],
-            "total_chars": 15245
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 711,
-              "derived_prompt_tokens": 678
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2945
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2193
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3145
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1664
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4110,
-              "derived_prompt_tokens": 3923
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6132,
-            "cache_write_prompt_tokens": 8412,
-            "prompt_tokens": 14548,
-            "completion_tokens": 3241,
-            "total_tokens": 17789
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 14,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 18015
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1548
-              }
-            ],
-            "total_chars": 19563
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 18015,
-              "derived_prompt_tokens": 9142
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1548,
-              "derived_prompt_tokens": 786
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8412,
-            "cache_write_prompt_tokens": 1514,
-            "prompt_tokens": 9928,
-            "completion_tokens": 2040,
-            "total_tokens": 11968
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 24476,
-        "completion_tokens": 5281,
-        "total_tokens": 29757
-      }
-    },
-    {
-      "lane_id": "file-0003",
-      "target_file": "data/datacache.ts",
-      "file_bytes": 1576,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 37,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 689
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "route_context",
-                "chars": 842
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 5411
-              }
-            ],
-            "total_chars": 17366
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 689,
-              "derived_prompt_tokens": 760
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 3404
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2535
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3635
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1924
-            },
-            {
-              "segment_type": "route_context",
-              "chars": 842,
-              "derived_prompt_tokens": 929
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 5411,
-              "derived_prompt_tokens": 5967
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6942,
-            "cache_write_prompt_tokens": 12208,
-            "prompt_tokens": 19154,
-            "completion_tokens": 7350,
-            "total_tokens": 26504
-          },
-          "findings_emitted": 3
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 37,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 23465
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1838
-              }
-            ],
-            "total_chars": 25303
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 23465,
-              "derived_prompt_tokens": 13929
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1838,
-              "derived_prompt_tokens": 1091
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 12208,
-            "cache_write_prompt_tokens": 2810,
-            "prompt_tokens": 15020,
-            "completion_tokens": 5994,
-            "total_tokens": 21014
-          },
-          "findings_emitted": 3,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 34174,
-        "completion_tokens": 13344,
-        "total_tokens": 47518
-      }
-    },
-    {
-      "lane_id": "file-0007",
-      "target_file": "data/staticData.ts",
-      "file_bytes": 2415,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 96,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 778
-              },
-              {
-                "segment_type": "playbook:access-control",
-                "chars": 2595
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:injection",
-                "chars": 5993
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:integrity-failures",
-                "chars": 2183
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "playbook:ssrf",
-                "chars": 5308
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 6487
-              }
-            ],
-            "total_chars": 40640
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 778,
-              "derived_prompt_tokens": 702
-            },
-            {
-              "segment_type": "playbook:access-control",
-              "chars": 2595,
-              "derived_prompt_tokens": 2340
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 4152
-            },
-            {
-              "segment_type": "playbook:injection",
-              "chars": 5993,
-              "derived_prompt_tokens": 5404
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2783
-            },
-            {
-              "segment_type": "playbook:integrity-failures",
-              "chars": 2183,
-              "derived_prompt_tokens": 1969
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2072
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 2972
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 2045
-            },
-            {
-              "segment_type": "playbook:ssrf",
-              "chars": 5308,
-              "derived_prompt_tokens": 4787
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1573
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 6487,
-              "derived_prompt_tokens": 5850
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 14564,
-            "cache_write_prompt_tokens": 22081,
-            "prompt_tokens": 36649,
-            "completion_tokens": 9298,
-            "total_tokens": 45947
-          },
-          "findings_emitted": 3
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 96,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 45536
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1850
-              }
-            ],
-            "total_chars": 47386
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 45536,
-              "derived_prompt_tokens": 23553
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1850,
-              "derived_prompt_tokens": 957
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 22081,
-            "cache_write_prompt_tokens": 2427,
-            "prompt_tokens": 24510,
-            "completion_tokens": 4727,
-            "total_tokens": 29237
-          },
-          "findings_emitted": 3,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 61159,
-        "completion_tokens": 14025,
-        "total_tokens": 75184
-      }
-    },
-    {
-      "lane_id": "file-0011",
-      "target_file": "frontend/src/app/Models/deliveryMethod.model.ts",
-      "file_bytes": 230,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 13,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 719
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 3999
-              }
-            ],
-            "total_chars": 15142
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 719,
-              "derived_prompt_tokens": 289
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1242
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 925
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1326
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 702
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 3999,
-              "derived_prompt_tokens": 1608
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 6090,
-            "prompt_tokens": 6092,
-            "completion_tokens": 983,
-            "total_tokens": 7075
-          },
-          "findings_emitted": 0
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 13,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 15157
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1435
-              }
-            ],
-            "total_chars": 16592
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 15157,
-              "derived_prompt_tokens": 6889
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1435,
-              "derived_prompt_tokens": 652
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6090,
-            "cache_write_prompt_tokens": 1449,
-            "prompt_tokens": 7541,
-            "completion_tokens": 101,
-            "total_tokens": 7642
-          },
-          "findings_emitted": 0,
-          "findings_added": 0,
-          "traces_extended": 0
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 13633,
-        "completion_tokens": 1084,
-        "total_tokens": 14717
-      }
-    },
-    {
-      "lane_id": "file-0008",
-      "target_file": "data/types.ts",
-      "file_bytes": 1441,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 47,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 685
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 5312
-              }
-            ],
-            "total_chars": 16421
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 685,
-              "derived_prompt_tokens": 276
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1241
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 924
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1326
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 701
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 5312,
-              "derived_prompt_tokens": 2137
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 6603,
-            "prompt_tokens": 6605,
-            "completion_tokens": 3003,
-            "total_tokens": 9608
-          },
-          "findings_emitted": 2
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 47,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 20844
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1731
-              }
-            ],
-            "total_chars": 22575
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 20844,
-              "derived_prompt_tokens": 9375
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1731,
-              "derived_prompt_tokens": 779
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6603,
-            "cache_write_prompt_tokens": 3549,
-            "prompt_tokens": 10154,
-            "completion_tokens": 5870,
-            "total_tokens": 16024
-          },
-          "findings_emitted": 2,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 16759,
-        "completion_tokens": 8873,
-        "total_tokens": 25632
-      }
-    },
-    {
-      "lane_id": "file-0002",
-      "target_file": "cypress.config.ts",
-      "file_bytes": 2606,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 82,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 712
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:vulnerable-components",
-                "chars": 1916
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 6621
-              }
-            ],
-            "total_chars": 19673
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 712,
-              "derived_prompt_tokens": 279
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1208
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 899
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1290
-            },
-            {
-              "segment_type": "playbook:vulnerable-components",
-              "chars": 1916,
-              "derived_prompt_tokens": 750
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 682
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 6621,
-              "derived_prompt_tokens": 2590
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 7696,
-            "prompt_tokens": 7698,
-            "completion_tokens": 5977,
-            "total_tokens": 13675
-          },
-          "findings_emitted": 3
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 82,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 25322
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1837
-              }
-            ],
-            "total_chars": 27159
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 25322,
-              "derived_prompt_tokens": 13269
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1837,
-              "derived_prompt_tokens": 963
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 7696,
-            "cache_write_prompt_tokens": 6534,
-            "prompt_tokens": 14232,
-            "completion_tokens": 9332,
-            "total_tokens": 23564
-          },
-          "findings_emitted": 3,
-          "findings_added": 0,
-          "traces_extended": 3
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 21930,
-        "completion_tokens": 15309,
-        "total_tokens": 37239
-      }
-    },
-    {
-      "lane_id": "file-0016",
-      "target_file": "frontend/src/app/Services/address.service.spec.ts",
-      "file_bytes": 4490,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 114,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 806
-              },
-              {
-                "segment_type": "playbook:api-property-auth",
-                "chars": 2306
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:injection",
-                "chars": 5993
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:integrity-failures",
-                "chars": 2183
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 8779
-              }
-            ],
-            "total_chars": 37363
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 806,
-              "derived_prompt_tokens": 293
-            },
-            {
-              "segment_type": "playbook:api-property-auth",
-              "chars": 2306,
-              "derived_prompt_tokens": 838
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 1673
-            },
-            {
-              "segment_type": "playbook:injection",
-              "chars": 5993,
-              "derived_prompt_tokens": 2178
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1121
-            },
-            {
-              "segment_type": "playbook:integrity-failures",
-              "chars": 2183,
-              "derived_prompt_tokens": 793
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 835
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1198
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 824
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 634
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 8779,
-              "derived_prompt_tokens": 3191
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 13576,
-            "prompt_tokens": 13578,
-            "completion_tokens": 829,
-            "total_tokens": 14407
-          },
-          "findings_emitted": 0
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 114,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 37378
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1435
-              }
-            ],
-            "total_chars": 38813
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 37378,
-              "derived_prompt_tokens": 14323
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1435,
-              "derived_prompt_tokens": 550
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 13576,
-            "cache_write_prompt_tokens": 1295,
-            "prompt_tokens": 14873,
-            "completion_tokens": 84,
-            "total_tokens": 14957
-          },
-          "findings_emitted": 0,
-          "findings_added": 0,
-          "traces_extended": 0
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 28451,
-        "completion_tokens": 913,
-        "total_tokens": 29364
-      }
-    },
-    {
-      "lane_id": "file-0013",
-      "target_file": "frontend/src/app/Models/product.model.ts",
-      "file_bytes": 337,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 17,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 712
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4115
-              }
-            ],
-            "total_chars": 15251
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 712,
-              "derived_prompt_tokens": 699
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 3028
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2255
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3234
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1711
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4115,
-              "derived_prompt_tokens": 4037
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6119,
-            "cache_write_prompt_tokens": 8841,
-            "prompt_tokens": 14964,
-            "completion_tokens": 3755,
-            "total_tokens": 18719
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 17,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 18302
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1558
-              }
-            ],
-            "total_chars": 19860
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 18302,
-              "derived_prompt_tokens": 9602
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1558,
-              "derived_prompt_tokens": 817
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8841,
-            "cache_write_prompt_tokens": 1576,
-            "prompt_tokens": 10419,
-            "completion_tokens": 1903,
-            "total_tokens": 12322
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 25383,
-        "completion_tokens": 5658,
-        "total_tokens": 31041
-      }
-    },
-    {
-      "lane_id": "file-0012",
-      "target_file": "frontend/src/app/Models/hint.model.ts",
-      "file_bytes": 234,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 13,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 709
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 3993
-              }
-            ],
-            "total_chars": 15126
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 709,
-              "derived_prompt_tokens": 661
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2875
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2141
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3071
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1625
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 3993,
-              "derived_prompt_tokens": 3719
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6084,
-            "cache_write_prompt_tokens": 8004,
-            "prompt_tokens": 14092,
-            "completion_tokens": 3083,
-            "total_tokens": 17175
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 13,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 18161
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1574
-              }
-            ],
-            "total_chars": 19735
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 18161,
-              "derived_prompt_tokens": 8945
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1574,
-              "derived_prompt_tokens": 775
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8004,
-            "cache_write_prompt_tokens": 1714,
-            "prompt_tokens": 9720,
-            "completion_tokens": 3238,
-            "total_tokens": 12958
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 23812,
-        "completion_tokens": 6321,
-        "total_tokens": 30133
-      }
-    },
-    {
-      "lane_id": "file-0018",
-      "target_file": "frontend/src/app/Services/administration.service.spec.ts",
-      "file_bytes": 2012,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 53,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 741
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 5950
-              }
-            ],
-            "total_chars": 21719
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 741,
-              "derived_prompt_tokens": 284
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 1762
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1181
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 880
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1262
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 668
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 5950,
-              "derived_prompt_tokens": 2276
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 8311,
-            "prompt_tokens": 8313,
-            "completion_tokens": 475,
-            "total_tokens": 8788
-          },
-          "findings_emitted": 0
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 53,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 21734
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1435
-              }
-            ],
-            "total_chars": 23169
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 21734,
-              "derived_prompt_tokens": 8681
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1435,
-              "derived_prompt_tokens": 573
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8311,
-            "cache_write_prompt_tokens": 941,
-            "prompt_tokens": 9254,
-            "completion_tokens": 122,
-            "total_tokens": 9376
-          },
-          "findings_emitted": 0,
-          "findings_added": 0,
-          "traces_extended": 0
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 17567,
-        "completion_tokens": 597,
-        "total_tokens": 18164
-      }
-    },
-    {
-      "lane_id": "file-0014",
-      "target_file": "frontend/src/app/Models/review.model.ts",
-      "file_bytes": 198,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 11,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 711
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 3951
-              }
-            ],
-            "total_chars": 15086
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 711,
-              "derived_prompt_tokens": 682
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2961
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2205
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3163
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1673
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 3951,
-              "derived_prompt_tokens": 3791
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6057,
-            "cache_write_prompt_tokens": 8414,
-            "prompt_tokens": 14475,
-            "completion_tokens": 3399,
-            "total_tokens": 17874
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 11,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 17462
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1556
-              }
-            ],
-            "total_chars": 19018
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 17462,
-              "derived_prompt_tokens": 9174
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1556,
-              "derived_prompt_tokens": 818
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8414,
-            "cache_write_prompt_tokens": 1576,
-            "prompt_tokens": 9992,
-            "completion_tokens": 2271,
-            "total_tokens": 12263
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 24467,
-        "completion_tokens": 5670,
-        "total_tokens": 30137
-      }
-    },
-    {
-      "lane_id": "file-0015",
-      "target_file": "frontend/src/app/Models/securityQuestion.model.ts",
-      "file_bytes": 191,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 10,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 721
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 3950
-              }
-            ],
-            "total_chars": 15095
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 721,
-              "derived_prompt_tokens": 723
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 3095
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 2305
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 3305
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1749
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 3950,
-              "derived_prompt_tokens": 3961
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6065,
-            "cache_write_prompt_tokens": 9069,
-            "prompt_tokens": 15138,
-            "completion_tokens": 4037,
-            "total_tokens": 19175
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 10,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 18068
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1603
-              }
-            ],
-            "total_chars": 19671
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 18068,
-              "derived_prompt_tokens": 9783
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1603,
-              "derived_prompt_tokens": 868
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 9069,
-            "cache_write_prompt_tokens": 1580,
-            "prompt_tokens": 10651,
-            "completion_tokens": 1284,
-            "total_tokens": 11935
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 25789,
-        "completion_tokens": 5321,
-        "total_tokens": 31110
-      }
-    },
-    {
-      "lane_id": "file-0010",
-      "target_file": "frontend/src/app/Models/challenge.model.ts",
-      "file_bytes": 678,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 31,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 714
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4514
-              }
-            ],
-            "total_chars": 15652
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 714,
-              "derived_prompt_tokens": 289
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1249
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 930
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1334
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 706
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4514,
-              "derived_prompt_tokens": 1828
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 6334,
-            "prompt_tokens": 6336,
-            "completion_tokens": 3583,
-            "total_tokens": 9919
-          },
-          "findings_emitted": 2
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 31,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 20294
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1747
-              }
-            ],
-            "total_chars": 22041
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 20294,
-              "derived_prompt_tokens": 9610
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1747,
-              "derived_prompt_tokens": 827
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 6334,
-            "cache_write_prompt_tokens": 4101,
-            "prompt_tokens": 10437,
-            "completion_tokens": 8153,
-            "total_tokens": 18590
-          },
-          "findings_emitted": 2,
-          "findings_added": 0,
-          "traces_extended": 2
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 16773,
-        "completion_tokens": 11736,
-        "total_tokens": 28509
-      }
-    },
-    {
-      "lane_id": "file-0019",
-      "target_file": "frontend/src/app/Services/administration.service.ts",
-      "file_bytes": 776,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 27,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 751
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "playbook:ssrf",
-                "chars": 5308
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 4605
-              }
-            ],
-            "total_chars": 23356
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 751,
-              "derived_prompt_tokens": 645
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 2649
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 1972
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 2829
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 1947
-            },
-            {
-              "segment_type": "playbook:ssrf",
-              "chars": 5308,
-              "derived_prompt_tokens": 4556
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 1497
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 4605,
-              "derived_prompt_tokens": 3952
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 8800,
-            "cache_write_prompt_tokens": 11243,
-            "prompt_tokens": 20047,
-            "completion_tokens": 3117,
-            "total_tokens": 23164
-          },
-          "findings_emitted": 1
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 27,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 25303
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1541
-              }
-            ],
-            "total_chars": 26844
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 25303,
-              "derived_prompt_tokens": 11733
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1541,
-              "derived_prompt_tokens": 715
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 11243,
-            "cache_write_prompt_tokens": 1203,
-            "prompt_tokens": 12448,
-            "completion_tokens": 1217,
-            "total_tokens": 13665
-          },
-          "findings_emitted": 1,
-          "findings_added": 0,
-          "traces_extended": 1
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 32495,
-        "completion_tokens": 4334,
-        "total_tokens": 36829
-      }
-    },
-    {
-      "lane_id": "file-0017",
-      "target_file": "frontend/src/app/Services/address.service.ts",
-      "file_bytes": 1325,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 42,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 774
-              },
-              {
-                "segment_type": "playbook:api-property-auth",
-                "chars": 2306
-              },
-              {
-                "segment_type": "playbook:injection",
-                "chars": 5993
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "playbook:ssrf",
-                "chars": 5308
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 5207
-              }
-            ],
-            "total_chars": 32280
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 774,
-              "derived_prompt_tokens": 280
-            },
-            {
-              "segment_type": "playbook:api-property-auth",
-              "chars": 2306,
-              "derived_prompt_tokens": 834
-            },
-            {
-              "segment_type": "playbook:injection",
-              "chars": 5993,
-              "derived_prompt_tokens": 2167
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1116
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 831
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1192
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 820
-            },
-            {
-              "segment_type": "playbook:ssrf",
-              "chars": 5308,
-              "derived_prompt_tokens": 1919
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 631
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 5207,
-              "derived_prompt_tokens": 1882
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 11670,
-            "prompt_tokens": 11672,
-            "completion_tokens": 4180,
-            "total_tokens": 15852
-          },
-          "findings_emitted": 4
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 42,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 39237
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1903
-              }
-            ],
-            "total_chars": 41140
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 39237,
-              "derived_prompt_tokens": 15627
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1903,
-              "derived_prompt_tokens": 758
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 11670,
-            "cache_write_prompt_tokens": 4713,
-            "prompt_tokens": 16385,
-            "completion_tokens": 10024,
-            "total_tokens": 26409
-          },
-          "findings_emitted": 4,
-          "findings_added": 0,
-          "traces_extended": 4
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 28057,
-        "completion_tokens": 14204,
-        "total_tokens": 42261
-      }
-    },
-    {
-      "lane_id": "file-0020",
-      "target_file": "frontend/src/app/Services/basket.service.spec.ts",
-      "file_bytes": 8821,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 236,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 821
-              },
-              {
-                "segment_type": "playbook:access-control",
-                "chars": 2595
-              },
-              {
-                "segment_type": "playbook:api-property-auth",
-                "chars": 2306
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:injection",
-                "chars": 5993
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:integrity-failures",
-                "chars": 2183
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 13719
-              }
-            ],
-            "total_chars": 44913
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 821,
-              "derived_prompt_tokens": 300
-            },
-            {
-              "segment_type": "playbook:access-control",
-              "chars": 2595,
-              "derived_prompt_tokens": 948
-            },
-            {
-              "segment_type": "playbook:api-property-auth",
-              "chars": 2306,
-              "derived_prompt_tokens": 842
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 1682
-            },
-            {
-              "segment_type": "playbook:injection",
-              "chars": 5993,
-              "derived_prompt_tokens": 2190
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1127
-            },
-            {
-              "segment_type": "playbook:integrity-failures",
-              "chars": 2183,
-              "derived_prompt_tokens": 798
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 840
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1204
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 829
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 637
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 13719,
-              "derived_prompt_tokens": 5012
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 16407,
-            "prompt_tokens": 16409,
-            "completion_tokens": 7214,
-            "total_tokens": 23623
-          },
-          "findings_emitted": 3
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 236,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 51665
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 1908
-              }
-            ],
-            "total_chars": 53573
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 51665,
-              "derived_prompt_tokens": 23335
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 1908,
-              "derived_prompt_tokens": 862
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 16407,
-            "cache_write_prompt_tokens": 7788,
-            "prompt_tokens": 24197,
-            "completion_tokens": 11014,
-            "total_tokens": 35211
-          },
-          "findings_emitted": 3,
-          "findings_added": 0,
-          "traces_extended": 3
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 40606,
-        "completion_tokens": 18228,
-        "total_tokens": 58834
-      }
-    },
-    {
-      "lane_id": "file-0021",
-      "target_file": "frontend/src/app/Services/basket.service.ts",
-      "file_bytes": 6559,
-      "chunk_count": 1,
-      "chunks": [
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 187,
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "boilerplate",
-                "chars": 822
-              },
-              {
-                "segment_type": "playbook:access-control",
-                "chars": 2595
-              },
-              {
-                "segment_type": "playbook:api-property-auth",
-                "chars": 2306
-              },
-              {
-                "segment_type": "playbook:crypto-auth",
-                "chars": 4604
-              },
-              {
-                "segment_type": "playbook:injection",
-                "chars": 5993
-              },
-              {
-                "segment_type": "playbook:insecure-design",
-                "chars": 3086
-              },
-              {
-                "segment_type": "playbook:integrity-failures",
-                "chars": 2183
-              },
-              {
-                "segment_type": "playbook:logging-monitoring",
-                "chars": 2298
-              },
-              {
-                "segment_type": "playbook:misconfiguration",
-                "chars": 3296
-              },
-              {
-                "segment_type": "playbook:resource-consumption",
-                "chars": 2268
-              },
-              {
-                "segment_type": "playbook:ssrf",
-                "chars": 5308
-              },
-              {
-                "segment_type": "arch_context",
-                "chars": 1744
-              },
-              {
-                "segment_type": "file_content",
-                "chars": 11207
-              }
-            ],
-            "total_chars": 47710
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "boilerplate",
-              "chars": 822,
-              "derived_prompt_tokens": 298
-            },
-            {
-              "segment_type": "playbook:access-control",
-              "chars": 2595,
-              "derived_prompt_tokens": 941
-            },
-            {
-              "segment_type": "playbook:api-property-auth",
-              "chars": 2306,
-              "derived_prompt_tokens": 836
-            },
-            {
-              "segment_type": "playbook:crypto-auth",
-              "chars": 4604,
-              "derived_prompt_tokens": 1670
-            },
-            {
-              "segment_type": "playbook:injection",
-              "chars": 5993,
-              "derived_prompt_tokens": 2174
-            },
-            {
-              "segment_type": "playbook:insecure-design",
-              "chars": 3086,
-              "derived_prompt_tokens": 1119
-            },
-            {
-              "segment_type": "playbook:integrity-failures",
-              "chars": 2183,
-              "derived_prompt_tokens": 792
-            },
-            {
-              "segment_type": "playbook:logging-monitoring",
-              "chars": 2298,
-              "derived_prompt_tokens": 834
-            },
-            {
-              "segment_type": "playbook:misconfiguration",
-              "chars": 3296,
-              "derived_prompt_tokens": 1195
-            },
-            {
-              "segment_type": "playbook:resource-consumption",
-              "chars": 2268,
-              "derived_prompt_tokens": 823
-            },
-            {
-              "segment_type": "playbook:ssrf",
-              "chars": 5308,
-              "derived_prompt_tokens": 1925
-            },
-            {
-              "segment_type": "arch_context",
-              "chars": 1744,
-              "derived_prompt_tokens": 633
-            },
-            {
-              "segment_type": "file_content",
-              "chars": 11207,
-              "derived_prompt_tokens": 4065
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 0,
-            "cache_write_prompt_tokens": 17303,
-            "prompt_tokens": 17305,
-            "completion_tokens": 6014,
-            "total_tokens": 23319
-          },
-          "findings_emitted": 4
-        },
-        {
-          "chunk_index": 1,
-          "start_line": 1,
-          "end_line": 187,
-          "loop_pass": 1,
-          "loop_mode": "trace",
-          "prompt_breakdown": {
-            "segments": [
-              {
-                "segment_type": "conversation",
-                "chars": 55522
-              },
-              {
-                "segment_type": "loop_instruction",
-                "chars": 2062
-              }
-            ],
-            "total_chars": 57584
-          },
-          "segment_attribution": [
-            {
-              "segment_type": "conversation",
-              "chars": 55522,
-              "derived_prompt_tokens": 56835
-            },
-            {
-              "segment_type": "loop_instruction",
-              "chars": 2062,
-              "derived_prompt_tokens": 2111
-            }
-          ],
-          "measured": {
-            "cached_prompt_tokens": 41221,
-            "cache_write_prompt_tokens": 17721,
-            "prompt_tokens": 58946,
-            "completion_tokens": 15469,
-            "total_tokens": 74415
-          },
-          "findings_emitted": 4,
-          "findings_added": 0,
-          "traces_extended": 4
-        }
-      ],
-      "lane_totals": {
-        "prompt_tokens": 76251,
-        "completion_tokens": 21483,
-        "total_tokens": 97734
-      }
-    }
-  ],
-  "rollup": {
-    "total_input_tokens": 597899,
-    "total_output_tokens": 177272,
-    "total_tokens": 775171,
-    "input_by_segment_kind": {
-      "boilerplate": {
-        "tokens": 9374,
-        "share_of_input": 0.015678233280202843
-      },
-      "playbook:insecure-design": {
-        "tokens": 39740,
-        "share_of_input": 0.0664660753739344
-      },
-      "playbook:logging-monitoring": {
-        "tokens": 29594,
-        "share_of_input": 0.049496654117166944
-      },
-      "playbook:misconfiguration": {
-        "tokens": 42443,
-        "share_of_input": 0.07098690581519622
-      },
-      "arch_context": {
-        "tokens": 22459,
-        "share_of_input": 0.037563200473658596
-      },
-      "file_content": {
-        "tokens": 78520,
-        "share_of_input": 0.13132652839359155
-      },
-      "conversation": {
-        "tokens": 292421,
-        "share_of_input": 0.48908093172927203
-      },
-      "loop_instruction": {
-        "tokens": 17411,
-        "share_of_input": 0.029120302927417508
-      },
-      "playbook:access-control": {
-        "tokens": 6680,
-        "share_of_input": 0.011172455548512374
-      },
-      "playbook:crypto-auth": {
-        "tokens": 15288,
-        "share_of_input": 0.025569535991864848
-      },
-      "route_context": {
-        "tokens": 929,
-        "share_of_input": 0.0015537741324203587
-      },
-      "playbook:injection": {
-        "tokens": 14113,
-        "share_of_input": 0.023604321131160948
-      },
-      "playbook:integrity-failures": {
-        "tokens": 4352,
-        "share_of_input": 0.007278821339390098
-      },
-      "playbook:resource-consumption": {
-        "tokens": 7288,
-        "share_of_input": 0.012189349706221285
-      },
-      "playbook:ssrf": {
-        "tokens": 13187,
-        "share_of_input": 0.022055564568597707
-      },
-      "playbook:vulnerable-components": {
-        "tokens": 750,
-        "share_of_input": 0.001254392464279084
-      },
-      "playbook:api-property-auth": {
-        "tokens": 3350,
-        "share_of_input": 0.005602953007113241
-      }
-    },
-    "input_by_playbook_class": [
-      {
-        "class_id": "misconfiguration",
-        "tokens": 42443,
-        "share_of_input": 0.07098690581519622
-      },
-      {
-        "class_id": "insecure-design",
-        "tokens": 39740,
-        "share_of_input": 0.0664660753739344
-      },
-      {
-        "class_id": "logging-monitoring",
-        "tokens": 29594,
-        "share_of_input": 0.049496654117166944
-      },
-      {
-        "class_id": "crypto-auth",
-        "tokens": 15288,
-        "share_of_input": 0.025569535991864848
-      },
-      {
-        "class_id": "injection",
-        "tokens": 14113,
-        "share_of_input": 0.023604321131160948
-      },
-      {
-        "class_id": "ssrf",
-        "tokens": 13187,
-        "share_of_input": 0.022055564568597707
-      },
-      {
-        "class_id": "resource-consumption",
-        "tokens": 7288,
-        "share_of_input": 0.012189349706221285
-      },
-      {
-        "class_id": "access-control",
-        "tokens": 6680,
-        "share_of_input": 0.011172455548512374
-      },
-      {
-        "class_id": "integrity-failures",
-        "tokens": 4352,
-        "share_of_input": 0.007278821339390098
-      },
-      {
-        "class_id": "api-property-auth",
-        "tokens": 3350,
-        "share_of_input": 0.005602953007113241
-      },
-      {
-        "class_id": "vulnerable-components",
-        "tokens": 750,
-        "share_of_input": 0.001254392464279084
-      }
-    ],
-    "top_20_expensive_lanes": [
-      {
-        "lane_id": "file-0021",
-        "target_file": "frontend/src/app/Services/basket.service.ts",
-        "file_bytes": 6559,
-        "chunk_count": 1,
-        "total_input_tokens": 76251,
-        "total_output_tokens": 21483,
-        "total_tokens": 97734,
-        "segment_breakdown": {
-          "boilerplate": 298,
-          "playbook:access-control": 941,
-          "playbook:api-property-auth": 836,
-          "playbook:crypto-auth": 1670,
-          "playbook:injection": 2174,
-          "playbook:insecure-design": 1119,
-          "playbook:integrity-failures": 792,
-          "playbook:logging-monitoring": 834,
-          "playbook:misconfiguration": 1195,
-          "playbook:resource-consumption": 823,
-          "playbook:ssrf": 1925,
-          "arch_context": 633,
-          "file_content": 4065,
-          "conversation": 56835,
-          "loop_instruction": 2111
-        }
-      },
-      {
-        "lane_id": "file-0007",
-        "target_file": "data/staticData.ts",
-        "file_bytes": 2415,
-        "chunk_count": 1,
-        "total_input_tokens": 61159,
-        "total_output_tokens": 14025,
-        "total_tokens": 75184,
-        "segment_breakdown": {
-          "boilerplate": 702,
-          "playbook:access-control": 2340,
-          "playbook:crypto-auth": 4152,
-          "playbook:injection": 5404,
-          "playbook:insecure-design": 2783,
-          "playbook:integrity-failures": 1969,
-          "playbook:logging-monitoring": 2072,
-          "playbook:misconfiguration": 2972,
-          "playbook:resource-consumption": 2045,
-          "playbook:ssrf": 4787,
-          "arch_context": 1573,
-          "file_content": 5850,
-          "conversation": 23553,
-          "loop_instruction": 957
-        }
-      },
-      {
-        "lane_id": "file-0006",
-        "target_file": "data/static/contractABIs.ts",
-        "file_bytes": 9784,
-        "chunk_count": 1,
-        "total_input_tokens": 54198,
-        "total_output_tokens": 12137,
-        "total_tokens": 66335,
-        "segment_breakdown": {
-          "boilerplate": 688,
-          "playbook:access-control": 2451,
-          "playbook:crypto-auth": 4349,
-          "playbook:insecure-design": 2915,
-          "playbook:logging-monitoring": 2171,
-          "playbook:misconfiguration": 3113,
-          "arch_context": 1647,
-          "file_content": 15425,
-          "conversation": 20524,
-          "loop_instruction": 915
-        }
-      },
-      {
-        "lane_id": "file-0020",
-        "target_file": "frontend/src/app/Services/basket.service.spec.ts",
-        "file_bytes": 8821,
-        "chunk_count": 1,
-        "total_input_tokens": 40606,
-        "total_output_tokens": 18228,
-        "total_tokens": 58834,
-        "segment_breakdown": {
-          "boilerplate": 300,
-          "playbook:access-control": 948,
-          "playbook:api-property-auth": 842,
-          "playbook:crypto-auth": 1682,
-          "playbook:injection": 2190,
-          "playbook:insecure-design": 1127,
-          "playbook:integrity-failures": 798,
-          "playbook:logging-monitoring": 840,
-          "playbook:misconfiguration": 1204,
-          "playbook:resource-consumption": 829,
-          "arch_context": 637,
-          "file_content": 5012,
-          "conversation": 23335,
-          "loop_instruction": 862
-        }
-      },
-      {
-        "lane_id": "file-0003",
-        "target_file": "data/datacache.ts",
-        "file_bytes": 1576,
-        "chunk_count": 1,
-        "total_input_tokens": 34174,
-        "total_output_tokens": 13344,
-        "total_tokens": 47518,
-        "segment_breakdown": {
-          "boilerplate": 760,
-          "playbook:insecure-design": 3404,
-          "playbook:logging-monitoring": 2535,
-          "playbook:misconfiguration": 3635,
-          "arch_context": 1924,
-          "route_context": 929,
-          "file_content": 5967,
-          "conversation": 13929,
-          "loop_instruction": 1091
-        }
-      },
-      {
-        "lane_id": "file-0019",
-        "target_file": "frontend/src/app/Services/administration.service.ts",
-        "file_bytes": 776,
-        "chunk_count": 1,
-        "total_input_tokens": 32495,
-        "total_output_tokens": 4334,
-        "total_tokens": 36829,
-        "segment_breakdown": {
-          "boilerplate": 645,
-          "playbook:insecure-design": 2649,
-          "playbook:logging-monitoring": 1972,
-          "playbook:misconfiguration": 2829,
-          "playbook:resource-consumption": 1947,
-          "playbook:ssrf": 4556,
-          "arch_context": 1497,
-          "file_content": 3952,
-          "conversation": 11733,
-          "loop_instruction": 715
-        }
-      },
-      {
-        "lane_id": "file-0016",
-        "target_file": "frontend/src/app/Services/address.service.spec.ts",
-        "file_bytes": 4490,
-        "chunk_count": 1,
-        "total_input_tokens": 28451,
-        "total_output_tokens": 913,
-        "total_tokens": 29364,
-        "segment_breakdown": {
-          "boilerplate": 293,
-          "playbook:api-property-auth": 838,
-          "playbook:crypto-auth": 1673,
-          "playbook:injection": 2178,
-          "playbook:insecure-design": 1121,
-          "playbook:integrity-failures": 793,
-          "playbook:logging-monitoring": 835,
-          "playbook:misconfiguration": 1198,
-          "playbook:resource-consumption": 824,
-          "arch_context": 634,
-          "file_content": 3191,
-          "conversation": 14323,
-          "loop_instruction": 550
-        }
-      },
-      {
-        "lane_id": "file-0017",
-        "target_file": "frontend/src/app/Services/address.service.ts",
-        "file_bytes": 1325,
-        "chunk_count": 1,
-        "total_input_tokens": 28057,
-        "total_output_tokens": 14204,
-        "total_tokens": 42261,
-        "segment_breakdown": {
-          "boilerplate": 280,
-          "playbook:api-property-auth": 834,
-          "playbook:injection": 2167,
-          "playbook:insecure-design": 1116,
-          "playbook:logging-monitoring": 831,
-          "playbook:misconfiguration": 1192,
-          "playbook:resource-consumption": 820,
-          "playbook:ssrf": 1919,
-          "arch_context": 631,
-          "file_content": 1882,
-          "conversation": 15627,
-          "loop_instruction": 758
-        }
-      },
-      {
-        "lane_id": "file-0015",
-        "target_file": "frontend/src/app/Models/securityQuestion.model.ts",
-        "file_bytes": 191,
-        "chunk_count": 1,
-        "total_input_tokens": 25789,
-        "total_output_tokens": 5321,
-        "total_tokens": 31110,
-        "segment_breakdown": {
-          "boilerplate": 723,
-          "playbook:insecure-design": 3095,
-          "playbook:logging-monitoring": 2305,
-          "playbook:misconfiguration": 3305,
-          "arch_context": 1749,
-          "file_content": 3961,
-          "conversation": 9783,
-          "loop_instruction": 868
-        }
-      },
-      {
-        "lane_id": "file-0013",
-        "target_file": "frontend/src/app/Models/product.model.ts",
-        "file_bytes": 337,
-        "chunk_count": 1,
-        "total_input_tokens": 25383,
-        "total_output_tokens": 5658,
-        "total_tokens": 31041,
-        "segment_breakdown": {
-          "boilerplate": 699,
-          "playbook:insecure-design": 3028,
-          "playbook:logging-monitoring": 2255,
-          "playbook:misconfiguration": 3234,
-          "arch_context": 1711,
-          "file_content": 4037,
-          "conversation": 9602,
-          "loop_instruction": 817
-        }
-      },
-      {
-        "lane_id": "file-0009",
-        "target_file": "frontend/src/app/Models/backup.model.ts",
-        "file_bytes": 345,
-        "chunk_count": 1,
-        "total_input_tokens": 24476,
-        "total_output_tokens": 5281,
-        "total_tokens": 29757,
-        "segment_breakdown": {
-          "boilerplate": 678,
-          "playbook:insecure-design": 2945,
-          "playbook:logging-monitoring": 2193,
-          "playbook:misconfiguration": 3145,
-          "arch_context": 1664,
-          "file_content": 3923,
-          "conversation": 9142,
-          "loop_instruction": 786
-        }
-      },
-      {
-        "lane_id": "file-0014",
-        "target_file": "frontend/src/app/Models/review.model.ts",
-        "file_bytes": 198,
-        "chunk_count": 1,
-        "total_input_tokens": 24467,
-        "total_output_tokens": 5670,
-        "total_tokens": 30137,
-        "segment_breakdown": {
-          "boilerplate": 682,
-          "playbook:insecure-design": 2961,
-          "playbook:logging-monitoring": 2205,
-          "playbook:misconfiguration": 3163,
-          "arch_context": 1673,
-          "file_content": 3791,
-          "conversation": 9174,
-          "loop_instruction": 818
-        }
-      },
-      {
-        "lane_id": "file-0012",
-        "target_file": "frontend/src/app/Models/hint.model.ts",
-        "file_bytes": 234,
-        "chunk_count": 1,
-        "total_input_tokens": 23812,
-        "total_output_tokens": 6321,
-        "total_tokens": 30133,
-        "segment_breakdown": {
-          "boilerplate": 661,
-          "playbook:insecure-design": 2875,
-          "playbook:logging-monitoring": 2141,
-          "playbook:misconfiguration": 3071,
-          "arch_context": 1625,
-          "file_content": 3719,
-          "conversation": 8945,
-          "loop_instruction": 775
-        }
-      },
-      {
-        "lane_id": "file-0002",
-        "target_file": "cypress.config.ts",
-        "file_bytes": 2606,
-        "chunk_count": 1,
-        "total_input_tokens": 21930,
-        "total_output_tokens": 15309,
-        "total_tokens": 37239,
-        "segment_breakdown": {
-          "boilerplate": 279,
-          "playbook:insecure-design": 1208,
-          "playbook:logging-monitoring": 899,
-          "playbook:misconfiguration": 1290,
-          "playbook:vulnerable-components": 750,
-          "arch_context": 682,
-          "file_content": 2590,
-          "conversation": 13269,
-          "loop_instruction": 963
-        }
-      },
-      {
-        "lane_id": "file-0018",
-        "target_file": "frontend/src/app/Services/administration.service.spec.ts",
-        "file_bytes": 2012,
-        "chunk_count": 1,
-        "total_input_tokens": 17567,
-        "total_output_tokens": 597,
-        "total_tokens": 18164,
-        "segment_breakdown": {
-          "boilerplate": 284,
-          "playbook:crypto-auth": 1762,
-          "playbook:insecure-design": 1181,
-          "playbook:logging-monitoring": 880,
-          "playbook:misconfiguration": 1262,
-          "arch_context": 668,
-          "file_content": 2276,
-          "conversation": 8681,
-          "loop_instruction": 573
-        }
-      },
-      {
-        "lane_id": "file-0010",
-        "target_file": "frontend/src/app/Models/challenge.model.ts",
-        "file_bytes": 678,
-        "chunk_count": 1,
-        "total_input_tokens": 16773,
-        "total_output_tokens": 11736,
-        "total_tokens": 28509,
-        "segment_breakdown": {
-          "boilerplate": 289,
-          "playbook:insecure-design": 1249,
-          "playbook:logging-monitoring": 930,
-          "playbook:misconfiguration": 1334,
-          "arch_context": 706,
-          "file_content": 1828,
-          "conversation": 9610,
-          "loop_instruction": 827
-        }
-      },
-      {
-        "lane_id": "file-0008",
-        "target_file": "data/types.ts",
-        "file_bytes": 1441,
-        "chunk_count": 1,
-        "total_input_tokens": 16759,
-        "total_output_tokens": 8873,
-        "total_tokens": 25632,
-        "segment_breakdown": {
-          "boilerplate": 276,
-          "playbook:insecure-design": 1241,
-          "playbook:logging-monitoring": 924,
-          "playbook:misconfiguration": 1326,
-          "arch_context": 701,
-          "file_content": 2137,
-          "conversation": 9375,
-          "loop_instruction": 779
-        }
-      },
-      {
-        "lane_id": "file-0005",
-        "target_file": "data/mongodb.ts",
-        "file_bytes": 357,
-        "chunk_count": 1,
-        "total_input_tokens": 16470,
-        "total_output_tokens": 7011,
-        "total_tokens": 23481,
-        "segment_breakdown": {
-          "boilerplate": 276,
-          "playbook:insecure-design": 1242,
-          "playbook:logging-monitoring": 925,
-          "playbook:misconfiguration": 1326,
-          "arch_context": 702,
-          "file_content": 1645,
-          "conversation": 9526,
-          "loop_instruction": 828
-        }
-      },
-      {
-        "lane_id": "file-0001",
-        "target_file": "app.ts",
-        "file_bytes": 388,
-        "chunk_count": 1,
-        "total_input_tokens": 15449,
-        "total_output_tokens": 5743,
-        "total_tokens": 21192,
-        "segment_breakdown": {
-          "boilerplate": 272,
-          "playbook:insecure-design": 1239,
-          "playbook:logging-monitoring": 922,
-          "playbook:misconfiguration": 1323,
-          "arch_context": 700,
-          "file_content": 1661,
-          "conversation": 8566,
-          "loop_instruction": 766
-        }
-      },
-      {
-        "lane_id": "file-0011",
-        "target_file": "frontend/src/app/Models/deliveryMethod.model.ts",
-        "file_bytes": 230,
-        "chunk_count": 1,
-        "total_input_tokens": 13633,
-        "total_output_tokens": 1084,
-        "total_tokens": 14717,
-        "segment_breakdown": {
-          "boilerplate": 289,
-          "playbook:insecure-design": 1242,
-          "playbook:logging-monitoring": 925,
-          "playbook:misconfiguration": 1326,
-          "arch_context": 702,
-          "file_content": 1608,
-          "conversation": 6889,
-          "loop_instruction": 652
-        }
-      }
-    ],
-    "tokens_per_byte": 13.356991265107343,
-    "lane_chunk_distribution": {
-      "1": 20
-    },
-    "repeated_boilerplate_cost": {
-      "total_extra_prompt_tokens": 0,
-      "description": "Total extra prompt tokens from re-sending boilerplate across multi-chunk lanes (0)"
-    }
+[
+  {
+    "lane_id": "file-0001",
+    "tokens_used": 21192,
+    "seconds_elapsed": 72.881,
+    "ceiling_hit": false
   },
-  "legacy_entries": [
-    {
-      "lane_id": "file-0001",
-      "tokens_used": 21192,
-      "seconds_elapsed": 72.881,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0005",
-      "tokens_used": 23481,
-      "seconds_elapsed": 82.394,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0006",
-      "tokens_used": 66335,
-      "seconds_elapsed": 128.939,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0009",
-      "tokens_used": 29757,
-      "seconds_elapsed": 59.065,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0003",
-      "tokens_used": 47518,
-      "seconds_elapsed": 144.335,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0007",
-      "tokens_used": 75184,
-      "seconds_elapsed": 149.004,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0011",
-      "tokens_used": 14717,
-      "seconds_elapsed": 19.113,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0008",
-      "tokens_used": 25632,
-      "seconds_elapsed": 97.833,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0002",
-      "tokens_used": 37239,
-      "seconds_elapsed": 172.874,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0016",
-      "tokens_used": 29364,
-      "seconds_elapsed": 21.037,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0013",
-      "tokens_used": 31041,
-      "seconds_elapsed": 64.788,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0012",
-      "tokens_used": 30133,
-      "seconds_elapsed": 70.245,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0018",
-      "tokens_used": 18164,
-      "seconds_elapsed": 15.176,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0014",
-      "tokens_used": 30137,
-      "seconds_elapsed": 69.626,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0015",
-      "tokens_used": 31110,
-      "seconds_elapsed": 61.603,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0010",
-      "tokens_used": 28509,
-      "seconds_elapsed": 131.732,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0019",
-      "tokens_used": 36829,
-      "seconds_elapsed": 49.751,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0017",
-      "tokens_used": 42261,
-      "seconds_elapsed": 169.401,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0020",
-      "tokens_used": 58834,
-      "seconds_elapsed": 202.419,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0021",
-      "tokens_used": 97734,
-      "seconds_elapsed": 216.541,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0004",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0302",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0330",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0530",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0531",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0532",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0533",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0534",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0535",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0536",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0537",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0538",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0539",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0540",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0541",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0542",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0543",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0544",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0545",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0546",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0547",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0548",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0549",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0550",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0551",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0552",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0553",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0554",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0555",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0556",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0557",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0558",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0559",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0560",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0561",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0562",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0563",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0564",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0565",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0566",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0567",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0568",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0569",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0570",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0571",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0572",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0573",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0574",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0575",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0576",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0577",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0578",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0579",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0580",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0581",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0582",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0583",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0584",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0585",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0586",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0587",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0588",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0589",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0590",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0591",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0592",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0593",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0594",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0595",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0596",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0597",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0598",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0599",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0600",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0601",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0602",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0603",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0604",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0605",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0606",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0607",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0608",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0609",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0610",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0611",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0612",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0613",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0614",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0615",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0616",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0617",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0618",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0619",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0620",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0621",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0622",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0623",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0624",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0625",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0626",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0627",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0628",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0629",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0630",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0631",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0632",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0633",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0634",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0635",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0636",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0637",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0638",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0639",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0640",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0641",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0642",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0643",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0644",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0645",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0646",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0647",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0648",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0649",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0650",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0651",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0652",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0653",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0654",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0655",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0656",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0657",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0658",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0659",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0660",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0661",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0662",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0663",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0664",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0665",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0666",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0667",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0668",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0669",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0670",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0671",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0672",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0673",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0674",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0675",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0676",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0677",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0678",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0679",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0680",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0681",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0682",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0683",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0684",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0685",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0686",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0687",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0688",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0689",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0690",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0691",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0692",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0693",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0694",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0695",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0696",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0697",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0698",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0699",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0700",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0701",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0702",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0703",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0704",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0705",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0706",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0707",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0708",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0709",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0710",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0711",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0712",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0713",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0714",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0715",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0716",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0717",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0718",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0719",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0720",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0721",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0722",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0723",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0724",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0725",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0726",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0727",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0728",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0729",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0730",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0731",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0732",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0733",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0734",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0735",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0736",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0737",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0738",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0739",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0740",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0741",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0742",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0743",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0744",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0745",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0746",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0747",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0748",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0749",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0750",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0751",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0752",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0753",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0754",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0755",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0756",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0757",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0758",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0759",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0760",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0761",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0762",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0763",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0764",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0765",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0766",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0767",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0768",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0769",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0770",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0771",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0772",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0773",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0774",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0775",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0776",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0777",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0778",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0779",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0780",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0781",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0782",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0783",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0784",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0785",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0786",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0787",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0788",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0789",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0790",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0791",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0792",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0793",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0794",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0795",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0796",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0797",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0798",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0799",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0800",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0801",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0802",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0803",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0804",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0805",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0806",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0807",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0808",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0809",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0810",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0811",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0812",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0813",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0814",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0815",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0816",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0817",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0818",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0819",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0820",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0821",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0822",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0823",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0824",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0825",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0826",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0827",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0828",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0829",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0830",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0831",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0832",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0833",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0834",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0835",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0836",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0837",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0838",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0839",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0840",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0841",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0842",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0843",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0844",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0845",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0846",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0847",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0848",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0849",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    },
-    {
-      "lane_id": "file-0850",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false
-    }
-  ]
-}
+  {
+    "lane_id": "file-0005",
+    "tokens_used": 23481,
+    "seconds_elapsed": 82.394,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0006",
+    "tokens_used": 66335,
+    "seconds_elapsed": 128.939,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0009",
+    "tokens_used": 29757,
+    "seconds_elapsed": 59.065,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0003",
+    "tokens_used": 47518,
+    "seconds_elapsed": 144.335,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0007",
+    "tokens_used": 75184,
+    "seconds_elapsed": 149.004,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0011",
+    "tokens_used": 14717,
+    "seconds_elapsed": 19.113,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0008",
+    "tokens_used": 25632,
+    "seconds_elapsed": 97.833,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0002",
+    "tokens_used": 37239,
+    "seconds_elapsed": 172.874,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0016",
+    "tokens_used": 29364,
+    "seconds_elapsed": 21.037,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0013",
+    "tokens_used": 31041,
+    "seconds_elapsed": 64.788,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0012",
+    "tokens_used": 30133,
+    "seconds_elapsed": 70.245,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0018",
+    "tokens_used": 18164,
+    "seconds_elapsed": 15.176,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0014",
+    "tokens_used": 30137,
+    "seconds_elapsed": 69.626,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0015",
+    "tokens_used": 31110,
+    "seconds_elapsed": 61.603,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0010",
+    "tokens_used": 28509,
+    "seconds_elapsed": 131.732,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0019",
+    "tokens_used": 36829,
+    "seconds_elapsed": 49.751,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0017",
+    "tokens_used": 42261,
+    "seconds_elapsed": 169.401,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0020",
+    "tokens_used": 58834,
+    "seconds_elapsed": 202.419,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0021",
+    "tokens_used": 97734,
+    "seconds_elapsed": 216.541,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0004",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0302",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0330",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0530",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0531",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0532",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0533",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0534",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0535",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0536",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0537",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0538",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0539",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0540",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0541",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0542",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0543",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0544",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0545",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0546",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0547",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0548",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0549",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0550",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0551",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0552",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0553",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0554",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0555",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0556",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0557",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0558",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0559",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0560",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0561",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0562",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0563",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0564",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0565",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0566",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0567",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0568",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0569",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0570",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0571",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0572",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0573",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0574",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0575",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0576",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0577",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0578",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0579",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0580",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0581",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0582",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0583",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0584",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0585",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0586",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0587",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0588",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0589",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0590",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0591",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0592",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0593",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0594",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0595",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0596",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0597",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0598",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0599",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0600",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0601",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0602",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0603",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0604",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0605",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0606",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0607",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0608",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0609",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0610",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0611",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0612",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0613",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0614",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0615",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0616",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0617",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0618",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0619",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0620",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0621",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0622",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0623",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0624",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0625",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0626",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0627",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0628",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0629",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0630",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0631",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0632",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0633",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0634",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0635",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0636",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0637",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0638",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0639",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0640",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0641",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0642",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0643",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0644",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0645",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0646",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0647",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0648",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0649",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0650",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0651",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0652",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0653",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0654",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0655",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0656",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0657",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0658",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0659",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0660",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0661",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0662",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0663",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0664",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0665",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0666",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0667",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0668",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0669",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0670",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0671",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0672",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0673",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0674",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0675",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0676",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0677",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0678",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0679",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0680",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0681",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0682",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0683",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0684",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0685",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0686",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0687",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0688",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0689",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0690",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0691",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0692",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0693",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0694",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0695",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0696",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0697",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0698",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0699",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0700",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0701",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0702",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0703",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0704",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0705",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0706",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0707",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0708",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0709",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0710",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0711",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0712",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0713",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0714",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0715",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0716",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0717",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0718",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0719",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0720",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0721",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0722",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0723",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0724",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0725",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0726",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0727",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0728",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0729",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0730",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0731",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0732",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0733",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0734",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0735",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0736",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0737",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0738",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0739",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0740",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0741",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0742",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0743",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0744",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0745",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0746",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0747",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0748",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0749",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0750",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0751",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0752",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0753",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0754",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0755",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0756",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0757",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0758",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0759",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0760",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0761",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0762",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0763",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0764",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0765",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0766",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0767",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0768",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0769",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0770",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0771",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0772",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0773",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0774",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0775",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0776",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0777",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0778",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0779",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0780",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0781",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0782",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0783",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0784",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0785",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0786",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0787",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0788",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0789",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0790",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0791",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0792",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0793",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0794",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0795",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0796",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0797",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0798",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0799",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0800",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0801",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0802",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0803",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0804",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0805",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0806",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0807",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0808",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0809",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0810",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0811",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0812",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0813",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0814",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0815",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0816",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0817",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0818",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0819",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0820",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0821",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0822",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0823",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0824",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0825",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0826",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0827",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0828",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0829",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0830",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0831",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0832",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0833",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0834",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0835",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0836",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0837",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0838",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0839",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0840",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0841",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0842",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0843",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0844",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0845",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0846",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0847",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0848",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0849",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0850",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0023",
+    "tokens_used": 22308,
+    "seconds_elapsed": 42.777,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0028",
+    "tokens_used": 18710,
+    "seconds_elapsed": 16.644,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0022",
+    "tokens_used": 23711,
+    "seconds_elapsed": 59.708,
+    "ceiling_hit": false
+  }
+]
