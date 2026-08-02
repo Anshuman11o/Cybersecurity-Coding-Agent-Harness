@@ -1,0 +1,1330 @@
+  [PROVIDER] sonnet5cli / claude-sonnet-5 — Claude Sonnet 5 (Claude Code CLI transport)
+=== [sonnet5cli] stage2-hunt-lanes-perfile ===
+(node:10100) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10115) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10127) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10127) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+=== Stage 2 (Per-File v2): Hunt Lanes ===
+
+All 14 playbook modules validated across 14 classes (covering all 25 category codes)
+
+[PROVIDER] sonnet5cli / claude-sonnet-5
+Loaded 865 lane assignments
+Target directory: /home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind
+Hunt lanes: 541, Skip lanes: 324
+  [SKIP] file-0004: data/datacreator.ts — Denylisted: references challenge identifiers — must never reach a hunting lane
+  [SKIP] file-0302: lib/antiCheat.ts — Denylisted: references challenge identifiers — must never reach a hunting lane
+  [SKIP] file-0330: models/challenge.ts — Denylisted: references challenge identifiers — must never reach a hunting lane
+  [SKIP] file-0530: .devcontainer.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0531: .junie/config.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0532: .well-known/csaf/2017/juice-shop-sa-20200513-express-jwt.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0533: .well-known/csaf/2021/juice-shop-sa-20211014-proto.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0534: .well-known/csaf/2024/juice-shop-sa-disclaimer.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0535: .well-known/csaf/provider-metadata.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0536: app.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0537: data/static/i18n/ar_SA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0538: data/static/i18n/az_AZ.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0539: data/static/i18n/bg_BG.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0540: data/static/i18n/bn_BD.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0541: data/static/i18n/ca_ES.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0542: data/static/i18n/cs_CZ.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0543: data/static/i18n/da_DK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0544: data/static/i18n/de_CH.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0545: data/static/i18n/de_DE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0546: data/static/i18n/el_GR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0547: data/static/i18n/en.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0548: data/static/i18n/es_ES.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0549: data/static/i18n/et_EE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0550: data/static/i18n/fa_IR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0551: data/static/i18n/fi_FI.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0552: data/static/i18n/fr_FR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0553: data/static/i18n/ga_IE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0554: data/static/i18n/he_IL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0555: data/static/i18n/hi_IN.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0556: data/static/i18n/hu_HU.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0557: data/static/i18n/id_ID.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0558: data/static/i18n/it_IT.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0559: data/static/i18n/ja_JP.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0560: data/static/i18n/ka_GE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0561: data/static/i18n/ko_KR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0562: data/static/i18n/lv_LV.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0563: data/static/i18n/my_MM.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0564: data/static/i18n/nl_NL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0565: data/static/i18n/no_NO.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0566: data/static/i18n/pl_PL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0567: data/static/i18n/pt_BR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0568: data/static/i18n/pt_PT.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0569: data/static/i18n/ro_RO.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0570: data/static/i18n/ru_RU.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0571: data/static/i18n/si_LK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0572: data/static/i18n/sv_SE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0573: data/static/i18n/th_TH.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0574: data/static/i18n/tlh_AA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0575: data/static/i18n/tr_TR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0576: data/static/i18n/uk_UA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0577: data/static/i18n/zh_CN.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0578: data/static/i18n/zh_HK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0579: data/static/i18n/zh_TW.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0580: data/static/locales.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0581: frontend/angular.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0582: frontend/package.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0583: frontend/src/assets/i18n/ar_SA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0584: frontend/src/assets/i18n/az_AZ.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0585: frontend/src/assets/i18n/bg_BG.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0586: frontend/src/assets/i18n/bn_BD.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0587: frontend/src/assets/i18n/ca_ES.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0588: frontend/src/assets/i18n/cs_CZ.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0589: frontend/src/assets/i18n/da_DK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0590: frontend/src/assets/i18n/de_CH.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0591: frontend/src/assets/i18n/de_DE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0592: frontend/src/assets/i18n/el_GR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0593: frontend/src/assets/i18n/en.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0594: frontend/src/assets/i18n/es_ES.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0595: frontend/src/assets/i18n/et_EE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0596: frontend/src/assets/i18n/fa_IR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0597: frontend/src/assets/i18n/fi_FI.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0598: frontend/src/assets/i18n/fr_FR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0599: frontend/src/assets/i18n/ga_IE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0600: frontend/src/assets/i18n/he_IL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0601: frontend/src/assets/i18n/hi_IN.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0602: frontend/src/assets/i18n/hu_HU.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0603: frontend/src/assets/i18n/id_ID.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0604: frontend/src/assets/i18n/it_IT.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0605: frontend/src/assets/i18n/ja_JP.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0606: frontend/src/assets/i18n/ka_GE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0607: frontend/src/assets/i18n/ko_KR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0608: frontend/src/assets/i18n/lv_LV.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0609: frontend/src/assets/i18n/my_MM.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0610: frontend/src/assets/i18n/nl_NL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0611: frontend/src/assets/i18n/no_NO.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0612: frontend/src/assets/i18n/pl_PL.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0613: frontend/src/assets/i18n/pt_BR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0614: frontend/src/assets/i18n/pt_PT.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0615: frontend/src/assets/i18n/ro_RO.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0616: frontend/src/assets/i18n/ru_RU.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0617: frontend/src/assets/i18n/si_LK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0618: frontend/src/assets/i18n/sv_SE.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0619: frontend/src/assets/i18n/th_TH.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0620: frontend/src/assets/i18n/tlh_AA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0621: frontend/src/assets/i18n/tr_TR.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0622: frontend/src/assets/i18n/uk_UA.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0623: frontend/src/assets/i18n/zh_CN.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0624: frontend/src/assets/i18n/zh_HK.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0625: frontend/src/assets/i18n/zh_TW.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0626: frontend/src/tsconfig.app.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0627: frontend/src/tsconfig.spec.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0628: frontend/tsconfig.base.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0629: frontend/tsconfig.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0630: monitoring/grafana-dashboard.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0631: package.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0632: test/cypress/tsconfig.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0633: test/files/outdatedLocalBackup.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0634: test/files/validLocalBackup.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0635: threat-model.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0636: tsconfig.json — Pure data/config file — no executable logic or independent entrypoint-to-sink path
+  [SKIP] file-0637: frontend/src/app/about/about.component.scss — Styling file — no executable logic
+  [SKIP] file-0638: frontend/src/app/accounting/accounting.component.scss — Styling file — no executable logic
+  [SKIP] file-0639: frontend/src/app/address-create/address-create.component.scss — Styling file — no executable logic
+  [SKIP] file-0640: frontend/src/app/address-select/address-select.component.scss — Styling file — no executable logic
+  [SKIP] file-0641: frontend/src/app/address/address.component.scss — Styling file — no executable logic
+  [SKIP] file-0642: frontend/src/app/administration/administration.component.scss — Styling file — no executable logic
+  [SKIP] file-0643: frontend/src/app/app.component.scss — Styling file — no executable logic
+  [SKIP] file-0644: frontend/src/app/basket/basket.component.scss — Styling file — no executable logic
+  [SKIP] file-0645: frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.scss — Styling file — no executable logic
+  [SKIP] file-0646: frontend/src/app/challenge-status-badge/challenge-status-badge.component.scss — Styling file — no executable logic
+  [SKIP] file-0647: frontend/src/app/change-password/change-password.component.scss — Styling file — no executable logic
+  [SKIP] file-0648: frontend/src/app/chatbot/chat-conversation/chat-conversation.component.scss — Styling file — no executable logic
+  [SKIP] file-0649: frontend/src/app/chatbot/chat-input-box/chat-input-box.component.scss — Styling file — no executable logic
+  [SKIP] file-0650: frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.scss — Styling file — no executable logic
+  [SKIP] file-0651: frontend/src/app/chatbot/chatbot.component.scss — Styling file — no executable logic
+  [SKIP] file-0652: frontend/src/app/coding-challenge-page/coding-challenge-page.component.scss — Styling file — no executable logic
+  [SKIP] file-0653: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.scss — Styling file — no executable logic
+  [SKIP] file-0654: frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.scss — Styling file — no executable logic
+  [SKIP] file-0655: frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.scss — Styling file — no executable logic
+  [SKIP] file-0656: frontend/src/app/complaint/complaint.component.scss — Styling file — no executable logic
+  [SKIP] file-0657: frontend/src/app/contact/contact.component.scss — Styling file — no executable logic
+  [SKIP] file-0658: frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.scss — Styling file — no executable logic
+  [SKIP] file-0659: frontend/src/app/data-export/data-export.component.scss — Styling file — no executable logic
+  [SKIP] file-0660: frontend/src/app/delivery-method/delivery-method.component.scss — Styling file — no executable logic
+  [SKIP] file-0661: frontend/src/app/deluxe-user/deluxe-user.component.scss — Styling file — no executable logic
+  [SKIP] file-0662: frontend/src/app/error-page/error-page.component.scss — Styling file — no executable logic
+  [SKIP] file-0663: frontend/src/app/faucet/faucet.component.scss — Styling file — no executable logic
+  [SKIP] file-0664: frontend/src/app/feedback-details/feedback-details.component.scss — Styling file — no executable logic
+  [SKIP] file-0665: frontend/src/app/forgot-password/forgot-password.component.scss — Styling file — no executable logic
+  [SKIP] file-0666: frontend/src/app/last-login-ip/last-login-ip.component.scss — Styling file — no executable logic
+  [SKIP] file-0667: frontend/src/app/login/login.component.scss — Styling file — no executable logic
+  [SKIP] file-0668: frontend/src/app/mat-search-bar/mat-search-bar.component.scss — Styling file — no executable logic
+  [SKIP] file-0669: frontend/src/app/navbar/navbar.component.scss — Styling file — no executable logic
+  [SKIP] file-0670: frontend/src/app/nft-unlock/nft-unlock.component.scss — Styling file — no executable logic
+  [SKIP] file-0671: frontend/src/app/oauth/oauth.component.scss — Styling file — no executable logic
+  [SKIP] file-0672: frontend/src/app/order-completion/order-completion.component.scss — Styling file — no executable logic
+  [SKIP] file-0673: frontend/src/app/order-history/order-history.component.scss — Styling file — no executable logic
+  [SKIP] file-0674: frontend/src/app/order-summary/order-summary.component.scss — Styling file — no executable logic
+  [SKIP] file-0675: frontend/src/app/password-strength-info/password-strength-info.component.scss — Styling file — no executable logic
+  [SKIP] file-0676: frontend/src/app/password-strength/password-strength.component.scss — Styling file — no executable logic
+  [SKIP] file-0677: frontend/src/app/payment-method/payment-method.component.scss — Styling file — no executable logic
+  [SKIP] file-0678: frontend/src/app/payment/payment.component.scss — Styling file — no executable logic
+  [SKIP] file-0679: frontend/src/app/photo-wall/photo-wall.component.scss — Styling file — no executable logic
+  [SKIP] file-0680: frontend/src/app/privacy-policy/privacy-policy.component.scss — Styling file — no executable logic
+  [SKIP] file-0681: frontend/src/app/privacy-security/privacy-security.component.scss — Styling file — no executable logic
+  [SKIP] file-0682: frontend/src/app/product-details/product-details.component.scss — Styling file — no executable logic
+  [SKIP] file-0683: frontend/src/app/product-review-edit/product-review-edit.component.scss — Styling file — no executable logic
+  [SKIP] file-0684: frontend/src/app/product/product.component.scss — Styling file — no executable logic
+  [SKIP] file-0685: frontend/src/app/purchase-basket/purchase-basket.component.scss — Styling file — no executable logic
+  [SKIP] file-0686: frontend/src/app/qr-code/qr-code.component.scss — Styling file — no executable logic
+  [SKIP] file-0687: frontend/src/app/recycle/recycle.component.scss — Styling file — no executable logic
+  [SKIP] file-0688: frontend/src/app/register/register.component.scss — Styling file — no executable logic
+  [SKIP] file-0689: frontend/src/app/saved-address/saved-address.component.scss — Styling file — no executable logic
+  [SKIP] file-0690: frontend/src/app/saved-payment-methods/saved-payment-methods.component.scss — Styling file — no executable logic
+  [SKIP] file-0691: frontend/src/app/score-board/components/challenge-card/challenge-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0692: frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.scss — Styling file — no executable logic
+  [SKIP] file-0693: frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0694: frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0695: frontend/src/app/score-board/components/difficulty-stars/difficulty-stars.component.scss — Styling file — no executable logic
+  [SKIP] file-0696: frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.scss — Styling file — no executable logic
+  [SKIP] file-0697: frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.scss — Styling file — no executable logic
+  [SKIP] file-0698: frontend/src/app/score-board/components/filter-settings/filter-settings.component.scss — Styling file — no executable logic
+  [SKIP] file-0699: frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0700: frontend/src/app/score-board/components/score-card/score-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0701: frontend/src/app/score-board/components/warning-card/warning-card.component.scss — Styling file — no executable logic
+  [SKIP] file-0702: frontend/src/app/score-board/score-board.component.scss — Styling file — no executable logic
+  [SKIP] file-0703: frontend/src/app/search-result/search-result.component.scss — Styling file — no executable logic
+  [SKIP] file-0704: frontend/src/app/server-started-notification/server-started-notification.component.scss — Styling file — no executable logic
+  [SKIP] file-0705: frontend/src/app/sidenav/sidenav.component.scss — Styling file — no executable logic
+  [SKIP] file-0706: frontend/src/app/token-sale/token-sale.component.scss — Styling file — no executable logic
+  [SKIP] file-0707: frontend/src/app/track-result/track-result.component.scss — Styling file — no executable logic
+  [SKIP] file-0708: frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.scss — Styling file — no executable logic
+  [SKIP] file-0709: frontend/src/app/two-factor-auth/two-factor-auth.component.scss — Styling file — no executable logic
+  [SKIP] file-0710: frontend/src/app/user-details/user-details.component.scss — Styling file — no executable logic
+  [SKIP] file-0711: frontend/src/app/wallet-web3/wallet-web3.component.scss — Styling file — no executable logic
+  [SKIP] file-0712: frontend/src/app/wallet/wallet.component.scss — Styling file — no executable logic
+  [SKIP] file-0713: frontend/src/app/web3-sandbox/web3-sandbox.component.scss — Styling file — no executable logic
+  [SKIP] file-0714: frontend/src/app/welcome-banner/welcome-banner.component.scss — Styling file — no executable logic
+  [SKIP] file-0715: frontend/src/app/welcome/welcome.component.scss — Styling file — no executable logic
+  [SKIP] file-0716: frontend/src/assets/public/css/dataErasure.css — Styling file — no executable logic
+  [SKIP] file-0717: frontend/src/assets/public/css/roboto.css — Styling file — no executable logic
+  [SKIP] file-0718: frontend/src/assets/public/css/userProfile.css — Styling file — no executable logic
+  [SKIP] file-0719: frontend/src/hacking-instructor/hacking-instructor.scss — Styling file — no executable logic
+  [SKIP] file-0720: frontend/src/styles.scss — Styling file — no executable logic
+  [SKIP] file-0721: frontend/src/styles/_variables.scss — Styling file — no executable logic
+  [SKIP] file-0722: frontend/src/styles/theme.scss — Styling file — no executable logic
+  [SKIP] file-0723: frontend/src/app/about/about.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0724: frontend/src/app/accounting/accounting.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0725: frontend/src/app/address-create/address-create.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0726: frontend/src/app/address-select/address-select.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0727: frontend/src/app/address/address.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0728: frontend/src/app/administration/administration.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0729: frontend/src/app/app.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0730: frontend/src/app/basket/basket.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0731: frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0732: frontend/src/app/challenge-status-badge/challenge-status-badge.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0733: frontend/src/app/change-password/change-password.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0734: frontend/src/app/chatbot/chat-conversation/chat-conversation.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0735: frontend/src/app/chatbot/chat-input-box/chat-input-box.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0736: frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0737: frontend/src/app/chatbot/chatbot.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0738: frontend/src/app/coding-challenge-page/coding-challenge-page.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0739: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0740: frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0741: frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0742: frontend/src/app/complaint/complaint.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0743: frontend/src/app/contact/contact.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0744: frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0745: frontend/src/app/data-export/data-export.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0746: frontend/src/app/delivery-method/delivery-method.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0747: frontend/src/app/deluxe-user/deluxe-user.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0748: frontend/src/app/error-page/error-page.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0749: frontend/src/app/faucet/faucet.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0750: frontend/src/app/feedback-details/feedback-details.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0751: frontend/src/app/forgot-password/forgot-password.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0752: frontend/src/app/last-login-ip/last-login-ip.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0753: frontend/src/app/login/login.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0754: frontend/src/app/mat-search-bar/mat-search-bar.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0755: frontend/src/app/navbar/navbar.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0756: frontend/src/app/nft-unlock/nft-unlock.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0757: frontend/src/app/oauth/oauth.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0758: frontend/src/app/order-completion/order-completion.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0759: frontend/src/app/order-history/order-history.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0760: frontend/src/app/order-summary/order-summary.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0761: frontend/src/app/password-strength-info/password-strength-info.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0762: frontend/src/app/password-strength/password-strength.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0763: frontend/src/app/payment-method/payment-method.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0764: frontend/src/app/payment/payment.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0765: frontend/src/app/photo-wall/photo-wall.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0766: frontend/src/app/privacy-policy/privacy-policy.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0767: frontend/src/app/privacy-security/privacy-security.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0768: frontend/src/app/product-details/product-details.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0769: frontend/src/app/product-review-edit/product-review-edit.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0770: frontend/src/app/product/product.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0771: frontend/src/app/purchase-basket/purchase-basket.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0772: frontend/src/app/qr-code/qr-code.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0773: frontend/src/app/recycle/recycle.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0774: frontend/src/app/register/register.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0775: frontend/src/app/saved-address/saved-address.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0776: frontend/src/app/saved-payment-methods/saved-payment-methods.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0777: frontend/src/app/score-board/components/challenge-card/challenge-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0778: frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0779: frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0780: frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0781: frontend/src/app/score-board/components/difficulty-stars/difficulty-stars.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0782: frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0783: frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0784: frontend/src/app/score-board/components/filter-settings/filter-settings.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0785: frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0786: frontend/src/app/score-board/components/score-card/score-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0787: frontend/src/app/score-board/components/tutorial-mode-warning/tutorial-mode-warning.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0788: frontend/src/app/score-board/components/warning-card/warning-card.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0789: frontend/src/app/score-board/score-board.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0790: frontend/src/app/search-result/search-result.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0791: frontend/src/app/server-started-notification/server-started-notification.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0792: frontend/src/app/sidenav/sidenav.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0793: frontend/src/app/token-sale/token-sale.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0794: frontend/src/app/track-result/track-result.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0795: frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0796: frontend/src/app/two-factor-auth/two-factor-auth.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0797: frontend/src/app/user-details/user-details.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0798: frontend/src/app/wallet-web3/wallet-web3.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0799: frontend/src/app/wallet/wallet.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0800: frontend/src/app/web3-sandbox/web3-sandbox.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0801: frontend/src/app/welcome-banner/welcome-banner.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0802: frontend/src/app/welcome/welcome.component.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0803: frontend/src/assets/private/threejs-demo.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0804: frontend/src/index.html — Markup template — no independently executable logic without a render context
+  [SKIP] file-0805: .codeclimate.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0806: .dependabot/config.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0807: .github/FUNDING.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0808: .github/ISSUE_TEMPLATE/config.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0809: .github/workflows/ci.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0810: .github/workflows/codeql-analysis.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0811: .github/workflows/frontend-bundle-analysis.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0812: .github/workflows/image_actions.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0813: .github/workflows/lint-fixer.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0814: .github/workflows/lock.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0815: .github/workflows/pr-compliance.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0816: .github/workflows/rebase.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0817: .github/workflows/release.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0818: .github/workflows/stale.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0819: .github/workflows/update-challenges-ebook.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0820: .github/workflows/update-challenges-www-legacy.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0821: .github/workflows/update-challenges-www.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0822: .github/workflows/update-news-www-legacy.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0823: .github/workflows/update-news-www.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0824: .github/workflows/zap_scan.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0825: .gitlab-ci.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0826: .gitlab/auto-deploy-values.yaml — Declarative config/CI file — no executable logic
+  [SKIP] file-0827: .gitpod.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0828: config/7ms.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0829: config/addo.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0830: config/bodgeit.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0831: config/ctf.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0832: config/default.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0833: config/defcon33.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0834: config/fbctf.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0835: config/juicebox.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0836: config/mozilla.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0837: config/oss.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0838: config/quiet.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0839: config/test.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0840: config/tutorial.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0841: config/unsafe.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0842: crowdin.yaml — Declarative config/CI file — no executable logic
+  [SKIP] file-0843: data/static/challenges.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0844: data/static/deliveries.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0845: data/static/securityQuestions.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0846: data/static/users.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0847: docker-compose.test.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0848: ftp/suspicious_errors.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0849: swagger.yml — Declarative config/CI file — no executable logic
+  [SKIP] file-0850: test/files/yamlBomb.yml — Declarative config/CI file — no executable logic
+
+Architecture summary context loaded from: /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage0-recon/architecture-summary.json
+
+[RESUME] Found checkpoint: 161 findings, 404 lanes done
+[RESUME] Skipping 80 completed lanes, 461 lanes remaining
+[CHUNK] HUNT_MAX_LANES=120 — running 120 of 461 remaining lanes this pass
+
+[CONCURRENCY] Running up to 6 lanes in parallel
+[CLASS RESOLUTION] 120 lanes use lane.classes (signal-based), 0 lanes fall back to lane.categories
+
+[HUNT] Lane: file-0082 | File: frontend/src/app/Services/two-factor-auth-service.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0082] 142 lines, 5,972 bytes
+  [file-0082] Chunk plan: single pass
+
+[HUNT] Lane: file-0083 | File: frontend/src/app/Services/two-factor-auth-service.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0083] 61 lines, 1,915 bytes
+  [file-0083] Chunk plan: single pass
+
+[HUNT] Lane: file-0084 | File: frontend/src/app/Services/user.service.spec.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0084] 234 lines, 8,652 bytes
+  [file-0084] Chunk plan: single pass
+
+[HUNT] Lane: file-0085 | File: frontend/src/app/Services/user.service.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0085] 83 lines, 3,051 bytes
+  [file-0085] Chunk plan: single pass
+
+[HUNT] Lane: file-0086 | File: frontend/src/app/Services/vuln-lines.service.spec.ts | Classes: crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0086] 46 lines, 1,940 bytes
+  [file-0086] Chunk plan: single pass
+
+[HUNT] Lane: file-0087 | File: frontend/src/app/Services/vuln-lines.service.ts | Classes: insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0087] 27 lines, 735 bytes
+  [file-0087] Chunk plan: single pass
+  [file-0086] Loaded 4 playbook module(s): crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0082] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0083] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0087] Loaded 5 playbook module(s): insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0085] Loaded 7 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0084] Loaded 9 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0086] chunk 1: 10,705 tokens, 30.6s
+  [file-0082] chunk 1: 29,230 tokens, 46.9s
+  [file-0087] chunk 1: 12,817 tokens, 47.0s
+  [file-0085] chunk 1: 16,604 tokens, 47.3s
+  [file-0083] chunk 1: 13,853 tokens, 52.9s
+  [file-0086] chunk 1 pass 1 (trace): 14,454 tokens, 30.7s, +0 new, 2 traces extended
+  [file-0086] → 2 finding(s), 25,159 tokens, 61.3s total
+
+[HUNT] Lane: file-0088 | File: frontend/src/app/Services/wallet.service.spec.ts | Classes: crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0088] 75 lines, 3,020 bytes
+  [file-0088] Chunk plan: single pass
+  [file-0088] Loaded 4 playbook module(s): crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0082] chunk 1 pass 1 (trace): 17,527 tokens, 25.9s, +0 new, 1 traces extended
+  [file-0082] → 1 finding(s), 46,757 tokens, 72.8s total
+
+[HUNT] Lane: file-0089 | File: frontend/src/app/Services/wallet.service.ts | Classes: insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0089] 28 lines, 848 bytes
+  [file-0089] Chunk plan: single pass
+  [file-0089] Loaded 5 playbook module(s): insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0084] chunk 1: 44,744 tokens, 73.1s
+  [file-0085] [WARN] Finding "Client marks user as authenticated before login request completes or succeeds" trace doesn't end with sink — dropping
+  [file-0085] chunk 1 pass 1 (trace): 20,586 tokens, 33.1s, +0 new, 1 traces extended
+  [file-0085] → 3 finding(s), 37,190 tokens, 80.4s total
+
+[HUNT] Lane: file-0090 | File: frontend/src/app/Services/window-ref.service.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0090] 23 lines, 530 bytes
+  [file-0090] Chunk plan: single pass
+  [file-0090] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0090] chunk 1: 6,434 tokens, 4.9s
+  [file-0090] chunk 1 pass 1 (trace): 7,015 tokens, 6.8s, +0 new, 0 traces extended
+  [file-0090] → 0 finding(s), 13,449 tokens, 11.7s total
+
+[HUNT] Lane: file-0091 | File: frontend/src/app/Services/window-ref.service.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0091] 20 lines, 341 bytes
+  [file-0091] Chunk plan: single pass
+  [file-0091] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0083] chunk 1 pass 1 (trace): 18,525 tokens, 41.7s, +0 new, 3 traces extended
+  [file-0083] → 3 finding(s), 32,378 tokens, 94.6s total
+
+[HUNT] Lane: file-0092 | File: frontend/src/app/about/about.component.spec.ts | Classes: client-side, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0092] 274 lines, 12,410 bytes
+  [file-0092] Chunk plan: single pass
+  [file-0092] Loaded 5 playbook module(s): client-side, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0088] chunk 1: 11,660 tokens, 35.1s
+  [file-0087] chunk 1 pass 1 (trace): 18,393 tokens, 54.0s, +0 new, 3 traces extended
+  [file-0087] → 3 finding(s), 31,210 tokens, 101.0s total
+
+[HUNT] Lane: file-0093 | File: frontend/src/app/about/about.component.ts | Classes: client-side, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0093] 131 lines, 5,221 bytes
+  [file-0093] Chunk plan: single pass
+  [file-0093] Loaded 5 playbook module(s): client-side, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0089] chunk 1: 11,484 tokens, 30.7s
+  [file-0091] chunk 1: 8,657 tokens, 31.1s
+  [file-0092] chunk 1: 18,063 tokens, 41.3s
+  [file-0089] chunk 1 pass 1 (trace): 14,979 tokens, 32.4s, +0 new, 2 traces extended
+  [file-0089] → 2 finding(s), 26,463 tokens, 63.0s total
+
+[HUNT] Lane: file-0094 | File: frontend/src/app/accounting/accounting.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0094] 376 lines, 16,702 bytes
+  [file-0094] Chunk plan: single pass
+  [file-0094] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0091] chunk 1 pass 1 (trace): 10,428 tokens, 15.1s, +0 new, 1 traces extended
+  [file-0091] → 1 finding(s), 19,085 tokens, 46.2s total
+
+[HUNT] Lane: file-0095 | File: frontend/src/app/accounting/accounting.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0095] 166 lines, 5,620 bytes
+  [file-0095] Chunk plan: single pass
+  [file-0095] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0088] chunk 1 pass 1 (trace): 17,771 tokens, 51.3s, +0 new, 2 traces extended
+  [file-0088] → 2 finding(s), 29,431 tokens, 86.4s total
+
+[HUNT] Lane: file-0096 | File: frontend/src/app/address-create/address-create.component.spec.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0096] 245 lines, 10,263 bytes
+  [file-0096] Chunk plan: single pass
+  [file-0096] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0093] chunk 1: 15,419 tokens, 47.2s
+  [file-0084] chunk 1 pass 1 (trace): 31,523 tokens, 75.1s, +0 new, 3 traces extended
+  [file-0084] → 3 finding(s), 76,267 tokens, 148.3s total
+
+[HUNT] Lane: file-0097 | File: frontend/src/app/address-create/address-create.component.ts | Classes: access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0097] 153 lines, 6,121 bytes
+  [file-0097] Chunk plan: single pass
+  [file-0097] Loaded 9 playbook module(s): access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0096] chunk 1: 35,833 tokens, 42.7s
+  [file-0094] chunk 1: 18,724 tokens, 62.1s
+  [file-0097] chunk 1: 39,276 tokens, 51.4s
+  [file-0095] chunk 1: 20,031 tokens, 66.8s
+  [file-0093] chunk 1 pass 1 (trace): 21,706 tokens, 57.6s, +0 new, 2 traces extended
+  [file-0093] → 2 finding(s), 37,125 tokens, 104.8s total
+
+[HUNT] Lane: file-0098 | File: frontend/src/app/address-select/address-select.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0098] 90 lines, 3,701 bytes
+  [file-0098] Chunk plan: single pass
+  [file-0098] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0098] chunk 1: 8,244 tokens, 10.0s
+  [file-0098] chunk 1 pass 1 (trace): 8,865 tokens, 6.9s, +0 new, 0 traces extended
+  [file-0098] → 0 finding(s), 17,109 tokens, 17.0s total
+
+[HUNT] Lane: file-0099 | File: frontend/src/app/address-select/address-select.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0099] 27 lines, 708 bytes
+  [file-0099] Chunk plan: single pass
+  [file-0099] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0097] chunk 1 pass 1 (trace): 23,574 tokens, 31.6s, +0 new, 1 traces extended
+  [file-0097] → 1 finding(s), 62,850 tokens, 82.9s total
+
+[HUNT] Lane: file-0100 | File: frontend/src/app/address/address.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0100] 213 lines, 9,314 bytes
+  [file-0100] Chunk plan: single pass
+  [file-0100] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0096] chunk 1 pass 1 (trace): 22,731 tokens, 45.7s, +0 new, 1 traces extended
+  [file-0096] → 1 finding(s), 58,564 tokens, 88.4s total
+
+[HUNT] Lane: file-0101 | File: frontend/src/app/address/address.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0101] 108 lines, 3,876 bytes
+  [file-0101] Chunk plan: single pass
+  [file-0101] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0092] chunk 1 pass 1 (trace): 55,525 tokens, 106.9s, +0 new, 2 traces extended
+  [file-0092] → 2 finding(s), 73,588 tokens, 148.2s total
+
+[HUNT] Lane: file-0102 | File: frontend/src/app/administration/administration.component.spec.ts | Classes: ai-llm-agency, api-property-auth, client-side, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0102] 177 lines, 7,221 bytes
+  [file-0102] Chunk plan: single pass
+  [file-0102] Loaded 8 playbook module(s): ai-llm-agency, api-property-auth, client-side, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0099] chunk 1: 9,665 tokens, 37.7s
+  [file-0100] chunk 1: 16,507 tokens, 49.4s
+  [file-0094] chunk 1 pass 1 (trace): 28,248 tokens, 84.9s, +0 new, 3 traces extended
+  [file-0094] → 3 finding(s), 46,972 tokens, 147.0s total
+
+[HUNT] Lane: file-0103 | File: frontend/src/app/administration/administration.component.ts | Classes: access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0103] 142 lines, 5,179 bytes
+  [file-0103] Chunk plan: single pass
+  [file-0103] Loaded 11 playbook module(s): access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0102] chunk 1: 37,965 tokens, 56.5s
+  [file-0099] chunk 1 pass 1 (trace): 15,125 tokens, 53.5s, +0 new, 3 traces extended
+  [file-0099] → 3 finding(s), 24,790 tokens, 91.2s total
+
+[HUNT] Lane: file-0104 | File: frontend/src/app/app.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0104] 82 lines, 3,283 bytes
+  [file-0104] Chunk plan: single pass
+  [file-0104] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0101] chunk 1: 42,099 tokens, 79.8s
+  [file-0095] chunk 1 pass 1 (trace): 32,354 tokens, 115.0s, +0 new, 3 traces extended
+  [file-0095] → 3 finding(s), 52,385 tokens, 181.8s total
+
+[HUNT] Lane: file-0105 | File: frontend/src/app/app.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0105] 27 lines, 1,283 bytes
+  [file-0105] Chunk plan: single pass
+  [file-0105] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0104] chunk 1: 8,283 tokens, 12.9s
+  [file-0104] chunk 1 pass 1 (trace): 8,922 tokens, 5.9s, +0 new, 0 traces extended
+  [file-0104] → 0 finding(s), 17,205 tokens, 18.8s total
+
+[HUNT] Lane: file-0106 | File: frontend/src/app/app.guard.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0106] 244 lines, 7,889 bytes
+  [file-0106] Chunk plan: single pass
+  [file-0106] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0105] chunk 1: 7,314 tokens, 14.4s
+  [file-0105] chunk 1 pass 1 (trace): 7,938 tokens, 6.3s, +0 new, 0 traces extended
+  [file-0105] → 0 finding(s), 15,252 tokens, 20.7s total
+
+[HUNT] Lane: file-0107 | File: frontend/src/app/app.guard.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0107] 89 lines, 2,015 bytes
+  [file-0107] Chunk plan: single pass
+  [file-0107] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0100] chunk 1 pass 1 (trace): 22,907 tokens, 60.5s, +0 new, 3 traces extended
+  [file-0100] → 3 finding(s), 39,414 tokens, 109.9s total
+
+[HUNT] Lane: file-0108 | File: frontend/src/app/app.routing.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0108] 317 lines, 9,307 bytes
+  [file-0108] Chunk plan: single pass
+  [file-0108] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0103] chunk 1: 23,560 tokens, 60.2s
+  [file-0101] chunk 1 pass 1 (trace): 27,886 tokens, 49.0s, +0 new, 2 traces extended
+  [file-0101] → 3 finding(s), 69,985 tokens, 128.8s total
+
+[HUNT] Lane: file-0109 | File: frontend/src/app/basket/basket.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0109] 144 lines, 5,996 bytes
+  [file-0109] Chunk plan: single pass
+  [file-0109] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0102] chunk 1 pass 1 (trace): 27,711 tokens, 75.6s, +0 new, 2 traces extended
+  [file-0102] → 2 finding(s), 65,676 tokens, 132.1s total
+
+[HUNT] Lane: file-0110 | File: frontend/src/app/basket/basket.component.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0110] 52 lines, 1,559 bytes
+  [file-0110] Chunk plan: single pass
+  [file-0110] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0106] chunk 1: 17,335 tokens, 53.7s
+  [file-0106] [WARN] Finding "Authentication state derived solely from presence of a 'token' key in localStorage, with no validation of the token's contents" class "insecure-design" justified_by_step=3 out of range (trace length 3) — clamping to 0
+  [file-0106] [WARN] Finding "Security-critical role/authorization decisions rely entirely on client-side Angular route guards without evidence of independent server-side re-verification" class "insecure-design" justified_by_step=3 out of range (trace length 3) — clamping to 0
+  [file-0109] chunk 1: 14,237 tokens, 40.1s
+  [file-0103] chunk 1 pass 1 (trace): 31,058 tokens, 63.9s, +0 new, 5 traces extended
+  [file-0103] → 5 finding(s), 54,618 tokens, 124.1s total
+
+[HUNT] Lane: file-0111 | File: frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0111] 416 lines, 19,574 bytes
+  [file-0111] Chunk plan: single pass
+  [file-0111] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0107] chunk 1: 16,552 tokens, 74.8s
+  [file-0110] chunk 1: 12,867 tokens, 42.2s
+  [file-0106] chunk 1 pass 1 (trace): 23,812 tokens, 61.5s, +0 new, 3 traces extended
+  [file-0106] → 3 finding(s), 41,147 tokens, 115.2s total
+
+[HUNT] Lane: file-0112 | File: frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0112] 171 lines, 5,826 bytes
+  [file-0112] Chunk plan: single pass
+  [file-0112] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0109] chunk 1 pass 1 (trace): 19,600 tokens, 46.4s, +0 new, 2 traces extended
+  [file-0109] → 2 finding(s), 33,837 tokens, 86.5s total
+
+[HUNT] Lane: file-0113 | File: frontend/src/app/challenge-status-badge/challenge-status-badge.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0113] 141 lines, 6,569 bytes
+  [file-0113] Chunk plan: single pass
+  [file-0113] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0110] chunk 1 pass 1 (trace): 17,042 tokens, 37.3s, +0 new, 2 traces extended
+  [file-0110] → 3 finding(s), 29,909 tokens, 79.5s total
+
+[HUNT] Lane: file-0114 | File: frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0114] 46 lines, 1,635 bytes
+  [file-0114] Chunk plan: single pass
+  [file-0114] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0111] chunk 1: 19,733 tokens, 61.3s
+  [file-0108] chunk 1: 48,968 tokens, 130.5s
+  [file-0114] chunk 1: 9,055 tokens, 27.2s
+  [file-0113] chunk 1: 12,654 tokens, 45.4s
+  [file-0114] chunk 1 pass 1 (trace): 11,652 tokens, 21.2s, +0 new, 2 traces extended
+  [file-0114] → 2 finding(s), 20,707 tokens, 48.4s total
+
+[HUNT] Lane: file-0115 | File: frontend/src/app/change-password/change-password.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0115] 122 lines, 5,333 bytes
+  [file-0115] Chunk plan: single pass
+  [file-0115] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0107] chunk 1 pass 1 (trace): 29,097 tokens, 116.6s, +0 new, 5 traces extended
+  [file-0107] → 5 finding(s), 45,649 tokens, 191.4s total
+
+[HUNT] Lane: file-0116 | File: frontend/src/app/change-password/change-password.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0116] 144 lines, 4,066 bytes
+  [file-0116] Chunk plan: single pass
+  [file-0116] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0113] chunk 1 pass 1 (trace): 17,708 tokens, 46.1s, +0 new, 2 traces extended
+  [file-0113] → 2 finding(s), 30,362 tokens, 91.5s total
+
+[HUNT] Lane: file-0117 | File: frontend/src/app/chatbot/chat-conversation/chat-conversation.component.spec.ts | Classes: access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0117] 367 lines, 15,572 bytes
+  [file-0117] Chunk plan: single pass
+  [file-0117] Loaded 10 playbook module(s): access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0112] chunk 1: 23,021 tokens, 97.3s
+  [file-0115] chunk 1: 12,459 tokens, 46.4s
+  [file-0111] chunk 1 pass 1 (trace): 29,458 tokens, 99.3s, +0 new, 3 traces extended
+  [file-0111] → 3 finding(s), 49,191 tokens, 160.6s total
+
+[HUNT] Lane: file-0118 | File: frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts | Classes: access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0118] 173 lines, 6,058 bytes
+  [file-0118] Chunk plan: single pass
+  [file-0118] Loaded 11 playbook module(s): access-control, ai-llm-agency, api-property-auth, client-side, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0116] chunk 1: 12,638 tokens, 53.4s
+  [file-0115] chunk 1 pass 1 (trace): 16,745 tokens, 40.0s, +0 new, 1 traces extended
+  [file-0115] → 2 finding(s), 29,204 tokens, 86.4s total
+
+[HUNT] Lane: file-0119 | File: frontend/src/app/chatbot/chat-input-box/chat-input-box.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0119] 94 lines, 3,262 bytes
+  [file-0119] Chunk plan: single pass
+  [file-0119] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0108] chunk 1 pass 1 (trace): 40,466 tokens, 127.1s, +0 new, 5 traces extended
+  [file-0108] → 5 finding(s), 89,434 tokens, 257.6s total
+
+[HUNT] Lane: file-0120 | File: frontend/src/app/chatbot/chat-input-box/chat-input-box.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0120] 51 lines, 1,409 bytes
+  [file-0120] Chunk plan: single pass
+  [file-0120] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0119] chunk 1: 8,053 tokens, 9.9s
+  [file-0119] chunk 1 pass 1 (trace): 8,644 tokens, 5.6s, +0 new, 0 traces extended
+  [file-0119] → 0 finding(s), 16,697 tokens, 15.4s total
+
+[HUNT] Lane: file-0121 | File: frontend/src/app/chatbot/chat-welcome-page/chat-welcome-page.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0121] 32 lines, 1,258 bytes
+  [file-0121] Chunk plan: single pass
+  [file-0121] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0117] chunk 1: 26,817 tokens, 76.4s
+  [file-0121] chunk 1: 9,206 tokens, 29.6s
+  [file-0118] chunk 1: 24,508 tokens, 80.5s
+  [file-0112] chunk 1 pass 1 (trace): 34,961 tokens, 106.3s, +0 new, 5 traces extended
+  [file-0112] → 5 finding(s), 57,982 tokens, 203.6s total
+
+[HUNT] Lane: file-0122 | File: frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0122] 175 lines, 6,701 bytes
+  [file-0122] Chunk plan: single pass
+  [file-0122] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0120] chunk 1: 22,759 tokens, 56.9s
+  [file-0121] chunk 1 pass 1 (trace): 12,717 tokens, 30.7s, +0 new, 2 traces extended
+  [file-0121] → 2 finding(s), 21,923 tokens, 60.3s total
+
+[HUNT] Lane: file-0123 | File: frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0123] 98 lines, 3,466 bytes
+  [file-0123] Chunk plan: single pass
+  [file-0123] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0116] chunk 1 pass 1 (trace): 21,192 tokens, 84.8s, +0 new, 3 traces extended
+  [file-0116] → 3 finding(s), 33,830 tokens, 138.3s total
+
+[HUNT] Lane: file-0124 | File: frontend/src/app/chatbot/chat.model.ts | Classes: access-control, ai-llm-agency, client-side, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0124] 24 lines, 497 bytes
+  [file-0124] Chunk plan: single pass
+  [file-0124] Loaded 7 playbook module(s): access-control, ai-llm-agency, client-side, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0122] chunk 1: 11,268 tokens, 27.3s
+  [file-0120] chunk 1 pass 1 (trace): 17,809 tokens, 51.2s, +0 new, 2 traces extended
+  [file-0120] → 2 finding(s), 40,568 tokens, 108.1s total
+
+[HUNT] Lane: file-0125 | File: frontend/src/app/chatbot/chatbot.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0125] 41 lines, 1,229 bytes
+  [file-0125] Chunk plan: single pass
+  [file-0125] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0124] chunk 1: 26,439 tokens, 36.7s
+  [file-0118] chunk 1 pass 1 (trace): 32,535 tokens, 67.8s, +0 new, 4 traces extended
+  [file-0118] → 4 finding(s), 57,043 tokens, 148.3s total
+
+[HUNT] Lane: file-0126 | File: frontend/src/app/chatbot/chatbot.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0126] 18 lines, 495 bytes
+  [file-0126] Chunk plan: single pass
+  [file-0126] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0117] chunk 1 pass 1 (trace): 36,869 tokens, 98.1s, +0 new, 3 traces extended
+  [file-0117] → 3 finding(s), 63,686 tokens, 174.5s total
+
+[HUNT] Lane: file-0127 | File: frontend/src/app/coding-challenge-page/coding-challenge-page.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0127] 367 lines, 17,105 bytes
+  [file-0127] Chunk plan: single pass
+  [file-0127] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0122] chunk 1 pass 1 (trace): 15,943 tokens, 42.5s, +0 new, 1 traces extended
+  [file-0122] → 1 finding(s), 27,211 tokens, 69.8s total
+
+[HUNT] Lane: file-0128 | File: frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0128] 87 lines, 3,422 bytes
+  [file-0128] Chunk plan: single pass
+  [file-0128] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0125] chunk 1: 7,654 tokens, 15.3s
+  [file-0126] chunk 1: 6,976 tokens, 10.1s
+  [file-0123] chunk 1: 25,475 tokens, 62.9s
+  [file-0125] chunk 1 pass 1 (trace): 8,258 tokens, 6.2s, +0 new, 0 traces extended
+  [file-0125] → 0 finding(s), 15,912 tokens, 21.5s total
+
+[HUNT] Lane: file-0129 | File: frontend/src/app/coding-challenge-page/coding-challenge.types.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0129] 16 lines, 255 bytes
+  [file-0129] Chunk plan: single pass
+  [file-0129] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0126] chunk 1 pass 1 (trace): 7,531 tokens, 6.9s, +0 new, 0 traces extended
+  [file-0126] → 0 finding(s), 14,507 tokens, 17.0s total
+
+[HUNT] Lane: file-0130 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0130] 347 lines, 13,088 bytes
+  [file-0130] Chunk plan: single pass
+  [file-0130] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0124] chunk 1 pass 1 (trace): 17,355 tokens, 33.8s, +0 new, 1 traces extended
+  [file-0124] → 1 finding(s), 43,794 tokens, 70.5s total
+
+[HUNT] Lane: file-0131 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0131] 341 lines, 11,896 bytes
+  [file-0131] Chunk plan: single pass
+  [file-0131] Loaded 9 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0123] chunk 1 pass 1 (trace): 17,558 tokens, 32.0s, +0 new, 1 traces extended
+  [file-0123] → 3 finding(s), 43,033 tokens, 95.0s total
+
+[HUNT] Lane: file-0132 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/format-selected-lines.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0132] 45 lines, 1,439 bytes
+  [file-0132] Chunk plan: single pass
+  [file-0132] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0132] chunk 1: 6,915 tokens, 4.3s
+  [file-0132] chunk 1 pass 1 (trace): 7,490 tokens, 5.0s, +0 new, 0 traces extended
+  [file-0132] → 0 finding(s), 14,405 tokens, 9.4s total
+
+[HUNT] Lane: file-0133 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/format-selected-lines.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0133] 24 lines, 710 bytes
+  [file-0133] Chunk plan: single pass
+  [file-0133] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0129] chunk 1: 20,009 tokens, 48.2s
+  [file-0127] chunk 1: 39,939 tokens, 80.6s
+  [file-0129] chunk 1 pass 1 (trace): 13,763 tokens, 28.1s, +0 new, 1 traces extended
+  [file-0129] → 1 finding(s), 33,772 tokens, 76.2s total
+
+[HUNT] Lane: file-0134 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0134] 191 lines, 7,752 bytes
+  [file-0134] Chunk plan: single pass
+  [file-0134] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0133] chunk 1: 9,394 tokens, 38.5s
+  [file-0128] chunk 1: 14,828 tokens, 86.7s
+  [file-0130] chunk 1: 41,528 tokens, 81.3s
+  [file-0131] chunk 1: 50,603 tokens, 83.2s
+  [file-0133] chunk 1 pass 1 (trace): 12,172 tokens, 22.8s, +0 new, 1 traces extended
+  [file-0133] → 1 finding(s), 21,566 tokens, 61.3s total
+
+[HUNT] Lane: file-0135 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0135] 149 lines, 4,955 bytes
+  [file-0135] Chunk plan: single pass
+  [file-0135] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0127] chunk 1 pass 1 (trace): 26,354 tokens, 43.6s, +0 new, 2 traces extended
+  [file-0127] → 2 finding(s), 66,293 tokens, 124.2s total
+
+[HUNT] Lane: file-0136 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0136] 126 lines, 4,844 bytes
+  [file-0136] Chunk plan: single pass
+  [file-0136] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0134] chunk 1: 25,793 tokens, 44.7s
+  [file-0136] chunk 1: 9,169 tokens, 14.7s
+  [file-0136] chunk 1 pass 1 (trace): 9,923 tokens, 7.0s, +0 new, 0 traces extended
+  [file-0136] → 0 finding(s), 19,092 tokens, 21.7s total
+
+[HUNT] Lane: file-0137 | File: frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0137] 55 lines, 1,528 bytes
+  [file-0137] Chunk plan: single pass
+  [file-0137] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0128] [WARN] Finding "Client-callable UI methods flip 'solved' state without any server round-trip confirmation in this component" class "insecure-design" justified_by_step=5 out of range (trace length 5) — clamping to 0
+  [file-0128] chunk 1 pass 1 (trace): 21,948 tokens, 62.7s, +0 new, 4 traces extended
+  [file-0128] → 4 finding(s), 36,776 tokens, 149.4s total
+
+[HUNT] Lane: file-0138 | File: frontend/src/app/coding-challenge-page/helpers/handle-verdict.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0138] 157 lines, 4,864 bytes
+  [file-0138] Chunk plan: single pass
+  [file-0138] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0130] chunk 1 pass 1 (trace): 28,238 tokens, 59.4s, +0 new, 2 traces extended
+  [file-0130] → 2 finding(s), 69,766 tokens, 140.6s total
+
+[HUNT] Lane: file-0139 | File: frontend/src/app/coding-challenge-page/helpers/handle-verdict.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0139] 51 lines, 1,670 bytes
+  [file-0139] Chunk plan: single pass
+  [file-0139] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0131] chunk 1 pass 1 (trace): 33,067 tokens, 63.8s, +0 new, 2 traces extended
+  [file-0131] → 2 finding(s), 83,670 tokens, 147.0s total
+
+[HUNT] Lane: file-0140 | File: frontend/src/app/complaint/complaint.component.spec.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0140] 203 lines, 9,044 bytes
+  [file-0140] Chunk plan: single pass
+  [file-0140] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0135] chunk 1: 18,628 tokens, 69.8s
+  [file-0134] chunk 1 pass 1 (trace): 20,276 tokens, 71.0s, +0 new, 1 traces extended
+  [file-0134] → 1 finding(s), 46,069 tokens, 115.7s total
+
+[HUNT] Lane: file-0141 | File: frontend/src/app/complaint/complaint.component.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0141] 120 lines, 4,460 bytes
+  [file-0141] Chunk plan: single pass
+  [file-0141] Loaded 9 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0139] chunk 1: 11,207 tokens, 50.8s
+  [file-0137] chunk 1: 11,845 tokens, 61.2s
+  [file-0138] chunk 1: 13,314 tokens, 57.1s
+  [file-0140] chunk 1: 18,667 tokens, 56.7s
+  [file-0135] chunk 1 pass 1 (trace): 25,217 tokens, 63.3s, +0 new, 2 traces extended
+  [file-0135] → 2 finding(s), 43,845 tokens, 133.1s total
+
+[HUNT] Lane: file-0142 | File: frontend/src/app/contact/contact.component.spec.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0142] 246 lines, 10,288 bytes
+  [file-0142] Chunk plan: single pass
+  [file-0142] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0139] chunk 1 pass 1 (trace): 16,270 tokens, 42.3s, +0 new, 2 traces extended
+  [file-0139] → 3 finding(s), 27,477 tokens, 93.1s total
+
+[HUNT] Lane: file-0143 | File: frontend/src/app/contact/contact.component.ts | Classes: access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0143] 141 lines, 5,055 bytes
+  [file-0143] Chunk plan: single pass
+  [file-0143] Loaded 9 playbook module(s): access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0138] chunk 1 pass 1 (trace): 18,023 tokens, 40.6s, +0 new, 3 traces extended
+  [file-0138] → 3 finding(s), 31,337 tokens, 97.6s total
+
+[HUNT] Lane: file-0144 | File: frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0144] 205 lines, 8,204 bytes
+  [file-0144] Chunk plan: single pass
+  [file-0144] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0137] chunk 1 pass 1 (trace): 18,084 tokens, 56.8s, +0 new, 2 traces extended
+  [file-0137] → 2 finding(s), 29,929 tokens, 118.0s total
+
+[HUNT] Lane: file-0145 | File: frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0145] 65 lines, 2,403 bytes
+  [file-0145] Chunk plan: single pass
+  [file-0145] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0142] chunk 1: 19,281 tokens, 54.2s
+  [file-0141] chunk 1: 46,293 tokens, 100.1s
+  [file-0140] chunk 1 pass 1 (trace): 26,646 tokens, 77.6s, +0 new, 3 traces extended
+  [file-0140] → 3 finding(s), 45,313 tokens, 134.3s total
+
+[HUNT] Lane: file-0146 | File: frontend/src/app/data-export/data-export.component.spec.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0146] 122 lines, 5,206 bytes
+  [file-0146] Chunk plan: single pass
+  [file-0146] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0145] chunk 1: 11,254 tokens, 46.4s
+  [file-0143] chunk 1: 21,052 tokens, 64.5s
+  [file-0144] chunk 1: 15,531 tokens, 64.3s
+  [file-0145] chunk 1 pass 1 (trace): 15,559 tokens, 35.6s, +0 new, 2 traces extended
+  [file-0145] → 2 finding(s), 26,813 tokens, 81.9s total
+
+[HUNT] Lane: file-0147 | File: frontend/src/app/data-export/data-export.component.ts | Classes: access-control, client-side, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0147] 100 lines, 3,679 bytes
+  [file-0147] Chunk plan: single pass
+  [file-0147] Loaded 9 playbook module(s): access-control, client-side, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0143] chunk 1 pass 1 (trace): 26,152 tokens, 41.8s, +0 new, 3 traces extended
+  [file-0143] → 3 finding(s), 47,204 tokens, 106.3s total
+
+[HUNT] Lane: file-0148 | File: frontend/src/app/delivery-method/delivery-method.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0148] 196 lines, 8,556 bytes
+  [file-0148] Chunk plan: single pass
+  [file-0148] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0146] chunk 1: 17,345 tokens, 54.2s
+  [file-0144] chunk 1 pass 1 (trace): 21,446 tokens, 48.2s, +0 new, 3 traces extended
+  [file-0144] → 3 finding(s), 36,977 tokens, 112.4s total
+
+[HUNT] Lane: file-0149 | File: frontend/src/app/delivery-method/delivery-method.component.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0149] 81 lines, 3,100 bytes
+  [file-0149] Chunk plan: single pass
+  [file-0149] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0142] chunk 1 pass 1 (trace): 25,566 tokens, 65.1s, +0 new, 2 traces extended
+  [file-0142] → 2 finding(s), 44,847 tokens, 119.4s total
+
+[HUNT] Lane: file-0150 | File: frontend/src/app/deluxe-user/deluxe-user.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0150] 129 lines, 5,435 bytes
+  [file-0150] Chunk plan: single pass
+  [file-0150] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0141] chunk 1 pass 1 (trace): 32,886 tokens, 77.2s, +0 new, 4 traces extended
+  [file-0141] → 4 finding(s), 79,179 tokens, 177.4s total
+
+[HUNT] Lane: file-0151 | File: frontend/src/app/deluxe-user/deluxe-user.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0151] 93 lines, 3,157 bytes
+  [file-0151] Chunk plan: single pass
+  [file-0151] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0147] chunk 1: 20,269 tokens, 62.6s
+  [file-0150] chunk 1: 14,580 tokens, 44.5s
+  [file-0149] chunk 1: 14,249 tokens, 47.8s
+  [file-0148] chunk 1: 34,661 tokens, 64.1s
+  [file-0146] chunk 1 pass 1 (trace): 24,390 tokens, 67.9s, +0 new, 3 traces extended
+  [file-0146] → 3 finding(s), 41,735 tokens, 122.1s total
+
+[HUNT] Lane: file-0152 | File: frontend/src/app/error-page/error-page.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0152] 44 lines, 1,290 bytes
+  [file-0152] Chunk plan: single pass
+  [file-0152] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0151] chunk 1: 12,170 tokens, 51.3s
+  [file-0152] chunk 1: 7,465 tokens, 13.5s
+  [file-0152] chunk 1 pass 1 (trace): 8,038 tokens, 4.7s, +0 new, 0 traces extended
+  [file-0152] → 0 finding(s), 15,503 tokens, 18.2s total
+
+[HUNT] Lane: file-0153 | File: frontend/src/app/error-page/error-page.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0153] 41 lines, 1,215 bytes
+  [file-0153] Chunk plan: single pass
+  [file-0153] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0149] chunk 1 pass 1 (trace): 18,645 tokens, 36.8s, +0 new, 3 traces extended
+  [file-0149] → 3 finding(s), 32,894 tokens, 84.6s total
+
+[HUNT] Lane: file-0154 | File: frontend/src/app/faucet/faucet.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0154] 317 lines, 9,695 bytes
+  [file-0154] Chunk plan: single pass
+  [file-0154] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0150] chunk 1 pass 1 (trace): 19,561 tokens, 43.2s, +0 new, 2 traces extended
+  [file-0150] → 2 finding(s), 34,141 tokens, 87.7s total
+
+[HUNT] Lane: file-0155 | File: frontend/src/app/faucet/faucet.module.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0155] 50 lines, 1,531 bytes
+  [file-0155] Chunk plan: single pass
+  [file-0155] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0148] chunk 1 pass 1 (trace): 23,321 tokens, 46.3s, +0 new, 2 traces extended
+  [file-0148] → 2 finding(s), 57,982 tokens, 110.4s total
+
+[HUNT] Lane: file-0156 | File: frontend/src/app/feedback-details/feedback-details.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0156] 47 lines, 1,674 bytes
+  [file-0156] Chunk plan: single pass
+  [file-0156] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0147] chunk 1 pass 1 (trace): 27,250 tokens, 66.3s, +0 new, 2 traces extended
+  [file-0147] → 3 finding(s), 47,519 tokens, 128.9s total
+
+[HUNT] Lane: file-0157 | File: frontend/src/app/feedback-details/feedback-details.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0157] 31 lines, 1,046 bytes
+  [file-0157] Chunk plan: single pass
+  [file-0157] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0156] chunk 1: 7,296 tokens, 9.5s
+  [file-0151] chunk 1 pass 1 (trace): 17,361 tokens, 46.4s, +0 new, 2 traces extended
+  [file-0151] → 3 finding(s), 29,531 tokens, 97.7s total
+
+[HUNT] Lane: file-0158 | File: frontend/src/app/forgot-password/forgot-password.component.spec.ts | Classes: api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0158] 200 lines, 8,512 bytes
+  [file-0158] Chunk plan: single pass
+  [file-0158] Loaded 6 playbook module(s): api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0156] chunk 1 pass 1 (trace): 7,846 tokens, 4.9s, +0 new, 0 traces extended
+  [file-0156] → 0 finding(s), 15,142 tokens, 14.4s total
+
+[HUNT] Lane: file-0159 | File: frontend/src/app/forgot-password/forgot-password.component.ts | Classes: api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0159] 145 lines, 5,976 bytes
+  [file-0159] Chunk plan: single pass
+  [file-0159] Loaded 6 playbook module(s): api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0155] chunk 1: 10,108 tokens, 37.7s
+  [file-0153] chunk 1: 10,562 tokens, 47.2s
+  [file-0157] chunk 1: 9,755 tokens, 36.9s
+  [file-0158] chunk 1: 16,796 tokens, 43.8s
+  [file-0153] chunk 1 pass 1 (trace): 15,664 tokens, 48.5s, +0 new, 2 traces extended
+  [file-0153] → 2 finding(s), 26,226 tokens, 95.7s total
+
+[HUNT] Lane: file-0160 | File: frontend/src/app/last-login-ip/last-login-ip.component.spec.ts | Classes: access-control, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0160] 83 lines, 3,127 bytes
+  [file-0160] Chunk plan: single pass
+  [file-0160] Loaded 7 playbook module(s): access-control, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0157] chunk 1 pass 1 (trace): 12,986 tokens, 34.1s, +0 new, 2 traces extended
+  [file-0157] → 2 finding(s), 22,741 tokens, 71.0s total
+
+[HUNT] Lane: file-0161 | File: frontend/src/app/last-login-ip/last-login-ip.component.ts | Classes: access-control, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0161] 44 lines, 1,143 bytes
+  [file-0161] Chunk plan: single pass
+  [file-0161] Loaded 7 playbook module(s): access-control, client-side, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration
+  [file-0155] chunk 1 pass 1 (trace): 18,444 tokens, 81.6s, +0 new, 2 traces extended
+  [file-0155] → 3 finding(s), 28,552 tokens, 119.3s total
+
+[HUNT] Lane: file-0162 | File: frontend/src/app/login/login.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0162] 341 lines, 14,623 bytes
+  [file-0162] Chunk plan: single pass
+  [file-0162] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0158] chunk 1 pass 1 (trace): 23,329 tokens, 54.7s, +0 new, 2 traces extended
+  [file-0158] → 2 finding(s), 40,125 tokens, 98.5s total
+
+[HUNT] Lane: file-0163 | File: frontend/src/app/login/login.component.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0163] 151 lines, 6,171 bytes
+  [file-0163] Chunk plan: single pass
+  [file-0163] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0159] chunk 1: 40,470 tokens, 100.2s
+  [file-0161] chunk 1: 14,996 tokens, 35.5s
+  [file-0160] chunk 1: 16,948 tokens, 49.1s
+  [file-0154] chunk 1: 59,743 tokens, 146.9s
+  [file-0161] chunk 1 pass 1 (trace): 18,013 tokens, 23.0s, +0 new, 2 traces extended
+  [file-0161] → 2 finding(s), 33,009 tokens, 58.5s total
+
+[HUNT] Lane: file-0164 | File: frontend/src/app/mat-search-bar/abstract-value-accessor.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0164] 47 lines, 1,026 bytes
+  [file-0164] Chunk plan: single pass
+  [file-0164] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0164] chunk 1: 8,334 tokens, 23.1s
+  [file-0160] chunk 1 pass 1 (trace): 22,116 tokens, 46.9s, +0 new, 2 traces extended
+  [file-0160] → 2 finding(s), 39,064 tokens, 96.0s total
+
+[HUNT] Lane: file-0165 | File: frontend/src/app/mat-search-bar/mat-search-bar.component.spec.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0165] 163 lines, 6,278 bytes
+  [file-0165] Chunk plan: single pass
+  [file-0165] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0165] chunk 1: 14,352 tokens, 7.4s
+  [file-0164] chunk 1 pass 1 (trace): 10,305 tokens, 17.0s, +0 new, 1 traces extended
+  [file-0164] → 1 finding(s), 18,639 tokens, 40.1s total
+
+[HUNT] Lane: file-0166 | File: frontend/src/app/mat-search-bar/mat-search-bar.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0166] 93 lines, 2,202 bytes
+  [file-0166] Chunk plan: single pass
+  [file-0166] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0165] chunk 1 pass 1 (trace): 14,938 tokens, 5.5s, +0 new, 0 traces extended
+  [file-0165] → 0 finding(s), 29,290 tokens, 13.0s total
+
+[HUNT] Lane: file-0167 | File: frontend/src/app/navbar/navbar.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0167] 559 lines, 24,283 bytes
+  [file-0167] Chunk plan: single pass
+  [file-0167] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0162] chunk 1: 22,259 tokens, 85.6s
+  [file-0163] chunk 1: 41,446 tokens, 104.2s
+  [file-0154] chunk 1 pass 1 (trace): 41,390 tokens, 96.0s, +0 new, 3 traces extended
+  [file-0154] → 4 finding(s), 101,133 tokens, 242.8s total
+
+[HUNT] Lane: file-0168 | File: frontend/src/app/navbar/navbar.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0168] 307 lines, 9,863 bytes
+  [file-0168] Chunk plan: single pass
+  [file-0168] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0166] chunk 1: 32,840 tokens, 49.9s
+  [file-0167] chunk 1: 24,231 tokens, 67.2s
+  [file-0166] chunk 1 pass 1 (trace): 22,782 tokens, 55.9s, +0 new, 1 traces extended
+  [file-0166] → 1 finding(s), 55,622 tokens, 105.7s total
+
+[HUNT] Lane: file-0169 | File: frontend/src/app/nft-unlock/nft-unlock.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0169] 134 lines, 5,597 bytes
+  [file-0169] Chunk plan: single pass
+  [file-0169] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0162] chunk 1 pass 1 (trace): 33,400 tokens, 101.2s, +0 new, 5 traces extended
+  [file-0162] → 5 finding(s), 55,659 tokens, 186.8s total
+
+[HUNT] Lane: file-0170 | File: frontend/src/app/nft-unlock/nft-unlock.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0170] 70 lines, 2,053 bytes
+  [file-0170] Chunk plan: single pass
+  [file-0170] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0159] chunk 1 pass 1 (trace): 78,415 tokens, 197.4s, +0 new, 4 traces extended
+  [file-0159] → 5 finding(s), 118,885 tokens, 297.5s total
+
+[HUNT] Lane: file-0171 | File: frontend/src/app/oauth/oauth.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0171] 109 lines, 4,688 bytes
+  [file-0171] Chunk plan: single pass
+  [file-0171] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0163] chunk 1 pass 1 (trace): 35,599 tokens, 116.0s, +0 new, 6 traces extended
+  [file-0163] → 7 finding(s), 77,045 tokens, 220.2s total
+
+[HUNT] Lane: file-0172 | File: frontend/src/app/oauth/oauth.component.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0172] 81 lines, 2,762 bytes
+  [file-0172] Chunk plan: single pass
+  [file-0172] Loaded 9 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0167] chunk 1 pass 1 (trace): 32,766 tokens, 82.7s, +0 new, 3 traces extended
+  [file-0167] → 3 finding(s), 56,997 tokens, 149.9s total
+
+[HUNT] Lane: file-0173 | File: frontend/src/app/order-completion/order-completion.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0173] 167 lines, 8,819 bytes
+  [file-0173] Chunk plan: single pass
+  [file-0173] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0169] chunk 1: 14,349 tokens, 67.1s
+  [file-0171] chunk 1: 14,795 tokens, 48.3s
+  [file-0168] chunk 1: 30,293 tokens, 140.9s
+  [file-0170] chunk 1: 26,624 tokens, 76.7s
+  [file-0173] chunk 1: 14,009 tokens, 46.4s
+  [file-0172] chunk 1: 20,915 tokens, 74.5s
+  [file-0170] chunk 1 pass 1 (trace): 20,553 tokens, 57.2s, +0 new, 2 traces extended
+  [file-0170] → 4 finding(s), 47,177 tokens, 134.0s total
+
+[HUNT] Lane: file-0174 | File: frontend/src/app/order-completion/order-completion.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0174] 107 lines, 4,902 bytes
+  [file-0174] Chunk plan: single pass
+  [file-0174] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0169] chunk 1 pass 1 (trace): 22,825 tokens, 80.9s, +0 new, 3 traces extended
+  [file-0169] → 3 finding(s), 37,174 tokens, 148.0s total
+
+[HUNT] Lane: file-0175 | File: frontend/src/app/order-history/order-history.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0175] 246 lines, 11,364 bytes
+  [file-0175] Chunk plan: single pass
+  [file-0175] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0171] chunk 1 pass 1 (trace): 46,683 tokens, 86.9s, +0 new, 3 traces extended
+  [file-0171] → 3 finding(s), 61,478 tokens, 135.1s total
+
+[HUNT] Lane: file-0176 | File: frontend/src/app/order-history/order-history.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0176] 126 lines, 4,243 bytes
+  [file-0176] Chunk plan: single pass
+  [file-0176] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0173] chunk 1 pass 1 (trace): 22,477 tokens, 89.0s, +0 new, 2 traces extended
+  [file-0173] → 2 finding(s), 36,486 tokens, 135.4s total
+
+[HUNT] Lane: file-0177 | File: frontend/src/app/order-summary/order-summary.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0177] 174 lines, 7,307 bytes
+  [file-0177] Chunk plan: single pass
+  [file-0177] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0175] chunk 1: 14,101 tokens, 39.4s
+  [file-0168] chunk 1 pass 1 (trace): 43,332 tokens, 126.7s, +0 new, 3 traces extended
+  [file-0168] → 5 finding(s), 73,625 tokens, 267.6s total
+
+[HUNT] Lane: file-0178 | File: frontend/src/app/order-summary/order-summary.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0178] 96 lines, 3,783 bytes
+  [file-0178] Chunk plan: single pass
+  [file-0178] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0172] chunk 1 pass 1 (trace): 31,990 tokens, 94.7s, +0 new, 5 traces extended
+  [file-0172] → 5 finding(s), 52,905 tokens, 169.3s total
+
+[HUNT] Lane: file-0179 | File: frontend/src/app/password-strength-info/password-strength-info.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0179] 109 lines, 4,497 bytes
+  [file-0179] Chunk plan: single pass
+  [file-0179] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0174] chunk 1: 19,938 tokens, 76.1s
+  [file-0175] chunk 1 pass 1 (trace): 18,009 tokens, 34.5s, +0 new, 2 traces extended
+  [file-0175] → 2 finding(s), 32,110 tokens, 73.9s total
+
+[HUNT] Lane: file-0180 | File: frontend/src/app/password-strength-info/password-strength-info.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0180] 45 lines, 1,292 bytes
+  [file-0180] Chunk plan: single pass
+  [file-0180] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0179] chunk 1: 8,258 tokens, 9.5s
+  [file-0176] chunk 1: 18,958 tokens, 67.5s
+  [file-0176] [WARN] Finding "Insecure Direct Object Reference on order confirmation PDF URL" class "access-control" justified_by_step=3 out of range (trace length 3) — clamping to 0
+  [file-0176] [WARN] Finding "Insecure Direct Object Reference on order confirmation PDF URL" class "insecure-design" justified_by_step=3 out of range (trace length 3) — clamping to 0
+  [file-0179] chunk 1 pass 1 (trace): 8,801 tokens, 5.6s, +0 new, 0 traces extended
+  [file-0179] → 0 finding(s), 17,059 tokens, 15.1s total
+
+[HUNT] Lane: file-0181 | File: frontend/src/app/password-strength/password-strength.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0181] 89 lines, 3,252 bytes
+  [file-0181] Chunk plan: single pass
+  [file-0181] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0181] chunk 1: 10,009 tokens, 6.0s
+  [file-0177] chunk 1: 16,783 tokens, 57.4s
+  [file-0181] chunk 1 pass 1 (trace): 10,613 tokens, 6.4s, +0 new, 0 traces extended
+  [file-0181] → 0 finding(s), 20,622 tokens, 12.5s total
+
+[HUNT] Lane: file-0182 | File: frontend/src/app/password-strength/password-strength.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0182] 66 lines, 1,974 bytes
+  [file-0182] Chunk plan: single pass
+  [file-0182] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0180] chunk 1: 20,052 tokens, 40.0s
+  [file-0176] [WARN] Finding "Insecure Direct Object Reference on order confirmation PDF URL" class "access-control" justified_by_step=6 out of range (trace length 6) — clamping to 0
+  [file-0176] [WARN] Finding "Insecure Direct Object Reference on order confirmation PDF URL" class "insecure-design" justified_by_step=6 out of range (trace length 6) — clamping to 0
+  [file-0176] chunk 1 pass 1 (trace): 24,533 tokens, 47.2s, +0 new, 4 traces extended
+  [file-0176] → 4 finding(s), 43,491 tokens, 114.7s total
+
+[HUNT] Lane: file-0183 | File: frontend/src/app/payment-method/payment-method.component.spec.ts | Classes: api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0183] 304 lines, 13,218 bytes
+  [file-0183] Chunk plan: single pass
+  [file-0183] Loaded 7 playbook module(s): api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0178] chunk 1: 21,341 tokens, 75.6s
+  [file-0180] chunk 1 pass 1 (trace): 13,171 tokens, 24.0s, +0 new, 1 traces extended
+  [file-0180] → 1 finding(s), 33,223 tokens, 64.0s total
+
+[HUNT] Lane: file-0184 | File: frontend/src/app/payment-method/payment-method.component.ts | Classes: access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0184] 129 lines, 5,300 bytes
+  [file-0184] Chunk plan: single pass
+  [file-0184] Loaded 9 playbook module(s): access-control, api-property-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0182] chunk 1: 22,610 tokens, 53.5s
+  [file-0174] chunk 1 pass 1 (trace): 29,301 tokens, 89.6s, +0 new, 4 traces extended
+  [file-0174] → 4 finding(s), 49,239 tokens, 165.7s total
+
+[HUNT] Lane: file-0185 | File: frontend/src/app/payment/payment.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0185] 521 lines, 23,315 bytes
+  [file-0185] Chunk plan: single pass
+  [file-0185] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0182] chunk 1 pass 1 (trace): 14,138 tokens, 20.4s, +0 new, 1 traces extended
+  [file-0182] → 1 finding(s), 36,748 tokens, 74.0s total
+
+[HUNT] Lane: file-0186 | File: frontend/src/app/payment/payment.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0186] 299 lines, 11,387 bytes
+  [file-0186] Chunk plan: single pass
+  [file-0186] Loaded 9 playbook module(s): access-control, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0177] [WARN] Finding "Order pricing/discount state trusted from client-writable sessionStorage without server-side re-validation" trace doesn't end with sink — dropping
+  [file-0177] chunk 1 pass 1 (trace): 50,686 tokens, 89.3s, +0 new, 2 traces extended
+  [file-0177] → 3 finding(s), 67,469 tokens, 146.7s total
+
+[HUNT] Lane: file-0187 | File: frontend/src/app/photo-wall/mime-type.validator.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0187] 53 lines, 1,440 bytes
+  [file-0187] Chunk plan: single pass
+  [file-0187] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0187] chunk 1: 10,199 tokens, 41.1s
+  [file-0183] chunk 1: 48,127 tokens, 98.0s
+  [file-0184] chunk 1: 46,052 tokens, 94.4s
+  [file-0185] chunk 1: 26,546 tokens, 87.0s
+  [file-0178] chunk 1 pass 1 (trace): 34,534 tokens, 122.2s, +0 new, 4 traces extended
+  [file-0178] → 4 finding(s), 55,875 tokens, 197.8s total
+
+[HUNT] Lane: file-0188 | File: frontend/src/app/photo-wall/photo-wall.component.spec.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0188] 313 lines, 14,630 bytes
+  [file-0188] Chunk plan: single pass
+  [file-0188] Loaded 9 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption
+  [file-0186] chunk 1: 28,061 tokens, 102.2s
+  [file-0187] chunk 1 pass 1 (trace): 15,615 tokens, 51.6s, +0 new, 2 traces extended
+  [file-0187] → 2 finding(s), 25,814 tokens, 92.8s total
+
+[HUNT] Lane: file-0189 | File: frontend/src/app/photo-wall/photo-wall.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0189] 139 lines, 5,304 bytes
+  [file-0189] Chunk plan: single pass
+  [file-0189] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0186] chunk 1 pass 1 (trace): 33,454 tokens, 47.2s, +0 new, 2 traces extended
+  [file-0186] → 2 finding(s), 61,515 tokens, 149.4s total
+
+[HUNT] Lane: file-0190 | File: frontend/src/app/privacy-policy/privacy-policy.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0190] 70 lines, 2,724 bytes
+  [file-0190] Chunk plan: single pass
+  [file-0190] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0183] chunk 1 pass 1 (trace): 36,031 tokens, 92.9s, +0 new, 3 traces extended
+  [file-0183] → 3 finding(s), 84,158 tokens, 191.0s total
+
+[HUNT] Lane: file-0191 | File: frontend/src/app/privacy-policy/privacy-policy.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0191] 44 lines, 1,623 bytes
+  [file-0191] Chunk plan: single pass
+  [file-0191] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0188] chunk 1: 24,953 tokens, 72.0s
+  [file-0190] chunk 1: 8,801 tokens, 21.7s
+  [file-0189] chunk 1: 21,773 tokens, 73.9s
+  [file-0190] chunk 1 pass 1 (trace): 10,677 tokens, 15.0s, +0 new, 1 traces extended
+  [file-0190] → 1 finding(s), 19,478 tokens, 36.7s total
+
+[HUNT] Lane: file-0192 | File: frontend/src/app/privacy-security/privacy-security.component.spec.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0192] 33 lines, 944 bytes
+  [file-0192] Chunk plan: single pass
+  [file-0192] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0185] chunk 1 pass 1 (trace): 39,645 tokens, 107.6s, +0 new, 4 traces extended
+  [file-0185] → 4 finding(s), 66,191 tokens, 194.6s total
+
+[HUNT] Lane: file-0193 | File: frontend/src/app/privacy-security/privacy-security.component.ts | Classes: insecure-design, logging-monitoring, misconfiguration
+  [file-0193] 16 lines, 434 bytes
+  [file-0193] Chunk plan: single pass
+  [file-0193] Loaded 3 playbook module(s): insecure-design, logging-monitoring, misconfiguration
+  [file-0184] chunk 1 pass 1 (trace): 37,096 tokens, 127.0s, +0 new, 4 traces extended
+  [file-0184] → 4 finding(s), 83,148 tokens, 221.5s total
+
+[HUNT] Lane: file-0194 | File: frontend/src/app/product-details/product-details.component.spec.ts | Classes: api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0194] 222 lines, 10,997 bytes
+  [file-0194] Chunk plan: single pass
+  [file-0194] Loaded 6 playbook module(s): api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0192] chunk 1: 6,920 tokens, 8.1s
+  [file-0192] chunk 1 pass 1 (trace): 7,512 tokens, 5.0s, +0 new, 0 traces extended
+  [file-0192] → 0 finding(s), 14,432 tokens, 13.1s total
+
+[HUNT] Lane: file-0195 | File: frontend/src/app/product-details/product-details.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0195] 106 lines, 4,459 bytes
+  [file-0195] Chunk plan: single pass
+  [file-0195] Loaded 9 playbook module(s): access-control, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0191] chunk 1: 11,237 tokens, 50.7s
+  [file-0193] chunk 1: 7,273 tokens, 16.8s
+  [file-0193] chunk 1 pass 1 (trace): 7,871 tokens, 5.5s, +0 new, 0 traces extended
+  [file-0193] → 0 finding(s), 15,144 tokens, 22.3s total
+
+[HUNT] Lane: file-0196 | File: frontend/src/app/product-review-edit/product-review-edit.component.spec.ts | Classes: api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0196] 98 lines, 3,910 bytes
+  [file-0196] Chunk plan: single pass
+  [file-0196] Loaded 6 playbook module(s): api-property-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption
+  [file-0189] chunk 1 pass 1 (trace): 26,904 tokens, 45.5s, +0 new, 2 traces extended
+  [file-0189] → 3 finding(s), 48,677 tokens, 119.5s total
+
+[HUNT] Lane: file-0197 | File: frontend/src/app/product-review-edit/product-review-edit.component.ts | Classes: access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0197] 59 lines, 2,500 bytes
+  [file-0197] Chunk plan: single pass
+  [file-0197] Loaded 7 playbook module(s): access-control, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0194] chunk 1: 17,544 tokens, 40.5s
+  [file-0196] chunk 1: 13,075 tokens, 26.0s
+  [file-0191] chunk 1 pass 1 (trace): 16,527 tokens, 49.7s, +0 new, 3 traces extended
+  [file-0191] → 3 finding(s), 27,764 tokens, 100.5s total
+
+[HUNT] Lane: file-0198 | File: frontend/src/app/product/product.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0198] 321 lines, 15,405 bytes
+  [file-0198] Chunk plan: single pass
+  [file-0198] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0195] chunk 1: 20,162 tokens, 53.3s
+  [file-0188] chunk 1 pass 1 (trace): 68,910 tokens, 96.6s, +0 new, 4 traces extended
+  [file-0188] → 4 finding(s), 93,863 tokens, 168.7s total
+
+[HUNT] Lane: file-0199 | File: frontend/src/app/product/product.component.ts | Classes: access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0199] 191 lines, 6,924 bytes
+  [file-0199] Chunk plan: single pass
+  [file-0199] Loaded 10 playbook module(s): access-control, api-property-auth, crypto-auth, injection, insecure-design, integrity-failures, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0196] chunk 1 pass 1 (trace): 16,385 tokens, 29.9s, +0 new, 1 traces extended
+  [file-0196] → 1 finding(s), 29,460 tokens, 55.9s total
+
+[HUNT] Lane: file-0200 | File: frontend/src/app/purchase-basket/purchase-basket.component.spec.ts | Classes: access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0200] 409 lines, 19,233 bytes
+  [file-0200] Chunk plan: single pass
+  [file-0200] Loaded 5 playbook module(s): access-control, crypto-auth, insecure-design, logging-monitoring, misconfiguration
+  [file-0197] chunk 1: 17,037 tokens, 53.1s
+  [file-0195] [WARN] Finding "No client-side or design-level control preventing repeated/duplicate 'like' actions on a review" trace doesn't end with sink — dropping
+  [file-0195] chunk 1 pass 1 (trace): 24,647 tokens, 43.5s, +0 new, 1 traces extended
+  [file-0195] → 3 finding(s), 44,809 tokens, 96.8s total
+
+[HUNT] Lane: file-0201 | File: frontend/src/app/purchase-basket/purchase-basket.component.ts | Classes: access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0201] 200 lines, 6,678 bytes
+  [file-0201] Chunk plan: single pass
+  [file-0201] Loaded 8 playbook module(s): access-control, crypto-auth, injection, insecure-design, logging-monitoring, misconfiguration, resource-consumption, ssrf
+  [file-0194] chunk 1 pass 1 (trace): 24,333 tokens, 66.9s, +0 new, 2 traces extended
+  [file-0194] → 2 finding(s), 41,877 tokens, 107.4s total
+  [file-0199] chunk 1: 20,940 tokens, 47.7s
+  [file-0198] chunk 1: 21,099 tokens, 65.0s
+  [file-0197] chunk 1 pass 1 (trace): 23,787 tokens, 65.1s, +0 new, 2 traces extended
+  [file-0197] → 3 finding(s), 40,824 tokens, 118.2s total
+  [file-0200] chunk 1: 24,149 tokens, 80.2s
+  [file-0199] chunk 1 pass 1 (trace): 26,174 tokens, 44.5s, +0 new, 2 traces extended
+  [file-0199] → 2 finding(s), 47,114 tokens, 92.2s total
+  [file-0198] chunk 1 pass 1 (trace): 27,738 tokens, 62.9s, +0 new, 2 traces extended
+  [file-0198] → 2 finding(s), 48,837 tokens, 128.0s total
+  [file-0201] chunk 1: 47,496 tokens, 91.4s
+  [file-0200] chunk 1 pass 1 (trace): 34,280 tokens, 86.2s, +0 new, 4 traces extended
+  [file-0200] → 4 finding(s), 58,429 tokens, 166.3s total
+  [file-0201] chunk 1 pass 1 (trace): 33,649 tokens, 76.0s, +0 new, 3 traces extended
+  [file-0201] → 3 finding(s), 81,145 tokens, 167.3s total
+
+=== Stage 2 (Per-File v2) Complete ===
+Provider/model: sonnet5cli / claude-sonnet-5
+Total candidate findings: 442
+Lanes processed: 120 hunt, 324 skip
+Total tokens: 8,024,270
+Output: /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage2-hunt-lanes-perfile/candidate-findings.json
+Output: /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage2-hunt-lanes-perfile/budget-consumption.json
+=== [sonnet5cli] stage2-hunt-lanes-perfile exited 0 ===
