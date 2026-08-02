@@ -111,6 +111,20 @@ export function setUsageLedgerPath(path: string | null): void {
  */
 const sessionByConversation = new Map<string, string>()
 
+/**
+ * Signature of a subscription usage-limit refusal, as distinct from a
+ * per-minute rate limit. Kept narrow deliberately: mistaking a rate limit for
+ * this would abandon a run that a 62-second backoff would have carried through.
+ */
+const USAGE_LIMIT_RE = /usage limit reached|limit will reset|out of (?:usage|credits)/i
+
+/**
+ * Latched once a usage limit is seen. Not reset within a pass: the window is
+ * hours wide, so nothing later in the same pass can succeed, and every further
+ * spawn would be pure waste.
+ */
+let usageLimitHit = false
+
 function conversationKey(firstUserContent: string): string {
   return createHash('sha256').update(firstUserContent).digest('hex')
 }
@@ -220,6 +234,12 @@ export function createClaudeCliClient(opts: ClaudeCliClientOptions) {
     chat: {
       completions: {
         async create(params: any): Promise<any> {
+          if (usageLimitHit) {
+            throw new Error(
+              'claude CLI usage limit already reached in this pass — not spawning. ' +
+                'Resume in the next window; the checkpoint is intact.',
+            )
+          }
           const messages: Array<{ role: string; content: string }> = params.messages ?? []
           if (messages.length === 0) throw new Error('claude-cli transport: no messages')
 
@@ -291,10 +311,28 @@ export function createClaudeCliClient(opts: ClaudeCliClientOptions) {
           }
 
           if (res.is_error) {
-            const e: any = new Error(`claude CLI returned is_error: ${String(res.result).slice(0, 300)}`)
-            // Surface as retryable when it looks like a limit, so the stage's
-            // existing backoff applies rather than losing the lane.
-            if (/rate limit|usage limit|429|overloaded/i.test(String(res.result))) e.status = 429
+            const text = String(res.result)
+            // A subscription USAGE limit and an API RATE limit look similar and
+            // must be handled oppositely.
+            //
+            // The executor retries a transient error 5 times over ~62s, which is
+            // sized to cross a per-minute rate-limit window. A usage window is
+            // hours wide, so retrying one burns six attempts per lane and then
+            // marks the lane failed anyway — turning a clean stop into a slow,
+            // noisy one across every remaining lane.
+            //
+            // So: latch a hard stop. Every subsequent call fails immediately
+            // without spawning a process, the pass winds down in seconds
+            // spending nothing, and the checkpoint is left complete. The lanes
+            // that did not run simply are not in it, and the next window
+            // resumes at exactly the right place.
+            if (USAGE_LIMIT_RE.test(text)) {
+              usageLimitHit = true
+              throw new Error(`claude CLI usage limit reached — pass stopping cleanly: ${text.slice(0, 300)}`)
+            }
+            const e: any = new Error(`claude CLI returned is_error: ${text.slice(0, 300)}`)
+            // A genuine rate limit IS worth the backoff.
+            if (/rate limit|429|overloaded/i.test(text)) e.status = 429
             throw e
           }
 
