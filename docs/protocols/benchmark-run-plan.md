@@ -148,6 +148,86 @@ it; `HUNT_LOOP_STRICT_TRACE=1` was measured and made recall *worse*
 
 ---
 
+## 3a. MANDATORY per-model pre-run checks
+
+**Every model must clear both of these before it is launched. Neither is
+optional, and neither is visible in a run that has already gone wrong — both
+failure modes surface as "the model found nothing".**
+
+### 3a.1 Reasoning effort must be set to `high`, explicitly
+
+Every benchmark target must declare `"sampling": { "reasoning_effort": "high" }`
+in `models.json`. A target that declares nothing does not run at "no effort" —
+it runs at *the endpoint's own default*, which is unrecorded, may differ per
+vendor, and can change under you.
+
+This is not hypothetical. Runs 1–5 sent no effort parameter at all and
+therefore ran at the endpoint default for four rounds of playbook tuning. When
+it was finally set on `luna`, high effort alone moved recall 53.6% → 63.9%.
+
+Two things follow, and they matter for how results are written up:
+
+- **Set it on every target**, so no model runs with an unrecorded variable.
+- **Do not assume it does the same thing everywhere.** On `luna` the uplift is
+  measured and large. On `glm52` the parameter is *honoured* — setting
+  `minimal` drives reasoning tokens to 0 — but `high` is not measurably
+  different from that endpoint's default (three samples each: baseline
+  935/924/652, high 1042/540/586, fully overlapping). Set it for consistency;
+  do not report it as an uplift for a model where it has not been measured.
+
+Before launching a model, confirm it:
+
+```bash
+node -e "const t=require('./tools/scanner/shared/models.json').targets['<key>'];
+console.log(t.sampling)"   # must show reasoning_effort: high
+```
+
+If a vendor rejects `reasoning_effort`, the run will 400 on the first call.
+Test it against the live endpoint before launching, not during.
+
+### 3a.2 Token caps must be registry-driven, not hardcoded
+
+`max_output_tokens` in the registry is only effective where the stage actually
+reads it. **Reasoning tokens are counted against this cap before any content is
+emitted**, so a cap tuned on a model that barely reasons silently truncates one
+that reasons heavily — and a truncated JSON body is recorded downstream as a
+lane that found nothing, not as an error.
+
+This bit the first non-luna run attempted. `stage0-recon/src/llm-probe.ts`
+hardcoded caps of 500 and 5000 regardless of target. `glm-5.2` spends ~11,800
+reasoning tokens on the category probe and needs ~14,100 in total:
+
+| Cap | finish_reason | reasoning | completion | parses? |
+|---|---|---|---|---|
+| 5,000 (hardcoded) | `length` | 4,151 | 5,000 truncated | **no** |
+| 64,000 (registry) | `stop` | 11,793 | 14,109 | yes |
+
+Stage 0 correctly refused to continue rather than substitute deterministic
+analysis — but `luna` had passed the same probe for six runs, because it spends
+far fewer reasoning tokens. **The defect was invisible until a second model ran.**
+
+Fixed 2026-08-02: both sites now read `outputTokenCap(PROVIDER, …)`, with the
+old literals kept as the fallback for a target declaring no cap.
+
+**Before adding any new model, re-audit.** A hardcoded cap anywhere in a live
+stage is a latent failure for the next model that reasons more than the last:
+
+```bash
+cd tools/scanner
+grep -rn "tokenLimitParam(" --include=*.ts \
+  stage0-recon stage05-lane-selector-perfile stage1-budget-governor \
+  stage2-hunt-lanes-perfile shared | grep -v outputTokenCap
+```
+
+Every hit must pass a value derived from `outputTokenCap()`. As of 2026-08-02
+the live v2 stages are clean: Stage 2 was always registry-driven, Stage 0 now
+is, and stages 0.5 and 1 make no LLM calls.
+
+A cap is a ceiling, not a spend — billing is per token generated — so headroom
+costs nothing on a model that does not use it.
+
+---
+
 ## 4. Preconditions — check every one before launching
 
 Run these from a clean checkout of `main`. Do not skip: each traces to a real
@@ -176,7 +256,10 @@ failure.
    `ZAI_API_KEY` and `GEMINI_API_KEY`, both present. (If the held models are
    released later, note that `SCANNER_ANTHROPIC_API_KEY` is the one that
    silently vanishes — see §2.)
-6. **Disk.** Two worktrees plus two sets of `node_modules` plus two run trees.
+6. **§3a cleared.** Reasoning effort declared `high` for the target, and the
+   hardcoded-cap audit clean. See §3a — both failure modes look like "found
+   nothing" rather than like errors.
+7. **Disk.** Two worktrees plus two sets of `node_modules` plus two run trees.
    Check free space before, not after.
 
 ---
