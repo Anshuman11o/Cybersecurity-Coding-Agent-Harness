@@ -34,7 +34,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from '
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
-import { resolveLoopConfig, DEFAULT_LOOP_MODE, type LoopMode } from '../../shared/loop-config.js'
+import { resolveLoopConfig, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
+import { setUsageLedgerPath } from '../../shared/claude-cli-client.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
@@ -1805,6 +1806,7 @@ function loadCheckpoint(outDir: string): {
   findings: CandidateFinding[]
   consumption: BudgetConsumption[]
   completedLaneIds: Set<string>
+  laneRecordsV2: LaneTokenRecordV2[]
 } | null {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
@@ -1828,6 +1830,16 @@ function loadCheckpoint(outDir: string): {
         ? rawConsumption.legacy_entries
         : []
 
+    // The v2 per-lane token records live only in the v2 object shape. They must
+    // be carried forward or a resumed run rebuilds `rollup` from this pass's
+    // lanes alone — findings would be complete while total_input_tokens,
+    // total_output_tokens and cost_usd silently covered a fraction of the run.
+    // That is the artifact the benchmark reads cost from, so the failure would
+    // surface as an implausibly cheap run rather than as an error.
+    const laneRecordsV2: LaneTokenRecordV2[] = Array.isArray(rawConsumption?.lanes)
+      ? rawConsumption.lanes
+      : []
+
     if (!Array.isArray(findings) || consumption.length === 0) {
       return null
     }
@@ -1842,7 +1854,7 @@ function loadCheckpoint(outDir: string): {
     if (failedCount > 0) {
       console.log(`[RESUME] ${failedCount} lane(s) previously failed — they will be retried`)
     }
-    return { findings, consumption, completedLaneIds }
+    return { findings, consumption, completedLaneIds, laneRecordsV2 }
   } catch {
     return null
   }
@@ -2089,6 +2101,13 @@ async function main() {
   const outDir = runPath(PROVIDER, 'stage2-hunt-lanes-perfile')
   mkdirSync(outDir, { recursive: true })
 
+  // Per-call usage ledger for the claude-cli transport. Appended to, never
+  // rewritten, so it survives a chunked run and records every invocation
+  // including the ancillary Haiku calls the CLI makes on its own account —
+  // which must be separable from the scanner's own inference spend rather than
+  // silently folded into it. Inert for HTTP transports.
+  setUsageLedgerPath(join(outDir, 'cli-usage.jsonl'))
+
   // ── Checkpoint resume ───────────────────────────────────────────────────
   let allFindings: CandidateFinding[] = []
   const consumptionReport: BudgetConsumption[] = []
@@ -2103,6 +2122,12 @@ async function main() {
     // zero-token entry arriving last would silently zero out a lane that
     // actually ran.
     consumptionReport.push(...checkpoint.consumption.filter(c => !c.failed))
+    // Same reasoning as the consumption filter above: a lane about to be
+    // retried must not keep its previous v2 record, or the rollup would count
+    // it twice.
+    laneRecordsV2.push(
+      ...checkpoint.laneRecordsV2.filter(l => checkpoint.completedLaneIds.has(l.lane_id)),
+    )
     const maxId = allFindings.reduce((max, f) => {
       const num = parseInt(f.finding_id.split('-')[1], 10)
       return num > max ? num : max
@@ -2113,6 +2138,29 @@ async function main() {
     huntLanes = huntLanes.filter(l => !checkpoint.completedLaneIds.has(l.lane_id))
     console.log(`\n[RESUME] Found checkpoint: ${checkpoint.findings.length} findings, ${checkpoint.completedLaneIds.size} lanes done`)
     console.log(`[RESUME] Skipping ${beforeCount - huntLanes.length} completed lanes, ${huntLanes.length} lanes remaining`)
+  }
+
+  // ── Chunk bound ─────────────────────────────────────────────────────────
+  // HUNT_MAX_LANES stops this pass after N *newly executed* lanes and exits
+  // cleanly, leaving the checkpoint complete and resumable. It exists so a run
+  // can be split across several sittings — a subscription-backed transport has
+  // a rolling usage window that a 541-lane run does not fit inside.
+  //
+  // Deliberately a clean stop rather than killing the process: a SIGKILL at an
+  // arbitrary moment discards every lane currently in flight, and those lanes
+  // have already been billed. Bounding the work list wastes nothing.
+  //
+  // It bounds lanes STARTED in this pass, counted after the resume filter, so
+  // successive passes of N advance by N. Unset means no bound, which is what
+  // every run before this change did.
+  if (process.env.HUNT_MAX_LANES !== undefined) {
+    const bound = positiveEnvInt('HUNT_MAX_LANES', 0)
+    if (huntLanes.length > bound) {
+      console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — running ${bound} of ${huntLanes.length} remaining lanes this pass`)
+      huntLanes = huntLanes.slice(0, bound)
+    } else {
+      console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — ${huntLanes.length} lanes remain, all run this pass`)
+    }
   }
 
   console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)

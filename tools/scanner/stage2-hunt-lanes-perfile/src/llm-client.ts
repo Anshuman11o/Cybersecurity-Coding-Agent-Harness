@@ -11,9 +11,28 @@
  * was inert under v6 and does not even typecheck.
  */
 import OpenAI from 'openai'
-import { clientConfigFor, apiKeyEnvFor, type Provider } from '../../shared/provider.js'
+import {
+  clientConfigFor,
+  apiKeyEnvFor,
+  transportFor,
+  modelFor,
+  samplingParams,
+  type Provider,
+} from '../../shared/provider.js'
+import { createClaudeCliClient } from '../../shared/claude-cli-client.js'
 
 export function createClient(provider: Provider): OpenAI {
+  // Transport branch, not a model branch: the value comes from the registry, so
+  // another CLI-backed target needs no change here. Must come before the
+  // credential check — the CLI transport authenticates through its own session
+  // and declares no usable api_key_env.
+  if (transportFor(provider) === 'claude-cli') {
+    const effort = samplingParams(provider).reasoning_effort
+    return createClaudeCliClient({
+      model: modelFor(provider),
+      effort: typeof effort === 'string' ? effort : undefined,
+    }) as unknown as OpenAI
+  }
   const { apiKey, baseURL } = clientConfigFor(provider)
   if (!apiKey) throw new Error(`${apiKeyEnvFor(provider)} is not set`)
   return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
