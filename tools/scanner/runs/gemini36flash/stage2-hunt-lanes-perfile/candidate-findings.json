@@ -11903,5 +11903,2471 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0460",
+    "lane_id": "file-0252",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unreachable YAML Detection Logic in CodeMirror Extension",
+    "description": "The language detection function `detectLanguage` contains a logic flaw in its conditional structure. Line 32 checks if `code` includes ': ' and immediately returns 'typescript'. On line 34, the code checks `if (code.includes(': ') && !code.includes(';')) return 'yaml'`. However, any code containing ': ' will have already matched line 32 and returned early. As a result, the YAML detection branch on line 34 is dead code and YAML content is erroneously classified and handled as TypeScript.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/shared/codemirror-extensions.ts",
+        "line": 31,
+        "description": "The function `detectLanguage` receives the input string `code` from an external caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/shared/codemirror-extensions.ts",
+        "line": 32,
+        "description": "Line 32 checks `code.includes(': ')` and returns 'typescript', capturing all inputs containing colon-space pairs."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/shared/codemirror-extensions.ts",
+        "line": 33,
+        "description": "Line 33 checks if `code` starts with '{', which is only evaluated if line 32 condition was false (i.e. code does not contain ': ')."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/shared/codemirror-extensions.ts",
+        "line": 34,
+        "description": "Line 34 attempts to identify YAML using `code.includes(': ')`, but this step is unreachable and can never evaluate to true."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0461",
+    "lane_id": "file-0248",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 3
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "DOM Cross-Site Scripting (XSS) via Untrusted Search Query Parameter",
+    "description": "The component reads the query parameter 'q' from the URL via ActivatedRoute and directly passes it to DomSanitizer.bypassSecurityTrustHtml without prior sanitization. This explicitly disables Angular built-in HTML sanitization for user-controlled input, allowing an attacker to execute arbitrary client-side script when a user navigates to a URL containing malicious payload in the 'q' parameter.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 133,
+        "description": "The search query parameter 'q' is retrieved from route.snapshot.queryParams.q."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 135,
+        "description": "The query parameter string is trimmed."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 134,
+        "description": "The queryParam variable is checked for truthiness in an if-statement."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 140,
+        "description": "The queryParam string is passed to DomSanitizer.bypassSecurityTrustHtml, disabling output escaping before setting searchValue."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0462",
+    "lane_id": "file-0248",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 4
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Cross-Site Scripting (XSS) via Unsanitized Product Description Trust Bypass",
+    "description": "In trustProductDescription, the component iterates through product objects returned from the backend API and explicitly marks each product description as trusted HTML using DomSanitizer.bypassSecurityTrustHtml. If a product description contains user-influenced or attacker-injected HTML or JavaScript content, Angular will render it without sanitization, resulting in cross-site scripting.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 61,
+        "description": "Product data is retrieved from productService.search('') API call."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 67,
+        "description": "The products array is passed into trustProductDescription."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 64,
+        "description": "The forkJoin callback receives the products array returned by the API."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 108,
+        "description": "The loop iterates over each product in the tableData array."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/search-result/search-result.component.ts",
+        "line": 109,
+        "description": "Product description is passed to DomSanitizer.bypassSecurityTrustHtml, bypassing Angular HTML sanitization."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0463",
+    "lane_id": "file-0259",
+    "finding_classes": [
+      {
+        "class": "client-side",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM05",
+      "A03"
+    ],
+    "title": "Client-Side XSS via Unsafe Use of DomSanitizer",
+    "description": "The TrackResultComponent retrieves an order ID from the URL query parameters and uses it to fetch order data. The resulting order ID value is passed directly into DomSanitizer.bypassSecurityTrustHtml within a template string. Bypassing Angular's built-in HTML sanitization without encoding or sanitizing the order ID string allows arbitrary HTML and JavaScript execution in the user's browser context if the backend returns attacker-controlled payload data.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/track-result/track-result.component.ts",
+        "line": 45,
+        "description": "The order ID is extracted from route query parameters via this.route.snapshot.queryParams.id."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/track-result/track-result.component.ts",
+        "line": 46,
+        "description": "The component calls trackOrderService.find with orderId and receives order data in the subscription callback."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/track-result/track-result.component.ts",
+        "line": 48,
+        "description": "The orderId field from results.data[0] is wrapped in HTML tags and passed to sanitizer.bypassSecurityTrustHtml(), explicitly disabling Angular's XSS protections."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0464",
+    "lane_id": "file-0255",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Unverified Client-Side JWT Decoding for Role Verification",
+    "description": "The isAccounting method determines user authorization by decoding the client-side JWT stored in localStorage without validating its cryptographic signature. An attacker can edit the payload in client storage to specify the accounting role, bypassing frontend role checks.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/sidenav/sidenav.component.ts",
+        "line": 156,
+        "description": "The isAccounting method is invoked to determine if accounting privileges should be granted in the navigation menu."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/sidenav/sidenav.component.ts",
+        "line": 157,
+        "description": "The method decodes the unverified JWT token payload from local storage using this.loginGuard.tokenDecode()."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/sidenav/sidenav.component.ts",
+        "line": 158,
+        "description": "The untrusted role claim in payload.data.role is evaluated against roles.accounting to decide access."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0470",
+    "lane_id": "file-0261",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 7
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Insecure Session Token Storage and Missing Secure Flag on Token Cookie",
+    "description": "Upon successful two-factor authentication verification, the component stores the authentication token in client-side localStorage and sets a session cookie using cookieService without enforcing the secure flag or security attributes. Storing sensitive authentication tokens in local storage exposes them to script access (XSS), and omitting the secure flag on session cookies permits token transmission over unencrypted HTTP connections.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 48,
+        "description": "The verify method is invoked upon 2FA submission (caller outside this file)."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 51,
+        "description": "The authentication object containing the JWT token is returned by twoFactorAuthService.verify."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 49,
+        "description": "The twoFactorForm value is extracted to retrieve the submitted 2FA token."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 52,
+        "description": "The callback receives the authentication payload containing the JWT authentication token."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 53,
+        "description": "The JWT token is written directly to browser localStorage, exposing it to potential client-side script access."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 54,
+        "description": "A new Date object is instantiated for the cookie expiration."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 55,
+        "description": "The cookie expiration time is offset by 8 hours."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts",
+        "line": 56,
+        "description": "The authentication token is saved in localStorage and written to a cookie without secure flag configuration."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0471",
+    "lane_id": "file-0263",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "Unsanitized User Email Interpolated into TOTP URI",
+    "description": "In updateStatus(), the user's email parameter is interpolated directly into the totpUrl string template without URI encoding (encodeURIComponent), whereas appName is properly encoded. If a user's email contains URI special characters such as '&' or '?', it can inject additional URI parameters into the otpauth:// URI or corrupt the generated QR code string.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/two-factor-auth/two-factor-auth.component.ts",
+        "line": 72,
+        "description": "The component receives user data containing email from twoFactorAuthService.status()."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth/two-factor-auth.component.ts",
+        "line": 75,
+        "description": "Checks if 2FA setup is not yet completed before generating the TOTP URI."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/two-factor-auth/two-factor-auth.component.ts",
+        "line": 76,
+        "description": "The appName is explicitly encoded with encodeURIComponent, but email is not."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/two-factor-auth/two-factor-auth.component.ts",
+        "line": 77,
+        "description": "The unencoded email variable is interpolated directly into the totpUrl URI template string."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0472",
+    "lane_id": "file-0265",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Sensitive Error Details Logged to Browser Console",
+    "description": "The UserDetailsComponent logs raw HTTP error objects directly to the browser console via console.log inside the UserService subscription error handler. Logging raw error objects in client-side code can expose internal API details, server stack traces, or operational metadata to unauthorized client-side inspection.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/user-details/user-details.component.ts",
+        "line": 32,
+        "description": "Caller outside this file triggers ngOnInit, invoking userService.get(this.dialogData.id) which returns an observable."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/user-details/user-details.component.ts",
+        "line": 36,
+        "description": "When the HTTP request fails, the error callback receives the raw error object err."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/user-details/user-details.component.ts",
+        "line": 36,
+        "description": "console.log(err) outputs the unhandled error details directly to the browser developer console."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0475",
+    "lane_id": "file-0266",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 3
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A04"
+    ],
+    "title": "Missing Cryptographic Challenge-Response Verification for Web3 Wallet Authentication",
+    "description": "The handleAuth method retrieves the connected wallet address from the injected Web3 provider (provider.account) and transmits it directly to the backend via keysService.walletAddressSend without requiring a cryptographic signature (such as signing a server-provided challenge or nonce). Client-side Web3 provider states can be manipulated or spoofed by callers, allowing an attacker to submit an arbitrary wallet address to the backend without proving control over the private key.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
+        "line": 109,
+        "description": "handleAuth is called upon component initialization to authenticate the Web3 wallet session."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
+        "line": 122,
+        "description": "The account address is retrieved from provider.account and stored in this.metamaskAddress without generating or signing a cryptographic nonce."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
+        "line": 121,
+        "description": "The component connects to the injected Web3 wallet via InjectedConnector to obtain the wallet provider state."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
+        "line": 123,
+        "description": "this.keysService.walletAddressSend(this.metamaskAddress) sends the unverified wallet address to the server for authentication/registration."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0476",
+    "lane_id": "file-0267",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Missing Authorization Route Guard on Web3 Wallet Component",
+    "description": "The Web3 wallet module defines a child route leading directly to WalletWeb3Component without enforcing any route guards (such as canActivate). If parent route configurations do not enforce authentication, unauthenticated users can access the Web3 wallet functionality directly.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 15,
+        "description": "Route configuration array defined for WalletWeb3Module"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 17,
+        "description": "Default route definition matching empty path"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 18,
+        "description": "WalletWeb3Component route specified without canActivate or identity verification guards"
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0477",
+    "lane_id": "file-0267",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Use of CUSTOM_ELEMENTS_SCHEMA Suppresses Template Security Validation",
+    "description": "The module declares CUSTOM_ELEMENTS_SCHEMA in its schemas array. This setting instructs the Angular compiler to allow unknown HTML elements and element attributes, disabling standard compile-time schema validation and potentially allowing invalid or unsafe custom element bindings to pass without error.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 22,
+        "description": "NgModule decorator configured for WalletWeb3Module"
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 25,
+        "description": "Routes imported into module via RouterModule.forChild(routes)"
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/wallet-web3/wallet-web3.module.ts",
+        "line": 35,
+        "description": "CUSTOM_ELEMENTS_SCHEMA included in module schemas array"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0478",
+    "lane_id": "file-0269",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-Controlled Financial Value Stored in SessionStorage",
+    "description": "The WalletComponent handles user wallet top-up by saving the user-provided balance amount directly into browser sessionStorage under the key walletTotal before navigating to the payment screen. Storing transaction amounts in client-accessible storage allows users to modify the walletTotal value directly via browser developer tools or scripts, bypassing client-side validation rules (such as minimum and maximum deposit limits) and introducing trust assumption violations where payment processing relies on client-tamperable state.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/wallet/wallet.component.ts",
+        "line": 43,
+        "description": "The user triggers the continue() method after specifying an amount in the balanceControl input field."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/wallet/wallet.component.ts",
+        "line": 45,
+        "description": "The router navigates to the payment checkout flow ('/payment/wallet'), which relies on the client-controlled sessionStorage value to process the transaction."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/wallet/wallet.component.ts",
+        "line": 44,
+        "description": "The top-up amount from balanceControl is saved into client-controlled sessionStorage ('walletTotal') without server-side validation or backend transaction session initialization."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0480",
+    "lane_id": "file-0271",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Use of Permissive CUSTOM_ELEMENTS_SCHEMA in Angular Module",
+    "description": "The Web3SandboxModule includes CUSTOM_ELEMENTS_SCHEMA in its @NgModule schemas declaration. CUSTOM_ELEMENTS_SCHEMA disables Angular's element and property validation, causing the template compiler to ignore unknown elements and standard attribute bindings. This bypasses Angular's strict component boundary enforcement and default schema safety controls.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.module.ts",
+        "line": 35,
+        "description": "CUSTOM_ELEMENTS_SCHEMA is imported and added to the NgModule schemas array."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.module.ts",
+        "line": 1,
+        "description": "CUSTOM_ELEMENTS_SCHEMA is imported from @angular/core."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.module.ts",
+        "line": 35,
+        "description": "Angular module metadata configured with CUSTOM_ELEMENTS_SCHEMA, disabling template schema validation."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0485",
+    "lane_id": "file-0270",
+    "finding_classes": [
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A08"
+    ],
+    "title": "Unverified Dynamic External Script Execution in Solidity Compiler",
+    "description": "The compileAndFetchContracts method dynamically loads and executes Solidity compiler binaries directly from an external CDN (binaries.soliditylang.org) without performing integrity verification such as Subresource Integrity (SRI) hashes or cryptographic checksum validation. If the third-party domain or network transit is compromised, malicious code could be fetched and executed directly within the client session context.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "line": 109,
+        "description": "compileAndFetchContracts is invoked from the UI view with contract source code and selected compiler version."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "line": 121,
+        "description": "compilerInput constructs an unverified external binary URL pointing to binaries.soliditylang.org without SRI or hash verification."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "line": 112,
+        "description": "selectedVersion filename string is looked up from the compilerReleases dictionary."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "line": 116,
+        "description": "The function checks if selectedVersion exists before proceeding."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "line": 125,
+        "description": "solidityCompiler executes the retrieved external compiler JavaScript binary in the browser runtime environment."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0488",
+    "lane_id": "file-0279",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unencrypted HTTP Protocol Configured for Server Endpoint",
+    "description": "The hostServer configuration setting in environment.ts specifies an unencrypted HTTP endpoint ('http://localhost:3000'). Transmitting API traffic over HTTP rather than HTTPS allows network eavesdropping or tampering if traffic leaves the local loopback interface or if deployed in a shared development/testing environment.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/environments/environment.ts",
+        "line": 10,
+        "description": "Export of environment configuration object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/environments/environment.ts",
+        "line": 11,
+        "description": "Environment configuration specifies development mode (production: false)."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/environments/environment.ts",
+        "line": 12,
+        "description": "hostServer is set to unencrypted HTTP URL ('http://localhost:3000')."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.5
+  },
+  {
+    "finding_id": "FIND-0489",
+    "lane_id": "file-0284",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 5
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Hardcoded Credentials Exposed in Client-Side Tutorial Script",
+    "description": "The client-side hacking instructor tutorial instruction file hardcodes user credentials ('testing@juice-sh.op' and 'IamUsedForTesting') directly within client-side executable source code. Embedding plaintext account credentials in client-facing bundles allows unauthenticated users to extract sensitive access credentials through client asset inspection or developer tools.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 14,
+        "description": "ExposedCredentialsInstruction object defined and exported for inclusion in client-side Angular bundle."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 54,
+        "description": "Plaintext email address 'testing@juice-sh.op' hardcoded in tutorial verification callback."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 16,
+        "description": "The hints array defines the sequence of challenge instructions containing tutorial steps."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 50,
+        "description": "Hint object defining the email entry instruction step in the challenge workflow."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 57,
+        "description": "Hint object defining the password entry instruction step."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/hacking-instructor/challenges/exposedCredentials.ts",
+        "line": 60,
+        "description": "Plaintext password 'IamUsedForTesting' hardcoded in tutorial verification callback."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0491",
+    "lane_id": "file-0287",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded User Credentials in Frontend Tutorial Code",
+    "description": "The Login Bender challenge tutorial instruction file contains the plaintext password 'OhG0dPlease1nsertLiquor!' hardcoded directly in client-side code. Hardcoding credentials in source code exposes sensitive account secrets to anyone inspecting frontend assets.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/hacking-instructor/challenges/loginBender.ts",
+        "line": 17,
+        "description": "LoginBenderInstruction challenge instruction object is exported and bundled into the client-side application."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/hacking-instructor/challenges/loginBender.ts",
+        "line": 19,
+        "description": "The instructions declare a hints array containing challenge tutorial steps and validations."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/hacking-instructor/challenges/loginBender.ts",
+        "line": 84,
+        "description": "Hardcoded user password 'OhG0dPlease1nsertLiquor!' is embedded in client-side logic."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0494",
+    "lane_id": "file-0466",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Credentials in End-to-End Test Suite",
+    "description": "Plaintext user passwords ('focusOnScienceMorty!focusOnScience' and 'GonorrheaCantSeeUs!') are hardcoded directly within the Cypress e2e test script. Storing credentials in version-controlled source files creates a risk of credential leakage and unauthorized account access if test accounts exist in shared or production environments.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/changePassword.spec.ts",
+        "line": 4,
+        "description": "Cypress test block initiates authentication setup using inline user credentials."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/changePassword.spec.ts",
+        "line": 6,
+        "description": "Plaintext password literal is assigned directly within the script."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/changePassword.spec.ts",
+        "line": 13,
+        "description": "Hardcoded new password string is typed into the new password field."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/changePassword.spec.ts",
+        "line": 14,
+        "description": "Hardcoded confirmation password string is typed into the password confirmation field."
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/changePassword.spec.ts",
+        "line": 12,
+        "description": "Hardcoded password is typed into the password input field during test execution."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0495",
+    "lane_id": "file-0468",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Administrator Credentials in Test Script",
+    "description": "The E2E test file hardcodes administrative login credentials (email 'admin', password 'admin123') directly in source code. Storing sensitive credentials in version-controlled test files risks exposing secrets or default administrative passwords.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/complain.spec.ts",
+        "line": 3,
+        "description": "cy.login is called with an inline credential object"
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/complain.spec.ts",
+        "line": 4,
+        "description": "Admin user email identifier passed as part of credentials object"
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/complain.spec.ts",
+        "line": 5,
+        "description": "Plaintext administrative password 'admin123' is hardcoded in source code"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0497",
+    "lane_id": "file-0469",
+    "finding_classes": [
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A03"
+    ],
+    "title": "Code Injection via eval() in Captcha Solver",
+    "description": "The helper function solveNextCaptcha reads inner text from the #captcha DOM element and directly passes it to eval() to calculate the result. If the content of the #captcha element is manipulated or contains untrusted input, arbitrary JavaScript will be executed within the Cypress test execution environment.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/contact.spec.ts",
+        "line": 82,
+        "description": "Text content is retrieved from the #captcha element into variable val"
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/contact.spec.ts",
+        "line": 83,
+        "description": "Unsanitized string val is passed into the promise callback"
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/contact.spec.ts",
+        "line": 86,
+        "description": "eval(val) executes the text directly as arbitrary JavaScript code"
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0500",
+    "lane_id": "file-0482",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 0
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Administrative Credentials in Test Specification",
+    "description": "The test file hardcodes administrative login credentials ('admin' / 'admin123') directly in the test setup hook. Storing plaintext credentials in version-controlled test files creates risks of credential exposure and misuse if the same credentials exist across non-isolated test, staging, or production environments.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/profile.spec.ts",
+        "line": 3,
+        "description": "The beforeEach test hook executes cy.login using static credential parameters."
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/profile.spec.ts",
+        "line": 3,
+        "description": "Plaintext administrator email ('admin') and password ('admin123') are embedded directly into the login call."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0501",
+    "lane_id": "file-0485",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Plaintext Admin Credentials in Test Suite",
+    "description": "The Cypress test suite contains hardcoded administrator credentials ('admin' / 'admin123'). Storing sensitive credentials directly in test source files can lead to unauthorized access if default credentials are used across environments or committed to source control.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/register.spec.ts",
+        "line": 8,
+        "description": "cy.login block executed during Cypress test initialization"
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/register.spec.ts",
+        "line": 9,
+        "description": "User credential object configured with hardcoded admin identifier"
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/register.spec.ts",
+        "line": 10,
+        "description": "Hardcoded admin password specified in plaintext in test specification"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0503",
+    "lane_id": "file-0488",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Hardcoded Administrative Credentials in Test Suite",
+    "description": "The test specification hardcodes plaintext administrative credentials ('admin' / 'admin123') in the call to cy.login. Storing credentials directly in repository code risks unintentional credential leakage, unauthorized access to administrative functions in deployed environments, or reuse across non-isolated testing/production systems.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/search.spec.ts",
+        "line": 33,
+        "description": "cy.login is called with inline user object parameters during test initialization."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/search.spec.ts",
+        "line": 34,
+        "description": "Hardcoded 'admin' email property is passed within the payload object."
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/search.spec.ts",
+        "line": 35,
+        "description": "Plaintext admin password 'admin123' is hardcoded directly into the test file."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0504",
+    "lane_id": "file-0490",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 3
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Credentials and TOTP Secret in Test Code",
+    "description": "The E2E test file embeds static authentication credentials and a hardcoded TOTP secret directly into the source repository. Storing cryptographic seeds and password material in test sources creates potential secret leakage risks across deployment environments.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/cypress/e2e/totpSetup.spec.ts",
+        "line": 4,
+        "description": "Cypress cy.login command invoked with hardcoded credential parameters"
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/totpSetup.spec.ts",
+        "line": 5,
+        "description": "Hardcoded test user email passed to login routine"
+      },
+      {
+        "kind": "propagation",
+        "file": "test/cypress/e2e/totpSetup.spec.ts",
+        "line": 6,
+        "description": "Hardcoded plaintext password passed to login routine"
+      },
+      {
+        "kind": "sink",
+        "file": "test/cypress/e2e/totpSetup.spec.ts",
+        "line": 7,
+        "description": "Hardcoded TOTP seed secret 'IFTXE3SPOEYVURT2MRYGI52TKJ4HC3KH' embedded directly in source code"
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0508",
+    "lane_id": "file-0516",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded Cryptographic Salt/Secret in Source Code",
+    "description": "The test file hardcodes a cryptographic secret key/salt ('pa4qacea4VK9t9nGv7yZtwmj') used for generating HMAC signatures. Hardcoding secret keys in source code exposes sensitive keying material in the repository.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/insecurity.unit.test.ts",
+        "line": 178,
+        "description": "Unit test definition specifies hardcoded HMAC secret salt."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/insecurity.unit.test.ts",
+        "line": 179,
+        "description": "Hardcoded secret salt 'pa4qacea4VK9t9nGv7yZtwmj' is used to compute and verify HMAC output."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0510",
+    "lane_id": "file-0852",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A04",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Unrestricted Faucet Withdrawal and Tautological Balance Check",
+    "description": "The withdraw function permits any caller to request tokens without enforcing access controls, caller limits, or cooldowns. Furthermore, the subtraction on line 15 coupled with the check on line 16 (balance >= 0) is tautological for an unsigned integer uint8 in Solidity (or causes underflow revert in Solidity 0.8+ without safe bounds design), failing to effectively bound withdrawals while transferring tokens out directly.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/BeeFaucet.sol",
+        "line": 14,
+        "description": "Public withdraw function can be invoked by any caller with an arbitrary amount parameter."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BeeFaucet.sol",
+        "line": 15,
+        "description": "The faucet state balance is decremented directly by the requested amount."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BeeFaucet.sol",
+        "line": 16,
+        "description": "A tautological check requires balance >= 0, which is always true for uint8."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/BeeFaucet.sol",
+        "line": 17,
+        "description": "Token transfer transfers requested token amount to msg.sender, allowing an attacker to drain the faucet."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0514",
+    "lane_id": "file-0854",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Permanent Lock of Collected Funds Due to Missing Token Withdrawal Logic",
+    "description": "The mintNFT function transfers 1000 ERC20 tokens from the caller into the contract address (address(this)). However, the contract provides no administrative or standard withdrawal function (such as a sweep or owner withdrawal method). Consequently, all ERC20 tokens sent to the contract to mint NFTs become permanently locked in the contract with no mechanism for retrieval.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 21,
+        "description": "mintNFT function is called by a user to mint an NFT."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 22,
+        "description": "token.transferFrom transfers mintPrice ERC20 tokens from the caller into the contract."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 23,
+        "description": "_safeMint mints the NFT to the caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 24,
+        "description": "totalSupply is updated."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 25,
+        "description": "NFTMinted event is emitted."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 32,
+        "description": "The contract ends without defining any withdrawal mechanism, permanently trapping all collected ERC20 tokens inside the contract."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0515",
+    "lane_id": "file-0854",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded ERC20 Token Contract Address",
+    "description": "The IERC20 token contract address is hardcoded to a specific address during declaration rather than passed via constructor parameter or configurable by governance. This prevents deployment across different networks or updating the payment token if needed.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 12,
+        "description": "State variable token is initialized directly with hardcoded address 0x36435796Ca9be2bf150CE0dECc2D8Fab5C4d6E13."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/HoneyPotNFT.sol",
+        "line": 12,
+        "description": "The fixed address prevents deployment flexibility or migration across networks."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0513",
+    "lane_id": "file-0856",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 0
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Hardcoded RSA Private Key Parameters",
+    "description": "The script hardcodes private RSA key parameters (modulus N and private exponent d) directly in the source code file. Storing private cryptographic keys in source code allows anyone with access to the code to extract the key and decrypt ciphertexts or forge signatures. Additionally, raw unpadded RSA decryption is performed directly on integer values read from the encrypted file.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/files/decrypt.py",
+        "line": 6,
+        "description": "RSA private key exponent d and modulus N are hardcoded as static variables."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/decrypt.py",
+        "line": 8,
+        "description": "The encrypted input file announcement_encrypted.md is opened for reading."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/decrypt.py",
+        "line": 5,
+        "description": "RSA modulus N is also hardcoded in the source file."
+      },
+      {
+        "kind": "sink",
+        "file": "test/files/decrypt.py",
+        "line": 9,
+        "description": "The hardcoded private key parameters d and N are passed into pow() to execute raw RSA decryption."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0516",
+    "lane_id": "file-0858",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Textbook RSA Character-by-Character Encryption Without Padding",
+    "description": "The script encrypts sensitive documents character-by-character using raw RSA (pow(ord(char), e, N)) without any cryptographic padding (such as OAEP). Because the plaintext space for individual characters is extremely small (0-255) and raw RSA encryption is deterministic, an attacker can easily precompute a lookup table of encrypted values or perform frequency analysis to completely recover the confidential text.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/files/encrypt.py",
+        "line": 1,
+        "description": "Confidential document file 'announcement.md' is opened for reading."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/encrypt.py",
+        "line": 13,
+        "description": "The document contents are read character by character."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/encrypt.py",
+        "line": 7,
+        "description": "Public modulus N is defined."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/encrypt.py",
+        "line": 8,
+        "description": "Public exponent e is defined."
+      },
+      {
+        "kind": "sink",
+        "file": "test/files/encrypt.py",
+        "line": 14,
+        "description": "Each individual character code is encrypted using raw RSA exponentiation pow(ord(char), e, N) without padding or randomization."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0517",
+    "lane_id": "file-0857",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A04"
+    ],
+    "title": "Deterministic Single-Character RSA Encryption Scheme (Textbook RSA Without Padding)",
+    "description": "The encryption scheme encrypts individual characters deterministically using textbook RSA modular exponentiation without cryptographic padding or salting. Because the plaintext space for individual characters is small (ASCII range), an attacker can easily precompute a dictionary mapping each ciphertext back to its corresponding plaintext character, completely breaking confidentiality.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/files/decrypt_bruteforce.py",
+        "line": 10,
+        "description": "The script iterates over candidate ASCII printable characters and whitespace."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/decrypt_bruteforce.py",
+        "line": 11,
+        "description": "Computes deterministic single-character RSA ciphertexts using `pow(ord(char), e, N)` without padding."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/decrypt_bruteforce.py",
+        "line": 12,
+        "description": "Stores each computed ciphertext to character mapping in the `encrypted_chars` dictionary."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/files/decrypt_bruteforce.py",
+        "line": 14,
+        "description": "Opens the file `announcement_encrypted.md` containing encrypted character values."
+      },
+      {
+        "kind": "sink",
+        "file": "test/files/decrypt_bruteforce.py",
+        "line": 15,
+        "description": "Reconstructs plaintext from `announcement_encrypted.md` by mapping ciphertexts to plaintext characters via dictionary lookup."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0521",
+    "lane_id": "file-0851",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Uncapped Token Minting in mintTokens",
+    "description": "The mintTokens function allows the contract owner to mint an arbitrary amount of tokens to any address without any max supply ceiling, rate limit, or timelock control. This economic design flaw allows infinite token inflation, devaluing existing holdings.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 68,
+        "description": "The contract owner calls mintTokens specifying recipient address and token amount."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 69,
+        "description": "mintTokens passes the recipient and amount parameters directly to the internal _mint function."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 77,
+        "description": "_mint function begins execution with account and amount parameters."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 78,
+        "description": "Validation ensures non-zero address recipient but performs no check on total supply limits."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 79,
+        "description": "_mint increases total supply and recipient balance without checking against a maximum token supply bound."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0522",
+    "lane_id": "file-0851",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 4
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Un-transferable Custom Ownership and Misconfigured Ownable Import",
+    "description": "The contract imports OpenZeppelin's Ownable library but fails to inherit from it. Instead, it re-implements a custom _owner variable and onlyOwner modifier without providing functions to transfer or renounce ownership. If the owner account key is compromised or needs migration to a multisig/DAO, access control over mintTokens remains permanently locked to the original deployer address.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 6,
+        "description": "Ownable contract is imported from OpenZeppelin dependencies but is omitted from the contract inheritance list on line 9."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 25,
+        "description": "Constructor assigns _owner to msg.sender without defining transferOwnership or renounceOwnership methods."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 9,
+        "description": "BeeToken contract definition inherits only IERC20, ignoring the imported Ownable module."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 21,
+        "description": "Custom state variable _owner is declared instead of using standard OpenZeppelin ownership state."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/BEEToken.sol",
+        "line": 30,
+        "description": "onlyOwner modifier enforces strict equality with _owner, locking access control permanently to the initial address."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0511",
+    "lane_id": "file-0853",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Flawed withdrawal workflow state ordering allows funds drain via re-entrancy",
+    "description": "The withdraw function violates the Checks-Effects-Interactions pattern by transferring Ether via external call prior to updating balances[msg.sender]. Additionally, the custom re-entrancy check userWithdrawing[msg.sender] <= 1 explicitly permits one re-entrant call. Because balances[msg.sender] is not updated before control is handed to msg.sender, the re-entrant call passes the balance check and allows the caller to withdraw double their deposited amount.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 21,
+        "description": "External caller invokes the withdraw function with a specified amount."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 24,
+        "description": "userWithdrawing counter check allows execution to proceed when userWithdrawing is less than or equal to 1."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 31,
+        "description": "External call msg.sender.call sends ETH before updating balances[msg.sender], transferring control to untrusted recipient."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 22,
+        "description": "Require statement checks that requested withdrawal amount is less than or equal to 0.1 ether."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 23,
+        "description": "Require statement verifies caller balance is sufficient for withdrawal."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 25,
+        "description": "userWithdrawing state counter is incremented for caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 32,
+        "description": "Require statement verifies the success result of the low-level external call."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 33,
+        "description": "balances[msg.sender] is decremented post-transfer, allowing re-entrant execution to withdraw funds beyond the user balance."
+      }
+    ],
+    "severity_estimate": "critical",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0512",
+    "lane_id": "file-0853",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Missing event logging for critical financial transactions",
+    "description": "The ethdeposit and withdraw functions perform core state-modifying financial operations (depositing ETH and updating user balance mappings) without emitting events upon completion. Without logging these state transitions, off-chain monitoring and indexing services cannot track balance updates or detect unauthorized automated transactions.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 13,
+        "description": "ethdeposit function receives ETH to deposit for recipient _to."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 14,
+        "description": "balances[_to] is updated in storage without emitting a Deposit event for auditing or monitoring."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0532",
+    "lane_id": "file-0853",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Remote HTTP import dependency misconfiguration",
+    "description": "The contract imports OpenZeppelin's SafeMath directly via an unpinned GitHub HTTP URL rather than using a standard local package dependency manager, exposing build reproducibility and dependency management risks.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 3,
+        "description": "Import statement references remote GitHub HTTP URL for SafeMath contract source."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/web3-snippets/ETHWalletBank.sol",
+        "line": 3,
+        "description": "Contract compilation relies on remote HTTP resource availability and unverified dependency management."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0526",
+    "lane_id": "file-0860",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unpinned Base Image Version Tag in Dockerfile",
+    "description": "The Dockerfile uses 'FROM alpine' without specifying an explicit version tag or immutable image digest. This causes Docker to default to the 'latest' tag, which leads to non-reproducible builds and potential exposure to unvetted upstream updates or security regressions.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/smoke/Dockerfile",
+        "line": 1,
+        "description": "The Dockerfile declares the base image 'alpine' without pinning a specific version tag or digest."
+      },
+      {
+        "kind": "sink",
+        "file": "test/smoke/Dockerfile",
+        "line": 1,
+        "description": "The build resolves to the floating 'latest' tag, allowing non-deterministic image dependencies during container creation."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.7
+  },
+  {
+    "finding_id": "FIND-0536",
+    "lane_id": "file-0860",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Container Execution Defaults to Root Privilege",
+    "description": "The Dockerfile does not define a non-root USER directive, causing the container process specified in the CMD instruction to execute with root privileges.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/smoke/Dockerfile",
+        "line": 1,
+        "description": "Base image alpine is initialized without specifying a non-root user."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/smoke/Dockerfile",
+        "line": 5,
+        "description": "Files are copied into the image with default root ownership."
+      },
+      {
+        "kind": "sink",
+        "file": "test/smoke/Dockerfile",
+        "line": 7,
+        "description": "The CMD instruction executes smoke-test.sh under the root account."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0527",
+    "lane_id": "file-0859",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Overly Permissive File Group Permissions in Container Image",
+    "description": "The Dockerfile sets group ownership of runtime directories (ftp/, frontend/dist/, logs/, data/, i18n/) to group 0 (root group) and sets group permissions equal to owner permissions (chmod -R g=u). In container runtime environments like OpenShift where containers run under arbitrary UIDs within group 0, this misconfiguration grants write access across application source data and compiled assets to any process running within the container.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "Dockerfile",
+        "line": 12,
+        "description": "The installer stage recursively sets group ownership of application directories (ftp/, frontend/dist/, logs/, data/, i18n/) to group 0."
+      },
+      {
+        "kind": "propagation",
+        "file": "Dockerfile",
+        "line": 13,
+        "description": "The build script modifies group access levels to equal owner permissions (g=u) across these directories."
+      },
+      {
+        "kind": "propagation",
+        "file": "Dockerfile",
+        "line": 39,
+        "description": "The runtime container switches to non-root user 65532, operating under group 0 with write permissions over application assets."
+      },
+      {
+        "kind": "sink",
+        "file": "Dockerfile",
+        "line": 38,
+        "description": "The application directory structure with permissive group permissions is copied into the final distroless runtime container."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.6
+  },
+  {
+    "finding_id": "FIND-0534",
+    "lane_id": "file-0863",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 7
+      },
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A08"
+    ],
+    "title": "Use of Cryptographically Weak MD5 Hash for Package Integrity Checksums",
+    "description": "The Grunt checksum task computes MD5 hashes for release packages in the dist directory. MD5 is a cryptographically broken algorithm vulnerable to collision attacks, allowing attackers to forge malicious package files that produce identical checksums.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "Gruntfile.js",
+        "line": 70,
+        "description": "The 'checksum' task is registered to generate package integrity checksum files."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 74,
+        "description": "File buffer from dist/ is read to be hashed."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 72,
+        "description": "Imports node:crypto module for hashing functions."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 73,
+        "description": "Iterates through each file located in the dist/ directory."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 76,
+        "description": "Feeds the package file buffer into the MD5 hasher."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 77,
+        "description": "Calculates the hex digest of the MD5 hash."
+      },
+      {
+        "kind": "propagation",
+        "file": "Gruntfile.js",
+        "line": 79,
+        "description": "Writes the weak MD5 checksum to a .md5 file for package integrity verification."
+      },
+      {
+        "kind": "sink",
+        "file": "Gruntfile.js",
+        "line": 75,
+        "description": "crypto.createHash('md5') creates an MD5 hash instance for computing integrity checksums."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0533",
+    "lane_id": "file-0862",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Docker Container Port Bound to All Interfaces Bypassing Reverse Proxy",
+    "description": "The provisioning script runs the Juice Shop Docker container with '-p 3000:3000', binding port 3000 to all host network interfaces (0.0.0.0). Because Apache is deployed alongside as a reverse proxy for the application, exposing port 3000 directly to external traffic allows callers to bypass any access restrictions, security headers, or logging configured within Apache.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "vagrant/bootstrap.sh",
+        "line": 22,
+        "description": "Apache reverse proxy configuration is deployed to default sites directory."
+      },
+      {
+        "kind": "propagation",
+        "file": "vagrant/bootstrap.sh",
+        "line": 25,
+        "description": "Docker container publishes port 3000 to 0.0.0.0 rather than binding strictly to 127.0.0.1."
+      },
+      {
+        "kind": "propagation",
+        "file": "vagrant/bootstrap.sh",
+        "line": 28,
+        "description": "HTTP proxy module is enabled in Apache to forward traffic to the backend application."
+      },
+      {
+        "kind": "sink",
+        "file": "vagrant/bootstrap.sh",
+        "line": 29,
+        "description": "Apache service is restarted as a reverse proxy, leaving port 3000 directly accessible bypass route."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0540",
+    "lane_id": "file-0862",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A04"
+    ],
+    "title": "Insecure Copy of Configuration File from World-Writable Temporary Directory",
+    "description": "The provisioning script copies the Apache virtual host configuration directly from `/tmp/juice-shop/default.conf` into `/etc/apache2/sites-available/000-default.conf` during execution as root. Since `/tmp` is a world-writable directory, local non-privileged users or untrusted processes can pre-create or modify `/tmp/juice-shop/default.conf` to inject malicious Apache directives before provisioning runs.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "vagrant/bootstrap.sh",
+        "line": 19,
+        "description": "Apache2 server package is installed on the provisioning system."
+      },
+      {
+        "kind": "sink",
+        "file": "vagrant/bootstrap.sh",
+        "line": 22,
+        "description": "Script copies Apache configuration from world-writable path /tmp/juice-shop/default.conf into system configuration directory."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.8
+  },
+  {
+    "finding_id": "FIND-0541",
+    "lane_id": "file-0865",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 5
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "API3",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Mass Assignment on User Registration via Unrestricted Model Fields",
+    "description": "The finale.resource initialization configures CRUD endpoints for the User model with an excludeAttributes list that excludes only password and totpSecret. Because POST /api/Users is unauthenticated and uses automatic field binding, callers can supply extra JSON body properties such as role (e.g., admin), resulting in privilege escalation during user creation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "server.ts",
+        "line": 403,
+        "description": "POST /api/Users endpoint registered without authentication middleware."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 477,
+        "description": "User model configuration in autoModels excludes only password and totpSecret from field binding."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 414,
+        "description": "User registration request body validation middleware executes."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 474,
+        "description": "finale REST framework is initialized with express app and sequelize instance."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 493,
+        "description": "Loop iterates over autoModels array to register CRUD resources."
+      },
+      {
+        "kind": "sink",
+        "file": "server.ts",
+        "line": 494,
+        "description": "finale.resource creates REST endpoints with automatic parameter binding, permitting mass assignment of sensitive attributes like role."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0542",
+    "lane_id": "file-0865",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      },
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A09"
+    ],
+    "title": "Unauthenticated Public Exposure of Internal Encryption Keys and Application Logs",
+    "description": "The application configures public static file serving and directory indexing for /encryptionkeys and /support/logs without enforcing authentication or access control checks. Unauthenticated callers can list directory contents and download sensitive system log files and encryption keys directly.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "server.ts",
+        "line": 276,
+        "description": "Directory browsing middleware for /encryptionkeys is mounted without authentication."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 280,
+        "description": "Directory browsing middleware for /support/logs is mounted without authentication."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 277,
+        "description": "Key file download route /encryptionkeys/:file mounted without authentication."
+      },
+      {
+        "kind": "sink",
+        "file": "server.ts",
+        "line": 282,
+        "description": "serveLogFiles handler serves application log files to any requesting user."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0543",
+    "lane_id": "file-0865",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 1
+      },
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "API4",
+      "A02",
+      "A07",
+      "API2"
+    ],
+    "title": "Missing Rate Limiting on User Login Endpoint",
+    "description": "The POST /rest/user/login route processes authentication requests without applying rate limiting middleware. An attacker can execute high-frequency automated password brute-force or credential stuffing attacks without being throttled or locked out.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "server.ts",
+        "line": 588,
+        "description": "POST /rest/user/login endpoint is registered without rate limiting middleware."
+      },
+      {
+        "kind": "sink",
+        "file": "server.ts",
+        "line": 588,
+        "description": "Route executes login handler directly without rate limiting checks."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0544",
+    "lane_id": "file-0865",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      },
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "API4"
+    ],
+    "title": "Rate Limit Bypass via Client-Controlled X-Forwarded-For Header",
+    "description": "The rate limiting middleware on /rest/user/reset-password specifies a custom keyGenerator function that extracts the client IP address directly from headers['X-Forwarded-For']. Because HTTP request headers are untrusted and client-controlled, an attacker can pass arbitrary header values to bypass rate limiting completely.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "server.ts",
+        "line": 340,
+        "description": "rateLimit middleware mounted for /rest/user/reset-password endpoint."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 343,
+        "description": "keyGenerator extracts X-Forwarded-For header directly from incoming request headers."
+      },
+      {
+        "kind": "propagation",
+        "file": "server.ts",
+        "line": 339,
+        "description": "Application enables trust proxy setting globally."
+      },
+      {
+        "kind": "sink",
+        "file": "server.ts",
+        "line": 343,
+        "description": "Rate limiter uses unverified caller header as client identity key, enabling trivial rate limit bypass."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0554",
+    "lane_id": "file-0865",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 1
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A09",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Unauthenticated Exposure of Internal System and Application Metrics Endpoint",
+    "description": "The GET /metrics endpoint is exposed without authentication or authorization controls. Unauthenticated external callers can fetch detailed operational performance stats, request counters, and process metrics.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "server.ts",
+        "line": 668,
+        "description": "GET /metrics endpoint is registered without authentication or authorization middleware."
+      },
+      {
+        "kind": "sink",
+        "file": "server.ts",
+        "line": 668,
+        "description": "metrics.serveMetrics handler exposes internal system and Prometheus application metrics to unauthenticated callers."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0545",
+    "lane_id": "file-0864",
+    "finding_classes": [
+      {
+        "class": "crypto-auth",
+        "justified_by_step": 1
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A02",
+      "A07",
+      "API2",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Unverified JWT Decoding Permits Token Forgery and Identity Spoofing",
+    "description": "The getUserId function extracts a JWT from incoming requests and calls security.decode(token) (which wraps jwt.decode) instead of verifying its signature with a secret key. An attacker can construct a forged JWT containing an arbitrary user ID payload and pass it in the Authorization header to impersonate any user on the system.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "routes/chat.ts",
+        "line": 43,
+        "description": "getUserId extracts the JWT from the request header via utils.jwtFrom(req)."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 45,
+        "description": "security.decode decodes the JWT payload without verifying its cryptographic signature."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 44,
+        "description": "Checks if token is present before proceeding with decoding."
+      },
+      {
+        "kind": "sink",
+        "file": "routes/chat.ts",
+        "line": 46,
+        "description": "The unverified decoded user ID is returned and trusted for identity decisions."
+      }
+    ],
+    "severity_estimate": "critical",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0546",
+    "lane_id": "file-0864",
+    "finding_classes": [
+      {
+        "class": "ai-llm-agency",
+        "justified_by_step": 5
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      },
+      {
+        "class": "access-control",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "LLM01",
+      "LLM02",
+      "LLM03",
+      "LLM06",
+      "LLM10",
+      "A04",
+      "A01",
+      "API1",
+      "API5"
+    ],
+    "title": "Excessive Agency and Missing Backend Authorization in generateCoupon Tool",
+    "description": "The generateCoupon tool relies entirely on natural language prompt rules to enforce coupon eligibility (e.g. damaged order requirement, maximum 10% discount). The tool's execute function lacks server-side authorization checks and accepts an unbounded discount schema (z.number()). An attacker manipulating the LLM context can trigger generateCoupon with arbitrary discount values up to 100%.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "routes/chat.ts",
+        "line": 114,
+        "description": "The chat route handler receives user messages in the request body."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 199,
+        "description": "streamText executes the LLM model with the generateCoupon tool registered."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 177,
+        "description": "inputSchema defines discount as an unbounded z.number() with no maximum cap."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 174,
+        "description": "Defines the generateCoupon tool definition registered for the chatbot."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 181,
+        "description": "Returns generated coupon code to caller without verifying order state or user eligibility."
+      },
+      {
+        "kind": "sink",
+        "file": "routes/chat.ts",
+        "line": 180,
+        "description": "security.generateCoupon is executed directly with the caller/LLM supplied discount percentage without verifying user authorization or order state."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.95
+  },
+  {
+    "finding_id": "FIND-0547",
+    "lane_id": "file-0864",
+    "finding_classes": [
+      {
+        "class": "ai-llm-agency",
+        "justified_by_step": 4
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM01",
+      "LLM02",
+      "LLM03",
+      "LLM06",
+      "LLM10",
+      "A03"
+    ],
+    "title": "Indirect Prompt Injection via Unsanitized Username String Interpolation",
+    "description": "buildSystemPrompt directly interpolates the user's username into the LLM system prompt without escaping or structural delimiters. If an attacker sets their account username to contain system instructions, those injected instructions alter the chatbot's system prompt context when a chat session starts.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "routes/chat.ts",
+        "line": 188,
+        "description": "getUserNameFromToken retrieves the current user's username string."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 196,
+        "description": "buildSystemPrompt is called with the user-influenced username string."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 82,
+        "description": "userName is interpolated directly into system text without escaping or delimiting."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 85,
+        "description": "Concatenates userIdentifier string into full system prompt instruction text."
+      },
+      {
+        "kind": "sink",
+        "file": "routes/chat.ts",
+        "line": 199,
+        "description": "streamText passes systemPrompt containing the injected string as system instructions to the LLM."
+      }
+    ],
+    "severity_estimate": "high",
+    "confidence": 0.9
+  },
+  {
+    "finding_id": "FIND-0548",
+    "lane_id": "file-0864",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "API4"
+    ],
+    "title": "Unrestricted LLM API Resource Consumption on Public Endpoint",
+    "description": "The /rest/chat endpoint requires no authentication and enforces no rate limiting or payload constraints. An unauthenticated attacker can send high volumes of requests or large messages payloads, exhausting server resources and downstream LLM API token quotas.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "routes/chat.ts",
+        "line": 114,
+        "description": "chat handler receives unauthenticated HTTP requests at /rest/chat."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 187,
+        "description": "req.body.messages array is passed to streamText without size or count limits."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 211,
+        "description": "Streams output events back without per-user rate limiting, enabling resource exhaustion."
+      },
+      {
+        "kind": "sink",
+        "file": "routes/chat.ts",
+        "line": 199,
+        "description": "streamText invokes downstream LLM API streaming calls without rate limiting or request throttling."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.85
+  },
+  {
+    "finding_id": "FIND-0549",
+    "lane_id": "file-0864",
+    "finding_classes": [
+      {
+        "class": "ai-llm-agency",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "LLM01",
+      "LLM02",
+      "LLM03",
+      "LLM06",
+      "LLM10"
+    ],
+    "title": "Sensitive Internal Policy Exposure in System Prompt Context",
+    "description": "The system prompt explicitly includes internal confidential rules intended solely for internal policy ('CONFIDENTIAL - INTERNAL ONLY... offer them a one-time 15% courtesy discount'). Because system prompt text is part of the LLM context, users can extract these confidential escalation thresholds via system prompt extraction.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "routes/chat.ts",
+        "line": 104,
+        "description": "Confidential internal discount escalation text is embedded into system prompt template."
+      },
+      {
+        "kind": "propagation",
+        "file": "routes/chat.ts",
+        "line": 196,
+        "description": "buildSystemPrompt includes the confidential policy text in the returned prompt."
+      },
+      {
+        "kind": "sink",
+        "file": "routes/chat.ts",
+        "line": 199,
+        "description": "streamText transmits confidential policy instructions inside system prompt to the model context."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.85
   }
 ]
