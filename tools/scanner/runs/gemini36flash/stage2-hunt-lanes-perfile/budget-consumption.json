@@ -1,860 +1,2922 @@
 [
   {
-    "lane_id": "file-0005",
-    "tokens_used": 8573,
-    "seconds_elapsed": 17.746,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0006",
-    "tokens_used": 21558,
-    "seconds_elapsed": 17.845,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0008",
-    "tokens_used": 9294,
-    "seconds_elapsed": 17.939,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0009",
-    "tokens_used": 8626,
-    "seconds_elapsed": 18.869,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0001",
-    "tokens_used": 9129,
-    "seconds_elapsed": 23.17,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0003",
-    "tokens_used": 11240,
-    "seconds_elapsed": 25.693,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0012",
-    "tokens_used": 8143,
-    "seconds_elapsed": 14.814,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0013",
-    "tokens_used": 8339,
-    "seconds_elapsed": 17.947,
-    "ceiling_hit": false
-  },
-  {
     "lane_id": "file-0014",
-    "tokens_used": 8193,
-    "seconds_elapsed": 14.962,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0011",
-    "tokens_used": 8140,
-    "seconds_elapsed": 20.628,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0010",
-    "tokens_used": 9263,
-    "seconds_elapsed": 20.788,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0007",
-    "tokens_used": 24445,
-    "seconds_elapsed": 38.967,
+    "tokens_used": 8178,
+    "seconds_elapsed": 16.212,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0015",
-    "tokens_used": 8035,
-    "seconds_elapsed": 14.145,
+    "tokens_used": 8055,
+    "seconds_elapsed": 16.533,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0002",
-    "tokens_used": 15881,
-    "seconds_elapsed": 41.245,
+    "lane_id": "file-0012",
+    "tokens_used": 8192,
+    "seconds_elapsed": 16.61,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0010",
+    "tokens_used": 9107,
+    "seconds_elapsed": 17.53,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0008",
+    "tokens_used": 9401,
+    "seconds_elapsed": 18.048,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0013",
+    "tokens_used": 8291,
+    "seconds_elapsed": 18.51,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0016",
-    "tokens_used": 18535,
-    "seconds_elapsed": 14.431,
+    "tokens_used": 19190,
+    "seconds_elapsed": 19.314,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0019",
-    "tokens_used": 12393,
-    "seconds_elapsed": 15.991,
+    "lane_id": "file-0006",
+    "tokens_used": 22132,
+    "seconds_elapsed": 20.736,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0018",
-    "tokens_used": 11840,
-    "seconds_elapsed": 17.041,
+    "lane_id": "file-0003",
+    "tokens_used": 10439,
+    "seconds_elapsed": 20.813,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0020",
-    "tokens_used": 23202,
-    "seconds_elapsed": 18.368,
+    "lane_id": "file-0001",
+    "tokens_used": 8757,
+    "seconds_elapsed": 22.88,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0022",
-    "tokens_used": 12199,
-    "seconds_elapsed": 17.259,
+    "lane_id": "file-0009",
+    "tokens_used": 8796,
+    "seconds_elapsed": 23.114,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0023",
-    "tokens_used": 12735,
-    "seconds_elapsed": 20.652,
+    "lane_id": "file-0011",
+    "tokens_used": 8455,
+    "seconds_elapsed": 24.466,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0024",
-    "tokens_used": 18194,
-    "seconds_elapsed": 17.897,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0026",
-    "tokens_used": 17252,
-    "seconds_elapsed": 12.586,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0028",
-    "tokens_used": 12966,
-    "seconds_elapsed": 20.752,
+    "lane_id": "file-0005",
+    "tokens_used": 9745,
+    "seconds_elapsed": 24.986,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0017",
-    "tokens_used": 22431,
-    "seconds_elapsed": 41.132,
+    "tokens_used": 19057,
+    "seconds_elapsed": 32.764,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0027",
-    "tokens_used": 25164,
-    "seconds_elapsed": 23.132,
+    "lane_id": "file-0002",
+    "tokens_used": 13882,
+    "seconds_elapsed": 33.428,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0021",
-    "tokens_used": 30595,
-    "seconds_elapsed": 42.542,
+    "lane_id": "file-0026",
+    "tokens_used": 17281,
+    "seconds_elapsed": 12.89,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0025",
-    "tokens_used": 15855,
-    "seconds_elapsed": 27.095,
+    "lane_id": "file-0018",
+    "tokens_used": 11826,
+    "seconds_elapsed": 18.249,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0031",
-    "tokens_used": 10578,
-    "seconds_elapsed": 21.522,
+    "lane_id": "file-0020",
+    "tokens_used": 23136,
+    "seconds_elapsed": 18.748,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0023",
+    "tokens_used": 12343,
+    "seconds_elapsed": 17.708,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0022",
+    "tokens_used": 12197,
+    "seconds_elapsed": 18.43,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0007",
+    "tokens_used": 24941,
+    "seconds_elapsed": 37.087,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0019",
+    "tokens_used": 12962,
+    "seconds_elapsed": 21.085,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0024",
+    "tokens_used": 17946,
+    "seconds_elapsed": 20.674,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0028",
+    "tokens_used": 12845,
+    "seconds_elapsed": 21.252,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0030",
-    "tokens_used": 12847,
-    "seconds_elapsed": 24.794,
+    "tokens_used": 12209,
+    "seconds_elapsed": 21.779,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0029",
-    "tokens_used": 14545,
-    "seconds_elapsed": 28.282,
+    "lane_id": "file-0027",
+    "tokens_used": 24892,
+    "seconds_elapsed": 28.535,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0036",
-    "tokens_used": 23070,
-    "seconds_elapsed": 15.358,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0034",
-    "tokens_used": 12417,
-    "seconds_elapsed": 18.458,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0032",
-    "tokens_used": 17631,
-    "seconds_elapsed": 21.238,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0033",
-    "tokens_used": 13163,
-    "seconds_elapsed": 21.606,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0038",
-    "tokens_used": 12506,
-    "seconds_elapsed": 20.039,
+    "lane_id": "file-0025",
+    "tokens_used": 16489,
+    "seconds_elapsed": 31.185,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0039",
-    "tokens_used": 12608,
-    "seconds_elapsed": 21.01,
+    "tokens_used": 12542,
+    "seconds_elapsed": 15.955,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0035",
-    "tokens_used": 15965,
-    "seconds_elapsed": 31.025,
+    "lane_id": "file-0036",
+    "tokens_used": 23349,
+    "seconds_elapsed": 17.403,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0032",
+    "tokens_used": 16707,
+    "seconds_elapsed": 20.209,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0033",
+    "tokens_used": 12848,
+    "seconds_elapsed": 20.268,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0031",
+    "tokens_used": 10607,
+    "seconds_elapsed": 23.956,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0034",
+    "tokens_used": 12130,
+    "seconds_elapsed": 22.469,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0029",
+    "tokens_used": 16529,
+    "seconds_elapsed": 32.551,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0038",
+    "tokens_used": 11393,
+    "seconds_elapsed": 23.087,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0041",
-    "tokens_used": 12162,
-    "seconds_elapsed": 19.737,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0042",
-    "tokens_used": 13424,
-    "seconds_elapsed": 22.988,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0043",
-    "tokens_used": 12063,
-    "seconds_elapsed": 23.143,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0037",
-    "tokens_used": 21484,
-    "seconds_elapsed": 35.497,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0044",
-    "tokens_used": 13240,
-    "seconds_elapsed": 20.939,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0045",
-    "tokens_used": 18239,
-    "seconds_elapsed": 20.035,
+    "tokens_used": 12661,
+    "seconds_elapsed": 18.389,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0040",
-    "tokens_used": 12533,
-    "seconds_elapsed": 35.345,
+    "tokens_used": 11146,
+    "seconds_elapsed": 25.102,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0046",
-    "tokens_used": 14034,
-    "seconds_elapsed": 22.433,
+    "lane_id": "file-0021",
+    "tokens_used": 32037,
+    "seconds_elapsed": 49.989,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0035",
+    "tokens_used": 16291,
+    "seconds_elapsed": 32.356,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0043",
+    "tokens_used": 12280,
+    "seconds_elapsed": 16.603,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0042",
+    "tokens_used": 13194,
+    "seconds_elapsed": 23.094,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0047",
-    "tokens_used": 13240,
-    "seconds_elapsed": 20.863,
+    "tokens_used": 12863,
+    "seconds_elapsed": 18.253,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0045",
+    "tokens_used": 18473,
+    "seconds_elapsed": 18.352,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0048",
-    "tokens_used": 12700,
-    "seconds_elapsed": 18.937,
+    "tokens_used": 12058,
+    "seconds_elapsed": 19.369,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0050",
-    "tokens_used": 12292,
-    "seconds_elapsed": 17.214,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0049",
-    "tokens_used": 12517,
-    "seconds_elapsed": 21.275,
+    "lane_id": "file-0044",
+    "tokens_used": 13608,
+    "seconds_elapsed": 23.781,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0051",
-    "tokens_used": 14716,
-    "seconds_elapsed": 15.614,
+    "tokens_used": 14941,
+    "seconds_elapsed": 19.131,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0053",
-    "tokens_used": 12446,
-    "seconds_elapsed": 18.602,
+    "lane_id": "file-0049",
+    "tokens_used": 11738,
+    "seconds_elapsed": 19.371,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0054",
-    "tokens_used": 8953,
-    "seconds_elapsed": 17.753,
+    "lane_id": "file-0046",
+    "tokens_used": 13409,
+    "seconds_elapsed": 22.862,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0050",
+    "tokens_used": 12714,
+    "seconds_elapsed": 19.78,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0037",
+    "tokens_used": 21794,
+    "seconds_elapsed": 43.722,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0052",
-    "tokens_used": 14964,
-    "seconds_elapsed": 22.924,
+    "tokens_used": 13695,
+    "seconds_elapsed": 20.164,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0053",
+    "tokens_used": 12590,
+    "seconds_elapsed": 18.43,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0055",
-    "tokens_used": 16452,
-    "seconds_elapsed": 16.627,
+    "tokens_used": 16872,
+    "seconds_elapsed": 17.44,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0054",
+    "tokens_used": 9181,
+    "seconds_elapsed": 21.061,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0059",
-    "tokens_used": 18018,
-    "seconds_elapsed": 15.316,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0058",
-    "tokens_used": 13180,
-    "seconds_elapsed": 20.104,
+    "tokens_used": 18260,
+    "seconds_elapsed": 15.092,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0057",
-    "tokens_used": 13325,
-    "seconds_elapsed": 23.612,
+    "tokens_used": 13384,
+    "seconds_elapsed": 19.901,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0061",
-    "tokens_used": 12734,
-    "seconds_elapsed": 18.002,
+    "tokens_used": 11942,
+    "seconds_elapsed": 16.245,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0058",
+    "tokens_used": 13631,
+    "seconds_elapsed": 21.502,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0063",
-    "tokens_used": 16911,
-    "seconds_elapsed": 16.218,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0056",
-    "tokens_used": 26120,
-    "seconds_elapsed": 39.658,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0064",
-    "tokens_used": 17850,
-    "seconds_elapsed": 24.243,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0060",
-    "tokens_used": 20403,
-    "seconds_elapsed": 36.356,
+    "tokens_used": 16834,
+    "seconds_elapsed": 16.077,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0065",
-    "tokens_used": 13386,
-    "seconds_elapsed": 23.693,
+    "tokens_used": 12930,
+    "seconds_elapsed": 16.103,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0067",
-    "tokens_used": 12551,
-    "seconds_elapsed": 19.786,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0066",
-    "tokens_used": 14539,
-    "seconds_elapsed": 26.122,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0062",
-    "tokens_used": 16897,
-    "seconds_elapsed": 39.488,
+    "tokens_used": 12250,
+    "seconds_elapsed": 14.658,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0069",
-    "tokens_used": 17180,
-    "seconds_elapsed": 17.777,
+    "tokens_used": 17067,
+    "seconds_elapsed": 16.163,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0062",
+    "tokens_used": 13329,
+    "seconds_elapsed": 22.394,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0056",
+    "tokens_used": 25014,
+    "seconds_elapsed": 31.777,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0068",
-    "tokens_used": 12945,
-    "seconds_elapsed": 27.01,
+    "tokens_used": 12823,
+    "seconds_elapsed": 19.293,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0066",
+    "tokens_used": 14530,
+    "seconds_elapsed": 23.933,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0060",
+    "tokens_used": 18965,
+    "seconds_elapsed": 29.161,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0064",
+    "tokens_used": 17982,
+    "seconds_elapsed": 26.147,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0070",
-    "tokens_used": 13095,
-    "seconds_elapsed": 18.256,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0074",
-    "tokens_used": 16154,
-    "seconds_elapsed": 15.112,
+    "tokens_used": 12845,
+    "seconds_elapsed": 18.445,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0073",
-    "tokens_used": 12701,
-    "seconds_elapsed": 19.226,
+    "tokens_used": 12794,
+    "seconds_elapsed": 19.333,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0072",
-    "tokens_used": 17229,
-    "seconds_elapsed": 22.057,
+    "tokens_used": 17231,
+    "seconds_elapsed": 20.313,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0074",
+    "tokens_used": 16502,
+    "seconds_elapsed": 18.391,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0076",
-    "tokens_used": 9183,
-    "seconds_elapsed": 17.415,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0077",
-    "tokens_used": 16509,
-    "seconds_elapsed": 21.217,
+    "tokens_used": 9233,
+    "seconds_elapsed": 17.611,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0078",
-    "tokens_used": 8733,
-    "seconds_elapsed": 18.942,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0079",
-    "tokens_used": 10475,
-    "seconds_elapsed": 20.386,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0071",
-    "tokens_used": 17280,
-    "seconds_elapsed": 39.989,
+    "tokens_used": 8698,
+    "seconds_elapsed": 17.515,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0080",
-    "tokens_used": 11485,
-    "seconds_elapsed": 18.99,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0082",
-    "tokens_used": 15662,
-    "seconds_elapsed": 16.042,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0081",
-    "tokens_used": 9843,
-    "seconds_elapsed": 23.015,
+    "tokens_used": 11405,
+    "seconds_elapsed": 15.153,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0075",
-    "tokens_used": 18146,
-    "seconds_elapsed": 42.978,
+    "tokens_used": 13644,
+    "seconds_elapsed": 23.387,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0077",
+    "tokens_used": 17092,
+    "seconds_elapsed": 22.331,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0082",
+    "tokens_used": 15611,
+    "seconds_elapsed": 16.049,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0084",
-    "tokens_used": 23786,
-    "seconds_elapsed": 18.223,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0087",
-    "tokens_used": 12584,
-    "seconds_elapsed": 17.207,
+    "tokens_used": 24015,
+    "seconds_elapsed": 20.01,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0086",
-    "tokens_used": 11871,
-    "seconds_elapsed": 20.462,
+    "tokens_used": 12390,
+    "seconds_elapsed": 19.857,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0088",
-    "tokens_used": 12419,
-    "seconds_elapsed": 18.109,
+    "lane_id": "file-0071",
+    "tokens_used": 17409,
+    "seconds_elapsed": 39.387,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0090",
-    "tokens_used": 9091,
-    "seconds_elapsed": 19.819,
+    "lane_id": "file-0087",
+    "tokens_used": 12412,
+    "seconds_elapsed": 18.526,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0083",
-    "tokens_used": 17895,
-    "seconds_elapsed": 37.109,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0085",
-    "tokens_used": 20760,
-    "seconds_elapsed": 30.217,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0091",
-    "tokens_used": 8937,
-    "seconds_elapsed": 19.6,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0089",
-    "tokens_used": 15270,
-    "seconds_elapsed": 31.52,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0094",
-    "tokens_used": 19406,
-    "seconds_elapsed": 17.746,
+    "lane_id": "file-0081",
+    "tokens_used": 11496,
+    "seconds_elapsed": 28.092,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0092",
-    "tokens_used": 20877,
-    "seconds_elapsed": 24.274,
+    "tokens_used": 20233,
+    "seconds_elapsed": 14.681,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0093",
-    "tokens_used": 20009,
-    "seconds_elapsed": 24.384,
+    "lane_id": "file-0091",
+    "tokens_used": 8427,
+    "seconds_elapsed": 15.941,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0098",
-    "tokens_used": 10249,
-    "seconds_elapsed": 14.466,
+    "lane_id": "file-0090",
+    "tokens_used": 8485,
+    "seconds_elapsed": 18.585,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0099",
-    "tokens_used": 9077,
-    "seconds_elapsed": 13.915,
+    "lane_id": "file-0094",
+    "tokens_used": 19491,
+    "seconds_elapsed": 14.972,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0088",
+    "tokens_used": 14239,
+    "seconds_elapsed": 23.764,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0089",
+    "tokens_used": 13582,
+    "seconds_elapsed": 23.588,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0083",
+    "tokens_used": 17564,
+    "seconds_elapsed": 34.026,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0079",
+    "tokens_used": 14709,
+    "seconds_elapsed": 41.407,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0085",
+    "tokens_used": 23168,
+    "seconds_elapsed": 37.729,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0096",
-    "tokens_used": 21186,
-    "seconds_elapsed": 23.543,
+    "tokens_used": 21006,
+    "seconds_elapsed": 20.15,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0098",
+    "tokens_used": 10797,
+    "seconds_elapsed": 17.97,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0093",
+    "tokens_used": 20632,
+    "seconds_elapsed": 29.227,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0100",
-    "tokens_used": 17782,
-    "seconds_elapsed": 19.931,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0097",
-    "tokens_used": 25344,
-    "seconds_elapsed": 30.789,
+    "tokens_used": 17611,
+    "seconds_elapsed": 16.83,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0102",
-    "tokens_used": 19780,
-    "seconds_elapsed": 17.048,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0104",
-    "tokens_used": 10385,
-    "seconds_elapsed": 17.513,
+    "tokens_used": 19778,
+    "seconds_elapsed": 17.431,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0105",
-    "tokens_used": 9451,
-    "seconds_elapsed": 15.935,
+    "tokens_used": 9331,
+    "seconds_elapsed": 16.278,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0095",
-    "tokens_used": 25550,
-    "seconds_elapsed": 42.351,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0103",
-    "tokens_used": 29072,
-    "seconds_elapsed": 31.412,
+    "lane_id": "file-0104",
+    "tokens_used": 10667,
+    "seconds_elapsed": 18.26,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0106",
-    "tokens_used": 17672,
-    "seconds_elapsed": 19.719,
+    "tokens_used": 17536,
+    "seconds_elapsed": 19.536,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0111",
-    "tokens_used": 21089,
-    "seconds_elapsed": 8.761,
+    "tokens_used": 20858,
+    "seconds_elapsed": 8.433,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0101",
-    "tokens_used": 25206,
-    "seconds_elapsed": 42.023,
+    "lane_id": "file-0099",
+    "tokens_used": 11477,
+    "seconds_elapsed": 26.808,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0109",
-    "tokens_used": 15299,
-    "seconds_elapsed": 17.483,
+    "tokens_used": 14862,
+    "seconds_elapsed": 15.915,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0108",
-    "tokens_used": 24988,
-    "seconds_elapsed": 38.081,
+    "lane_id": "file-0097",
+    "tokens_used": 25078,
+    "seconds_elapsed": 32.968,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0107",
-    "tokens_used": 19585,
-    "seconds_elapsed": 41.385,
+    "lane_id": "file-0095",
+    "tokens_used": 25053,
+    "seconds_elapsed": 43.454,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0101",
+    "tokens_used": 24851,
+    "seconds_elapsed": 36.287,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0113",
-    "tokens_used": 12480,
-    "seconds_elapsed": 22.232,
+    "tokens_used": 13057,
+    "seconds_elapsed": 21.793,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0115",
-    "tokens_used": 12583,
-    "seconds_elapsed": 19.142,
+    "lane_id": "file-0103",
+    "tokens_used": 30009,
+    "seconds_elapsed": 39.569,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0112",
-    "tokens_used": 24014,
-    "seconds_elapsed": 34.11,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0114",
-    "tokens_used": 14347,
-    "seconds_elapsed": 34.244,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0117",
-    "tokens_used": 28035,
-    "seconds_elapsed": 15.321,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0110",
-    "tokens_used": 19454,
-    "seconds_elapsed": 46.043,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0116",
-    "tokens_used": 15465,
-    "seconds_elapsed": 30.514,
+    "lane_id": "file-0107",
+    "tokens_used": 17896,
+    "seconds_elapsed": 34.608,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0119",
-    "tokens_used": 10341,
-    "seconds_elapsed": 15.866,
+    "tokens_used": 10558,
+    "seconds_elapsed": 17.475,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0117",
+    "tokens_used": 28301,
+    "seconds_elapsed": 19.824,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0115",
+    "tokens_used": 12051,
+    "seconds_elapsed": 25.224,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0114",
+    "tokens_used": 12758,
+    "seconds_elapsed": 26.969,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0108",
+    "tokens_used": 26342,
+    "seconds_elapsed": 35.831,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0110",
+    "tokens_used": 15773,
+    "seconds_elapsed": 34.236,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0120",
-    "tokens_used": 10333,
-    "seconds_elapsed": 20.066,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0126",
-    "tokens_used": 8359,
-    "seconds_elapsed": 14.677,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0122",
-    "tokens_used": 12839,
-    "seconds_elapsed": 19.296,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0124",
-    "tokens_used": 13994,
-    "seconds_elapsed": 18.963,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0125",
-    "tokens_used": 8646,
-    "seconds_elapsed": 21.089,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0118",
-    "tokens_used": 29521,
-    "seconds_elapsed": 37.899,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0127",
-    "tokens_used": 19465,
-    "seconds_elapsed": 16.82,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0123",
-    "tokens_used": 15002,
-    "seconds_elapsed": 29.665,
+    "tokens_used": 10316,
+    "seconds_elapsed": 19.634,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0121",
-    "tokens_used": 12240,
-    "seconds_elapsed": 32.355,
+    "tokens_used": 9825,
+    "seconds_elapsed": 21.483,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0129",
-    "tokens_used": 8402,
-    "seconds_elapsed": 14.779,
+    "lane_id": "file-0122",
+    "tokens_used": 12862,
+    "seconds_elapsed": 20.419,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0112",
+    "tokens_used": 24475,
+    "seconds_elapsed": 37.032,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0116",
+    "tokens_used": 16332,
+    "seconds_elapsed": 32.942,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0127",
+    "tokens_used": 19186,
+    "seconds_elapsed": 12.033,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0124",
+    "tokens_used": 13844,
+    "seconds_elapsed": 17.811,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0125",
+    "tokens_used": 9350,
+    "seconds_elapsed": 16.524,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0118",
+    "tokens_used": 29088,
+    "seconds_elapsed": 33.501,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0130",
-    "tokens_used": 20374,
-    "seconds_elapsed": 14.849,
+    "tokens_used": 20089,
+    "seconds_elapsed": 14.659,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0132",
-    "tokens_used": 9141,
-    "seconds_elapsed": 18.399,
+    "lane_id": "file-0126",
+    "tokens_used": 8551,
+    "seconds_elapsed": 19.883,
     "ceiling_hit": false
   },
   {
-    "lane_id": "file-0131",
-    "tokens_used": 26980,
-    "seconds_elapsed": 21.368,
+    "lane_id": "file-0123",
+    "tokens_used": 14348,
+    "seconds_elapsed": 26.769,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0133",
-    "tokens_used": 9857,
-    "seconds_elapsed": 18.333,
+    "tokens_used": 9245,
+    "seconds_elapsed": 15.492,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0132",
+    "tokens_used": 8876,
+    "seconds_elapsed": 17.013,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0131",
+    "tokens_used": 26903,
+    "seconds_elapsed": 20.462,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0129",
+    "tokens_used": 8464,
+    "seconds_elapsed": 23.196,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0135",
-    "tokens_used": 19201,
-    "seconds_elapsed": 18.707,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0136",
-    "tokens_used": 11502,
-    "seconds_elapsed": 17.45,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0137",
-    "tokens_used": 10461,
-    "seconds_elapsed": 18.852,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0128",
-    "tokens_used": 16052,
-    "seconds_elapsed": 36.396,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0134",
-    "tokens_used": 13930,
-    "seconds_elapsed": 28.19,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0138",
-    "tokens_used": 11726,
-    "seconds_elapsed": 15.18,
+    "tokens_used": 18463,
+    "seconds_elapsed": 16.402,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0140",
-    "tokens_used": 19076,
-    "seconds_elapsed": 17.096,
+    "tokens_used": 19347,
+    "seconds_elapsed": 12.028,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0136",
+    "tokens_used": 11783,
+    "seconds_elapsed": 17.539,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0138",
+    "tokens_used": 12038,
+    "seconds_elapsed": 16.803,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0134",
+    "tokens_used": 14210,
+    "seconds_elapsed": 21.93,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0137",
+    "tokens_used": 10523,
+    "seconds_elapsed": 19.825,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0142",
-    "tokens_used": 20551,
-    "seconds_elapsed": 16.902,
+    "tokens_used": 20639,
+    "seconds_elapsed": 16.682,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0144",
-    "tokens_used": 14144,
-    "seconds_elapsed": 17.112,
+    "tokens_used": 14404,
+    "seconds_elapsed": 15.08,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0128",
+    "tokens_used": 16607,
+    "seconds_elapsed": 40.154,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0150",
+    "tokens_used": 14568,
+    "seconds_elapsed": 15.278,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0139",
+    "tokens_used": 13210,
+    "seconds_elapsed": 32.975,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0148",
+    "tokens_used": 17242,
+    "seconds_elapsed": 21.178,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0146",
-    "tokens_used": 17328,
-    "seconds_elapsed": 18.164,
-    "ceiling_hit": false
-  },
-  {
-    "lane_id": "file-0141",
-    "tokens_used": 23299,
-    "seconds_elapsed": 30.124,
+    "tokens_used": 17153,
+    "seconds_elapsed": 24.848,
     "ceiling_hit": false
   },
   {
     "lane_id": "file-0143",
-    "tokens_used": 26315,
-    "seconds_elapsed": 30.406,
+    "tokens_used": 24519,
+    "seconds_elapsed": 30.508,
     "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0152",
+    "tokens_used": 9782,
+    "seconds_elapsed": 21.265,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0141",
+    "tokens_used": 24485,
+    "seconds_elapsed": 35.385,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0156",
+    "tokens_used": 9568,
+    "seconds_elapsed": 16.795,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0153",
+    "tokens_used": 11394,
+    "seconds_elapsed": 23.764,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0155",
+    "tokens_used": 10782,
+    "seconds_elapsed": 22.042,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0151",
+    "tokens_used": 14326,
+    "seconds_elapsed": 28.418,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0158",
+    "tokens_used": 18009,
+    "seconds_elapsed": 16.789,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0145",
+    "tokens_used": 16048,
+    "seconds_elapsed": 38.168,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0157",
+    "tokens_used": 9944,
+    "seconds_elapsed": 18.931,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0147",
+    "tokens_used": 26693,
+    "seconds_elapsed": 38.608,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0160",
+    "tokens_used": 17187,
+    "seconds_elapsed": 17.213,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0162",
+    "tokens_used": 20434,
+    "seconds_elapsed": 15.621,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0167",
+    "tokens_used": 27518,
+    "seconds_elapsed": 10.909,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0149",
+    "tokens_used": 19465,
+    "seconds_elapsed": 41.144,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0164",
+    "tokens_used": 9927,
+    "seconds_elapsed": 17.83,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0165",
+    "tokens_used": 19302,
+    "seconds_elapsed": 18.036,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0166",
+    "tokens_used": 17380,
+    "seconds_elapsed": 19.045,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0161",
+    "tokens_used": 18780,
+    "seconds_elapsed": 28.514,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0169",
+    "tokens_used": 11824,
+    "seconds_elapsed": 17.723,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0159",
+    "tokens_used": 20463,
+    "seconds_elapsed": 29.372,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0173",
+    "tokens_used": 14682,
+    "seconds_elapsed": 20.478,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0175",
+    "tokens_used": 16175,
+    "seconds_elapsed": 19.774,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0179",
+    "tokens_used": 10840,
+    "seconds_elapsed": 15.638,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0177",
+    "tokens_used": 16322,
+    "seconds_elapsed": 19.916,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0168",
+    "tokens_used": 30295,
+    "seconds_elapsed": 33.937,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0181",
+    "tokens_used": 12833,
+    "seconds_elapsed": 15.207,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0176",
+    "tokens_used": 21668,
+    "seconds_elapsed": 28.586,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0170",
+    "tokens_used": 15318,
+    "seconds_elapsed": 36.684,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0154",
+    "tokens_used": 36728,
+    "seconds_elapsed": 65.717,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0180",
+    "tokens_used": 10098,
+    "seconds_elapsed": 21.638,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0163",
+    "tokens_used": 22532,
+    "seconds_elapsed": 47.819,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0185",
+    "tokens_used": 27725,
+    "seconds_elapsed": 12.412,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0182",
+    "tokens_used": 12586,
+    "seconds_elapsed": 26.316,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0172",
+    "tokens_used": 24998,
+    "seconds_elapsed": 39.915,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0183",
+    "tokens_used": 23053,
+    "seconds_elapsed": 19.109,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0174",
+    "tokens_used": 24163,
+    "seconds_elapsed": 38.647,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0178",
+    "tokens_used": 23578,
+    "seconds_elapsed": 35.465,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0188",
+    "tokens_used": 26400,
+    "seconds_elapsed": 21.493,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0171",
+    "tokens_used": 21135,
+    "seconds_elapsed": 54.041,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0192",
+    "tokens_used": 9356,
+    "seconds_elapsed": 17.265,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0190",
+    "tokens_used": 9766,
+    "seconds_elapsed": 19.982,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0193",
+    "tokens_used": 8473,
+    "seconds_elapsed": 17.871,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0196",
+    "tokens_used": 15089,
+    "seconds_elapsed": 12.648,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0194",
+    "tokens_used": 19861,
+    "seconds_elapsed": 22.477,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0198",
+    "tokens_used": 21683,
+    "seconds_elapsed": 20.209,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0184",
+    "tokens_used": 28704,
+    "seconds_elapsed": 39.268,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0200",
+    "tokens_used": 24528,
+    "seconds_elapsed": 14.171,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0186",
+    "tokens_used": 33152,
+    "seconds_elapsed": 38.699,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0191",
+    "tokens_used": 12940,
+    "seconds_elapsed": 32.058,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0189",
+    "tokens_used": 24534,
+    "seconds_elapsed": 33.26,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0187",
+    "tokens_used": 15360,
+    "seconds_elapsed": 40.843,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0202",
+    "tokens_used": 11253,
+    "seconds_elapsed": 18.401,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0204",
+    "tokens_used": 21080,
+    "seconds_elapsed": 19.183,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0203",
+    "tokens_used": 10343,
+    "seconds_elapsed": 20.824,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0199",
+    "tokens_used": 26959,
+    "seconds_elapsed": 30.349,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0206",
+    "tokens_used": 22363,
+    "seconds_elapsed": 17.049,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0208",
+    "tokens_used": 8362,
+    "seconds_elapsed": 15.139,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0210",
+    "tokens_used": 8487,
+    "seconds_elapsed": 15.315,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0212",
+    "tokens_used": 8778,
+    "seconds_elapsed": 14.941,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0209",
+    "tokens_used": 10227,
+    "seconds_elapsed": 17.543,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0197",
+    "tokens_used": 23667,
+    "seconds_elapsed": 43.065,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0213",
+    "tokens_used": 23094,
+    "seconds_elapsed": 17.689,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0205",
+    "tokens_used": 25417,
+    "seconds_elapsed": 34.519,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0195",
+    "tokens_used": 29592,
+    "seconds_elapsed": 48.281,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0215",
+    "tokens_used": 10580,
+    "seconds_elapsed": 16.251,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0211",
+    "tokens_used": 10792,
+    "seconds_elapsed": 22.813,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0217",
+    "tokens_used": 8993,
+    "seconds_elapsed": 15.588,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0214",
+    "tokens_used": 19640,
+    "seconds_elapsed": 22.717,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0219",
+    "tokens_used": 10266,
+    "seconds_elapsed": 15.203,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0201",
+    "tokens_used": 29299,
+    "seconds_elapsed": 43.411,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0216",
+    "tokens_used": 15493,
+    "seconds_elapsed": 21.258,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0218",
+    "tokens_used": 9696,
+    "seconds_elapsed": 19.083,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0222",
+    "tokens_used": 9465,
+    "seconds_elapsed": 18.745,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0226",
+    "tokens_used": 12455,
+    "seconds_elapsed": 14.654,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0221",
+    "tokens_used": 8574,
+    "seconds_elapsed": 22.274,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0224",
+    "tokens_used": 9263,
+    "seconds_elapsed": 17.291,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0225",
+    "tokens_used": 9222,
+    "seconds_elapsed": 16.078,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0228",
+    "tokens_used": 9028,
+    "seconds_elapsed": 16.253,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0223",
+    "tokens_used": 10940,
+    "seconds_elapsed": 22.192,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0207",
+    "tokens_used": 30157,
+    "seconds_elapsed": 47.568,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0227",
+    "tokens_used": 19883,
+    "seconds_elapsed": 20.971,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0229",
+    "tokens_used": 10306,
+    "seconds_elapsed": 20.588,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0230",
+    "tokens_used": 8968,
+    "seconds_elapsed": 17.138,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0232",
+    "tokens_used": 9126,
+    "seconds_elapsed": 15.792,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0231",
+    "tokens_used": 8939,
+    "seconds_elapsed": 16.952,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0234",
+    "tokens_used": 9811,
+    "seconds_elapsed": 17.59,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0233",
+    "tokens_used": 8640,
+    "seconds_elapsed": 20.389,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0235",
+    "tokens_used": 9657,
+    "seconds_elapsed": 17.765,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0236",
+    "tokens_used": 8421,
+    "seconds_elapsed": 16.732,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0220",
+    "tokens_used": 17177,
+    "seconds_elapsed": 40.41,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0239",
+    "tokens_used": 13105,
+    "seconds_elapsed": 17.457,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0240",
+    "tokens_used": 17769,
+    "seconds_elapsed": 17.803,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0243",
+    "tokens_used": 8395,
+    "seconds_elapsed": 16.006,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0238",
+    "tokens_used": 10644,
+    "seconds_elapsed": 21.738,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0246",
+    "tokens_used": 8317,
+    "seconds_elapsed": 15.989,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0242",
+    "tokens_used": 10432,
+    "seconds_elapsed": 18.625,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0244",
+    "tokens_used": 15405,
+    "seconds_elapsed": 19.187,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0247",
+    "tokens_used": 27077,
+    "seconds_elapsed": 19.548,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0241",
+    "tokens_used": 12598,
+    "seconds_elapsed": 24.444,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0249",
+    "tokens_used": 13379,
+    "seconds_elapsed": 17.986,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0245",
+    "tokens_used": 19768,
+    "seconds_elapsed": 23.63,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0251",
+    "tokens_used": 15116,
+    "seconds_elapsed": 16.738,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0254",
+    "tokens_used": 26504,
+    "seconds_elapsed": 15.241,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0256",
+    "tokens_used": 12564,
+    "seconds_elapsed": 14.359,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0253",
+    "tokens_used": 11016,
+    "seconds_elapsed": 19.128,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0237",
+    "tokens_used": 12861,
+    "seconds_elapsed": 37.52,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0261",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0252",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0262",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0264",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0248",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0265",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0258",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0260",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0267",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0268",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0266",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0257",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0250",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0259",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0255",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0263",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0269",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0270",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0271",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0272",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0273",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0274",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0277",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0275",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0280",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0279",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0278",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0276",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0281",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0282",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0283",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0284",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0285",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0286",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0287",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0288",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0289",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0292",
+    "tokens_used": 10181,
+    "seconds_elapsed": 93.876,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0293",
+    "tokens_used": 13530,
+    "seconds_elapsed": 93.49,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0296",
+    "tokens_used": 9571,
+    "seconds_elapsed": 92.828,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0290",
+    "tokens_used": 12860,
+    "seconds_elapsed": 96.518,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0291",
+    "tokens_used": 13708,
+    "seconds_elapsed": 97.283,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0297",
+    "tokens_used": 13401,
+    "seconds_elapsed": 94.522,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0298",
+    "tokens_used": 8950,
+    "seconds_elapsed": 91.631,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0295",
+    "tokens_used": 22320,
+    "seconds_elapsed": 104.299,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0300",
+    "tokens_used": 7834,
+    "seconds_elapsed": 90.835,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0309",
+    "tokens_used": 8095,
+    "seconds_elapsed": 14.434,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0294",
+    "tokens_used": 26235,
+    "seconds_elapsed": 109.219,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0308",
+    "tokens_used": 8518,
+    "seconds_elapsed": 16.135,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0303",
+    "tokens_used": 22092,
+    "seconds_elapsed": 39.377,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0299",
+    "tokens_used": 12616,
+    "seconds_elapsed": 99.605,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0307",
+    "tokens_used": 16316,
+    "seconds_elapsed": 21.912,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0301",
+    "tokens_used": 16133,
+    "seconds_elapsed": 52.602,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0313",
+    "tokens_used": 16735,
+    "seconds_elapsed": 21.554,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0305",
+    "tokens_used": 20302,
+    "seconds_elapsed": 47.024,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0304",
+    "tokens_used": 27040,
+    "seconds_elapsed": 48.309,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0310",
+    "tokens_used": 11882,
+    "seconds_elapsed": 30.495,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0312",
+    "tokens_used": 20737,
+    "seconds_elapsed": 31.643,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0306",
+    "tokens_used": 36302,
+    "seconds_elapsed": 55.821,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0320",
+    "tokens_used": 9120,
+    "seconds_elapsed": 19.883,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0317",
+    "tokens_used": 18733,
+    "seconds_elapsed": 27.777,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0311",
+    "tokens_used": 20723,
+    "seconds_elapsed": 45.065,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0314",
+    "tokens_used": 23612,
+    "seconds_elapsed": 36.75,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0321",
+    "tokens_used": 27536,
+    "seconds_elapsed": 27.285,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0316",
+    "tokens_used": 19930,
+    "seconds_elapsed": 38.373,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0318",
+    "tokens_used": 26648,
+    "seconds_elapsed": 38.278,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0328",
+    "tokens_used": 14318,
+    "seconds_elapsed": 19.001,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0315",
+    "tokens_used": 16091,
+    "seconds_elapsed": 42.123,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0326",
+    "tokens_used": 15382,
+    "seconds_elapsed": 25.979,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0323",
+    "tokens_used": 16653,
+    "seconds_elapsed": 34.166,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0325",
+    "tokens_used": 20018,
+    "seconds_elapsed": 34.317,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0319",
+    "tokens_used": 15987,
+    "seconds_elapsed": 46.743,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0331",
+    "tokens_used": 15173,
+    "seconds_elapsed": 23.664,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0324",
+    "tokens_used": 18372,
+    "seconds_elapsed": 42.016,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0327",
+    "tokens_used": 18083,
+    "seconds_elapsed": 33.878,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0333",
+    "tokens_used": 14567,
+    "seconds_elapsed": 22.717,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0329",
+    "tokens_used": 18509,
+    "seconds_elapsed": 31.595,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0322",
+    "tokens_used": 33673,
+    "seconds_elapsed": 48.89,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0339",
+    "tokens_used": 14677,
+    "seconds_elapsed": 22.262,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0334",
+    "tokens_used": 19514,
+    "seconds_elapsed": 33.386,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0335",
+    "tokens_used": 17754,
+    "seconds_elapsed": 30.046,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0338",
+    "tokens_used": 15904,
+    "seconds_elapsed": 28.27,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0340",
+    "tokens_used": 16429,
+    "seconds_elapsed": 26.064,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0336",
+    "tokens_used": 18218,
+    "seconds_elapsed": 34.106,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0337",
+    "tokens_used": 14667,
+    "seconds_elapsed": 34.093,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0332",
+    "tokens_used": 19428,
+    "seconds_elapsed": 42.505,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0343",
+    "tokens_used": 12547,
+    "seconds_elapsed": 23.161,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0345",
+    "tokens_used": 16750,
+    "seconds_elapsed": 27.641,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0341",
+    "tokens_used": 19090,
+    "seconds_elapsed": 35.955,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0344",
+    "tokens_used": 18897,
+    "seconds_elapsed": 30.427,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0342",
+    "tokens_used": 19399,
+    "seconds_elapsed": 39.002,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0347",
+    "tokens_used": 17165,
+    "seconds_elapsed": 34.589,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0346",
+    "tokens_used": 23390,
+    "seconds_elapsed": 37.273,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0351",
+    "tokens_used": 19389,
+    "seconds_elapsed": 28.856,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0350",
+    "tokens_used": 20145,
+    "seconds_elapsed": 34.434,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0355",
+    "tokens_used": 19687,
+    "seconds_elapsed": 28.999,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0354",
+    "tokens_used": 21175,
+    "seconds_elapsed": 33.573,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0352",
+    "tokens_used": 20583,
+    "seconds_elapsed": 39.189,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0353",
+    "tokens_used": 23093,
+    "seconds_elapsed": 40.026,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0361",
+    "tokens_used": 17840,
+    "seconds_elapsed": 23.779,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0349",
+    "tokens_used": 24597,
+    "seconds_elapsed": 47.938,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0360",
+    "tokens_used": 21850,
+    "seconds_elapsed": 34.475,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0359",
+    "tokens_used": 22725,
+    "seconds_elapsed": 40.408,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0362",
+    "tokens_used": 22292,
+    "seconds_elapsed": 35.784,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0357",
+    "tokens_used": 26410,
+    "seconds_elapsed": 52.676,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0356",
+    "tokens_used": 28730,
+    "seconds_elapsed": 57.165,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0363",
+    "tokens_used": 22644,
+    "seconds_elapsed": 40.801,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0366",
+    "tokens_used": 23297,
+    "seconds_elapsed": 33.929,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0369",
+    "tokens_used": 21446,
+    "seconds_elapsed": 29.861,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0364",
+    "tokens_used": 24426,
+    "seconds_elapsed": 45.193,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0348",
+    "tokens_used": 39480,
+    "seconds_elapsed": 83.178,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0358",
+    "tokens_used": 29748,
+    "seconds_elapsed": 62.936,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0367",
+    "tokens_used": 21328,
+    "seconds_elapsed": 38.928,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0365",
+    "tokens_used": 30049,
+    "seconds_elapsed": 46.398,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0370",
+    "tokens_used": 24773,
+    "seconds_elapsed": 39.204,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0373",
+    "tokens_used": 21818,
+    "seconds_elapsed": 30.621,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0374",
+    "tokens_used": 26127,
+    "seconds_elapsed": 28.915,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0372",
+    "tokens_used": 25865,
+    "seconds_elapsed": 40.895,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0368",
+    "tokens_used": 27056,
+    "seconds_elapsed": 50.347,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0371",
+    "tokens_used": 29571,
+    "seconds_elapsed": 52.599,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0377",
+    "tokens_used": 21512,
+    "seconds_elapsed": 33.453,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0376",
+    "tokens_used": 23225,
+    "seconds_elapsed": 38.744,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0385",
+    "tokens_used": 19950,
+    "seconds_elapsed": 22.278,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0375",
+    "tokens_used": 26238,
+    "seconds_elapsed": 44.809,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0378",
+    "tokens_used": 24686,
+    "seconds_elapsed": 43.292,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0384",
+    "tokens_used": 22487,
+    "seconds_elapsed": 34.281,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0379",
+    "tokens_used": 29753,
+    "seconds_elapsed": 43.766,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0388",
+    "tokens_used": 23152,
+    "seconds_elapsed": 35.513,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0381",
+    "tokens_used": 38061,
+    "seconds_elapsed": 54.018,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0383",
+    "tokens_used": 26698,
+    "seconds_elapsed": 51.831,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0389",
+    "tokens_used": 22496,
+    "seconds_elapsed": 38.879,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0391",
+    "tokens_used": 20751,
+    "seconds_elapsed": 33.641,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0394",
+    "tokens_used": 21944,
+    "seconds_elapsed": 31.353,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0380",
+    "tokens_used": 29376,
+    "seconds_elapsed": 63.564,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0386",
+    "tokens_used": 29720,
+    "seconds_elapsed": 53.19,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0387",
+    "tokens_used": 30689,
+    "seconds_elapsed": 55.181,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0382",
+    "tokens_used": 30378,
+    "seconds_elapsed": 68.029,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0393",
+    "tokens_used": 23726,
+    "seconds_elapsed": 40.748,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0395",
+    "tokens_used": 21224,
+    "seconds_elapsed": 34.201,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0390",
+    "tokens_used": 25825,
+    "seconds_elapsed": 52.768,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0396",
+    "tokens_used": 22476,
+    "seconds_elapsed": 41.695,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0392",
+    "tokens_used": 26164,
+    "seconds_elapsed": 54.031,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0397",
+    "tokens_used": 22765,
+    "seconds_elapsed": 42.512,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0398",
+    "tokens_used": 22938,
+    "seconds_elapsed": 41.943,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0408",
+    "tokens_used": 27267,
+    "seconds_elapsed": 22.816,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0402",
+    "tokens_used": 23461,
+    "seconds_elapsed": 37.262,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0410",
+    "tokens_used": 13101,
+    "seconds_elapsed": 21.104,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0400",
+    "tokens_used": 24397,
+    "seconds_elapsed": 41.606,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0399",
+    "tokens_used": 23809,
+    "seconds_elapsed": 44.35,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0401",
+    "tokens_used": 26867,
+    "seconds_elapsed": 42.676,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0411",
+    "tokens_used": 13599,
+    "seconds_elapsed": 19.709,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0409",
+    "tokens_used": 21726,
+    "seconds_elapsed": 31.481,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0412",
+    "tokens_used": 13235,
+    "seconds_elapsed": 22.037,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0407",
+    "tokens_used": 22099,
+    "seconds_elapsed": 35.885,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0403",
+    "tokens_used": 28180,
+    "seconds_elapsed": 44.658,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0413",
+    "tokens_used": 16689,
+    "seconds_elapsed": 22.406,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0404",
+    "tokens_used": 30946,
+    "seconds_elapsed": 52.464,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0417",
+    "tokens_used": 19368,
+    "seconds_elapsed": 19.282,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0420",
+    "tokens_used": 16424,
+    "seconds_elapsed": 18.205,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0414",
+    "tokens_used": 16600,
+    "seconds_elapsed": 23.259,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0421",
+    "tokens_used": 12338,
+    "seconds_elapsed": 17.341,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0418",
+    "tokens_used": 33707,
+    "seconds_elapsed": 22.12,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0415",
+    "tokens_used": 26605,
+    "seconds_elapsed": 25.052,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0406",
+    "tokens_used": 25310,
+    "seconds_elapsed": 51.631,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0419",
+    "tokens_used": 16692,
+    "seconds_elapsed": 28.534,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0428",
+    "tokens_used": 17841,
+    "seconds_elapsed": 15.065,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0423",
+    "tokens_used": 21519,
+    "seconds_elapsed": 29.268,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0424",
+    "tokens_used": 24330,
+    "seconds_elapsed": 28.507,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0416",
+    "tokens_used": 27362,
+    "seconds_elapsed": 41.123,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0433",
+    "tokens_used": 11767,
+    "seconds_elapsed": 18.116,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0405",
+    "tokens_used": 36022,
+    "seconds_elapsed": 73.654,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0431",
+    "tokens_used": 8525,
+    "seconds_elapsed": 19.021,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0426",
+    "tokens_used": 29143,
+    "seconds_elapsed": 32.289,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0434",
+    "tokens_used": 12967,
+    "seconds_elapsed": 20.337,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0429",
+    "tokens_used": 17242,
+    "seconds_elapsed": 25.051,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0427",
+    "tokens_used": 23031,
+    "seconds_elapsed": 26.787,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0430",
+    "tokens_used": 22071,
+    "seconds_elapsed": 25.463,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0425",
+    "tokens_used": 23197,
+    "seconds_elapsed": 36.993,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0438",
+    "tokens_used": 19418,
+    "seconds_elapsed": 14.826,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0437",
+    "tokens_used": 20147,
+    "seconds_elapsed": 17.208,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0422",
+    "tokens_used": 37672,
+    "seconds_elapsed": 50.563,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0442",
+    "tokens_used": 19486,
+    "seconds_elapsed": 17.746,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0439",
+    "tokens_used": 15528,
+    "seconds_elapsed": 19.157,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0435",
+    "tokens_used": 15938,
+    "seconds_elapsed": 32.153,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0443",
+    "tokens_used": 17135,
+    "seconds_elapsed": 20.692,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0447",
+    "tokens_used": 13118,
+    "seconds_elapsed": 18.231,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0441",
+    "tokens_used": 24491,
+    "seconds_elapsed": 26.389,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0432",
+    "tokens_used": 21221,
+    "seconds_elapsed": 49,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0449",
+    "tokens_used": 13047,
+    "seconds_elapsed": 18.713,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0445",
+    "tokens_used": 22868,
+    "seconds_elapsed": 28.357,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0450",
+    "tokens_used": 17853,
+    "seconds_elapsed": 21.681,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0436",
+    "tokens_used": 26131,
+    "seconds_elapsed": 42.301,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0448",
+    "tokens_used": 28526,
+    "seconds_elapsed": 30.135,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0452",
+    "tokens_used": 13227,
+    "seconds_elapsed": 18.595,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0451",
+    "tokens_used": 16329,
+    "seconds_elapsed": 20.655,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0444",
+    "tokens_used": 22027,
+    "seconds_elapsed": 34.197,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0440",
+    "tokens_used": 22953,
+    "seconds_elapsed": 38.689,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0453",
+    "tokens_used": 14183,
+    "seconds_elapsed": 21.408,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0455",
+    "tokens_used": 21035,
+    "seconds_elapsed": 22.935,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0456",
+    "tokens_used": 17428,
+    "seconds_elapsed": 22.429,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0446",
+    "tokens_used": 32809,
+    "seconds_elapsed": 47.001,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0458",
+    "tokens_used": 12975,
+    "seconds_elapsed": 22.033,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0459",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0454",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0462",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0464",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0457",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0461",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0465",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0466",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0467",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0468",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0469",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0470",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0471",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0472",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "429 status code (no body)"
+  },
+  {
+    "lane_id": "file-0486",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "Connection error."
+  },
+  {
+    "lane_id": "file-0463",
+    "tokens_used": 0,
+    "seconds_elapsed": 0,
+    "ceiling_hit": false,
+    "failed": true,
+    "failure_reason": "Connection error."
   }
 ]
