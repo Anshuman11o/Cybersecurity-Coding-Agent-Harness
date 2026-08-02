@@ -1,0 +1,11 @@
+{
+  "provider": "glm52",
+  "model": "deterministic",
+  "stage": "stage1-budget-governor-perfile",
+  "git_sha": "aac8c00",
+  "started": "2026-08-02T16:22:41.200Z",
+  "ended": "2026-08-02T16:22:41.265Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
