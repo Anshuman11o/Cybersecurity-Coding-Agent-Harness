@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-08-02T16:45:43.581Z",
+  "consumption_source": "/home/user/bench-gemini36flash/tools/scanner/runs/gemini36flash/stage2-hunt-lanes-perfile/budget-consumption.json",
+  "provider": "gemini36flash",
+  "model": "gemini-3.6-flash",
+  "loop_mode": "trace",
+  "reasoning_effort": "high",
+  "lane_count": 125,
+  "lanes_missing_measurement": 0,
+  "calls": 250,
+  "price_per_mtok": {
+    "input": 1.5,
+    "cached_input": 0.15,
+    "output": 7.5
+  },
+  "price_asof": "2026-08-02",
+  "input_tokens": 1587996,
+  "cached_input_tokens": 14486,
+  "cache_write_tokens": 0,
+  "output_tokens": 36141,
+  "total_tokens": 1963904,
+  "input_cost_usd": 2.3624379,
+  "output_cost_usd": 0.2710575,
+  "cost_usd": 2.6334954
+}

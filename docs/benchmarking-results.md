@@ -39,29 +39,29 @@ All figures rebased to the **97 reachable** ground-truth entries. All runs use
 the v2 per-file pipeline, `HUNT_LOOP=trace`, `reasoning_effort: high`,
 `max_output_tokens: 64000`.
 
-| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) |
-|---|---|---|
-| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** |
-| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% |
-| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** |
-| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% |
-| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% |
-| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) |
-| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) |
-| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 |
-| **Total cost (USD)** | **$4.37** | **$17.01** |
-| **Input tokens** | **7,174,088** | **7,265,980** |
-| — of which prefix-cached | 0 | 3,278,400 |
-| **Output tokens** | **2,444,855** | **2,402,317** |
-| **Total tokens** | **9,618,943** | **9,668,297** |
-| **Model size** | no public record on model size | no public record on model size |
-| Findings emitted | 553 | 892 |
-| Hedging (classes/finding) | 1.418 | 1.459 |
-| Distinct lines cited | 3,597 | 4,577 |
-| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 |
-| Lanes | 541/541 | 541/541 |
-| Calls | 1,082 | 1,082 |
-| Degraded | false | false |
+| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) | `gemini36flash` (Gemini 3.6 Flash) |
+|---|---|---|---|
+| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** | **57/97 = 58.8%** |
+| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% | 67/97 = 69.1% |
+| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** | **73/97 = 75.3%** |
+| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% | 89/97 = 91.8% |
+| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% | 96/97 = 99.0% |
+| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) | **16.5%** (47/285) |
+| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) | 23.5% (67/285) |
+| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 | **32m12s** at C=8 |
+| **Total cost (USD)** | **$4.37** | **$17.01** | **$24.85** |
+| **Input tokens** | **7,174,088** | **7,265,980** | **7,585,865** |
+| — of which prefix-cached | 0 | 3,278,400 | 14,486 |
+| **Output tokens** | **2,444,855** | **2,402,317** | **1,795,715** |
+| **Total tokens** | **9,618,943** | **9,668,297** | **9,381,580** |
+| **Model size** | no public record on model size | no public record on model size | no public record on model size |
+| Findings emitted | 553 | 892 | 285 |
+| Hedging (classes/finding) | 1.418 | 1.459 | 1.512 |
+| Distinct lines cited | 3,597 | 4,577 | 1,181 |
+| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 4.56 / 13 |
+| Lanes | 541/541 | 541/541 | 541/541 |
+| Calls | 1,082 | 1,082 | 1,082 |
+| Degraded | false | false | false |
 
 ---
 
@@ -123,6 +123,36 @@ Per-class recall:
 | logging-monitoring | 1/1 = 100% | 1/1 |
 | ai-llm-agency | 0/4 = 0.0% | 4/4 |
 
+
+### 2.3 `gemini36flash` — Gemini 3.6 Flash
+
+| | |
+|---|---|
+| Model id | `gemini-3.6-flash` |
+| Run | 2026-08-02 |
+| Tree | `2a4bf04` |
+| Concurrency | **8** — a measured ceiling on this target, not a starting point |
+| Loop mode / effort | `trace` / `high` (Stage 2); Stage 0 probes at default effort |
+| Rate | $1.50 / $0.15 cached / $7.50 per MTok, `price_asof` 2026-08-02 |
+| Artifacts | `tools/scanner/runs/gemini36flash/` |
+| Archive | answer-key repo, `runs/2026-08-02T16-38Z__stage2-v2-perfile-trace-loop__gemini36flash__2a4bf04/` |
+
+Per-class recall:
+
+| Class | Recall | Localized |
+|---|---|---|
+| ssrf | 3/3 = 100% | 3/3 |
+| logging-monitoring | 1/1 = 100% | 1/1 |
+| injection | 15/18 = 83.3% | 18/18 |
+| crypto-auth | 20/25 = 80.0% | 23/25 |
+| api-property-auth | 3/4 = 75.0% | 4/4 |
+| integrity-failures | 2/3 = 66.7% | 2/3 |
+| resource-consumption | 1/2 = 50.0% | 2/2 |
+| insecure-design | 5/12 = 41.7% | 8/12 |
+| access-control | 6/16 = 37.5% | 9/16 |
+| ai-llm-agency | **1/4 = 25.0%** | 3/4 |
+| misconfiguration | 3/17 = 17.6% | 5/17 |
+
 ---
 
 ## 3. Method — how a row here is produced
@@ -166,7 +196,6 @@ recorded as the reason it could not be — as `model size` is recorded as
 
 | Model | Registry key | State |
 |---|---|---|
-| Gemini 3.6 Flash | `gemini36flash` | active, not yet run |
 | Qwen 3.7 Plus | `qwen37` | on hold |
 | Claude Sonnet 5 | `sonnet5` | on hold |
 | Claude Opus 5 | `opus5` | on hold |

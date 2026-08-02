@@ -7,9 +7,11 @@ Written to be executed by a session with no prior context. Read
 `../../CLAUDE.md` first — its rules take precedence over everything here —
 then `running-a-scan.md` for the single-run mechanics this plan repeats.
 
-**Status as of 2026-08-02: two runs outstanding, four models on hold, one
-already measured. The first `glm52` attempt was lost to container
-reclamation at 17% — read §9.0 before launching anything.**
+**Status as of 2026-08-02: the active pair is complete — `glm52` and
+`gemini36flash` are both measured, alongside `luna` run 6. Four models remain on
+hold. Results are recorded in `../benchmarking-results.md`. Both new runs lost a
+first attempt to container reclamation — read §9.0 before launching anything,
+and §9.4 before launching any Gemini target.**
 
 ---
 
@@ -20,7 +22,7 @@ reclamation at 17% — read §9.0 before launching anything.**
 | Model | Registry key | State |
 |---|---|---|
 | GLM-5.2 | `glm52` | **done — 2026-08-02, tree `aac8c00`** |
-| Gemini 3.6 Flash | `gemini36flash` | **to run** |
+| Gemini 3.6 Flash | `gemini36flash` | **done — 2026-08-02, tree `2a4bf04`** |
 
 `glm52` results, rebased to the 97 reachable entries:
 
@@ -384,22 +386,59 @@ in their own worktrees, or one after the other — either is fine.
 | Order | Target | `HUNT_CONCURRENCY` | Basis |
 |---|---|---|---|
 | 1 | `glm52` | **32** | 8 was tried and the ~2h window lost the run to container reclamation (§9.0); no rate-limit headers, so 8 was caution rather than a measured constraint |
-| 2 | `gemini36flash` | 8 | no headers, **and** spend-based limits (§9.4) — raising this trades one failure mode for another, see §9.4 |
+| 2 | `gemini36flash` | **8 — do not raise** | measured: C=16 peaks at 82% of the 2M TPM ceiling and collapses (§9.4) |
 
-Both start at 8 because neither endpoint publishes rate-limit headers, so
-neither limit is known in advance. Anything from 8 to 32 is acceptable —
-concurrency exists to avoid a sequential crawl, not to be maximised. Do not
-exceed 32. If a run completes with 0 retries at 8, a later run may go higher.
+Concurrency exists to avoid a sequential crawl, not to be maximised. Do not
+exceed 32. `glm52` ran at 32; note §3a.3, which documents that this was above
+GLM-5.2's in-flight limit of 10 and cost 321s of cumulative backoff without
+losing a lane.
 
-Rate limits measured from live response headers on this account, 2026-08-01/02:
+**`gemini36flash` is the exception: 8 is a measured ceiling, not a starting
+point.** Raising it to 16 cost 53 lanes — see §9.4.
 
-| Target | RPM | TPM |
-|---|---|---|
-| `luna` (done) | 5,000 | 2,000,000 |
-| `opus5`, `sonnet5` (held) | 10,000 | 12,000,000 |
-| `glm52`, `gemini36flash`, `gemini31pro`, `qwen37` | **not published in headers** | — |
+Rate limits. `luna`, `opus5` and `sonnet5` are read from live response headers
+(2026-08-01/02); the Gemini figures are read from the Google AI Studio rate-limit
+console (2026-08-02), which is where they are published — those endpoints do not
+return them in headers, and the earlier "not published" row was wrong about where
+to look rather than about the limits existing.
 
-For reference, run 6 consumed ~740k tokens/min at C=32 without a single retry.
+| Target | RPM | TPM | RPD |
+|---|---|---|---|
+| `luna` (done) | 5,000 | 2,000,000 | — |
+| `opus5`, `sonnet5` (held) | 10,000 | 12,000,000 | — |
+| **`gemini36flash`** | **1,000** | **2,000,000** | **10,000** |
+| `gemini31pro` (held) | 25 | 2,000,000 | 250 |
+| `glm52`, `qwen37` | not published in headers | — | — |
+
+Console peak usage over 28 days, which is this project's usage and nobody
+else's: `gemini36flash` **232 RPM, 1.63M TPM, 2.36K RPD**. The TPM peak is
+**82% of the ceiling**, reached at `HUNT_CONCURRENCY=16` — against
+`running-a-scan.md`'s standing instruction to target 40–50%, never 90%, because
+lanes do not arrive uniformly and a batch of large files landing together spikes
+well above the mean. That run collapsed; see §9.3.
+
+Deriving the right value the way `running-a-scan.md` says to, from measurement
+rather than by copying a number: C=16 produced ~1.63M TPM, so **~102k TPM per
+unit of concurrency** on this target — six times `luna`'s ~16k at the same
+reasoning effort, because Gemini's prompts tokenize larger and its lanes complete
+faster. At a 2M ceiling and a 45% target:
+
+    C = 900,000 / 102,000 ≈ 8.8    →    8
+
+**C=8 is confirmed by measurement, not by inference: 125 lanes at C=8 with 0
+retries, 0 errors and 0 fatals, immediately after 53 lanes had been lost at
+C=16.**
+
+Note `gemini31pro`'s **25 RPM and 250 RPD**. A 541-lane run is 1,082 calls, so
+that target cannot complete a full run in a day at any concurrency. It is on
+hold, but this is the reason it would stay held even if the hold were lifted.
+
+RPD is worth watching on `gemini36flash` too: 2.36K of 10K used across three
+attempts. Roughly four more full 541-lane runs fit in a day.
+
+For reference, run 6 consumed ~740k tokens/min at C=32 on `luna` without a
+single retry — a `luna` number, and not transferable, as the 102k-vs-16k gap
+above shows.
 
 ---
 
@@ -600,14 +639,52 @@ Reference points from committed artifacts, same pipeline:
 | `terra` | off | 221 | 3.31 | 7 | 571 |
 | `luna` run 6 | on | 553 | 8.74 | 51 | 3,597 |
 
-### 9.4 `gemini36flash` spend-based limits
+### 9.4 `gemini36flash` rate limiting — RESOLVED 2026-08-02, and it cost a run
 
-Gemini enforces spend-based rate limits (~$10/10min at tier 1) on top of
-RPM/TPM. A ~$32 run cannot complete in under ~30 minutes at that cap regardless
-of concurrency, and it may stall **without a 429 that looks like rate
-limiting** — it will just be slow. Check the account tier in the Google console
-before launching, and if the run appears to hang rather than fail, suspect this
-before suspecting the scanner.
+**This section previously said Gemini enforces spend-based limits (~$10/10min at
+tier 1) that stall a run "without a 429 that looks like rate limiting". That was
+wrong on both counts and it misdirected a diagnosis.** The binding limit is
+ordinary **TPM**, and it surfaces as a plain `429 status code (no body)`. The
+correct numbers are in §6, read from the Google AI Studio rate-limit console:
+`gemini36flash` is **1,000 RPM / 2,000,000 TPM / 10,000 RPD** at tier 1.
+
+What happened, so the shape is recognisable next time:
+
+| attempt | C | outcome | tokens |
+|---|---|---|---|
+| 1 | 8 | container reclaimed at 143/541 lanes, **0 retries** | 2,215,620 |
+| 2 | **16** | **429 storm** — 361 retries, 53 lanes lost, died at 469 lanes | 7,417,676 |
+| 3 (resume) | 8 | **exit 0**, 125/125 lanes, 0 retries, 0 errors, 0 fatals | 1,963,904 |
+
+Console peak for attempt 2 was **1.63M TPM against the 2M ceiling — 82%**, far
+past `running-a-scan.md`'s 40–50% target. The first 429 arrived at lane 244,
+about eight minutes in, which is what a rolling TPM window looks like once a run
+is sustained above the ceiling rather than spiking past it.
+
+**Why it lost lanes instead of merely slowing down.** `hunt-executor.ts` retries
+a transient error 5 times with backoff 2+4+8+16+32 ≈ 62s. That ladder was sized
+to cross a single 60-second TPM window, and it does — but only when the run
+drops back under the ceiling while it waits. At C=16 the other 15 lanes kept
+pushing the account over the limit for the whole backoff, so every retry landed
+in a still-closed window and the lane died. **A concurrency above the sustainable
+rate does not degrade gracefully here; it converts throttling into lost lanes.**
+
+Practical rules:
+
+- **Run `gemini36flash` at `HUNT_CONCURRENCY=8`.** Not "start at 8" — 8.
+- **Before relaunching after a 429 storm, check the window has reopened.** One
+  throwaway completion costs nothing and tells you whether to wait:
+
+  ```bash
+  # GATE OPEN => finish_reason "stop"; GATE CLOSED => 429
+  ```
+
+  Attempt 3 was gated this way after an 11-minute idle and ran clean.
+- **A 429 with an empty body is the signature.** Count `[RETRY]` as well as
+  `[FATAL]` while a run is live; a rising retry count with no fatals yet is the
+  last moment to intervene cheaply.
+- `gemini31pro`, if ever unheld, is capped at **25 RPM / 250 RPD** — below what
+  1,082 calls needs in a day. See §6.
 
 ### 9.5 The nondeterminism floor is ±7 entries
 
@@ -665,6 +742,39 @@ Candidate fixes, none applied:
 
 Decision pending. **Do not launch `qwen37` until it is resolved.** The other
 five are unaffected and run fine non-streamed.
+
+### 9.7 Gemini thinking tokens are billed but not counted — cost metric is understated
+
+Found 2026-08-02 while reconciling the `gemini36flash` run. On Google's
+OpenAI-compatibility layer, `usage.total_tokens` exceeds
+`prompt_tokens + completion_tokens`; the difference is thinking tokens.
+`captureMeasuredTokens()` records the three fields as reported, so thinking lands
+in `total_tokens` and in `tokens_used`, but **not** in `total_output_tokens` —
+which is the leg `costUsd()` multiplies by the output rate.
+
+Measured on the final pass (125 lanes):
+
+| | tokens |
+|---|---|
+| `total_input_tokens` | 1,587,996 |
+| `total_output_tokens` | 36,141 |
+| `total_tokens` | 1,963,904 |
+| **unaccounted (thinking)** | **339,767** |
+
+`models.json` states plainly that Gemini's output price includes thinking tokens,
+so the billable output for that pass is ~375,908, not 36,141 — **an order of
+magnitude**. `reconcile-v2` reported **$2.63**; at $7.50/MTok on the true output
+leg it is closer to **$5.18**.
+
+This is not Gemini-specific in principle — any provider reporting reasoning
+outside `completion_tokens` hits it — but it is Gemini-specific in practice among
+the registered targets. `luna`'s reasoning tokens *are* inside its
+`completion_tokens`, which is why run 6's cost needs no such correction.
+
+Until this is fixed, **derive Gemini cost from `total_tokens` minus
+`prompt_tokens`, not from the reported output figure**, and label any
+`usage-v2.json` cost for a Gemini target as understated. Not fixed here: this
+plan does not edit scanner source.
 
 ## 10. Reporting
 

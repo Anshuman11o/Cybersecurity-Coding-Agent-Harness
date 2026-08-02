@@ -1,0 +1,11 @@
+{
+  "provider": "gemini36flash",
+  "model": "gemini-3.6-flash",
+  "stage": "stage0-recon",
+  "git_sha": "2a31a5b",
+  "started": "2026-08-02T07:29:40.283Z",
+  "ended": "2026-08-02T07:29:40.291Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
