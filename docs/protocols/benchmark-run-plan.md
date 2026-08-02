@@ -8,7 +8,8 @@ Written to be executed by a session with no prior context. Read
 then `running-a-scan.md` for the single-run mechanics this plan repeats.
 
 **Status as of 2026-08-02: two runs outstanding, four models on hold, one
-already measured.**
+already measured. The first `glm52` attempt was lost to container
+reclamation at 17% — read §9.0 before launching anything.**
 
 ---
 
@@ -51,14 +52,14 @@ was 5x wrong. The artifact above is already at the corrected rate. Cite $4.37.
 
 | Model | Registry key | Why |
 |---|---|---|
-| Qwen 3.7 Plus | `qwen37` | on hold; also has an unresolved blocker (§9.1) |
+| Qwen 3.7 Plus | `qwen37` | on hold; also has an unresolved blocker (§9.6) |
 | Claude Sonnet 5 | `sonnet5` | on hold |
 | Claude Opus 5 | `opus5` | on hold |
 | Gemini 3.1 Pro | `gemini31pro` | on hold |
 
 All four stay registered, priced and preflight-passing. Nothing needs undoing
 to bring them back — remove the hold and they are runnable, except `qwen37`,
-which needs §9.1 resolved first.
+which needs §9.6 resolved first.
 
 ### Settled parameters
 
@@ -306,8 +307,8 @@ in their own worktrees, or one after the other — either is fine.
 
 | Order | Target | `HUNT_CONCURRENCY` | Basis |
 |---|---|---|---|
-| 1 | `glm52` | 8, ramp if clean | endpoint returns no rate-limit headers |
-| 2 | `gemini36flash` | 8 | no headers, **and** spend-based limits (§9.3) |
+| 1 | `glm52` | **32** | 8 was tried and the ~2h window lost the run to container reclamation (§9.0); no rate-limit headers, so 8 was caution rather than a measured constraint |
+| 2 | `gemini36flash` | 8 | no headers, **and** spend-based limits (§9.4) — raising this trades one failure mode for another, see §9.4 |
 
 Both start at 8 because neither endpoint publishes rate-limit headers, so
 neither limit is known in advance. Anything from 8 to 32 is acceptable —
@@ -414,6 +415,58 @@ output.
 Numbered by relevance to the **active** pair. §9.4 concerns a held model and is
 kept so it is not rediscovered later.
 
+### 9.0 A run will not survive an idle container — LAUNCH BLOCKER
+
+**Measured, not theoretical. The first `glm52` attempt died this way on
+2026-08-02.**
+
+`setsid nohup` protects a process from being reaped when a *session* ends. It
+does not protect anything from the **container being reclaimed**, which this
+environment does after a period of inactivity. When that happens the run
+vanishes mid-lane: no error, no stack trace, no exit line in the log.
+
+What the failed attempt looked like:
+
+| | |
+|---|---|
+| Died at | 07:21:09, ~5 minutes into Stage 2 |
+| Progress | **92 of 541 lanes** (17%) |
+| Findings written | 78 (mean trace 4.86 steps) |
+| Stages 0 / 0.5 / 1 | complete, exit 0 |
+| `budget-consumption.json` | **0 lanes recorded** |
+| Container PID 1 | started 15:54:22 — 8.5 hours *after* the run died |
+
+Two things to take from it:
+
+1. **Token accounting is written at the end of Stage 2, not incrementally.** A
+   killed run therefore leaves no usable cost or token record at all, even
+   though findings were checkpointed. Cost had to be estimated from the log
+   (~1M tokens, order of $2–4) rather than measured. Any interrupted run is
+   unmeasurable, not partially measurable.
+2. **The partial output is not a partial result.** 92 lanes is whatever sorted
+   first, not a sample. It must never be scored, committed into
+   `runs/<provider>/`, or compared against run 6. The failed attempt's
+   artifacts were moved out of the repo to `/home/user/bench-glm52-failed-run/`
+   and deleted from the worktree for exactly this reason.
+
+Mitigations, in the order they should be applied:
+
+- **Shorten the exposure window.** Concurrency is the lever. The failed attempt
+  ran at C=8 out of caution — glm52's endpoint publishes no rate-limit headers
+  — and projected ~2 hours. C=32 is proven safe on `luna` and is the plan's
+  ceiling; it cuts the window by roughly 4x. This is the cheapest change and
+  needs no code.
+- **Keep the session active** for the duration of a run, so the container is
+  not idle.
+- **Make Stage 2 resumable** (not implemented). It already checkpoints findings
+  incrementally, but a restart re-runs all 541 lanes from scratch. Skipping
+  lanes already present in `candidate-findings.json` would make reclamation
+  survivable rather than fatal. This is a Stage 2 source change and needs
+  sign-off before a run depends on it.
+
+Until at least the first mitigation is in force, **assume any run longer than
+about an hour will not finish.**
+
 ### 9.1 Recall is confounded by trace length — affects both active models
 
 From `eval-howto.md` §3: *a finding matches an entry when **some step of its
@@ -471,7 +524,7 @@ Reference points from committed artifacts, same pipeline:
 | `terra` | off | 221 | 3.31 | 7 | 571 |
 | `luna` run 6 | on | 553 | 8.74 | 51 | 3,597 |
 
-### 9.3 `gemini36flash` spend-based limits
+### 9.4 `gemini36flash` spend-based limits
 
 Gemini enforces spend-based rate limits (~$10/10min at tier 1) on top of
 RPM/TPM. A ~$32 run cannot complete in under ~30 minutes at that cap regardless
@@ -480,14 +533,14 @@ limiting** — it will just be slow. Check the account tier in the Google consol
 before launching, and if the run appears to hang rather than fail, suspect this
 before suspecting the scanner.
 
-### 9.4 The nondeterminism floor is ±7 entries
+### 9.5 The nondeterminism floor is ±7 entries
 
 ~±7 points on a denominator of 97, on byte-identical prompts. **One run per
 model cannot separate two models closer than that.** With two new runs plus run 6, any
 two results within ~7 points are indistinguishable. Repeats would cost roughly 3x
 the ~$51. Not yet decided.
 
-### 9.5 `qwen37` — held, and blocked independently
+### 9.6 `qwen37` — held, and blocked independently
 
 `qwen37` is on hold, so this does not block anything today. It is recorded
 because the hold could be lifted and the blocker would still be there.
