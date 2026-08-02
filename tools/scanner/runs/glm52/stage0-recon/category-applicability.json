@@ -1,0 +1,184 @@
+[
+  {
+    "name": "A01: Broken Access Control (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Numerous resource-scoped routes with ID params (e.g., /api/Users/:id, /api/Cards/:id, /rest/basket/:id) and mixed auth enforcement. Some admin routes like /rest/admin/application-configuration have auth:null. security.appendUserId() is used for user-scoping but several routes lack auth entirely.",
+    "confidence": 0.95
+  },
+  {
+    "name": "A02: Cryptographic Failures (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "JWT infrastructure present with extremely outdated libraries (express-jwt 0.1.3, jsonwebtoken 0.4.0). Password handling (login, reset, change). /encryptionkeys endpoint serves key files. Old crypto libraries likely have known vulnerabilities.",
+    "confidence": 0.95
+  },
+  {
+    "name": "A03: Injection (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "YAML parsing (js-yaml ^3.14.0) and XML processing (libxml2-wasm) via file upload routes (/file-upload with handleYamlUpload, handleXmlUpload). Search endpoint (/rest/products/search) accepts user input. While Sequelize uses no raw queries, parser-based injection (XXE, YAML deserialization) is structurally present.",
+    "confidence": 0.85
+  },
+  {
+    "name": "A04: Insecure Design (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "Cannot be reliably determined from architecture alone. Mixed auth patterns and exposed admin endpoints suggest potential design issues, but business logic context is needed.",
+    "confidence": 0.4
+  },
+  {
+    "name": "A05: Security Misconfiguration (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Directory listing enabled via serveIndex on /ftp, /support/logs, /encryptionkeys, /.well-known. /metrics endpoint and /rest/admin/application-configuration exposed with auth:null. XML parser (libxml2-wasm) may have entity resolution enabled.",
+    "confidence": 0.9
+  },
+  {
+    "name": "A06: Vulnerable and Outdated Components (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "117 total dependencies with several critically outdated: express-jwt 0.1.3, jsonwebtoken 0.4.0, sanitize-html 1.4.2, js-yaml ^3.14.0. These old versions have known CVEs.",
+    "confidence": 0.98
+  },
+  {
+    "name": "A07: Identification and Authentication Failures (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Auth infrastructure with login, password reset, 2FA. Rate limiting only on 2fa and reset-password routes. Outdated JWT libraries (0.4.0). Many sensitive routes lack authentication entirely.",
+    "confidence": 0.95
+  },
+  {
+    "name": "A08: Software and Data Integrity Failures (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Webhook handling (lib/webhook.ts), YAML deserialization (js-yaml), XML parsing with libxml2-wasm. File upload routes processing untrusted data formats. Deserialization of untrusted data is structurally present.",
+    "confidence": 0.85
+  },
+  {
+    "name": "A09: Security Logging and Monitoring Failures (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Logging module exists (lib/logger.ts) and /support/logs serves log files. Metrics endpoint exposed without auth. However, log files being publicly accessible via serveIndex undermines monitoring integrity.",
+    "confidence": 0.7
+  },
+  {
+    "name": "A10: Server-Side Request Forgery (SSRF) (OWASP Top 10 2021)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "/profile/image/url endpoint (profileImageUrlUpload) likely fetches images from user-supplied URLs. /redirect endpoint (performRedirect) may perform server-side redirects. Both have auth:null.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API1: Broken Object Level Authorization (BOLA) (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Auto-CRUD routes for /api/Users/:id, /api/Cards/:id, /api/Addresss/:id with security.appendUserId(). Hand-written routes like /rest/basket/:id have auth:null in route definition. Object-level authorization inconsistent across endpoints.",
+    "confidence": 0.9
+  },
+  {
+    "name": "API2: Broken Authentication (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Login endpoint with no rate limiting (/rest/user/login). 2FA verify endpoint has rate limiting but old JWT libraries. Password change endpoint (/rest/user/change-password) with auth:null. Reset password with minimal rate limiting.",
+    "confidence": 0.9
+  },
+  {
+    "name": "API3: Broken Object Property Level Authorization (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Auto-CRUD routes expose model attributes. User model excludes password and totpSecret, but other models (Card, Address, Feedback) have empty excludeAttributes, potentially exposing sensitive fields. Mass assignment risk via auto-CRUD POST/PUT.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API4: Unrestricted Resource Consumption (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Rate limiting only on 2fa and reset-password routes. File upload routes, search, chat, and most API endpoints lack rate limiting. LLM chat endpoint (/rest/chat) with no rate limiting could cause expensive resource consumption.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API5: Broken Function Level Authorization (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Inconsistent function-level auth: /rest/admin/application-version and /rest/admin/application-configuration have auth:null. /api/Recycles GET has auth:null while POST requires auth. /rest/user/whoami and /rest/user/authentication-details have inconsistent auth.",
+    "confidence": 0.9
+  },
+  {
+    "name": "API6: Unrestricted Access to Sensitive Business Flows (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "uncertain",
+    "evidence": "Business flows like coupon application, checkout, wallet balance exist but determining if they can be abused at scale requires business logic context not available from architecture alone.",
+    "confidence": 0.5
+  },
+  {
+    "name": "API7: Server Side Request Forgery (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "/profile/image/url (profileImageUrlUpload) accepts URL input for image fetching. /redirect endpoint performs redirects. Both lack authentication, creating SSRF surface.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API8: Security Misconfiguration (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Directory listing on /ftp, /support/logs, /encryptionkeys. Swagger documents only 1 of 148 routes. /metrics exposed without auth. /api-docs (Swagger UI) exposed without auth.",
+    "confidence": 0.9
+  },
+  {
+    "name": "API9: Improper Inventory Management (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Swagger documents only 1 path while 109 hand-written routes and 28 auto-CRUD routes are undocumented. Massive API surface with minimal documentation. Hosted at /api-docs but covering only 1 endpoint.",
+    "confidence": 0.95
+  },
+  {
+    "name": "API10: Unsafe Consumption of APIs (API Security Top 10)",
+    "framework": "API Security Top 10",
+    "verdict": "uncertain",
+    "evidence": "B2B orders endpoint (/b2b/v2/orders) suggests third-party API integration. LLM uses AI SDK for external API calls. However, specifics of third-party API consumption patterns are unclear from architecture alone.",
+    "confidence": 0.5
+  },
+  {
+    "name": "LLM01: Prompt Injection (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Genuine tool-calling detected with Vercel AI SDK. /rest/chat endpoint with auth:null accepts user input that is passed to streamText. Tools (searchProducts, getProductReviews, getOrderById, generateCoupon) execute real database queries based on LLM output.",
+    "confidence": 0.9
+  },
+  {
+    "name": "LLM02: Sensitive Information Disclosure (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "LLM tools access database models (ProductModel.findAll, db.reviewsCollection, db.ordersCollection.findOne). getOrderById tool could expose order details. Chat endpoint has no auth, potentially allowing unauthorized data access through LLM.",
+    "confidence": 0.85
+  },
+  {
+    "name": "LLM03: Supply Chain (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "uncertain",
+    "evidence": "AI SDK packages (@ai-sdk/openai-compatible ^2.0.35, ai ^6.0.116) are present but version recency and vulnerability status of LLM-specific dependencies is unclear from architecture summary.",
+    "confidence": 0.5
+  },
+  {
+    "name": "LLM05: Improper Output Handling (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "28 frontend escape hatches using innerHTML and bypassSecurityTrustHtml across Angular components. LLM output from /rest/chat streamed to client. Search results and track-order components use bypassSecurityTrustHtml, creating risk if LLM output is rendered without sanitization.",
+    "confidence": 0.85
+  },
+  {
+    "name": "LLM06: Excessive Agency (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "LLM has genuine tool-calling with side-effecting tools. generateCoupon tool performs real state-changing operations (generating coupons). searchProducts, getProductReviews, getOrderById access real database collections. Chat endpoint accessible without authentication.",
+    "confidence": 0.9
+  },
+  {
+    "name": "LLM10: Unbounded Consumption (LLM Top 10)",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "/rest/chat endpoint has no rate limiting and auth:null. LLM inference calls are computationally expensive. No observable rate limiting or token budget controls on the chat endpoint specifically.",
+    "confidence": 0.85
+  }
+]

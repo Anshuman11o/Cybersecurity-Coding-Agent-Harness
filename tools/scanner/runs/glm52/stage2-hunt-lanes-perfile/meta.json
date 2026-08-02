@@ -1,0 +1,17 @@
+{
+  "provider": "glm52",
+  "model": "glm-5.2",
+  "stage": "stage2-hunt-lanes-perfile",
+  "git_sha": "aac8c00",
+  "started": "2026-08-02T16:05:08.706Z",
+  "ended": "2026-08-02T16:22:40.157Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false,
+  "sampling": {
+    "reasoning_effort": "high"
+  },
+  "max_output_tokens": 64000,
+  "loop_mode": "trace",
+  "loop_passes": 1
+}

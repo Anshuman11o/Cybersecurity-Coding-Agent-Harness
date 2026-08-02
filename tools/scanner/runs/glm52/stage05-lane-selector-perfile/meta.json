@@ -1,0 +1,11 @@
+{
+  "provider": "glm52",
+  "model": "deterministic",
+  "stage": "stage05-lane-selector-perfile",
+  "git_sha": "aac8c00",
+  "started": "2026-08-02T16:05:06.315Z",
+  "ended": "2026-08-02T16:05:06.466Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
