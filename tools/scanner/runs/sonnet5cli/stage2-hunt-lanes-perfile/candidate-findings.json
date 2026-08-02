@@ -1,0 +1,1608 @@
+[
+  {
+    "finding_id": "FIND-0001",
+    "lane_id": "file-0001",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 6
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A09",
+      "A04"
+    ],
+    "title": "Fatal startup errors are re-thrown with no logging, breaking incident detection",
+    "description": "The application bootstrap in app.ts awaits dependency validation and server startup, and on any failure the top-level .catch handler simply re-throws the error (line 16) with no logging call of any kind. If validateDependencies() (line 8) detects a compromised or vulnerable dependency, or if server.start() (line 11) fails due to a misconfiguration, credential issue, or attack-related condition (e.g., port hijack, TLS cert problem), the only observable behavior is an uncaught exception that terminates the process. There is no structured log entry recording what failed, when, or why. In production this means: (1) operators cannot distinguish a security-relevant startup failure (e.g., dependency integrity check failing because of a supply-chain tampering) from a benign transient error, (2) there is no timestamp/correlation id captured for later incident reconstruction, and (3) repeated crash-restart loops caused by an attacker-triggered condition would generate no alertable signal. This is the sole error-handling path for the entire application's bootstrap, so its complete absence of logging is a genuine security logging/monitoring gap rather than a minor style issue.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "app.ts",
+        "line": 6,
+        "description": "app() is invoked as the process bootstrap function, awaiting dependency validation and server start."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 8,
+        "description": "await validateDependencies() can reject/throw if a security-relevant dependency check fails; the error propagates up through app()'s promise with no logging at this point."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 7,
+        "description": "validateDependencies is dynamically imported; any error thrown during this import itself would also propagate through the same unlogged path."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 10,
+        "description": "The server module is dynamically imported; a failure here (e.g. module resolution or init error) would also flow to the same unlogged rejection path."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 11,
+        "description": "await server.start() can reject/throw on startup failure (e.g. port binding, TLS/config errors); again no logging occurs before propagation continues."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 15,
+        "description": "The single .catch clause treats all failures uniformly by re-throwing, with no differentiation, alerting, or safe-mode fallback for a failed security dependency check."
+      },
+      {
+        "kind": "sink",
+        "file": "app.ts",
+        "line": 14,
+        "description": "app().catch(err => { throw err }) is the only error handling for the entire bootstrap; the error is re-thrown (line 16) without any console/log/monitoring call, so the failure reason is never recorded in an inspectable log."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.55
+  },
+  {
+    "finding_id": "FIND-0002",
+    "lane_id": "file-0001",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      },
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04",
+      "A09"
+    ],
+    "title": "No graceful failure/alerting path for startup dependency validation — fail-crash design with no compensating control",
+    "description": "The design of app.ts treats a dependency-validation failure or server-start failure identically to any other exception: it terminates the process via an uncaught throw (lines 14-17), with no retry logic, no alert hook, no fallback safe-mode, and no distinction between transient vs. security-critical failures (e.g., a validateDependencies() check that exists specifically to catch known-vulnerable or tampered dependencies, per its name). Because there is no compensating control (alert, paging hook, structured incident log) wired into this single choke point, a security-relevant startup failure (such as detection of a vulnerable/malicious dependency) produces the exact same silent crash as a trivial misconfiguration typo, meaning defenders have no way to prioritize or detect the security-relevant case out of band. This is a design gap: the file is the sole place where such failures are centrally handled, and the design never establishes a path for surfacing/alerting on security-relevant startup failures versus ordinary ones.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "app.ts",
+        "line": 7,
+        "description": "validateDependencies is imported and invoked as a security control intended to catch dependency-related issues before the server starts."
+      },
+      {
+        "kind": "propagation",
+        "file": "app.ts",
+        "line": 8,
+        "description": "The result of the security check is awaited; any failure here is indistinguishable in downstream handling from any other kind of error."
+      },
+      {
+        "kind": "sink",
+        "file": "app.ts",
+        "line": 15,
+        "description": "The single .catch clause treats all failures uniformly by re-throwing, with no differentiation, alerting, or safe-mode fallback for a failed security dependency check."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0003",
+    "lane_id": "file-0005",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Business-critical order and review data stored only in an in-memory, non-persistent database",
+    "description": "reviewsCollection and ordersCollection are instantiated with `new MarsDB.Collection(...)` and no schema, validator, or allowed-operator whitelist is attached at creation time. Because MarsDB (like MongoDB) accepts arbitrary JavaScript objects as query/update documents, any downstream code that forwards user-controlled input directly into find()/update()/insert() calls on these collections (a common Juice Shop pattern, e.g. search or filter endpoints) can inject Mongo-style query operators (e.g. $where, $gt, $ne) unless the caller independently sanitizes input. The design here establishes no server-side re-validation boundary or schema constraint at the data-access layer itself — the collections are configured with defaults only, offloading all safety entirely to whatever code happens to call them. Compounding this, the module opts out of TypeScript's type checking for the whole MarsDB surface, so even the compiler cannot flag a caller passing an unexpected/attacker-shaped object into these collections. This is a missing security control at the point where the trust boundary should be enforced (the data layer), not merely a caller-side bug.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/mongodb.ts",
+        "line": 7,
+        "description": "MarsDB, an in-memory/client-oriented database library, is imported to serve as the persistence layer for the application's data model."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/mongodb.ts",
+        "line": 9,
+        "description": "reviewsCollection is instantiated as a MarsDB.Collection with no persistence, backup, or durability configuration and exported for use by the rest of the application."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/mongodb.ts",
+        "line": 6,
+        "description": "TypeScript type checking is explicitly suppressed for the MarsDB import ('@ts-expect-error ... non-existing type definitions'), meaning no compile-time contract exists to enforce correct, safe usage of this ad-hoc persistence layer anywhere it is consumed."
+      },
+      {
+        "kind": "sink",
+        "file": "data/mongodb.ts",
+        "line": 10,
+        "description": "ordersCollection, holding financial/transactional order records, is likewise created purely in-memory and exported; any process restart or crash silently destroys all order history with no recovery path."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0004",
+    "lane_id": "file-0005",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A04"
+    ],
+    "title": "Collections created without any schema validation or query-shape restrictions, enabling downstream NoSQL query injection",
+    "description": "reviewsCollection and ordersCollection are instantiated with `new MarsDB.Collection(...)` and no schema, validator, or allowed-operator whitelist is attached at creation time. Because MarsDB (like MongoDB) accepts arbitrary JavaScript objects as query/update documents, any downstream code that forwards user-controlled input directly into find()/update()/insert() calls on these collections (a common Juice Shop pattern, e.g. search or filter endpoints) can inject Mongo-style query operators (e.g. $where, $gt, $ne) unless the caller independently sanitizes input. The design here establishes no server-side re-validation boundary or schema constraint at the data-access layer itself — the collections are configured with defaults only, offloading all safety entirely to whatever code happens to call them. This is a missing security control at the point where the trust boundary should be enforced (the data layer), not merely a caller-side bug.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/mongodb.ts",
+        "line": 7,
+        "description": "MarsDB imported without any accompanying schema/validation module."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/mongodb.ts",
+        "line": 9,
+        "description": "reviewsCollection created with `new MarsDB.Collection('posts')` — no schema, validator, or field whitelist configured before export."
+      },
+      {
+        "kind": "sink",
+        "file": "data/mongodb.ts",
+        "line": 10,
+        "description": "ordersCollection created the same way; both collections are exported as-is for use by route handlers elsewhere in the app, which — per Architecture Context — includes many hand-written REST endpoints that likely pass client-supplied filter/query objects directly to these collections."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0005",
+    "lane_id": "file-0005",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "No audit logging wrapper around order/review data-layer operations",
+    "description": "The data module that centralizes access to security-relevant business records (orders and reviews) exposes the raw MarsDB Collection objects directly with no interception, hooks, or logging wrapper for create/update/delete operations. Security-relevant events at this layer — order creation, order modification/cancellation, review creation/deletion — have no place in this file where they would be recorded (e.g., no event emitter, no audit-log call, no correlation-ID stamping). Since this is the sole module responsible for constructing these collections, and no logging control is established here or attached to the collection objects before export, any code that uses reviewsCollection/ordersCollection downstream has to independently implement its own audit logging or none will exist. This absence at the central data-access point makes it structurally likely that data-modifying operations on financial/order records go unlogged, hindering incident detection and forensic reconstruction of who changed which order or review and when.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/mongodb.ts",
+        "line": 9,
+        "description": "reviewsCollection is created and exported with no logging/audit hook attached at the point of definition."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/mongodb.ts",
+        "line": 10,
+        "description": "ordersCollection, representing financial transaction records, is likewise exported with no logging or audit wrapper — callers elsewhere (outside this file) receive raw, unmonitored collection handles."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/mongodb.ts",
+        "line": 7,
+        "description": "MarsDB is imported as the raw driver with no accompanying logging/audit middleware or wrapper module."
+      },
+      {
+        "kind": "sink",
+        "file": "data/mongodb.ts",
+        "line": 11,
+        "description": "Module ends without any centralized event logging, correlation ID mechanism, or audit trail construct for the two exported collections, meaning any downstream insert/update/remove against orders or reviews is invisible to security monitoring unless independently logged by each individual caller."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0014",
+    "lane_id": "file-0006",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "NFT contract interface exposes single-step, unconfirmed ownership transfer/renouncement",
+    "description": "The nftABI exported here defines the client-facing interface the frontend uses to call transferOwnership(address newOwner) and renounceOwnership() on the deployed NFT contract. Both are irreversible, privilege-critical operations exposed as single-call functions with no two-step handoff (no pendingOwner/acceptOwnership pattern) and no confirmation step visible in the interface. Because this file is the contract of record the application code will use to build these calls, any UI or script built against it can transfer or permanently renounce contract ownership in one transaction with no compensating control (e.g., a typo'd address in transferOwnership immediately and irrecoverably hands control to an unintended party; renounceOwnership immediately and irrecoverably strips the contract of an owner). This is the classic 'irreversible action without confirmation/compensating control' design gap called out for inherently risky operations. The defect is in the interface design being relied upon (single-step admin transfer) rather than in a missing validation of one field.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/contractABIs.ts",
+        "line": 454,
+        "description": "nftABI exposes transferOwnership(address newOwner) as a directly callable, non-payable state-changing function with no companion pendingOwner/acceptOwnership step defined anywhere in this ABI."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 462,
+        "description": "The function name/output confirm ownership is reassigned in a single call; consumers of this exported ABI (elsewhere in the app) will build a one-shot transaction against this signature."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 279,
+        "description": "renounceOwnership's inputs: [] — the second irreversible admin function takes no parameters at all, so there is no safeguard value that could gate or confirm the action."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 458,
+        "description": "name: 'newOwner' — the destination address is accepted directly, with no companion staging/confirmation field (e.g. no pendingOwner slot or accept flag) defined anywhere in this parameter list."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 464,
+        "description": "stateMutability: 'nonpayable' confirms transferOwnership executes as an immediate on-chain state change in one transaction rather than a staged proposal requiring a separate acceptance call by the new owner."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/contractABIs.ts",
+        "line": 280,
+        "description": "renounceOwnership() is likewise exposed as a single irreversible call with no confirmation/second-signer step, permanently removing the admin role if invoked in error or by a tricked/compromised owner."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0015",
+    "lane_id": "file-0006",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Wallet contract interface permits crediting balances to arbitrary addresses via payable deposit, decoupled from withdrawal authorization",
+    "description": "web3WalletABI exposes ethdeposit(address _to) as a payable function that lets any caller send ETH while nominating an arbitrary '_to' address to be credited (see balances/userWithdrawing view functions keyed by address), and a separate withdraw(uint256 _amount) that presumably withdraws against the caller's own tracked balance. Decoupling 'who pays' from 'whose balance is credited' is a known anti-pattern that enables forced-deposit/griefing style manipulation of another user's on-chain accounting exposed through this app's Web3 integration, and the presence of a ContractExploited event in the same ABI indicates the integrated contract itself anticipates being exploited. Because this file is the canonical interface the application uses to interact with the wallet contract, any code built on it inherits this trust assumption (the server/client never re-derives or restricts which address may be credited) without validating the safety of allowing arbitrary third-party crediting before exposing it to end users.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/static/contractABIs.ts",
+        "line": 520,
+        "description": "ethdeposit(address _to) is defined as a payable function accepting an arbitrary destination address distinct from msg.sender, exported for use elsewhere in the app to construct transactions."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 509,
+        "description": "balances(address) and userWithdrawing(address) are per-address accounting views keyed by the arbitrary address suppliable via ethdeposit, meaning any caller can influence another address's tracked balance/withdrawing state."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 524,
+        "description": "name: '_to' — the destination address whose balance is credited is caller-controlled and independent of whoever actually sends the ETH."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 530,
+        "description": "stateMutability: 'payable' confirms the function accepts ETH from the caller while crediting the arbitrary '_to' address rather than the sender's own address."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 541,
+        "description": "userWithdrawing(address) is a second per-address accounting view, again keyed by an address any caller can target via ethdeposit's '_to' parameter, compounding the exposure of another address's tracked state to third-party manipulation."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/static/contractABIs.ts",
+        "line": 560,
+        "description": "withdraw(uint256 _amount) takes only an amount with no address parameter, implying it operates against the caller's own balances/userWithdrawing entry — the same entry that a third party could have influenced via a prior ethdeposit call naming the caller as '_to'."
+      },
+      {
+        "kind": "sink",
+        "file": "data/static/contractABIs.ts",
+        "line": 479,
+        "description": "The ABI declares a ContractExploited(address culprit) event, indicating the underlying contract this interface targets has a known exploit condition that the application nonetheless integrates with via this exported ABI without any documented compensating control in the interface."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0024",
+    "lane_id": "file-0009",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Sensitive account-recovery secrets modeled as exportable/importable backup data",
+    "description": "The Backup interface treats continueCode, continueCodeFindIt and continueCodeFixIt — server-issued secrets used by Juice Shop's password-recovery / two-step verification flows to authenticate a user without a password — as ordinary optional fields of a generic 'Backup' data object, on par with UI preference fields like language and banner status. The architecture shows a POST /file-upload route wired to handleYamlUpload, which is the well-known Juice Shop backup-restore feature that parses a user-supplied YAML file into this Backup shape and applies it to the account. Because the model does not distinguish security-critical continuation codes from cosmetic settings, and because this shape is what a client-supplied backup file is deserialized into, the design permits a user-controlled file to carry values for continueCode/continueCodeFindIt/continueCodeFixIt end-to-end into the restore path. If the (unseen) restore handler applies these fields from the uploaded object rather than re-deriving them server-side, an attacker who can access another user's backup (or forge one) could read or overwrite the codes that gate account recovery — a trust-boundary violation where a client-editable structure carries fields the server alone should ever set. The interface is declared as a single contiguous block (lines 6-13); every field in that block, including the non-sensitive version/language/banners fields, is exported with equal, unmarked mutability, so nothing in the type itself prevents a deserializer from populating the sensitive continuation codes alongside the cosmetic ones.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 6,
+        "description": "Backup interface is the shape that a user-uploaded backup/restore payload (via POST /file-upload → handleYamlUpload, outside this file) is expected to conform to."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 8,
+        "description": "continueCode declared as a plain optional string field, indistinguishable in the type system from non-sensitive fields like language or banner flags."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 9,
+        "description": "continueCodeFindIt, an account-recovery secret for the 'find it' challenge track, likewise modeled as freely settable backup data."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 7,
+        "description": "version: number is the first field of the shape, establishing the interface as a generic, undifferentiated bag of restorable properties with no sensitivity tiering."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 11,
+        "description": "language field sits alongside the continuation codes with identical optionality and mutability, reinforcing that the interface makes no structural distinction between cosmetic settings and security secrets."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 12,
+        "description": "banners object field further rounds out the interface as a general-purpose settings/preferences bag, the same bag the continuation codes are embedded in."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 13,
+        "description": "Closing brace completes and exports the Backup type; this fully-assembled, undifferentiated shape is what any restore/import routine (outside this file) will type-check untrusted deserialized backup data against, allowing attacker-controlled continueCode* values to flow through unguarded."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/backup.model.ts",
+        "line": 10,
+        "description": "continueCodeFixIt included as another restorable field; the model provides no server-only/immutable marker, so any consumer that maps client-supplied backup data onto this interface can carry attacker-controlled values into these security-critical fields."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0011",
+    "lane_id": "file-0003",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Global mutable singleton used to pass blueprint file path across requests (race condition / cross-user info disclosure)",
+    "description": "The module keeps a single, process-wide `let retrieveBlueprintChallengeFile` variable (line 33) that is written by an exported setter (line 34-36) and presumably read elsewhere to serve a file to whichever request asks for it. Because Node.js modules are singletons, this value is shared by every concurrent request/user rather than being scoped to a session or request. The design never establishes any binding between the value that was set and the specific user/session that is entitled to read it back. An attacker can race a legitimate user's upload/retrieve flow: while User A triggers the code path that calls setRetrieveBlueprintChallengeFile with their file path, User B (or the attacker) can trigger the corresponding read path and receive User A's file path/content instead of their own, or overwrite the value before User A's read completes causing User A to retrieve the attacker's file. This is a design flaw — even a perfectly implemented setter/getter pair built on this global variable cannot prevent cross-user interference, because the architecture itself has no per-request isolation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/datacache.ts",
+        "line": 34,
+        "description": "Exported setter receives a file path argument from a caller outside this file (e.g. an upload/blueprint-retrieval route handler) with no session/user binding."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 33,
+        "description": "Value is stored in a single module-level `let` variable shared across all concurrent requests for the entire process lifetime."
+      },
+      {
+        "kind": "sink",
+        "file": "data/datacache.ts",
+        "line": 35,
+        "description": "Assignment overwrites the previous value; any other module reading the exported `retrieveBlueprintChallengeFile` binding afterwards receives whichever value was written last, regardless of which user/session it belongs to, enabling a race condition and cross-user information disclosure."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.4
+  },
+  {
+    "finding_id": "FIND-0012",
+    "lane_id": "file-0003",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unencapsulated, ownership-agnostic in-memory data stores enabling IDOR-style design gaps",
+    "description": "users, products, feedback, baskets, basketItems and complaints (lines 15-20) are exported as plain mutable `Record<string, T>` objects with no accessor functions, no ownership checks, and no invariant enforcement (e.g. uniqueness, foreign-key consistency, or 'this basket belongs to this user'). Any importing module can read or write any entry directly by key. According to the routing context, `PUT /api/BasketItems/:id` and `POST /api/BasketItems` are protected only by `security.appendUserId()`, which merely stamps the caller's user id onto the request — it does not consult this data layer to verify that the basket/basketItem referenced by `:id` actually belongs to the requesting user. Because the data-store design never requires or exposes an ownership-checked accessor (e.g., `getBasketItemForUser(id, userId)`), the correctness of access control is left entirely to whichever caller remembers to check it, and every one of the six stores in this file is declared the same unencapsulated way, so the gap is systemic rather than a one-off oversight in a single store. Any caller (present or future) that indexes `basketItems[id]` directly bypasses ownership enforcement entirely. This is a design gap: the store never establishes 'a value the server must decide rather than accept from the caller,' i.e., basket/item ownership, as an enforced invariant at the persistence layer.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/datacache.ts",
+        "line": 19,
+        "description": "basketItems store is exported as a raw dictionary keyed only by item id, reachable from any module including route handlers that receive attacker-controlled :id values."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 18,
+        "description": "baskets store similarly keyed only by id with no ownership binding enforced by the data layer itself."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 15,
+        "description": "users store, the record that would need to be cross-checked against basket/basketItem ownership, is likewise a bare mutable dictionary with no accessor that ties a user id to the records it owns."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 16,
+        "description": "products store follows the same declaration pattern, confirming there is no module-wide convention anywhere in this file for enforcing ownership or referential integrity on lookups."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 17,
+        "description": "feedback store is declared the same way, reinforcing that the absence of an ownership-checked accessor is a design choice applied uniformly across every store in this module, not an isolated gap."
+      },
+      {
+        "kind": "sink",
+        "file": "data/datacache.ts",
+        "line": 20,
+        "description": "complaints store follows the same unencapsulated pattern; any module (including a caller performing incomplete authorization, such as the appendUserId-only protected BasketItems routes) can read/mutate arbitrary records by id without the data layer enforcing that the record belongs to the caller."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0013",
+    "lane_id": "file-0003",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "No audit trail for mutations to security-relevant in-memory stores",
+    "description": "The central application data stores (users, products, baskets, basketItems, complaints, challenges, feedback) are mutated directly by external callers with no logging hook anywhere in this module. Security-relevant events that would flow through this layer — user record creation/modification, complaint submission, basket/basket-item changes tied to purchases — are never recorded here, and since this is the single choke point for all in-memory persistence, there is no alternate place in this file where such an audit trail could be added incidentally. Every store in the file (lines 15-20) is declared and exposed the same bare way, so the absence of logging is uniform across the whole persistence layer, not limited to one record type. This absence prevents reconstruction of who changed what, when — e.g., detecting a user record being tampered with, or repeated anomalous basket manipulation attempts — since no correlation id, timestamp, or actor is captured at the point of mutation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/datacache.ts",
+        "line": 15,
+        "description": "users store is exported as directly-mutable global state; any caller outside this file can create/modify a user record."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 18,
+        "description": "baskets store is likewise mutated directly by callers with no intervening logging call in this module."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 16,
+        "description": "products store is likewise mutated directly by callers with no logging hook in this module, showing the pattern is consistent across record types."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 17,
+        "description": "feedback store, which can carry user-submitted content, is exposed the same way with no mutation event captured."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/datacache.ts",
+        "line": 19,
+        "description": "basketItems store, tied to purchase/quantity changes reachable from the BasketItems routes, is likewise writable with no audit record produced at the point of change."
+      },
+      {
+        "kind": "sink",
+        "file": "data/datacache.ts",
+        "line": 20,
+        "description": "complaints store is written to directly with no logging of the mutation event (actor, timestamp, previous/new value), leaving no audit trail for later incident investigation."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0019",
+    "lane_id": "file-0007",
+    "finding_classes": [
+      {
+        "class": "access-control",
+        "justified_by_step": 2
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A01",
+      "API1",
+      "API5",
+      "A03"
+    ],
+    "title": "Unsanitized file parameter enables path traversal / arbitrary local file read in loadStaticData",
+    "description": "The exported function loadStaticData(file: string) builds a filesystem path by directly concatenating the caller-supplied `file` argument into a path string (`'./data/static/' + file + '.yml'`) and then resolves and reads it with no validation, allow-listing, or sanitization of `file`. If any caller elsewhere in the application passes externally influenced input to this function (it is exported and generically named, taking any string), an attacker who controls `file` can inject path traversal sequences (e.g. `../../../somewhere/target`) to make the resolved path escape the intended `./data/static/` directory and read arbitrary `.yml` files elsewhere on disk that the process can access. The `.yml` suffix constrains but does not eliminate exploitability against any reachable YAML file. Because the caller of this exported function is not visible in this file, reachability with attacker input cannot be fully confirmed here, but the function itself performs no defensive check between receiving `file` and using it to construct/read a filesystem path.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/staticData.ts",
+        "line": 7,
+        "description": "loadStaticData(file: string) is an exported function; its `file` argument is received from a caller outside this file with no indication of validation before the call."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 8,
+        "description": "`file` is concatenated directly into a filesystem path string and passed to path.resolve with no character allow-listing or traversal-sequence check."
+      },
+      {
+        "kind": "sink",
+        "file": "data/staticData.ts",
+        "line": 9,
+        "description": "readFile(filePath, 'utf8') reads whatever file the resolved (potentially traversed) path points to."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0020",
+    "lane_id": "file-0007",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 4
+      },
+      {
+        "class": "injection",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A09",
+      "A03"
+    ],
+    "title": "Tainted file path written to log without sanitization (log injection)",
+    "description": "On a read failure, the same unsanitized, caller-controlled path string that was built from the `file` parameter is written directly into a log message via logger.error. If `file` can contain control characters (e.g. CR/LF) or other injectable content, an attacker able to influence the `file` argument could forge or split log entries, undermining log integrity and making log-based detection/investigation unreliable. The tainted `filePath` value is captured by closure across the whole read/parse promise chain (the readFile call and the chained .then(safeLoad)) before reaching the .catch handler that performs the logging, so the value passes unmodified through the entire chain to the sink.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/staticData.ts",
+        "line": 7,
+        "description": "`file` parameter received from a caller outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 8,
+        "description": "`file` is concatenated into filePath without sanitization."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 9,
+        "description": "readFile(filePath, 'utf8') is invoked; a rejection here (e.g. file not found because of the traversal-influenced path) drives execution toward the catch handler that will log filePath."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 10,
+        "description": ".then(safeLoad) is chained onto the read; a parse failure here also propagates rejection to the same catch handler, continuing the path toward the logging sink with filePath still unsanitized."
+      },
+      {
+        "kind": "sink",
+        "file": "data/staticData.ts",
+        "line": 11,
+        "description": "logger.error('Could not open file: \"' + filePath + '\"') writes the tainted, unsanitized path string into the application log on failure."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0021",
+    "lane_id": "file-0007",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 3
+      },
+      {
+        "class": "integrity-failures",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "API4",
+      "A08"
+    ],
+    "title": "YAML content parsed without size/complexity limits (potential resource exhaustion)",
+    "description": "loadStaticData reads whatever file the (possibly traversal-influenced) path resolves to and immediately parses its full contents with js-yaml's safeLoad, with no size cap, depth limit, or anchor/alias expansion restriction. YAML's alias/anchor expansion feature ('billion laughs'-style payloads) can cause exponential memory/CPU blow-up during parsing regardless of the 'safe' schema being used (safeLoad restricts which object types can be constructed, it does not limit reference expansion). If the file being loaded can be influenced or substituted by an attacker (e.g. via the path traversal weakness in loadStaticData, or if any static YAML file under the served directory can be attacker-modified/uploaded elsewhere in the app), parsing it here would consume excessive server resources with a single request, causing denial of service.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/staticData.ts",
+        "line": 7,
+        "description": "loadStaticData receives the target file name/content selector from a caller outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 9,
+        "description": "Full file contents are read into memory with no size limit before parsing."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/staticData.ts",
+        "line": 8,
+        "description": "The selector is concatenated into filePath and resolved, determining which file's full contents will be read and parsed next with no restriction on its size or structure."
+      },
+      {
+        "kind": "sink",
+        "file": "data/staticData.ts",
+        "line": 10,
+        "description": "safeLoad(...) parses the entire YAML content with no depth/size/alias-expansion guard, exposing the call to YAML entity-expansion denial-of-service if the parsed content is attacker-influenced."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0022",
+    "lane_id": "file-0008",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 0
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "No sanitized/public DTO types — internal persistence models re-exported directly as API-facing types",
+    "description": "This file defines the application's canonical `User`, `Card`, `SecurityAnswer`, `Memory`, `Basket`, etc. types as bare aliases of their Sequelize/DB model types (e.g. `export type User = UserModel`, `export type Card = CardModel`, `export type SecurityAnswer = SecurityAnswerModel`). There is no separate 'public' or 'safe' view type that strips sensitive fields (password hash, TOTP secret, security question answers, full card numbers, internal timestamps, etc.) before data crosses the trust boundary to the client. Because route handlers elsewhere in the codebase are typed against these same aliases, the type system provides no compile-time signal that a handler must scrub sensitive fields before sending a `User`, `Card`, or `SecurityAnswer` object in an HTTP response — the design never establishes a distinction between 'what is stored' and 'what may be returned to a caller'. Walking the file top to bottom confirms the pattern is systemic and never broken: every model-backed type (`Delivery`, `Address`, `Card`, `Product`, the inline `Review` interface, `Recycle`, `SecurityQuestion`, `SecurityAnswer`, `Memory`) follows the same 1:1 alias with no masked counterpart anywhere in the file. This is a design-level trust violation: the server relies on individual handlers to remember to filter fields rather than the type contract enforcing it, which is exactly the kind of gap that leads to leaking password hashes, TOTP secrets, or full card data in API responses. The entrypoints that actually serialize these objects (e.g. GET /api/Users/:id, /rest/user routes) live outside this file, but the missing type-level control originates here.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/types.ts",
+        "line": 17,
+        "description": "`User` type is defined as a direct alias of the full persistence model `UserModel`, with no restricted/public variant."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 23,
+        "description": "`Card` type likewise aliases the full `CardModel`, including presumably full card number / expiry fields, with no masked view type."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 40,
+        "description": "`SecurityAnswer` type aliases `SecurityAnswerModel` directly — the answer used for password-reset verification is exposed via the same type used elsewhere for responses."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 19,
+        "description": "`Delivery` continues the identical unmasked alias pattern immediately after `User`, reinforcing that no exception/masking mechanism is introduced anywhere nearby."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 21,
+        "description": "`Address` likewise aliases `AddressModel` directly, propagating the same design gap to another PII-bearing type."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 25,
+        "description": "`Product` continues the pattern; scanning forward through the file still finds no divergence toward a sanitized/public type family."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 27,
+        "description": "The inline `Review` interface is hand-declared here (not a pure alias) yet still exposes `author` and `likedBy` fields with no redaction, showing the file never distinguishes internal vs. public shape even where it defines a type from scratch."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 36,
+        "description": "`Recycle` aliases `RecycleModel` directly, continuing the same unguarded pattern."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 38,
+        "description": "`SecurityQuestion` aliases `SecurityQuestionModel` directly, immediately preceding the security-answer alias."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 42,
+        "description": "`Basket = BasketModel` propagates the same unmasked-model pattern into the basket/checkout domain, which is the context in which card data is most likely to be surfaced to a client."
+      },
+      {
+        "kind": "propagation",
+        "file": "data/types.ts",
+        "line": 44,
+        "description": "`BasketItem = BasketItemModel` further extends the unmasked-model surface within the checkout flow, with still no masked `Card` type introduced anywhere in the file."
+      },
+      {
+        "kind": "sink",
+        "file": "data/types.ts",
+        "line": 34,
+        "description": "`Memory` type likewise aliases the full `MemoryModel`; combined with the other aliases, no type in this file distinguishes stored/internal representation from what is safe to serialize to an untrusted client — handlers outside this file (not visible here) that return these types have no compile-time enforcement preventing sensitive-field leakage."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0023",
+    "lane_id": "file-0008",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 0
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Card model type exposes full payment card representation with no masked/tokenized alternative type",
+    "description": "`export type Card = CardModel` (line 23) makes the complete payment card model — which typically includes full card number, expiry, and cardholder name in Juice Shop's schema — the canonical type used across the codebase for representing a card, including presumably in list/detail API responses (e.g. GET card endpoints). There is no companion type in this file representing a masked card (e.g. last 4 digits only) for use in responses, which is the standard compensating control for handling stored payment data. Since this file is the single source of truth for the shape of 'Card' used throughout the app, the absence of a masked variant here means any consumer that needs to return card data to a client has to manually remember to redact fields, rather than being forced to do so by the type contract — an inherently risky operation (return of financial instrument data) with no built-in compensating control at the design level.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "data/types.ts",
+        "line": 23,
+        "description": "`Card` type is defined as a raw alias to `CardModel` — the full DB representation of a stored payment card — with no masked/public counterpart type declared."
+      },
+      {
+        "kind": "sink",
+        "file": "data/types.ts",
+        "line": 23,
+        "description": "Any handler outside this file (not visible here) that types its response payload as `Card` inherits the full card fields by default, since no safer type exists to opt into."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0006",
+    "lane_id": "file-0002",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 4
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Cypress task exposes production coupon-minting logic with unvalidated discount value",
+    "description": "The setupNodeEvents 'task' handler registers a GenerateCoupon task that takes a raw `discount: number` parameter from the caller and passes it directly into the real production security module (`security.generateCoupon(discount)`, imported from `./lib/insecurity` at line 2 — the same module presumably used to validate coupons at checkout). There is no bounds checking, type validation, or business-rule enforcement on `discount` before it reaches the coupon-minting function: nothing here prevents a caller of this task from requesting a coupon for 100% off, a negative discount that could invert into a credit, or any other out-of-range value. Because the task wires an external, uncontrolled input straight into a security-sensitive value-generation routine that produces artifacts trusted elsewhere in the application (redeemed coupons), the design never establishes a bound on what `discount` may be — the server-side re-derivation/validation step that should clamp or reject invalid discount values is absent from this call path. If this task interface is reachable by anything other than a fully trusted CI harness (e.g. a compromised e2e spec, a shared/misconfigured Cypress runner, or a supply-chain-compromised test dependency), an attacker gains a direct oracle to mint arbitrary-value coupons using the production secret/algorithm.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "cypress.config.ts",
+        "line": 22,
+        "description": "on('task', {...}) registers Node-side task handlers callable via cy.task() from any test/spec file executed against this config; caller of the task is outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 23,
+        "description": "GenerateCoupon(discount: number) accepts an unvalidated numeric parameter with no range/type checks."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 2,
+        "description": "The identifier `security` used at the sink resolves to the module imported here (`./lib/insecurity`), binding the task directly to the production coupon-generation implementation rather than a test-only stub."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 21,
+        "description": "The on('task', {...}) registration at line 22 executes inside the setupNodeEvents(on) hook, which Cypress itself invokes and supplies with the 'on' registration API — this is the enclosing control point that wires external task invocations to the handler object below."
+      },
+      {
+        "kind": "sink",
+        "file": "cypress.config.ts",
+        "line": 24,
+        "description": "security.generateCoupon(discount) is invoked directly with the unvalidated value, using the same production coupon-generation logic imported at line 2."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-0007",
+    "lane_id": "file-0002",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 4
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A04"
+    ],
+    "title": "Unrestricted arbitrary configuration-key disclosure task",
+    "description": "The GetFromConfig task takes an arbitrary string `variable` supplied by the caller and returns `config.get(variable)` verbatim, with no allow-list of permitted keys. Every other config-reading task in this file (GetOverwriteUrl, GetPastebinLeakProduct, GetBlueprint, GetChristmasProduct, GetTamperingProductId) is narrowly scoped to a single known, non-sensitive challenge-related key, but GetFromConfig removes that scoping entirely and turns the task into a generic config-value oracle. If the underlying `config` module (loaded from the `config` package, line 3) contains any secrets, credentials, internal URLs, or other sensitive settings anywhere in its tree (a common pattern for Node 'config' packages that hold DB connection strings, session secrets, or third-party API keys), this task will happily return them to whoever can invoke it. The design never establishes which configuration keys are safe to expose through this interface — it trusts the caller-supplied key name completely.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "cypress.config.ts",
+        "line": 22,
+        "description": "on('task', {...}) registers task handlers reachable via cy.task() from outside this file (test specs)."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 46,
+        "description": "GetFromConfig(variable: string) accepts an arbitrary, unrestricted key name with no allow-list or filtering of sensitive paths."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 3,
+        "description": "The `config` identifier used at the sink resolves to the module imported here (`import config from 'config'`), the full configuration tree that the unrestricted key lookup can traverse."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 21,
+        "description": "The on('task', {...}) call at line 22 executes inside the setupNodeEvents(on) hook, the enclosing control point through which Cypress's external registration API reaches this handler set."
+      },
+      {
+        "kind": "sink",
+        "file": "cypress.config.ts",
+        "line": 47,
+        "description": "config.get(variable) returns whatever value exists at that key, including potentially sensitive configuration data, directly to the caller."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0008",
+    "lane_id": "file-0002",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "No logging of invocation of security-sensitive test tasks (coupon generation, config disclosure)",
+    "description": "The task handlers registered in setupNodeEvents perform security-sensitive operations — minting a discount coupon via the production security module (line 24) and returning arbitrary configuration values (line 47) — but none of the handlers in this file emit any log entry, audit record, or trace identifier when invoked. There is no record of who requested a coupon, for what discount value, or which configuration key was retrieved. If this task interface were ever invoked outside its intended, fully-trusted CI context, there would be no way to reconstruct which coupons were generated or what configuration data was exfiltrated, since the file contains no calls to any logger for these operations.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "cypress.config.ts",
+        "line": 22,
+        "description": "on('task', {...}) block defines all security-sensitive task handlers; invocation source is outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 23,
+        "description": "GenerateCoupon handler executes without recording who called it or with what discount."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 2,
+        "description": "The security module used to perform the sensitive operation is imported here; no logging wrapper is applied around its use in this file before the call is made."
+      },
+      {
+        "kind": "propagation",
+        "file": "cypress.config.ts",
+        "line": 21,
+        "description": "The task registration at line 22 runs inside the setupNodeEvents(on) hook, the enclosing function whose only external input handling is this task map — no logging middleware or wrapper is established anywhere in this scope."
+      },
+      {
+        "kind": "sink",
+        "file": "cypress.config.ts",
+        "line": 24,
+        "description": "security.generateCoupon(discount) executes and returns a result with no corresponding log/audit statement anywhere in this handler set."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0042",
+    "lane_id": "file-0013",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-side Product model exposes mutable price fields with no server-authority markers",
+    "description": "The Product interface (and the ProductTableEntry type derived from it) models price-related fields (price, deluxePrice, points) as plain, freely mutable numbers with no readonly modifier and no indication in the type system that these values are server-authoritative and must be re-validated/re-derived server side. Because TypeScript interfaces have no runtime enforcement, any frontend code elsewhere in the Angular app (cart/basket components, checkout flows, order summary screens) that consumes this type can read, display, and re-transmit these fields to backend endpoints as part of order/basket update requests. If any such caller (not visible in this file) trusts the client-held price/deluxePrice value instead of having the server recompute it from the canonical product record, an attacker can tamper with the in-memory object (e.g., via browser devtools, a modified bundle, or intercepted/replayed API calls) to alter price before it is sent back, achieving a classic price-manipulation attack. This is a design gap in this file: it defines no distinction between server-owned fields (id, price, deluxePrice, points) and client-editable fields (quantity), so any consumer built against this type has no structural signal that these numeric fields must never be trusted verbatim from the client. The gap persists through the entire shape of the interface (every economic field between price and deluxePrice, including the optional points field) and is carried forward unchanged into the composite ProductTableEntry type used for cart/basket display and totals. This is reported as a low-to-medium confidence insecure-design finding because the actual sink (an endpoint or component that accepts this object and writes it to an order) is outside this file and not directly observable here.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 6,
+        "description": "Product interface is the canonical frontend type for product data, including price-related fields, consumed by components/services outside this file (cart, checkout, admin product management) that are not visible here."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 11,
+        "description": "price field is declared as a plain mutable number with no readonly qualifier or type-level marker indicating it is server-authoritative."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 13,
+        "description": "deluxePrice field similarly has no immutability or server-authority marker, and no validation constraints (e.g., non-negative) are expressed anywhere in the type."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 12,
+        "description": "points (optional) field is likewise a plain mutable number tied to loyalty/reward economics with the same absence of an immutability or server-authority marker, showing the gap is systemic across every economic field in the shape, not an isolated slip on price alone."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 14,
+        "description": "Closing brace completes the Product interface shape; at this point the full set of economic fields (price, points, deluxePrice) has been defined with uniformly no runtime-enforced immutability, so the interface as a whole offers no structural boundary between server-owned and client-editable data."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/product.model.ts",
+        "line": 16,
+        "description": "ProductTableEntry (Product & { quantity }) is the type most likely used to compute basket totals; if any consumer (outside this file) sends this composite object back to the server to influence pricing/order totals rather than having the server recompute price authoritatively, the lack of a client/server trust boundary in this model enables price tampering."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0041",
+    "lane_id": "file-0012",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-controlled 'unlocked' flag on Hint model enables trust-boundary bypass of hint-unlock business logic",
+    "description": "The Hint interface exposes an optional boolean field `unlocked` alongside the hint's `id`, `ChallengeId`, `text`, and `order`. This model is the shape used by the Angular frontend to both receive hint data from the REST API and, presumably, to construct/submit Hint objects back to the server (the architecture summary lists POST /api/Hints and GET /api/Hints/:id as live REST endpoints backed by a generic Sequelize-style CRUD handler). Because `unlocked` is modeled as a plain, client-settable boolean property on the same object that is sent to create/update endpoints, the design does not establish any separation between data the client is allowed to set (text, order) and state the server must independently compute and enforce (whether a given hint has actually been earned/paid for by the player, e.g. via reputation points or failed-attempt count on the parent Challenge). All five fields of the interface (id, ChallengeId, text, order, unlocked) travel together as one object literal wherever this model is used, so any code path that serializes a Hint for a create/update request necessarily bundles the client-writable `unlocked` state alongside the other fields with no field-level distinction between 'client may set this' and 'server must derive this'. If the backend's generic CRUD handler for /api/Hints accepts and persists whatever body is posted (a common pattern for these auto-generated model REST routes), a user could submit or modify a Hint payload with `unlocked: true` (optionally paired with a chosen `ChallengeId` and `order`) to reveal a challenge hint they have not legitimately unlocked, or to reassign/reorder hints across challenges. Even if the current UI only reads this field, the interface itself provides no server-side re-derivation contract — the trust boundary that should force `unlocked` to be computed server-side is never established in this model, which is the root of the insecure design: the client is allowed to represent and communicate a security-relevant state value that only the server should be authoritative for.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 11,
+        "description": "The Hint interface declares 'unlocked' as an optional boolean field on the same object shape used to send/receive hint data; the caller supplying values for this field (Angular service/component and ultimately the REST endpoints POST /api/Hints, GET /api/Hints/:id) is outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 6,
+        "description": "The Hint interface is the canonical shape used throughout the frontend for hint data, meaning any component/service serializing this object for a create/update request will include the unlocked flag as an ordinary, client-writable property rather than a server-derived value."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 7,
+        "description": "'id' is declared as a sibling field within the same object literal; it travels alongside 'unlocked' in any request payload built from this interface, meaning the record's identity and its unlock state are submitted together with no server-side separation enforced by the type."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 8,
+        "description": "'ChallengeId' is declared as a sibling field within the same object literal; because it rides in the same payload as 'unlocked', a caller could pair an arbitrary ChallengeId with unlocked:true to mark a hint for a challenge it does not belong to as unlocked."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 9,
+        "description": "'text' is declared as a sibling field within the same object literal, confirming the full hint content is transmitted together with the client-settable 'unlocked' flag in one undifferentiated object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 10,
+        "description": "'order' is declared as a sibling field within the same object literal; combined with 'unlocked' it lets a submitted payload also control the sequencing in which hints are considered available, compounding the trust violation."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/hint.model.ts",
+        "line": 11,
+        "description": "The 'unlocked' property, once included in a payload sent to a generic model-backed endpoint (e.g. POST /api/Hints), becomes the point where a security-relevant state (hint availability) is expressed as attacker-influenceable data rather than a value the server independently computes."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0043",
+    "lane_id": "file-0014",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Review model exposes client-controlled author field with no server-side derivation contract",
+    "description": "The Review interface (used as the frontend type for review data, presumably serialized into POST bodies such as /rest/products/:id/reviews or similar review-creation endpoints) defines author as a plain client-settable string field alongside _id and message. Because this type declaration is the contract the frontend code uses to build and send review payloads, it establishes no distinction between fields the client is allowed to set (message) and fields that should be authoritatively derived by the server from the authenticated session (author). If any service constructing a request from this interface allows author to be populated from client-side state (e.g., a locally cached display name) rather than being stripped and re-derived server-side from the JWT/session, an attacker can spoof the displayed author of a review, a trust-boundary violation where the client determines a value the server should independently validate or overwrite. This is a design-level gap in the type itself: it offers no signal (e.g., separate DTO for creation vs. read) that author is untrusted input on write paths, and the same undifferentiated string typing is applied uniformly across all three fields (_id, message, author) with no marker distinguishing server-owned identity/output fields from client-owned input fields. This cannot be fully confirmed without seeing the consuming service/component that populates and POSTs this model, which lies outside this file.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 6,
+        "description": "Review interface declared and exported for use across frontend review components/services that build request payloads sent to the backend."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 9,
+        "description": "The author field is typed as a plain writable string with no distinction from server-derived identity data, making it indistinguishable in the type system from client-supplied content like message."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 7,
+        "description": "_id is declared as a plain string with no marker distinguishing it as a server-assigned identifier, establishing the pattern of undifferentiated field typing in this interface."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 8,
+        "description": "message is declared as a plain string representing legitimate client-authored input, sitting adjacent to author with identical typing and no structural separation of trust levels."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 10,
+        "description": "Interface closes without any comment, readonly modifier, or split type (e.g., a separate creation-only DTO) that would constrain which fields a caller may legitimately populate before sending, letting the same shape be reused for both trusted read-back data and client-constructed write payloads."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/review.model.ts",
+        "line": 9,
+        "description": "Consumers of this interface (outside this file) may serialize the author field directly into review-creation requests, allowing a client to assert an arbitrary author identity that the server should instead derive from the authenticated session."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0046",
+    "lane_id": "file-0015",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Security question model has no encoded strength/verification constraints, reflecting the inherently weak security-question recovery design",
+    "description": "This file defines the SecurityQuestion data model (id, question text) that underpins the application's security-question based account recovery/verification feature (see related routes POST /api/SecurityQuestions and GET /api/SecurityAnswers in the wider application). The model itself imposes no constraints — there is no encoded notion of answer complexity, uniqueness, rate-limiting metadata, or any structural safeguard against guessable/predictable answers. Knowledge-based security questions (e.g., 'favorite pet', 'favorite pirate') are a well-known weak authentication/recovery factor: answers are frequently guessable, discoverable via OSINT/social engineering, or reused across services. Because the data model that anchors this feature carries no design-level control (e.g., no minimum entropy requirement, no binding to rate-limited verification, no expiration), any component that consumes this model to gate a sensitive action (password reset, identity verification) inherits a workflow that can be defeated by guessing or brute-forcing the answer, since the object shape provides no compensating control. This is a design-level gap rather than an implementation bug: even a bug-free consumer of this interface still permits weak-answer-based bypass, because the model was never designed to carry or enforce answer strength. The entrypoint/consumer code that reads and verifies this model lies outside this file (likely in the security-question REST controller referenced by /api/SecurityQuestions and /api/SecurityAnswers in server.ts), so the concrete exploitation path (e.g., missing rate limiting, case-insensitive/trimmed comparison) cannot be fully confirmed from this file alone.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/securityQuestion.model.ts",
+        "line": 6,
+        "description": "External/consumer code (outside this file, e.g. the security question REST endpoints and Angular components that use this model) constructs or receives a SecurityQuestion object conforming to this interface."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/securityQuestion.model.ts",
+        "line": 7,
+        "description": "The interface exposes only a numeric id with no constraints tying it to rate-limiting, expiration, or verification-attempt tracking."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/securityQuestion.model.ts",
+        "line": 9,
+        "description": "The interface closes here still lacking any field or type-level control (e.g. answer hash reference, complexity flag, throttle counter) that would compel downstream consumers to enforce a compensating control before treating a matched answer as proof of identity."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/securityQuestion.model.ts",
+        "line": 8,
+        "description": "The 'question' field is a free-form string with no encoded strength/entropy requirement for the corresponding answer, meaning any consumer relying solely on this model for identity verification inherits a knowledge-based factor that is inherently guessable and lacks compensating controls at the data-model level."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-0036",
+    "lane_id": "file-0010",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 7
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Client-trusted challenge completion/dependency flags used to gate workflow instead of server-side enforcement",
+    "description": "The Challenge model exposes state fields (`solved`, `tutorialOrder`, `hasTutorial`, `hasSnippet`, `codingChallengeStatus`, `mitigationUrl`, `hasCodingChallenge`, and `ChallengeDependencies[].missing`) that together describe whether a challenge is completed, whether its tutorial/snippet/coding-challenge portions exist and are unlocked, and whether prerequisite challenges are still missing. These are plain client-side TypeScript fields with no accompanying validation or re-derivation logic in this file. If frontend components (outside this file) read this chain of sibling flags in sequence -- checking `solved`, then `tutorialOrder`/`hasTutorial`/`hasSnippet` to decide tutorial gating, then `codingChallengeStatus` together with the required `hasCodingChallenge` flag to decide whether the coding-challenge UI (and the `mitigationUrl` solution hint) should be revealed, and finally `ChallengeDependencies[].missing` to decide whether a dependent challenge can be started -- then every one of these access decisions is being made from data the server merely sent to the client, none of which is re-verified server-side at the point of the sensitive action in this model. An attacker who can directly call the underlying REST endpoints (e.g. the various `/api/Challenges`-style routes visible in the architecture) could invoke actions the UI would otherwise disable based on this whole chain of flags, bypassing the intended multi-step challenge workflow (tutorial/snippet sequencing, coding-challenge unlock, dependency prerequisites) if the server does not independently re-check each condition.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 17,
+        "description": "Caller outside this file (a challenge list/board component) receives a Challenge object from the API and reads the client-visible `solved` field to decide what to render/enable."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 21,
+        "description": "The same object also carries `codingChallengeStatus` (0|1|2), another client-facing status value with no server-side re-validation logic present in this model."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 18,
+        "description": "`tutorialOrder` is read alongside `solved` as another client-supplied ordering value; a UI could use it to decide whether the tutorial step for this challenge should be shown next, without server re-derivation of the correct order."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 19,
+        "description": "`hasTutorial` is the sibling flag indicating whether a tutorial exists for this challenge; combined with `tutorialOrder` and `solved`, it forms part of the same client-trusted gating logic for the tutorial workflow step."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 20,
+        "description": "`hasSnippet` similarly flags whether a code-snippet portion exists, extending the same pattern of client-held booleans used to decide what workflow stage to expose next."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 22,
+        "description": "`mitigationUrl` is the reward/solution-adjacent field that a UI may reveal once it believes (from the untrusted `codingChallengeStatus`/`solved` flags) that the challenge or its coding portion is complete -- an example of a sensitive disclosure gated purely by client-held state."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 23,
+        "description": "`hasCodingChallenge` is a required boolean that gates whether `codingChallengeStatus` is even meaningful; it still originates from the same server response object with no independent re-check described anywhere in this model."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 24,
+        "description": "`ChallengeDependencies[].missing` is a boolean the client is expected to use to gate whether a dependent challenge can be attempted; because the model provides no mechanism to force server re-verification, any component trusting this flag to enable a workflow step is relying on a client-supplied fact for an access decision."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0037",
+    "lane_id": "file-0010",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Environment-name field (disabledEnv) modeled for client consumption, risking exposure of internal deployment configuration",
+    "description": "The `disabledEnv` field carries a string presumably identifying the deployment environment(s) in which a challenge is disabled (e.g., 'Docker', 'CTF', a specific hosting name). Because this is defined as part of the client-facing Challenge model -- the same interface object that also carries plainly descriptive fields like `name` and `category` which are clearly meant for display/logging -- `disabledEnv` travels bundled with the rest of the challenge's descriptive data to whatever frontend code renders, filters, or logs a Challenge object. This means environment/deployment details that are otherwise internal implementation concerns are exposed to any client that can fetch challenge data, and can be surfaced or logged incidentally anywhere the object as a whole is handled. This can help an attacker fingerprint the deployment mode or hosting environment and tailor further attacks (e.g., knowing which anti-abuse or CTF-specific protections are active/inactive). This is a design/config choice rather than an implementation bug in this file, and the actual exposure depends on the API endpoint that populates this field (outside this file), so it is reported with reduced confidence.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 16,
+        "description": "Caller outside this file (challenge API response handling) populates the client-visible `disabledEnv` field on a Challenge object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 16,
+        "description": "The model exposes this environment-identifying string with no restriction, meaning it flows to any frontend code/component that renders or logs the Challenge object."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 8,
+        "description": "`disabledEnv` is declared as a member of the single `Challenge` interface that is passed around and rendered as a whole object, so it is not isolated from the rest of the challenge's data when the object is consumed by the frontend."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 12,
+        "description": "`category`, a plainly-public descriptive field, sits alongside `disabledEnv` in the same object shape; because both are ordinary properties of the same interface, there is nothing in the model distinguishing `disabledEnv` as needing tighter handling than public display fields like `category`."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Models/challenge.model.ts",
+        "line": 16,
+        "description": "Any UI component consuming this field can surface internal environment/deployment naming to the end user, disclosing internal configuration detail to unauthenticated or low-privileged clients."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
+  },
+  {
+    "finding_id": "FIND-0053",
+    "lane_id": "file-0019",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Admin API errors are rethrown without any client-side security logging",
+    "description": "The getApplicationVersion() method calls the admin-only endpoint '/rest/admin/application-version' and pipes the response through a catchError operator that does nothing but rethrow the original error ('catchError((error: Error) => { throw error })'). No log entry, telemetry event, or monitoring signal is emitted when a call to this privileged admin endpoint fails (e.g., due to an authorization failure, unexpected response, or repeated failed probing). Because this is the only error-handling path for an administrative API call in this service, any abnormal or repeated failure pattern (which could indicate an attacker probing the admin API surface or a misconfigured/broken authorization check) is silently swallowed by the caller with zero observability. While this is client-side code and ultimate authorization is enforced server-side, the complete absence of any logging/telemetry hook here means the frontend contributes nothing to detecting or reconstructing an attack timeline involving misuse of the admin API.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 20,
+        "description": "getApplicationVersion() is called by a component outside this file (caller not visible here) to fetch admin application version info."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 21,
+        "description": "HTTP GET request is issued to the admin-only endpoint this.host + '/application-version'."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 17,
+        "description": "hostServer is read from environment configuration and stored on the service instance, forming the base of the admin request target."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 18,
+        "description": "host is constructed by concatenating hostServer with '/rest/admin', establishing the admin-privileged base URL used for the request."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 22,
+        "description": "map operator transforms the response to response.version on the success path; no analogous instrumentation exists on the parallel error path that follows."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/administration.service.ts",
+        "line": 23,
+        "description": "catchError handler rethrows the error with no logging, telemetry, or alerting of any kind for a failure on a privileged admin endpoint."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0049",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "api-property-auth",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "API3"
+    ],
+    "title": "Unfiltered request body forwarded to backend on address save/update (mass-assignment enabler)",
+    "description": "The save() and put() methods accept an opaque `params` object from the caller and forward it verbatim as the HTTP request body to POST/PUT /api/Addresss[/:id], with no field allow-list or stripping of sensitive properties (e.g. ownership/user-id fields, verification flags, or any other model attributes the backend might bind automatically). Both methods build their destination from the single shared `this.host` value (constructed once from environment.hostServer), and neither performs any filtering before concatenating params into the outgoing HTTP call. Because this Angular service is the single choke point between UI forms and the backend API, it is the natural place to enforce which fields are permitted to leave the client, yet it performs no such restriction in either code path. If the calling component (outside this file) ever includes extra properties in the params object (through spread of a fetched object, a shared form model, or a compromised/modified client), those properties are transmitted unchanged to the server on both create and update.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 29,
+        "description": "save(params) receives an arbitrary object from a caller outside this file (e.g. an address form component) with no schema/allow-list applied."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 30,
+        "description": "params is passed directly as the HTTP POST body to this.host + '/' without filtering any properties."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 33,
+        "description": "put(id, params) receives the same unrestricted params object for updates."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 18,
+        "description": "this.host is constructed once from environment.hostServer + '/api/Addresss' and is reused unmodified as the fixed destination that params (for both save and put) will be concatenated into."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 35,
+        "description": "params is sent as the full PUT request body to `${this.host}/${id}`, forwarding whatever fields the caller supplied to the backend persistence layer."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0050",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 4
+      }
+    ],
+    "categories": [
+      "API4"
+    ],
+    "title": "No pagination or size limits on address list retrieval",
+    "description": "The get() method issues a GET request to /api/Addresss with no query parameters for pagination, page size, or filtering. The destination URL is entirely fixed at construction time: hostServer is taken from environment configuration (no per-call override), and this.host is built once by concatenating it with '/api/Addresss', leaving no template or mechanism in this service through which a caller could attach limit/offset/cursor parameters even if it wanted to. If the backend endpoint returns all address records for the requesting context without enforcing a server-side cap, this single, unparameterized call could pull an unbounded result set into the client (and correspondingly force the server to serialize and transmit an unbounded number of rows), and this file provides no built-in throttling or size bound for repeated calls.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 20,
+        "description": "get() is called by a component (outside this file) to list all addresses, with no page/limit parameters accepted or forwarded."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 21,
+        "description": "this.http.get(this.host) issues an unbounded request against /api/Addresss with no size cap."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 17,
+        "description": "hostServer is taken as-is from environment configuration, with no accompanying pagination/query configuration defined anywhere in the class."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 18,
+        "description": "this.host is built once as a static string (hostServer + '/api/Addresss'), leaving no template for limit/offset/cursor query parameters to be attached by get()."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 21,
+        "description": "Full unfiltered response.data is returned to the caller regardless of collection size."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-0051",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Errors from address API calls are rethrown with no security logging",
+    "description": "Every method in this service (get, getById, save, put, del) uses catchError((err) => { throw err }) (or the typed equivalent), which rethrows the error but never logs it. Failed address operations, including potential authorization failures (e.g. attempting to fetch/update/delete another user's address by ID) or malformed/abusive requests, leave no trace at the point they occur, and this same blind-rethrow pattern repeats identically across every single request method in the class rather than being isolated to one call site. Because this is the shared API client wrapper for all address operations, it is a natural place to record security-relevant failures (401/403 responses, repeated failed lookups by ID suggesting ID enumeration) before propagating them, but no such logging exists anywhere in the file. Whether the error is logged further upstream is outside this file, but within this file there is no correlation ID, no request context, and no log statement of any kind attached to any failure.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 24,
+        "description": "getById(id) is called by a component (outside this file) with a caller-supplied id; if unauthorized (e.g. IDOR attempt on another user's address) the backend would return an error."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 26,
+        "description": "catchError((err: Error) => { throw err }) intercepts the failure but performs no logging of the id, status, or context before rethrowing."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 21,
+        "description": "get() applies the identical catchError((err) => { throw err }) pattern with no logging, repeating the same gap for list-retrieval failures."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 30,
+        "description": "save() applies the identical catchError((err) => { throw err }) pattern with no logging, so failed address-creation attempts (e.g. rejected/invalid submissions) go unrecorded."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 35,
+        "description": "put() applies the identical catchError((err) => { throw err }) pattern with no logging, so failed address-update attempts go unrecorded."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 39,
+        "description": "del(id) similarly rethrows delete-operation failures without any log statement, losing visibility into repeated failed delete attempts that could indicate probing for other users' address IDs."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-0052",
+    "lane_id": "file-0017",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Unvalidated numeric/path id interpolated directly into request URL",
+    "description": "getById, put, and del build request URLs via template-literal interpolation of the caller-supplied `id` directly into the path (`${this.host}/${id}`) with no validation that id is a well-formed numeric identifier before use. While the host prefix is fixed (derived from environment.hostServer), an id value containing path-traversal or encoded segments (e.g. '../Users', '%2e%2e%2f') could alter the effective request path within the same origin, since Angular's HttpClient does not validate path semantics of a manually concatenated URL string. The same unchecked-interpolation pattern is repeated independently in put() and del(): put() accepts id with no runtime check and interpolates it directly into the PUT URL, and del() only carries a compile-time `number` type annotation (which TypeScript erases at runtime and does not enforce against a caller passing an unexpected value) before interpolating id into the DELETE URL and issuing the request. This is a design gap: the file never asserts at runtime that id is numeric/opaque before it becomes part of any request path.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 24,
+        "description": "getById(id) accepts an untyped id parameter from a caller outside this file with no type or format check."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 26,
+        "description": "id is interpolated unchecked into the URL template literal `${this.host}/${id}`."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 33,
+        "description": "put(id, params) similarly accepts an id parameter with no runtime validation before it is used to build the update URL."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 35,
+        "description": "id is interpolated unchecked into the URL template literal `${this.host}/${id}` for the PUT request."
+      },
+      {
+        "kind": "propagation",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 39,
+        "description": "id is interpolated unchecked into the URL template literal `${this.host}/${id}` and the DELETE request is issued to the resulting, potentially manipulated, path."
+      },
+      {
+        "kind": "sink",
+        "file": "frontend/src/app/Services/address.service.ts",
+        "line": 38,
+        "description": "del(id: number) still relies on the caller/TS type annotation only (no runtime validation) before interpolating id into the DELETE URL."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
+  }
+]

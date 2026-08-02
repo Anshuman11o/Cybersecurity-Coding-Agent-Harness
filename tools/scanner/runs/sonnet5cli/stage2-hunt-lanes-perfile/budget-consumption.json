@@ -1,0 +1,110 @@
+[
+  {
+    "lane_id": "file-0001",
+    "tokens_used": 21192,
+    "seconds_elapsed": 72.881,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0005",
+    "tokens_used": 23481,
+    "seconds_elapsed": 82.394,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0006",
+    "tokens_used": 66335,
+    "seconds_elapsed": 128.939,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0009",
+    "tokens_used": 29757,
+    "seconds_elapsed": 59.065,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0003",
+    "tokens_used": 47518,
+    "seconds_elapsed": 144.335,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0007",
+    "tokens_used": 75184,
+    "seconds_elapsed": 149.004,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0011",
+    "tokens_used": 14717,
+    "seconds_elapsed": 19.113,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0008",
+    "tokens_used": 25632,
+    "seconds_elapsed": 97.833,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0002",
+    "tokens_used": 37239,
+    "seconds_elapsed": 172.874,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0016",
+    "tokens_used": 29364,
+    "seconds_elapsed": 21.037,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0013",
+    "tokens_used": 31041,
+    "seconds_elapsed": 64.788,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0012",
+    "tokens_used": 30133,
+    "seconds_elapsed": 70.245,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0018",
+    "tokens_used": 18164,
+    "seconds_elapsed": 15.176,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0014",
+    "tokens_used": 30137,
+    "seconds_elapsed": 69.626,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0015",
+    "tokens_used": 31110,
+    "seconds_elapsed": 61.603,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0010",
+    "tokens_used": 28509,
+    "seconds_elapsed": 131.732,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0019",
+    "tokens_used": 36829,
+    "seconds_elapsed": 49.751,
+    "ceiling_hit": false
+  },
+  {
+    "lane_id": "file-0017",
+    "tokens_used": 42261,
+    "seconds_elapsed": 169.401,
+    "ceiling_hit": false
+  }
+]

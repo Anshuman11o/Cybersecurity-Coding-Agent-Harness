@@ -1,0 +1,2451 @@
+{
+  "generated_at": "2026-08-02T21:24:07.868Z",
+  "target_dir": "/home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind",
+  "files": {
+    ".codeclimate.yml": [],
+    ".dependabot/config.yml": [
+      "config_file"
+    ],
+    ".devcontainer.json": [],
+    ".github/FUNDING.yml": [],
+    ".github/ISSUE_TEMPLATE/config.yml": [
+      "config_file"
+    ],
+    ".github/workflows/ci.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/codeql-analysis.yml": [],
+    ".github/workflows/frontend-bundle-analysis.yml": [
+      "file_io"
+    ],
+    ".github/workflows/image_actions.yml": [],
+    ".github/workflows/lint-fixer.yml": [],
+    ".github/workflows/lock.yml": [],
+    ".github/workflows/pr-compliance.yml": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "deserialize"
+    ],
+    ".github/workflows/rebase.yml": [],
+    ".github/workflows/release.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/stale.yml": [],
+    ".github/workflows/update-challenges-ebook.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/update-challenges-www-legacy.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/update-challenges-www.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/update-news-www-legacy.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/update-news-www.yml": [
+      "auth_check"
+    ],
+    ".github/workflows/zap_scan.yml": [
+      "auth_check"
+    ],
+    ".gitlab-ci.yml": [],
+    ".gitlab/auto-deploy-values.yaml": [],
+    ".gitpod.yml": [],
+    ".junie/config.json": [
+      "config_file"
+    ],
+    ".well-known/csaf/2017/juice-shop-sa-20200513-express-jwt.json": [
+      "auth_check"
+    ],
+    ".well-known/csaf/2021/juice-shop-sa-20211014-proto.json": [],
+    ".well-known/csaf/2024/juice-shop-sa-disclaimer.json": [],
+    ".well-known/csaf/provider-metadata.json": [
+      "auth_check"
+    ],
+    "Dockerfile": [],
+    "Gruntfile.js": [
+      "db_query",
+      "model_write",
+      "crypto_op",
+      "file_io"
+    ],
+    "app.json": [],
+    "app.ts": [],
+    "config/7ms.yml": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "config/addo.yml": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "config/bodgeit.yml": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "config/ctf.yml": [],
+    "config/default.yml": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "config/defcon33.yml": [
+      "crypto_op"
+    ],
+    "config/fbctf.yml": [],
+    "config/juicebox.yml": [],
+    "config/mozilla.yml": [
+      "crypto_op"
+    ],
+    "config/oss.yml": [
+      "auth_check"
+    ],
+    "config/quiet.yml": [],
+    "config/test.yml": [],
+    "config/tutorial.yml": [],
+    "config/unsafe.yml": [],
+    "crowdin.yaml": [],
+    "cypress.config.ts": [
+      "config_file"
+    ],
+    "data/datacache.ts": [],
+    "data/datacreator.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op",
+      "logging"
+    ],
+    "data/mongodb.ts": [],
+    "data/static/challenges.yml": [
+      "auth_check",
+      "llm_call"
+    ],
+    "data/static/contractABIs.ts": [
+      "auth_check"
+    ],
+    "data/static/deliveries.yml": [],
+    "data/static/i18n/ar_SA.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/az_AZ.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/bg_BG.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/bn_BD.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ca_ES.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/cs_CZ.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/da_DK.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/de_CH.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/de_DE.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/el_GR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/en.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/es_ES.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/et_EE.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/fa_IR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/fi_FI.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/fr_FR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ga_IE.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/he_IL.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/hi_IN.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/hu_HU.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/id_ID.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/it_IT.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ja_JP.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ka_GE.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ko_KR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/lv_LV.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/my_MM.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/nl_NL.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/no_NO.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/pl_PL.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/pt_BR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/pt_PT.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ro_RO.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/ru_RU.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/si_LK.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/sv_SE.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/th_TH.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/tlh_AA.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/tr_TR.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/uk_UA.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/zh_CN.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/zh_HK.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/i18n/zh_TW.json": [
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "data/static/locales.json": [],
+    "data/static/securityQuestions.yml": [],
+    "data/static/users.yml": [
+      "auth_check"
+    ],
+    "data/static/web3-snippets/BEEToken.sol": [
+      "auth_check"
+    ],
+    "data/static/web3-snippets/BeeFaucet.sol": [
+      "auth_check"
+    ],
+    "data/static/web3-snippets/ETHWalletBank.sol": [],
+    "data/static/web3-snippets/HoneyPotNFT.sol": [
+      "auth_check"
+    ],
+    "data/static/web3-snippets/JuiceShopSBT.sol": [
+      "auth_check"
+    ],
+    "data/staticData.ts": [
+      "auth_check",
+      "deserialize",
+      "file_io",
+      "logging"
+    ],
+    "data/types.ts": [],
+    "docker-compose.test.yml": [],
+    "frontend/angular.json": [
+      "crypto_op"
+    ],
+    "frontend/package.json": [
+      "dep_manifest"
+    ],
+    "frontend/src/app/Models/backup.model.ts": [],
+    "frontend/src/app/Models/challenge.model.ts": [],
+    "frontend/src/app/Models/deliveryMethod.model.ts": [],
+    "frontend/src/app/Models/hint.model.ts": [],
+    "frontend/src/app/Models/product.model.ts": [],
+    "frontend/src/app/Models/review.model.ts": [],
+    "frontend/src/app/Models/securityQuestion.model.ts": [],
+    "frontend/src/app/Services/address.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/address.service.ts": [
+      "db_query",
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/administration.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/administration.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/basket.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/basket.service.ts": [
+      "db_query",
+      "model_write",
+      "http_outbound",
+      "auth_check",
+      "deserialize"
+    ],
+    "frontend/src/app/Services/captcha.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/captcha.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/challenge.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/challenge.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/chat.service.spec.ts": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/app/Services/chat.service.ts": [
+      "http_outbound",
+      "auth_check",
+      "deserialize",
+      "llm_call"
+    ],
+    "frontend/src/app/Services/code-fixes.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/code-fixes.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/code-snippet.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/code-snippet.service.ts": [],
+    "frontend/src/app/Services/complaint.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/complaint.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/configuration.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/configuration.service.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/conversation-storage.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "deserialize"
+    ],
+    "frontend/src/app/Services/conversation-storage.service.ts": [
+      "db_query",
+      "deserialize"
+    ],
+    "frontend/src/app/Services/country-mapping.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/country-mapping.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/ctf-system-wide-notification.service.ts": [],
+    "frontend/src/app/Services/data-subject.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/data-subject.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/delivery.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/delivery.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/feedback.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/feedback.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/hint.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/hints.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/image-captcha.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/image-captcha.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/keys.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/keys.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/languages.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/languages.service.ts": [],
+    "frontend/src/app/Services/local-backup.service.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/Services/local-backup.service.ts": [
+      "db_query",
+      "deserialize",
+      "file_io"
+    ],
+    "frontend/src/app/Services/order-history.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/order-history.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/payment.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/payment.service.ts": [
+      "db_query",
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/photo-wall.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/photo-wall.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/product-review.service.spec.ts": [
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/product-review.service.ts": [
+      "db_query",
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/product.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/product.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/quantity.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/quantity.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/recycle.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/recycle.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/request.interceptor.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/Services/security-answer.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/security-answer.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/security-question.service.spec.ts": [
+      "db_query",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/security-question.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/snack-bar-helper.service.spec.ts": [],
+    "frontend/src/app/Services/snack-bar-helper.service.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/Services/socket-io.service.spec.ts": [],
+    "frontend/src/app/Services/socket-io.service.ts": [],
+    "frontend/src/app/Services/track-order.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/track-order.service.ts": [],
+    "frontend/src/app/Services/two-factor-auth-service.spec.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/two-factor-auth-service.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/user.service.spec.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/user.service.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "frontend/src/app/Services/vuln-lines.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/vuln-lines.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/wallet.service.spec.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/app/Services/wallet.service.ts": [
+      "http_outbound"
+    ],
+    "frontend/src/app/Services/window-ref.service.spec.ts": [],
+    "frontend/src/app/Services/window-ref.service.ts": [],
+    "frontend/src/app/about/about.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/about/about.component.scss": [],
+    "frontend/src/app/about/about.component.spec.ts": [
+      "html_sink"
+    ],
+    "frontend/src/app/about/about.component.ts": [
+      "html_sink",
+      "logging"
+    ],
+    "frontend/src/app/accounting/accounting.component.html": [],
+    "frontend/src/app/accounting/accounting.component.scss": [],
+    "frontend/src/app/accounting/accounting.component.spec.ts": [],
+    "frontend/src/app/accounting/accounting.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/address-create/address-create.component.html": [],
+    "frontend/src/app/address-create/address-create.component.scss": [],
+    "frontend/src/app/address-create/address-create.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/address-create/address-create.component.ts": [
+      "db_query",
+      "model_write",
+      "file_io"
+    ],
+    "frontend/src/app/address-select/address-select.component.html": [],
+    "frontend/src/app/address-select/address-select.component.scss": [],
+    "frontend/src/app/address-select/address-select.component.spec.ts": [],
+    "frontend/src/app/address-select/address-select.component.ts": [],
+    "frontend/src/app/address/address.component.html": [],
+    "frontend/src/app/address/address.component.scss": [],
+    "frontend/src/app/address/address.component.spec.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/address/address.component.ts": [
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/administration/administration.component.html": [
+      "auth_check",
+      "html_sink",
+      "llm_call"
+    ],
+    "frontend/src/app/administration/administration.component.scss": [],
+    "frontend/src/app/administration/administration.component.spec.ts": [
+      "db_query",
+      "llm_call"
+    ],
+    "frontend/src/app/administration/administration.component.ts": [
+      "db_query",
+      "auth_check",
+      "html_sink",
+      "file_io",
+      "llm_call"
+    ],
+    "frontend/src/app/app.component.html": [],
+    "frontend/src/app/app.component.scss": [],
+    "frontend/src/app/app.component.spec.ts": [],
+    "frontend/src/app/app.component.ts": [],
+    "frontend/src/app/app.guard.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/app.guard.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/app.routing.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/basket/basket.component.html": [],
+    "frontend/src/app/basket/basket.component.scss": [],
+    "frontend/src/app/basket/basket.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/basket/basket.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.html": [],
+    "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.scss": [],
+    "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.spec.ts": [],
+    "frontend/src/app/challenge-solved-notification/challenge-solved-notification.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/challenge-status-badge/challenge-status-badge.component.html": [],
+    "frontend/src/app/challenge-status-badge/challenge-status-badge.component.scss": [],
+    "frontend/src/app/challenge-status-badge/challenge-status-badge.component.spec.ts": [],
+    "frontend/src/app/challenge-status-badge/challenge-status-badge.component.ts": [],
+    "frontend/src/app/change-password/change-password.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/change-password/change-password.component.scss": [],
+    "frontend/src/app/change-password/change-password.component.spec.ts": [],
+    "frontend/src/app/change-password/change-password.component.ts": [
+      "logging"
+    ],
+    "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.html": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.scss": [],
+    "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.spec.ts": [
+      "db_query",
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/app/chatbot/chat-conversation/chat-conversation.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/app/chatbot/chat-input-box/chat-input-box.component.html": [],
+    "frontend/src/app/chatbot/chat-input-box/chat-input-box.component.scss": [],
+    "frontend/src/app/chatbot/chat-input-box/chat-input-box.component.spec.ts": [],
+    "frontend/src/app/chatbot/chat-input-box/chat-input-box.component.ts": [],
+    "frontend/src/app/chatbot/chat-welcome-page/chat-welcome-page.component.ts": [],
+    "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.html": [],
+    "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.scss": [],
+    "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.spec.ts": [],
+    "frontend/src/app/chatbot/chat-welcome-screen/chat-welcome-screen.component.ts": [],
+    "frontend/src/app/chatbot/chat.model.ts": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/app/chatbot/chatbot.component.html": [],
+    "frontend/src/app/chatbot/chatbot.component.scss": [],
+    "frontend/src/app/chatbot/chatbot.component.spec.ts": [],
+    "frontend/src/app/chatbot/chatbot.component.ts": [],
+    "frontend/src/app/coding-challenge-page/coding-challenge-page.component.html": [],
+    "frontend/src/app/coding-challenge-page/coding-challenge-page.component.scss": [],
+    "frontend/src/app/coding-challenge-page/coding-challenge-page.component.spec.ts": [],
+    "frontend/src/app/coding-challenge-page/coding-challenge-page.component.ts": [],
+    "frontend/src/app/coding-challenge-page/coding-challenge.types.ts": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.html": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.scss": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/format-selected-lines.spec.ts": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/format-selected-lines.ts": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.scss": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.spec.ts": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-fix-it/coding-challenge-fix-it.component.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.html": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.scss": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.spec.ts": [],
+    "frontend/src/app/coding-challenge-page/components/coding-challenge-section/coding-challenge-section.component.ts": [],
+    "frontend/src/app/coding-challenge-page/helpers/handle-verdict.spec.ts": [],
+    "frontend/src/app/coding-challenge-page/helpers/handle-verdict.ts": [],
+    "frontend/src/app/complaint/complaint.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/complaint/complaint.component.scss": [],
+    "frontend/src/app/complaint/complaint.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/complaint/complaint.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "frontend/src/app/contact/contact.component.html": [],
+    "frontend/src/app/contact/contact.component.scss": [],
+    "frontend/src/app/contact/contact.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/contact/contact.component.ts": [
+      "db_query",
+      "model_write",
+      "file_io"
+    ],
+    "frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.html": [],
+    "frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.scss": [],
+    "frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.spec.ts": [],
+    "frontend/src/app/ctf-system-wide-notification/ctf-system-wide-notification.component.ts": [],
+    "frontend/src/app/data-export/data-export.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/data-export/data-export.component.scss": [],
+    "frontend/src/app/data-export/data-export.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/data-export/data-export.component.ts": [
+      "html_sink",
+      "deserialize",
+      "file_io"
+    ],
+    "frontend/src/app/delivery-method/delivery-method.component.html": [],
+    "frontend/src/app/delivery-method/delivery-method.component.scss": [],
+    "frontend/src/app/delivery-method/delivery-method.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/delivery-method/delivery-method.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/deluxe-user/deluxe-user.component.html": [],
+    "frontend/src/app/deluxe-user/deluxe-user.component.scss": [],
+    "frontend/src/app/deluxe-user/deluxe-user.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/deluxe-user/deluxe-user.component.ts": [],
+    "frontend/src/app/error-page/error-page.component.html": [],
+    "frontend/src/app/error-page/error-page.component.scss": [],
+    "frontend/src/app/error-page/error-page.component.spec.ts": [],
+    "frontend/src/app/error-page/error-page.component.ts": [],
+    "frontend/src/app/faucet/faucet.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/faucet/faucet.component.scss": [],
+    "frontend/src/app/faucet/faucet.component.ts": [
+      "http_outbound",
+      "auth_check",
+      "file_io",
+      "logging"
+    ],
+    "frontend/src/app/faucet/faucet.module.ts": [],
+    "frontend/src/app/feedback-details/feedback-details.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/feedback-details/feedback-details.component.scss": [],
+    "frontend/src/app/feedback-details/feedback-details.component.spec.ts": [],
+    "frontend/src/app/feedback-details/feedback-details.component.ts": [],
+    "frontend/src/app/forgot-password/forgot-password.component.html": [],
+    "frontend/src/app/forgot-password/forgot-password.component.scss": [],
+    "frontend/src/app/forgot-password/forgot-password.component.spec.ts": [
+      "db_query"
+    ],
+    "frontend/src/app/forgot-password/forgot-password.component.ts": [
+      "db_query"
+    ],
+    "frontend/src/app/last-login-ip/last-login-ip.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/last-login-ip/last-login-ip.component.scss": [],
+    "frontend/src/app/last-login-ip/last-login-ip.component.spec.ts": [
+      "auth_check",
+      "html_sink"
+    ],
+    "frontend/src/app/last-login-ip/last-login-ip.component.ts": [
+      "auth_check",
+      "html_sink"
+    ],
+    "frontend/src/app/login/login.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/login/login.component.scss": [],
+    "frontend/src/app/login/login.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/login/login.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/mat-search-bar/abstract-value-accessor.ts": [],
+    "frontend/src/app/mat-search-bar/mat-search-bar.component.html": [
+      "file_io"
+    ],
+    "frontend/src/app/mat-search-bar/mat-search-bar.component.scss": [],
+    "frontend/src/app/mat-search-bar/mat-search-bar.component.spec.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/mat-search-bar/mat-search-bar.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/navbar/navbar.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/navbar/navbar.component.scss": [],
+    "frontend/src/app/navbar/navbar.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/navbar/navbar.component.ts": [
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/nft-unlock/nft-unlock.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/nft-unlock/nft-unlock.component.scss": [],
+    "frontend/src/app/nft-unlock/nft-unlock.component.spec.ts": [],
+    "frontend/src/app/nft-unlock/nft-unlock.component.ts": [
+      "logging"
+    ],
+    "frontend/src/app/oauth/oauth.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/oauth/oauth.component.scss": [],
+    "frontend/src/app/oauth/oauth.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/oauth/oauth.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "frontend/src/app/order-completion/order-completion.component.html": [],
+    "frontend/src/app/order-completion/order-completion.component.scss": [],
+    "frontend/src/app/order-completion/order-completion.component.spec.ts": [],
+    "frontend/src/app/order-completion/order-completion.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/order-history/order-history.component.html": [],
+    "frontend/src/app/order-history/order-history.component.scss": [],
+    "frontend/src/app/order-history/order-history.component.spec.ts": [],
+    "frontend/src/app/order-history/order-history.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/order-summary/order-summary.component.html": [],
+    "frontend/src/app/order-summary/order-summary.component.scss": [],
+    "frontend/src/app/order-summary/order-summary.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/order-summary/order-summary.component.ts": [
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/password-strength-info/password-strength-info.component.html": [],
+    "frontend/src/app/password-strength-info/password-strength-info.component.scss": [],
+    "frontend/src/app/password-strength-info/password-strength-info.component.spec.ts": [],
+    "frontend/src/app/password-strength-info/password-strength-info.component.ts": [],
+    "frontend/src/app/password-strength/password-strength.component.html": [],
+    "frontend/src/app/password-strength/password-strength.component.scss": [],
+    "frontend/src/app/password-strength/password-strength.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/password-strength/password-strength.component.ts": [],
+    "frontend/src/app/payment-method/payment-method.component.html": [],
+    "frontend/src/app/payment-method/payment-method.component.scss": [],
+    "frontend/src/app/payment-method/payment-method.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/payment-method/payment-method.component.ts": [
+      "db_query",
+      "model_write",
+      "file_io"
+    ],
+    "frontend/src/app/payment/payment.component.html": [],
+    "frontend/src/app/payment/payment.component.scss": [],
+    "frontend/src/app/payment/payment.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/payment/payment.component.ts": [
+      "auth_check",
+      "deserialize",
+      "file_io"
+    ],
+    "frontend/src/app/photo-wall/mime-type.validator.ts": [],
+    "frontend/src/app/photo-wall/photo-wall.component.html": [],
+    "frontend/src/app/photo-wall/photo-wall.component.scss": [],
+    "frontend/src/app/photo-wall/photo-wall.component.spec.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/photo-wall/photo-wall.component.ts": [
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/privacy-policy/privacy-policy.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/privacy-policy/privacy-policy.component.scss": [],
+    "frontend/src/app/privacy-policy/privacy-policy.component.spec.ts": [],
+    "frontend/src/app/privacy-policy/privacy-policy.component.ts": [],
+    "frontend/src/app/privacy-security/privacy-security.component.html": [],
+    "frontend/src/app/privacy-security/privacy-security.component.scss": [],
+    "frontend/src/app/privacy-security/privacy-security.component.spec.ts": [],
+    "frontend/src/app/privacy-security/privacy-security.component.ts": [],
+    "frontend/src/app/product-details/product-details.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/product-details/product-details.component.scss": [],
+    "frontend/src/app/product-details/product-details.component.spec.ts": [
+      "db_query"
+    ],
+    "frontend/src/app/product-details/product-details.component.ts": [
+      "model_write",
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/product-review-edit/product-review-edit.component.html": [],
+    "frontend/src/app/product-review-edit/product-review-edit.component.scss": [],
+    "frontend/src/app/product-review-edit/product-review-edit.component.spec.ts": [
+      "db_query"
+    ],
+    "frontend/src/app/product-review-edit/product-review-edit.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/product/product.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/product/product.component.scss": [],
+    "frontend/src/app/product/product.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/product/product.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/purchase-basket/purchase-basket.component.html": [],
+    "frontend/src/app/purchase-basket/purchase-basket.component.scss": [],
+    "frontend/src/app/purchase-basket/purchase-basket.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/purchase-basket/purchase-basket.component.ts": [
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/qr-code/qr-code.component.html": [],
+    "frontend/src/app/qr-code/qr-code.component.scss": [],
+    "frontend/src/app/qr-code/qr-code.component.spec.ts": [],
+    "frontend/src/app/qr-code/qr-code.component.ts": [],
+    "frontend/src/app/recycle/recycle.component.html": [],
+    "frontend/src/app/recycle/recycle.component.scss": [],
+    "frontend/src/app/recycle/recycle.component.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/recycle/recycle.component.ts": [
+      "db_query",
+      "model_write",
+      "file_io"
+    ],
+    "frontend/src/app/register/register.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/register/register.component.scss": [],
+    "frontend/src/app/register/register.component.spec.ts": [
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "frontend/src/app/register/register.component.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "file_io"
+    ],
+    "frontend/src/app/roles.ts": [],
+    "frontend/src/app/saved-address/saved-address.component.html": [],
+    "frontend/src/app/saved-address/saved-address.component.scss": [],
+    "frontend/src/app/saved-address/saved-address.component.spec.ts": [],
+    "frontend/src/app/saved-address/saved-address.component.ts": [],
+    "frontend/src/app/saved-payment-methods/saved-payment-methods.component.html": [],
+    "frontend/src/app/saved-payment-methods/saved-payment-methods.component.scss": [],
+    "frontend/src/app/saved-payment-methods/saved-payment-methods.component.spec.ts": [],
+    "frontend/src/app/saved-payment-methods/saved-payment-methods.component.ts": [],
+    "frontend/src/app/score-board/components/challenge-card/challenge-card.component.html": [],
+    "frontend/src/app/score-board/components/challenge-card/challenge-card.component.scss": [],
+    "frontend/src/app/score-board/components/challenge-card/challenge-card.component.spec.ts": [
+      "html_sink"
+    ],
+    "frontend/src/app/score-board/components/challenge-card/challenge-card.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html": [
+      "html_sink"
+    ],
+    "frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.scss": [],
+    "frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.spec.ts": [],
+    "frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.html": [],
+    "frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.scss": [],
+    "frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.spec.ts": [],
+    "frontend/src/app/score-board/components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component.ts": [],
+    "frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.html": [],
+    "frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.scss": [],
+    "frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.spec.ts": [],
+    "frontend/src/app/score-board/components/difficulty-overview-score-card/difficulty-overview-score-card.component.ts": [],
+    "frontend/src/app/score-board/components/difficulty-stars/difficulty-stars.component.html": [],
+    "frontend/src/app/score-board/components/difficulty-stars/difficulty-stars.component.scss": [],
+    "frontend/src/app/score-board/components/difficulty-stars/difficulty-stars.component.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.html": [],
+    "frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.scss": [],
+    "frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.spec.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/components/category-filter/category-filter.component.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.html": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.scss": [],
+    "frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.spec.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/components/score-board-additional-settings-dialog/score-board-additional-settings-dialog.component.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/filter-settings.component.html": [],
+    "frontend/src/app/score-board/components/filter-settings/filter-settings.component.scss": [],
+    "frontend/src/app/score-board/components/filter-settings/filter-settings.component.spec.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/filter-settings.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/score-board/components/filter-settings/pipes/difficulty-selection-summary.pipe.spec.ts": [],
+    "frontend/src/app/score-board/components/filter-settings/pipes/difficulty-selection-summary.pipe.ts": [],
+    "frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.html": [],
+    "frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.scss": [],
+    "frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.spec.ts": [],
+    "frontend/src/app/score-board/components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component.ts": [],
+    "frontend/src/app/score-board/components/score-card/score-card.component.html": [],
+    "frontend/src/app/score-board/components/score-card/score-card.component.scss": [],
+    "frontend/src/app/score-board/components/score-card/score-card.component.spec.ts": [],
+    "frontend/src/app/score-board/components/score-card/score-card.component.ts": [],
+    "frontend/src/app/score-board/components/tutorial-mode-warning/tutorial-mode-warning.component.html": [],
+    "frontend/src/app/score-board/components/tutorial-mode-warning/tutorial-mode-warning.component.spec.ts": [],
+    "frontend/src/app/score-board/components/tutorial-mode-warning/tutorial-mode-warning.component.ts": [],
+    "frontend/src/app/score-board/components/warning-card/warning-card.component.html": [],
+    "frontend/src/app/score-board/components/warning-card/warning-card.component.scss": [],
+    "frontend/src/app/score-board/components/warning-card/warning-card.component.ts": [],
+    "frontend/src/app/score-board/filter-settings/FilterSetting.ts": [],
+    "frontend/src/app/score-board/filter-settings/query-params-converters.ts": [],
+    "frontend/src/app/score-board/filter-settings/query-params-coverter.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/score-board/helpers/challenge-filtering.spec.ts": [],
+    "frontend/src/app/score-board/helpers/challenge-filtering.ts": [],
+    "frontend/src/app/score-board/helpers/challenge-sorting.spec.ts": [],
+    "frontend/src/app/score-board/helpers/challenge-sorting.ts": [],
+    "frontend/src/app/score-board/score-board.component.html": [],
+    "frontend/src/app/score-board/score-board.component.scss": [],
+    "frontend/src/app/score-board/score-board.component.spec.ts": [],
+    "frontend/src/app/score-board/score-board.component.ts": [
+      "html_sink"
+    ],
+    "frontend/src/app/score-board/types/EnrichedChallenge.ts": [],
+    "frontend/src/app/search-result/search-result.component.html": [
+      "auth_check",
+      "html_sink"
+    ],
+    "frontend/src/app/search-result/search-result.component.scss": [],
+    "frontend/src/app/search-result/search-result.component.spec.ts": [
+      "auth_check",
+      "html_sink"
+    ],
+    "frontend/src/app/search-result/search-result.component.ts": [
+      "auth_check",
+      "html_sink"
+    ],
+    "frontend/src/app/server-started-notification/server-started-notification.component.html": [],
+    "frontend/src/app/server-started-notification/server-started-notification.component.scss": [],
+    "frontend/src/app/server-started-notification/server-started-notification.component.spec.ts": [],
+    "frontend/src/app/server-started-notification/server-started-notification.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/shared/codemirror-extensions.spec.ts": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/app/shared/codemirror-extensions.ts": [],
+    "frontend/src/app/shared/codemirror-theme.ts": [],
+    "frontend/src/app/sidenav/sidenav.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/sidenav/sidenav.component.scss": [],
+    "frontend/src/app/sidenav/sidenav.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/sidenav/sidenav.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/token-sale/token-sale.component.html": [],
+    "frontend/src/app/token-sale/token-sale.component.scss": [],
+    "frontend/src/app/token-sale/token-sale.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/token-sale/token-sale.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/track-result/track-result.component.html": [],
+    "frontend/src/app/track-result/track-result.component.scss": [],
+    "frontend/src/app/track-result/track-result.component.spec.ts": [
+      "html_sink"
+    ],
+    "frontend/src/app/track-result/track-result.component.ts": [
+      "html_sink"
+    ],
+    "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.html": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.scss": [],
+    "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.spec.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/two-factor-auth-enter/two-factor-auth-enter.component.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "frontend/src/app/two-factor-auth/two-factor-auth.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/two-factor-auth/two-factor-auth.component.scss": [],
+    "frontend/src/app/two-factor-auth/two-factor-auth.component.spec.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/two-factor-auth/two-factor-auth.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/user-details/user-details.component.html": [],
+    "frontend/src/app/user-details/user-details.component.scss": [],
+    "frontend/src/app/user-details/user-details.component.spec.ts": [],
+    "frontend/src/app/user-details/user-details.component.ts": [],
+    "frontend/src/app/wallet-web3/wallet-web3.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/wallet-web3/wallet-web3.component.scss": [],
+    "frontend/src/app/wallet-web3/wallet-web3.component.ts": [
+      "http_outbound",
+      "auth_check",
+      "file_io",
+      "logging"
+    ],
+    "frontend/src/app/wallet-web3/wallet-web3.module.ts": [],
+    "frontend/src/app/wallet/wallet.component.html": [],
+    "frontend/src/app/wallet/wallet.component.scss": [],
+    "frontend/src/app/wallet/wallet.component.spec.ts": [],
+    "frontend/src/app/wallet/wallet.component.ts": [
+      "auth_check"
+    ],
+    "frontend/src/app/web3-sandbox/web3-sandbox.component.html": [
+      "auth_check"
+    ],
+    "frontend/src/app/web3-sandbox/web3-sandbox.component.scss": [],
+    "frontend/src/app/web3-sandbox/web3-sandbox.component.ts": [
+      "db_query",
+      "model_write",
+      "http_outbound",
+      "auth_check",
+      "file_io",
+      "llm_call",
+      "logging"
+    ],
+    "frontend/src/app/web3-sandbox/web3-sandbox.module.ts": [],
+    "frontend/src/app/welcome-banner/welcome-banner.component.html": [],
+    "frontend/src/app/welcome-banner/welcome-banner.component.scss": [],
+    "frontend/src/app/welcome-banner/welcome-banner.component.spec.ts": [],
+    "frontend/src/app/welcome-banner/welcome-banner.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/app/welcome/welcome.component.html": [],
+    "frontend/src/app/welcome/welcome.component.scss": [],
+    "frontend/src/app/welcome/welcome.component.spec.ts": [],
+    "frontend/src/app/welcome/welcome.component.ts": [
+      "file_io"
+    ],
+    "frontend/src/assets/i18n/ar_SA.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/az_AZ.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/bg_BG.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/bn_BD.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ca_ES.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/cs_CZ.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/da_DK.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/de_CH.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/de_DE.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/el_GR.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/en.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/es_ES.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/et_EE.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/fa_IR.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/fi_FI.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/fr_FR.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ga_IE.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/he_IL.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/hi_IN.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/hu_HU.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/id_ID.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/it_IT.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ja_JP.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ka_GE.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ko_KR.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/lv_LV.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/my_MM.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/nl_NL.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/no_NO.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/pl_PL.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/pt_BR.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/pt_PT.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ro_RO.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/ru_RU.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/si_LK.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/sv_SE.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/th_TH.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/tlh_AA.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/tr_TR.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/uk_UA.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/zh_CN.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/zh_HK.json": [
+      "auth_check",
+      "crypto_op",
+      "llm_call"
+    ],
+    "frontend/src/assets/i18n/zh_TW.json": [
+      "auth_check",
+      "llm_call"
+    ],
+    "frontend/src/assets/private/threejs-demo.html": [
+      "db_query",
+      "model_write"
+    ],
+    "frontend/src/assets/public/ContractABIs.ts": [
+      "auth_check"
+    ],
+    "frontend/src/assets/public/css/dataErasure.css": [],
+    "frontend/src/assets/public/css/roboto.css": [],
+    "frontend/src/assets/public/css/userProfile.css": [],
+    "frontend/src/confetti/index.ts": [
+      "model_write"
+    ],
+    "frontend/src/environments/environment.prod.ts": [
+      "config_file"
+    ],
+    "frontend/src/environments/environment.ts": [
+      "config_file"
+    ],
+    "frontend/src/hacking-instructor/challenges/adminSection.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/bonusPayload.ts": [],
+    "frontend/src/hacking-instructor/challenges/codingChallenges.ts": [],
+    "frontend/src/hacking-instructor/challenges/domXss.ts": [
+      "db_query"
+    ],
+    "frontend/src/hacking-instructor/challenges/exposedCredentials.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/forgedFeedback.ts": [],
+    "frontend/src/hacking-instructor/challenges/loginAdmin.ts": [
+      "db_query",
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/loginBender.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/loginJim.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/passwordStrength.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/privacyPolicy.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/reflectedXss.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/challenges/scoreBoard.ts": [],
+    "frontend/src/hacking-instructor/challenges/viewBasket.ts": [
+      "auth_check"
+    ],
+    "frontend/src/hacking-instructor/hacking-instructor.scss": [],
+    "frontend/src/hacking-instructor/helpers/helpers.ts": [
+      "db_query",
+      "auth_check",
+      "crypto_op",
+      "html_sink",
+      "logging"
+    ],
+    "frontend/src/hacking-instructor/index.ts": [
+      "crypto_op",
+      "html_sink",
+      "logging"
+    ],
+    "frontend/src/hacking-instructor/tutorialUnavailable.ts": [],
+    "frontend/src/index.html": [],
+    "frontend/src/main.ts": [],
+    "frontend/src/mocks/ng-gallery.ts": [],
+    "frontend/src/styles.scss": [],
+    "frontend/src/styles/_variables.scss": [],
+    "frontend/src/styles/theme.scss": [],
+    "frontend/src/test-setup.ts": [
+      "crypto_op"
+    ],
+    "frontend/src/tsconfig.app.json": [],
+    "frontend/src/tsconfig.spec.json": [],
+    "frontend/src/vitest.d.ts": [],
+    "frontend/tsconfig.base.json": [],
+    "frontend/tsconfig.json": [],
+    "ftp/suspicious_errors.yml": [],
+    "lib/accuracy.ts": [],
+    "lib/antiCheat.ts": [],
+    "lib/challengeUtils.ts": [
+      "db_query",
+      "model_write",
+      "logging"
+    ],
+    "lib/codingChallenges.ts": [
+      "db_query",
+      "dynamic_exec",
+      "file_io",
+      "logging"
+    ],
+    "lib/config.schema.ts": [
+      "config_file"
+    ],
+    "lib/insecurity.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op",
+      "file_io"
+    ],
+    "lib/is-docker.ts": [
+      "file_io"
+    ],
+    "lib/is-heroku.ts": [],
+    "lib/is-windows.ts": [],
+    "lib/logger.ts": [
+      "logging"
+    ],
+    "lib/noUpdate.ts": [
+      "model_schema"
+    ],
+    "lib/scripts/lintConfig.ts": [
+      "deserialize",
+      "file_io",
+      "logging"
+    ],
+    "lib/startup/cleanupFtpFolder.ts": [
+      "file_io",
+      "logging"
+    ],
+    "lib/startup/customizeApplication.ts": [
+      "file_io"
+    ],
+    "lib/startup/customizeEasterEgg.ts": [],
+    "lib/startup/registerWebsocketEvents.ts": [
+      "db_query"
+    ],
+    "lib/startup/restoreOverwrittenFilesWithOriginals.ts": [
+      "file_io",
+      "logging"
+    ],
+    "lib/startup/validateConfig.ts": [
+      "file_io",
+      "logging"
+    ],
+    "lib/startup/validateDependencies.ts": [
+      "logging"
+    ],
+    "lib/startup/validateDependenciesBasic.ts": [
+      "logging"
+    ],
+    "lib/startup/validatePreconditions.ts": [
+      "http_outbound",
+      "file_io",
+      "llm_call",
+      "logging"
+    ],
+    "lib/utils.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op",
+      "file_io",
+      "logging"
+    ],
+    "lib/webhook.ts": [
+      "http_outbound"
+    ],
+    "lib/xml.ts": [
+      "dynamic_exec"
+    ],
+    "models/address.ts": [
+      "model_schema"
+    ],
+    "models/basket.ts": [
+      "model_schema"
+    ],
+    "models/basketitem.ts": [
+      "model_schema"
+    ],
+    "models/captcha.ts": [
+      "model_schema"
+    ],
+    "models/card.ts": [
+      "model_schema"
+    ],
+    "models/challenge.ts": [
+      "model_schema"
+    ],
+    "models/challengeDependency.ts": [
+      "model_schema"
+    ],
+    "models/complaint.ts": [
+      "model_schema"
+    ],
+    "models/delivery.ts": [
+      "model_schema"
+    ],
+    "models/feedback.ts": [
+      "model_schema"
+    ],
+    "models/hint.ts": [
+      "model_schema"
+    ],
+    "models/imageCaptcha.ts": [
+      "model_schema"
+    ],
+    "models/index.ts": [],
+    "models/memory.ts": [
+      "model_schema"
+    ],
+    "models/privacyRequests.ts": [
+      "model_schema"
+    ],
+    "models/product.ts": [
+      "model_schema"
+    ],
+    "models/quantity.ts": [
+      "model_schema"
+    ],
+    "models/recycle.ts": [
+      "model_schema"
+    ],
+    "models/relations.ts": [],
+    "models/securityAnswer.ts": [
+      "model_schema",
+      "crypto_op"
+    ],
+    "models/securityQuestion.ts": [
+      "model_schema"
+    ],
+    "models/user.ts": [
+      "model_schema",
+      "auth_check",
+      "crypto_op"
+    ],
+    "models/wallet.ts": [
+      "model_schema"
+    ],
+    "monitoring/grafana-dashboard.json": [],
+    "package.json": [
+      "dep_manifest"
+    ],
+    "routes/2fa.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op"
+    ],
+    "routes/address.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/angular.ts": [
+      "file_io"
+    ],
+    "routes/appConfiguration.ts": [
+      "route_handler"
+    ],
+    "routes/appVersion.ts": [
+      "route_handler"
+    ],
+    "routes/authenticatedUsers.ts": [
+      "db_query",
+      "auth_check"
+    ],
+    "routes/b2bOrder.ts": [
+      "route_handler",
+      "crypto_op"
+    ],
+    "routes/basket.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/basketItems.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/captcha.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "dynamic_exec"
+    ],
+    "routes/changePassword.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op"
+    ],
+    "routes/chat.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check",
+      "llm_call",
+      "logging"
+    ],
+    "routes/checkKeys.ts": [
+      "route_handler"
+    ],
+    "routes/continueCode.ts": [
+      "route_handler",
+      "db_query",
+      "crypto_op"
+    ],
+    "routes/countryMapping.ts": [
+      "route_handler",
+      "logging"
+    ],
+    "routes/coupon.ts": [
+      "route_handler",
+      "db_query",
+      "model_write"
+    ],
+    "routes/createProductReviews.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check"
+    ],
+    "routes/currentUser.ts": [
+      "route_handler",
+      "auth_check",
+      "crypto_op"
+    ],
+    "routes/dataErasure.ts": [
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op",
+      "file_io"
+    ],
+    "routes/dataExport.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "routes/delivery.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check"
+    ],
+    "routes/deluxe.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/easterEgg.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/fileServer.ts": [
+      "route_handler",
+      "crypto_op",
+      "file_io"
+    ],
+    "routes/fileUpload.ts": [
+      "deserialize",
+      "file_io"
+    ],
+    "routes/imageCaptcha.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/keyServer.ts": [
+      "route_handler",
+      "crypto_op",
+      "file_io"
+    ],
+    "routes/languages.ts": [
+      "route_handler",
+      "deserialize",
+      "file_io",
+      "logging"
+    ],
+    "routes/likeProductReviews.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/logfileServer.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/login.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check",
+      "crypto_op"
+    ],
+    "routes/memory.ts": [
+      "route_handler",
+      "db_query",
+      "model_write"
+    ],
+    "routes/metrics.ts": [
+      "route_handler",
+      "auth_check",
+      "logging"
+    ],
+    "routes/nftMint.ts": [
+      "route_handler",
+      "crypto_op",
+      "logging"
+    ],
+    "routes/order.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "crypto_op",
+      "file_io"
+    ],
+    "routes/orderHistory.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/payment.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/premiumReward.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/privacyPolicyProof.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/profileImageFileUpload.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check",
+      "file_io",
+      "logging"
+    ],
+    "routes/profileImageUrlUpload.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "http_outbound",
+      "auth_check",
+      "file_io",
+      "logging"
+    ],
+    "routes/quarantineServer.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/recycles.ts": [
+      "route_handler",
+      "db_query",
+      "deserialize"
+    ],
+    "routes/redirect.ts": [
+      "route_handler"
+    ],
+    "routes/repeatNotification.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/resetPassword.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "crypto_op"
+    ],
+    "routes/restoreProgress.ts": [
+      "route_handler",
+      "crypto_op"
+    ],
+    "routes/saveLoginIp.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/search.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/securityQuestion.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/showProductReviews.ts": [
+      "route_handler",
+      "auth_check"
+    ],
+    "routes/trackOrder.ts": [
+      "route_handler"
+    ],
+    "routes/updateProductReviews.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/updateUserProfile.ts": [
+      "route_handler",
+      "db_query",
+      "model_write",
+      "auth_check"
+    ],
+    "routes/userProfile.ts": [
+      "route_handler",
+      "db_query",
+      "auth_check",
+      "crypto_op",
+      "dynamic_exec",
+      "file_io"
+    ],
+    "routes/verify.ts": [
+      "route_handler"
+    ],
+    "routes/videoHandler.ts": [
+      "route_handler",
+      "file_io"
+    ],
+    "routes/vulnCodeFixes.ts": [
+      "route_handler",
+      "deserialize",
+      "file_io"
+    ],
+    "routes/vulnCodeSnippet.ts": [
+      "route_handler",
+      "deserialize",
+      "file_io"
+    ],
+    "routes/wallet.ts": [
+      "route_handler",
+      "db_query"
+    ],
+    "routes/web3Wallet.ts": [
+      "route_handler",
+      "logging"
+    ],
+    "server.ts": [
+      "db_query",
+      "model_write",
+      "http_outbound",
+      "auth_check",
+      "crypto_op",
+      "deserialize",
+      "file_io",
+      "logging"
+    ],
+    "swagger.yml": [
+      "auth_check"
+    ],
+    "test/api/2fa.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "crypto_op"
+    ],
+    "test/api/address.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/administration.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/angular-dist.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/api.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/authenticated-users.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/b2b-order.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/basket-item.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/basket.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/challenge.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/chat.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "deserialize",
+      "file_io",
+      "llm_call"
+    ],
+    "test/api/checkKeys.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/complaint.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/country-mapping.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/data-export.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "deserialize",
+      "file_io"
+    ],
+    "test/api/delivery.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/deluxe.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/erasure-request.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/feedback.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "deserialize"
+    ],
+    "test/api/file-serving.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "crypto_op"
+    ],
+    "test/api/file-upload.test.ts": [
+      "http_outbound",
+      "file_io"
+    ],
+    "test/api/ftp-folder.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/helpers/auth.ts": [
+      "route_handler",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/helpers/setup.ts": [],
+    "test/api/http.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/internet-resources.test.ts": [],
+    "test/api/languages.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/logfile-server.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/login.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/memory.test.ts": [
+      "http_outbound",
+      "auth_check",
+      "file_io"
+    ],
+    "test/api/metrics.test.ts": [
+      "http_outbound",
+      "file_io"
+    ],
+    "test/api/nftMint.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/order-history.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/password.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/payment.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/privacy-request.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/product-review.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/product.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/profile-image-upload.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check",
+      "deserialize",
+      "file_io"
+    ],
+    "test/api/promotion-video.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/quantity.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/quarantine-server.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/recycle.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/redirect.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/repeat-notification.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/search.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/security-answer.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/security-question.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/socket.test.ts": [
+      "http_outbound",
+      "file_io"
+    ],
+    "test/api/system-prompt-extraction.test.ts": [],
+    "test/api/track-result.test.ts": [
+      "http_outbound"
+    ],
+    "test/api/user-profile.test.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/user.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/wallet.test.ts": [
+      "db_query",
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/api/web3Wallet.test.ts": [
+      "http_outbound"
+    ],
+    "test/cypress/e2e/administration.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/b2bOrder.spec.ts": [],
+    "test/cypress/e2e/basket.spec.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/cypress/e2e/changePassword.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/chatbot.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/complain.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/contact.spec.ts": [
+      "auth_check",
+      "dynamic_exec"
+    ],
+    "test/cypress/e2e/dataErasure.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/dataExport.spec.ts": [],
+    "test/cypress/e2e/deluxe.spec.ts": [],
+    "test/cypress/e2e/directAccess.spec.ts": [],
+    "test/cypress/e2e/forgedJwt.spec.ts": [],
+    "test/cypress/e2e/forgotPassword.spec.ts": [],
+    "test/cypress/e2e/geoStalking.spec.ts": [],
+    "test/cypress/e2e/login.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/metrics.spec.ts": [],
+    "test/cypress/e2e/noSql.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/passwordHashLeak.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/privacyPolicy.spec.ts": [],
+    "test/cypress/e2e/profile.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/publicFtp.spec.ts": [],
+    "test/cypress/e2e/redirect.spec.ts": [],
+    "test/cypress/e2e/register.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/restApi.spec.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/cypress/e2e/scoreBoard.spec.ts": [],
+    "test/cypress/e2e/search.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/tokenSale.spec.ts": [],
+    "test/cypress/e2e/totpSetup.spec.ts": [
+      "auth_check"
+    ],
+    "test/cypress/e2e/trackOrder.spec.ts": [],
+    "test/cypress/support/commands.ts": [
+      "http_outbound",
+      "auth_check"
+    ],
+    "test/cypress/support/e2e.ts": [
+      "auth_check"
+    ],
+    "test/cypress/support/setup.ts": [],
+    "test/cypress/tsconfig.json": [],
+    "test/files/decrypt.py": [
+      "crypto_op",
+      "file_io"
+    ],
+    "test/files/decrypt_bruteforce.py": [
+      "crypto_op",
+      "file_io"
+    ],
+    "test/files/encrypt.py": [
+      "crypto_op",
+      "html_sink",
+      "file_io"
+    ],
+    "test/files/outdatedLocalBackup.json": [],
+    "test/files/validLocalBackup.json": [],
+    "test/files/yamlBomb.yml": [],
+    "test/server/accuracy.unit.test.ts": [],
+    "test/server/angular.unit.test.ts": [],
+    "test/server/antiCheat.unit.test.ts": [],
+    "test/server/appConfiguration.unit.test.ts": [],
+    "test/server/appVersion.unit.test.ts": [],
+    "test/server/b2bOrder.unit.test.ts": [],
+    "test/server/blueprint.unit.test.ts": [
+      "db_query",
+      "http_outbound",
+      "file_io"
+    ],
+    "test/server/challengeCountryMapping.unit.test.ts": [
+      "deserialize",
+      "file_io"
+    ],
+    "test/server/challengeTag.unit.test.ts": [
+      "deserialize",
+      "file_io"
+    ],
+    "test/server/challengeTutorialSequence.unit.test.ts": [
+      "deserialize",
+      "file_io"
+    ],
+    "test/server/challengeUtils.unit.test.ts": [
+      "db_query"
+    ],
+    "test/server/chat.unit.test.ts": [
+      "db_query",
+      "auth_check",
+      "llm_call"
+    ],
+    "test/server/codeSnippet.unit.test.ts": [],
+    "test/server/configValidation.unit.test.ts": [
+      "db_query",
+      "crypto_op"
+    ],
+    "test/server/continueCode.unit.test.ts": [],
+    "test/server/countryMapping.unit.test.ts": [],
+    "test/server/currentUser.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/dataExport.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/easterEgg.unit.test.ts": [],
+    "test/server/fileServer.unit.test.ts": [],
+    "test/server/fileUpload.unit.test.ts": [],
+    "test/server/insecurity.unit.test.ts": [
+      "auth_check",
+      "crypto_op"
+    ],
+    "test/server/is-docker.unit.test.ts": [
+      "file_io"
+    ],
+    "test/server/keyServer.unit.test.ts": [
+      "crypto_op"
+    ],
+    "test/server/noUpdate.unit.test.ts": [],
+    "test/server/order.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/preconditionValidation.unit.test.ts": [
+      "file_io",
+      "llm_call"
+    ],
+    "test/server/premiumReward.unit.test.ts": [],
+    "test/server/redirect.unit.test.ts": [],
+    "test/server/saveLoginIp.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/utils.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/verify.unit.test.ts": [
+      "auth_check"
+    ],
+    "test/server/webhook.unit.test.ts": [
+      "http_outbound",
+      "file_io"
+    ],
+    "test/server/xml.unit.test.ts": [],
+    "test/smoke/Dockerfile": [],
+    "test/smoke/smoke-test.sh": [],
+    "threat-model.json": [
+      "crypto_op"
+    ],
+    "tsconfig.json": [],
+    "vagrant/bootstrap.sh": [],
+    "views/themes/themes.ts": []
+  }
+}
