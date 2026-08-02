@@ -116,7 +116,7 @@
       "base_url": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
       "base_url_env": "DASHSCOPE_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": { "temperature": 0.1 },
+      "sampling": { "temperature": 0.1, "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 0.4, "output": 1.6 },
       "price_asof": "2026-08-01",
@@ -132,7 +132,7 @@
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
       "base_url_env": "GEMINI_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": {},
+      "sampling": { "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 1.5, "cached_input": 0.15, "output": 7.5 },
       "price_asof": "2026-08-02",
@@ -148,7 +148,7 @@
       "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
       "base_url_env": "GEMINI_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": {},
+      "sampling": { "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "output": 12.0 },
       "price_asof": "2026-08-01",
@@ -164,12 +164,12 @@
       "base_url": "https://api.z.ai/api/paas/v4",
       "base_url_env": "ZAI_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": {},
+      "sampling": { "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 1.4, "cached_input": 0.26, "output": 4.4 },
       "price_asof": "2026-08-01",
       "price_tier": "standard, flat-rate (no context tier)",
-      "notes": "Cache storage is free for a limited period and is not modelled. Added 2026-08-01. Z.ai's OpenAI-compatible endpoint, so it runs the existing SDK client with no code change. Credential env var is ZAI_API_KEY, not a GLM_-prefixed name. Verified 2026-08-01: plain completion 200, json_schema strict honoured. A first attempt on 2026-08-01 returned HTTP 429 code 1113 'Insufficient balance' — auth had already succeeded at that point, so read a 1113 as an unfunded account rather than a bad key. The same model is also resold through DashScope at the same list price; this entry uses the vendor endpoint directly."
+      "notes": "CONCURRENCY: Z.ai documents a hard in-flight limit of 10 concurrent requests for GLM-5.2 — a per-model cap, distinct from RPM/TPM and exposed in no response header, so it is discoverable only from the vendor's docs. HUNT_CONCURRENCY must be <= 10. The 2026-08-02 benchmark run used 32 before this was known: it completed correctly because the backoff absorbed every 429 and no lane was lost, but 10% of calls were throttled and its ~18.5 min wall clock is therefore not a runtime this model can deliver within its limits (C=10 projects to ~50 min). Recall, tokens and cost are unaffected — a 429 is rejected before generation. EFFORT: reasoning_effort=high is set and the endpoint honours the parameter — reasoning_effort=minimal drives reasoning_tokens to 0, proving it is not ignored — but it is NOT established that high exceeds this endpoint's default: three samples each gave baseline 935/924/652 and high 1042/540/586, fully overlapping. Set for consistency across benchmark targets; do not cite as a measured uplift for this model. Cache storage is free for a limited period and is not modelled. Added 2026-08-01. Z.ai's OpenAI-compatible endpoint, so it runs the existing SDK client with no code change. Credential env var is ZAI_API_KEY, not a GLM_-prefixed name. Verified 2026-08-01: plain completion 200, json_schema strict honoured. A first attempt on 2026-08-01 returned HTTP 429 code 1113 'Insufficient balance' — auth had already succeeded at that point, so read a 1113 as an unfunded account rather than a bad key. The same model is also resold through DashScope at the same list price; this entry uses the vendor endpoint directly."
     },
 
     "opus5": {
@@ -180,12 +180,12 @@
       "base_url": "https://api.anthropic.com/v1",
       "base_url_env": "SCANNER_ANTHROPIC_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": {},
+      "sampling": { "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 5.0, "cached_input": 0.5, "cache_write": 6.25, "output": 25.0 },
       "price_asof": "2026-08-01",
       "price_tier": "standard first-party API, global inference_geo, 5m cache writes",
-      "notes": "The batch discount (50%) and the 1.1x us-only inference_geo multiplier are not modelled. Fast mode is 10/50 and is not used. Added 2026-08-01. VERIFIED 2026-08-01 via shared/preflight.ts: model id resolves, plain completion returns content with finish_reason=stop, and json_schema strict is honoured. Reached through Anthropic's OpenAI-compatibility layer at /v1/chat/completions, so it runs the existing SDK client with no code change. The credential var is SCANNER_ANTHROPIC_API_KEY, not ANTHROPIC_API_KEY: this runs inside Claude Code, whose harness strips ANTHROPIC_API_KEY from the container (its own sessions authenticate through the account), so that name cannot carry a scanner credential here — it arrives unset no matter where it is configured, and the key had to come in through the environment's setup script. Same reason base_url_env is SCANNER_ANTHROPIC_BASE_URL: the ambient ANTHROPIC_BASE_URL is set without the /v1 suffix and would resolve every call to a 404 path. max_output_tokens 24000 is inherited slack rather than a measured ceiling — no completion length has been observed on this target under a real stage prompt."
+      "notes": "EFFORT: reasoning_effort=high is set per the benchmark mandate. The endpoint ACCEPTS it without error, but no reasoning tokens appeared in the response on a probe where gemini and qwen both reported some — it may be accepted-and-ignored on this compatibility layer. Unresolved; re-check before citing any effort-related result for this target. The batch discount (50%) and the 1.1x us-only inference_geo multiplier are not modelled. Fast mode is 10/50 and is not used. Added 2026-08-01. VERIFIED 2026-08-01 via shared/preflight.ts: model id resolves, plain completion returns content with finish_reason=stop, and json_schema strict is honoured. Reached through Anthropic's OpenAI-compatibility layer at /v1/chat/completions, so it runs the existing SDK client with no code change. The credential var is SCANNER_ANTHROPIC_API_KEY, not ANTHROPIC_API_KEY: this runs inside Claude Code, whose harness strips ANTHROPIC_API_KEY from the container (its own sessions authenticate through the account), so that name cannot carry a scanner credential here — it arrives unset no matter where it is configured, and the key had to come in through the environment's setup script. Same reason base_url_env is SCANNER_ANTHROPIC_BASE_URL: the ambient ANTHROPIC_BASE_URL is set without the /v1 suffix and would resolve every call to a 404 path. max_output_tokens 24000 is inherited slack rather than a measured ceiling — no completion length has been observed on this target under a real stage prompt."
     },
 
     "sonnet5": {
@@ -196,12 +196,12 @@
       "base_url": "https://api.anthropic.com/v1",
       "base_url_env": "SCANNER_ANTHROPIC_BASE_URL",
       "token_limit_param": "max_tokens",
-      "sampling": {},
+      "sampling": { "reasoning_effort": "high" },
       "max_output_tokens": 64000,
       "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "cache_write": 2.5, "output": 10.0 },
       "price_asof": "2026-08-01",
       "price_tier": "standard first-party API, global inference_geo, 5m cache writes, INTRODUCTORY",
-      "notes": "INTRODUCTORY pricing, expires 2026-08-31. From 2026-09-01 the rate becomes 3.0/15.0 (cached 0.30, 5m write 3.75), a 50% increase that takes a full run from ~$43.88 to ~$65.83. Update this entry on that date or every later run under-reports by a third. Added 2026-08-01. VERIFIED 2026-08-01 via shared/preflight.ts: model id resolves, plain completion returns content with finish_reason=stop, and json_schema strict is honoured. Same transport and same credential handling as opus5 — see that entry for why the vars are SCANNER_ANTHROPIC_API_KEY and SCANNER_ANTHROPIC_BASE_URL. Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. max_output_tokens 24000 is inherited slack rather than a measured ceiling."
+      "notes": "EFFORT: reasoning_effort=high is set per the benchmark mandate. Accepted without error but no reasoning tokens observed — see opus5, same compatibility layer, same open question. INTRODUCTORY pricing, expires 2026-08-31. From 2026-09-01 the rate becomes 3.0/15.0 (cached 0.30, 5m write 3.75), a 50% increase that takes a full run from ~$43.88 to ~$65.83. Update this entry on that date or every later run under-reports by a third. Added 2026-08-01. VERIFIED 2026-08-01 via shared/preflight.ts: model id resolves, plain completion returns content with finish_reason=stop, and json_schema strict is honoured. Same transport and same credential handling as opus5 — see that entry for why the vars are SCANNER_ANTHROPIC_API_KEY and SCANNER_ANTHROPIC_BASE_URL. Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. max_output_tokens 24000 is inherited slack rather than a measured ceiling."
     }
   }
 }

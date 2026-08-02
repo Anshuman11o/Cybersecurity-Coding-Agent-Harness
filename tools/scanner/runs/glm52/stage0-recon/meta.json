@@ -1,0 +1,11 @@
+{
+  "provider": "glm52",
+  "model": "glm-5.2",
+  "stage": "stage0-recon",
+  "git_sha": "aac8c00",
+  "started": "2026-08-02T16:05:05.425Z",
+  "ended": "2026-08-02T16:05:05.438Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}

@@ -10,10 +10,31 @@
 import OpenAI from 'openai'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor } from '../../shared/provider.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor, outputTokenCap } from '../../shared/provider.js'
 import { markDegraded } from '../../shared/degraded.js'
 
 const PROVIDER = resolveProvider('stage0')
+
+/**
+ * Output-token caps for this stage's probes.
+ *
+ * These were literals — 500 and 5000 — sent regardless of target. That is only
+ * safe on a model whose reasoning is cheap or absent, because reasoning tokens
+ * are counted against this cap before any content is emitted. It broke the
+ * first non-luna run attempted: glm-5.2 spends ~11,800 reasoning tokens on the
+ * category probe and needs ~14,100 in total, so at 5000 it returned a truncated
+ * body, JSON.parse failed, and the stage marked itself degraded and refused to
+ * continue. luna never hit it because it spends far fewer reasoning tokens on
+ * the same prompt, so the defect was invisible for six runs.
+ *
+ * The registry's max_output_tokens is now authoritative, exactly as Stage 2
+ * does it. The literals below survive as the fallback for a target that
+ * declares no cap, so behaviour is unchanged for any such target. A cap is a
+ * ceiling, not a spend — billing is per token generated — so a target that did
+ * not need the headroom does not pay for it.
+ */
+const PROBE_CAP_SMALL = outputTokenCap(PROVIDER, 500)
+const PROBE_CAP_LARGE = outputTokenCap(PROVIDER, 5000)
 const MODEL = modelFor(PROVIDER)
 
 export interface ToolCallingVerdict {
@@ -61,7 +82,7 @@ export async function detectToolCalling(chatTsPath: string): Promise<ToolCalling
         model: MODEL,
         messages: [{ role: 'user', content: buildToolCallingPrompt(content) }],
         ...samplingParams(PROVIDER),
-        ...tokenLimitParam(PROVIDER, 500),
+        ...tokenLimitParam(PROVIDER, PROBE_CAP_SMALL),
       })
       const text = response.choices[0]?.message?.content ?? '{}'
       const jsonStr = extractJson(text)
@@ -216,7 +237,7 @@ Respond in JSON array:
     model: MODEL,
     messages: [{ role: 'user', content: prompt }],
     ...samplingParams(PROVIDER),
-    ...tokenLimitParam(PROVIDER, 5000),
+    ...tokenLimitParam(PROVIDER, PROBE_CAP_LARGE),
   })
 
   console.log('  [LLM OK] Category applicability probe received a real API response')

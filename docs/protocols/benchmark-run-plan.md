@@ -7,19 +7,65 @@ Written to be executed by a session with no prior context. Read
 `../../CLAUDE.md` first — its rules take precedence over everything here —
 then `running-a-scan.md` for the single-run mechanics this plan repeats.
 
-**Status as of 2026-08-02: two runs outstanding, four models on hold, one
-already measured.**
+**Status as of 2026-08-02: the active pair is complete — `glm52` and
+`gemini36flash` are both measured, alongside `luna` run 6. Four models remain on
+hold. Results are recorded in `../benchmarking-results.md`. Both new runs lost a
+first attempt to container reclamation — read §9.0 before launching anything,
+and §9.4 before launching any Gemini target.**
 
 ---
 
 ## 1. Scope
 
-### Active — run these
+### Active
 
 | Model | Registry key | State |
 |---|---|---|
-| GLM-5.2 | `glm52` | **to run** |
-| Gemini 3.6 Flash | `gemini36flash` | **to run** |
+| GLM-5.2 | `glm52` | **done — 2026-08-02, tree `aac8c00`** |
+| Gemini 3.6 Flash | `gemini36flash` | **done — 2026-08-02, tree `2a4bf04`** |
+
+`glm52` results, rebased to the 97 reachable entries:
+
+| Metric | glm52 | luna (run 6) |
+|---|---|---|
+| Recall (file + line + category) | 65/97 = **67.0%** | 69/97 = 71.1% |
+| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% |
+| Localization (±15) | 83/97 = **85.6%** | 86/97 = 88.7% |
+| File-level | 97/97 = 100% | 97/97 = 100% |
+| Precision proxy, category-aware | **7.8%** | 12.5% |
+| Hedging (classes/finding) | 1.459 | 1.418 |
+| Findings | 892 | 553 |
+| Input / output tokens | 7,265,980 / 2,402,317 | 7,174,088 / 2,444,855 |
+| Cost | **$17.01** | $4.37 |
+| Wall clock | ~18.5 min — **see caveat** | 13m04s |
+| Model size | no public record | no public record |
+| Distinct lines cited | 4,577 | 3,597 |
+| Mean trace steps | 6.64 | 8.74 |
+
+Execution was clean: 541/541 lanes, all stages exit 0, `degraded: false`, 0
+blocked reads, 0 lanes missing measurement, 1,082 calls = exactly 2 per lane.
+
+**Three things must be carried with these numbers:**
+
+1. **The recall gap is not a result.** 65 vs 69 is 4 entries against a ±7-entry
+   nondeterminism floor (§9.5). These two models are indistinguishable on recall
+   from one run each. Do not report a ranking.
+2. **The wall clock is not compliant.** It was measured at C=32 against
+   GLM-5.2's documented in-flight limit of **10** (§3a.3) — 3.2x over. 10% of
+   calls were throttled, costing 321s of cumulative backoff. A compliant run at
+   C=10 would take roughly **50 minutes**, estimated from the observed ~58s mean
+   lane. Cite the runtime as "~18.5 min at C=32, above the vendor limit", or
+   re-measure at C=10. Recall, localization, precision, tokens and cost are
+   unaffected — a 429 is rejected before generation, so no lane was lost and no
+   throttled call was billed.
+3. **The trace-length confound favours glm52 here.** It cited 4,577 distinct
+   lines across 892 findings against run 6's 3,597 across 553 — more line budget
+   and more shots on goal — and still did not score higher. Its number is
+   flattered by the confound (§9.1), not penalised by it.
+
+Cost landed 12% under the $19.32 projection because 45% of input was served from
+Z.ai's prefix cache: $3.73 of cached input against an uncached $20.74. The
+`price_asof` / `cached_input` schema is what made that visible.
 
 ### Already measured — do not re-run
 
@@ -51,14 +97,14 @@ was 5x wrong. The artifact above is already at the corrected rate. Cite $4.37.
 
 | Model | Registry key | Why |
 |---|---|---|
-| Qwen 3.7 Plus | `qwen37` | on hold; also has an unresolved blocker (§9.1) |
+| Qwen 3.7 Plus | `qwen37` | on hold; also has an unresolved blocker (§9.6) |
 | Claude Sonnet 5 | `sonnet5` | on hold |
 | Claude Opus 5 | `opus5` | on hold |
 | Gemini 3.1 Pro | `gemini31pro` | on hold |
 
 All four stay registered, priced and preflight-passing. Nothing needs undoing
 to bring them back — remove the hold and they are runnable, except `qwen37`,
-which needs §9.1 resolved first.
+which needs §9.6 resolved first.
 
 ### Settled parameters
 
@@ -148,6 +194,118 @@ it; `HUNT_LOOP_STRICT_TRACE=1` was measured and made recall *worse*
 
 ---
 
+## 3a. MANDATORY per-model pre-run checks
+
+**Every model must clear both of these before it is launched. Neither is
+optional, and neither is visible in a run that has already gone wrong — both
+failure modes surface as "the model found nothing".**
+
+### 3a.1 Reasoning effort must be set to `high`, explicitly
+
+Every benchmark target must declare `"sampling": { "reasoning_effort": "high" }`
+in `models.json`. A target that declares nothing does not run at "no effort" —
+it runs at *the endpoint's own default*, which is unrecorded, may differ per
+vendor, and can change under you.
+
+This is not hypothetical. Runs 1–5 sent no effort parameter at all and
+therefore ran at the endpoint default for four rounds of playbook tuning. When
+it was finally set on `luna`, high effort alone moved recall 53.6% → 63.9%.
+
+Two things follow, and they matter for how results are written up:
+
+- **Set it on every target**, so no model runs with an unrecorded variable.
+- **Do not assume it does the same thing everywhere.** On `luna` the uplift is
+  measured and large. On `glm52` the parameter is *honoured* — setting
+  `minimal` drives reasoning tokens to 0 — but `high` is not measurably
+  different from that endpoint's default (three samples each: baseline
+  935/924/652, high 1042/540/586, fully overlapping). Set it for consistency;
+  do not report it as an uplift for a model where it has not been measured.
+
+Before launching a model, confirm it:
+
+```bash
+node -e "const t=require('./tools/scanner/shared/models.json').targets['<key>'];
+console.log(t.sampling)"   # must show reasoning_effort: high
+```
+
+If a vendor rejects `reasoning_effort`, the run will 400 on the first call.
+Test it against the live endpoint before launching, not during.
+
+### 3a.2 Token caps must be registry-driven, not hardcoded
+
+`max_output_tokens` in the registry is only effective where the stage actually
+reads it. **Reasoning tokens are counted against this cap before any content is
+emitted**, so a cap tuned on a model that barely reasons silently truncates one
+that reasons heavily — and a truncated JSON body is recorded downstream as a
+lane that found nothing, not as an error.
+
+This bit the first non-luna run attempted. `stage0-recon/src/llm-probe.ts`
+hardcoded caps of 500 and 5000 regardless of target. `glm-5.2` spends ~11,800
+reasoning tokens on the category probe and needs ~14,100 in total:
+
+| Cap | finish_reason | reasoning | completion | parses? |
+|---|---|---|---|---|
+| 5,000 (hardcoded) | `length` | 4,151 | 5,000 truncated | **no** |
+| 64,000 (registry) | `stop` | 11,793 | 14,109 | yes |
+
+Stage 0 correctly refused to continue rather than substitute deterministic
+analysis — but `luna` had passed the same probe for six runs, because it spends
+far fewer reasoning tokens. **The defect was invisible until a second model ran.**
+
+Fixed 2026-08-02: both sites now read `outputTokenCap(PROVIDER, …)`, with the
+old literals kept as the fallback for a target declaring no cap.
+
+**Before adding any new model, re-audit.** A hardcoded cap anywhere in a live
+stage is a latent failure for the next model that reasons more than the last:
+
+```bash
+cd tools/scanner
+grep -rn "tokenLimitParam(" --include=*.ts \
+  stage0-recon stage05-lane-selector-perfile stage1-budget-governor \
+  stage2-hunt-lanes-perfile shared | grep -v outputTokenCap
+```
+
+Every hit must pass a value derived from `outputTokenCap()`. As of 2026-08-02
+the live v2 stages are clean: Stage 2 was always registry-driven, Stage 0 now
+is, and stages 0.5 and 1 make no LLM calls.
+
+A cap is a ceiling, not a spend — billing is per token generated — so headroom
+costs nothing on a model that does not use it.
+
+### 3a.3 Vendor concurrency limits must be checked before setting HUNT_CONCURRENCY
+
+`HUNT_CONCURRENCY` is capped by the **vendor's published in-flight request
+limit**, which is a different thing from RPM/TPM and is often far smaller. Most
+endpoints in this benchmark publish no rate-limit headers, so the limit is not
+discoverable at runtime — it has to be read off the vendor's docs before the
+run, not inferred from whether the run survived.
+
+Known limits, per vendor documentation:
+
+| Target | Vendor concurrency limit | Source |
+|---|---|---|
+| `glm52` | **10** | Z.ai rate-limits page, per-model in-flight cap |
+| `luna` | not published as a concurrency cap; 5,000 RPM / 2M TPM | response headers |
+| `opus5`, `sonnet5` | not published as a concurrency cap; 10,000 RPM / 12M TPM | response headers |
+| `gemini36flash`, `gemini31pro` | **unknown** — no headers, plus spend-based limits (§9.3) | — |
+| `qwen37` | **unknown** — no headers | — |
+
+**This was learned the hard way.** The glm52 run was launched at C=32 against a
+documented limit of 10 — 3.2x over. It completed correctly (the backoff absorbed
+every 429, no lane was lost), but 10% of calls were throttled and the run
+consumed 321s of cumulative backoff. Exceeding a published limit is not made
+acceptable by the retry path succeeding.
+
+Two consequences, and the second is the one that matters for the benchmark:
+
+- **Set `HUNT_CONCURRENCY` at or below the documented limit.** For `glm52` that
+  is 10. Where no limit is published, start at 8 and treat sustained 429s as the
+  signal to come down, not to retry harder.
+- **A runtime measured above the limit is not a runtime the model can deliver.**
+  See §8 — glm52's wall clock is recorded with that qualification.
+
+---
+
 ## 4. Preconditions — check every one before launching
 
 Run these from a clean checkout of `main`. Do not skip: each traces to a real
@@ -176,7 +334,11 @@ failure.
    `ZAI_API_KEY` and `GEMINI_API_KEY`, both present. (If the held models are
    released later, note that `SCANNER_ANTHROPIC_API_KEY` is the one that
    silently vanishes — see §2.)
-6. **Disk.** Two worktrees plus two sets of `node_modules` plus two run trees.
+6. **§3a cleared.** Reasoning effort declared `high`, hardcoded-cap audit
+   clean, and `HUNT_CONCURRENCY` at or below the vendor's published in-flight
+   limit (§3a.3). See §3a — both failure modes look like "found
+   nothing" rather than like errors.
+7. **Disk.** Two worktrees plus two sets of `node_modules` plus two run trees.
    Check free space before, not after.
 
 ---
@@ -223,15 +385,16 @@ in their own worktrees, or one after the other — either is fine.
 
 | Order | Target | `HUNT_CONCURRENCY` | Basis |
 |---|---|---|---|
-| 1 | `glm52` | 8, ramp if clean | endpoint returns no rate-limit headers |
-| 2 | `gemini36flash` | **8 — do not raise** | measured: C=16 peaks at 82% of the TPM ceiling and collapses (§9.3) |
+| 1 | `glm52` | **32** | 8 was tried and the ~2h window lost the run to container reclamation (§9.0); no rate-limit headers, so 8 was caution rather than a measured constraint |
+| 2 | `gemini36flash` | **8 — do not raise** | measured: C=16 peaks at 82% of the 2M TPM ceiling and collapses (§9.4) |
 
-`glm52` starts at 8 because its endpoint publishes no rate-limit headers, so its
-limit is not known in advance. Concurrency exists to avoid a sequential crawl,
-not to be maximised. Do not exceed 32.
+Concurrency exists to avoid a sequential crawl, not to be maximised. Do not
+exceed 32. `glm52` ran at 32; note §3a.3, which documents that this was above
+GLM-5.2's in-flight limit of 10 and cost 321s of cumulative backoff without
+losing a lane.
 
 **`gemini36flash` is the exception: 8 is a measured ceiling, not a starting
-point.** Raising it to 16 cost a run — see §9.3.
+point.** Raising it to 16 cost 53 lanes — see §9.4.
 
 Rate limits. `luna`, `opus5` and `sonnet5` are read from live response headers
 (2026-08-01/02); the Gemini figures are read from the Google AI Studio rate-limit
@@ -367,6 +530,58 @@ output.
 Numbered by relevance to the **active** pair. §9.4 concerns a held model and is
 kept so it is not rediscovered later.
 
+### 9.0 A run will not survive an idle container — LAUNCH BLOCKER
+
+**Measured, not theoretical. The first `glm52` attempt died this way on
+2026-08-02.**
+
+`setsid nohup` protects a process from being reaped when a *session* ends. It
+does not protect anything from the **container being reclaimed**, which this
+environment does after a period of inactivity. When that happens the run
+vanishes mid-lane: no error, no stack trace, no exit line in the log.
+
+What the failed attempt looked like:
+
+| | |
+|---|---|
+| Died at | 07:21:09, ~5 minutes into Stage 2 |
+| Progress | **92 of 541 lanes** (17%) |
+| Findings written | 78 (mean trace 4.86 steps) |
+| Stages 0 / 0.5 / 1 | complete, exit 0 |
+| `budget-consumption.json` | **0 lanes recorded** |
+| Container PID 1 | started 15:54:22 — 8.5 hours *after* the run died |
+
+Two things to take from it:
+
+1. **Token accounting is written at the end of Stage 2, not incrementally.** A
+   killed run therefore leaves no usable cost or token record at all, even
+   though findings were checkpointed. Cost had to be estimated from the log
+   (~1M tokens, order of $2–4) rather than measured. Any interrupted run is
+   unmeasurable, not partially measurable.
+2. **The partial output is not a partial result.** 92 lanes is whatever sorted
+   first, not a sample. It must never be scored, committed into
+   `runs/<provider>/`, or compared against run 6. The failed attempt's
+   artifacts were moved out of the repo to `/home/user/bench-glm52-failed-run/`
+   and deleted from the worktree for exactly this reason.
+
+Mitigations, in the order they should be applied:
+
+- **Shorten the exposure window.** Concurrency is the lever. The failed attempt
+  ran at C=8 out of caution — glm52's endpoint publishes no rate-limit headers
+  — and projected ~2 hours. C=32 is proven safe on `luna` and is the plan's
+  ceiling; it cuts the window by roughly 4x. This is the cheapest change and
+  needs no code.
+- **Keep the session active** for the duration of a run, so the container is
+  not idle.
+- **Make Stage 2 resumable** (not implemented). It already checkpoints findings
+  incrementally, but a restart re-runs all 541 lanes from scratch. Skipping
+  lanes already present in `candidate-findings.json` would make reclamation
+  survivable rather than fatal. This is a Stage 2 source change and needs
+  sign-off before a run depends on it.
+
+Until at least the first mitigation is in force, **assume any run longer than
+about an hour will not finish.**
+
 ### 9.1 Recall is confounded by trace length — affects both active models
 
 From `eval-howto.md` §3: *a finding matches an entry when **some step of its
@@ -424,7 +639,7 @@ Reference points from committed artifacts, same pipeline:
 | `terra` | off | 221 | 3.31 | 7 | 571 |
 | `luna` run 6 | on | 553 | 8.74 | 51 | 3,597 |
 
-### 9.3 `gemini36flash` rate limiting — RESOLVED 2026-08-02, and it cost a run
+### 9.4 `gemini36flash` rate limiting — RESOLVED 2026-08-02, and it cost a run
 
 **This section previously said Gemini enforces spend-based limits (~$10/10min at
 tier 1) that stall a run "without a 429 that looks like rate limiting". That was
@@ -471,14 +686,14 @@ Practical rules:
 - `gemini31pro`, if ever unheld, is capped at **25 RPM / 250 RPD** — below what
   1,082 calls needs in a day. See §6.
 
-### 9.4 The nondeterminism floor is ±7 entries
+### 9.5 The nondeterminism floor is ±7 entries
 
 ~±7 points on a denominator of 97, on byte-identical prompts. **One run per
 model cannot separate two models closer than that.** With two new runs plus run 6, any
 two results within ~7 points are indistinguishable. Repeats would cost roughly 3x
 the ~$51. Not yet decided.
 
-### 9.5 `qwen37` — held, and blocked independently
+### 9.6 `qwen37` — held, and blocked independently
 
 `qwen37` is on hold, so this does not block anything today. It is recorded
 because the hold could be lifted and the blocker would still be there.
@@ -528,7 +743,7 @@ Candidate fixes, none applied:
 Decision pending. **Do not launch `qwen37` until it is resolved.** The other
 five are unaffected and run fine non-streamed.
 
-### 9.6 Gemini thinking tokens are billed but not counted — cost metric is understated
+### 9.7 Gemini thinking tokens are billed but not counted — cost metric is understated
 
 Found 2026-08-02 while reconciling the `gemini36flash` run. On Google's
 OpenAI-compatibility layer, `usage.total_tokens` exceeds
