@@ -15,12 +15,55 @@ reclamation at 17% — read §9.0 before launching anything.**
 
 ## 1. Scope
 
-### Active — run these
+### Active
 
 | Model | Registry key | State |
 |---|---|---|
-| GLM-5.2 | `glm52` | **to run** |
+| GLM-5.2 | `glm52` | **done — 2026-08-02, tree `aac8c00`** |
 | Gemini 3.6 Flash | `gemini36flash` | **to run** |
+
+`glm52` results, rebased to the 97 reachable entries:
+
+| Metric | glm52 | luna (run 6) |
+|---|---|---|
+| Recall (file + line + category) | 65/97 = **67.0%** | 69/97 = 71.1% |
+| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% |
+| Localization (±15) | 83/97 = **85.6%** | 86/97 = 88.7% |
+| File-level | 97/97 = 100% | 97/97 = 100% |
+| Precision proxy, category-aware | **7.8%** | 12.5% |
+| Hedging (classes/finding) | 1.459 | 1.418 |
+| Findings | 892 | 553 |
+| Input / output tokens | 7,265,980 / 2,402,317 | 7,174,088 / 2,444,855 |
+| Cost | **$17.01** | $4.37 |
+| Wall clock | ~18.5 min — **see caveat** | 13m04s |
+| Model size | no public record | no public record |
+| Distinct lines cited | 4,577 | 3,597 |
+| Mean trace steps | 6.64 | 8.74 |
+
+Execution was clean: 541/541 lanes, all stages exit 0, `degraded: false`, 0
+blocked reads, 0 lanes missing measurement, 1,082 calls = exactly 2 per lane.
+
+**Three things must be carried with these numbers:**
+
+1. **The recall gap is not a result.** 65 vs 69 is 4 entries against a ±7-entry
+   nondeterminism floor (§9.5). These two models are indistinguishable on recall
+   from one run each. Do not report a ranking.
+2. **The wall clock is not compliant.** It was measured at C=32 against
+   GLM-5.2's documented in-flight limit of **10** (§3a.3) — 3.2x over. 10% of
+   calls were throttled, costing 321s of cumulative backoff. A compliant run at
+   C=10 would take roughly **50 minutes**, estimated from the observed ~58s mean
+   lane. Cite the runtime as "~18.5 min at C=32, above the vendor limit", or
+   re-measure at C=10. Recall, localization, precision, tokens and cost are
+   unaffected — a 429 is rejected before generation, so no lane was lost and no
+   throttled call was billed.
+3. **The trace-length confound favours glm52 here.** It cited 4,577 distinct
+   lines across 892 findings against run 6's 3,597 across 553 — more line budget
+   and more shots on goal — and still did not score higher. Its number is
+   flattered by the confound (§9.1), not penalised by it.
+
+Cost landed 12% under the $19.32 projection because 45% of input was served from
+Z.ai's prefix cache: $3.73 of cached input against an uncached $20.74. The
+`price_asof` / `cached_input` schema is what made that visible.
 
 ### Already measured — do not re-run
 
@@ -227,6 +270,38 @@ is, and stages 0.5 and 1 make no LLM calls.
 A cap is a ceiling, not a spend — billing is per token generated — so headroom
 costs nothing on a model that does not use it.
 
+### 3a.3 Vendor concurrency limits must be checked before setting HUNT_CONCURRENCY
+
+`HUNT_CONCURRENCY` is capped by the **vendor's published in-flight request
+limit**, which is a different thing from RPM/TPM and is often far smaller. Most
+endpoints in this benchmark publish no rate-limit headers, so the limit is not
+discoverable at runtime — it has to be read off the vendor's docs before the
+run, not inferred from whether the run survived.
+
+Known limits, per vendor documentation:
+
+| Target | Vendor concurrency limit | Source |
+|---|---|---|
+| `glm52` | **10** | Z.ai rate-limits page, per-model in-flight cap |
+| `luna` | not published as a concurrency cap; 5,000 RPM / 2M TPM | response headers |
+| `opus5`, `sonnet5` | not published as a concurrency cap; 10,000 RPM / 12M TPM | response headers |
+| `gemini36flash`, `gemini31pro` | **unknown** — no headers, plus spend-based limits (§9.3) | — |
+| `qwen37` | **unknown** — no headers | — |
+
+**This was learned the hard way.** The glm52 run was launched at C=32 against a
+documented limit of 10 — 3.2x over. It completed correctly (the backoff absorbed
+every 429, no lane was lost), but 10% of calls were throttled and the run
+consumed 321s of cumulative backoff. Exceeding a published limit is not made
+acceptable by the retry path succeeding.
+
+Two consequences, and the second is the one that matters for the benchmark:
+
+- **Set `HUNT_CONCURRENCY` at or below the documented limit.** For `glm52` that
+  is 10. Where no limit is published, start at 8 and treat sustained 429s as the
+  signal to come down, not to retry harder.
+- **A runtime measured above the limit is not a runtime the model can deliver.**
+  See §8 — glm52's wall clock is recorded with that qualification.
+
 ---
 
 ## 4. Preconditions — check every one before launching
@@ -257,8 +332,9 @@ failure.
    `ZAI_API_KEY` and `GEMINI_API_KEY`, both present. (If the held models are
    released later, note that `SCANNER_ANTHROPIC_API_KEY` is the one that
    silently vanishes — see §2.)
-6. **§3a cleared.** Reasoning effort declared `high` for the target, and the
-   hardcoded-cap audit clean. See §3a — both failure modes look like "found
+6. **§3a cleared.** Reasoning effort declared `high`, hardcoded-cap audit
+   clean, and `HUNT_CONCURRENCY` at or below the vendor's published in-flight
+   limit (§3a.3). See §3a — both failure modes look like "found
    nothing" rather than like errors.
 7. **Disk.** Two worktrees plus two sets of `node_modules` plus two run trees.
    Check free space before, not after.
