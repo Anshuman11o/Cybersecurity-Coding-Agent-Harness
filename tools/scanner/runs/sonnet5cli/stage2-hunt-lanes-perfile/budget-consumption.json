@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-02T23:25:22.384Z",
+  "generated_at": "2026-08-03T06:14:38.681Z",
   "provider": "sonnet5cli",
   "model": "claude-sonnet-5",
   "lanes": [
@@ -45887,8 +45887,5641 @@
         "completion_tokens": 24459,
         "total_tokens": 79794
       }
+    },
+    {
+      "lane_id": "file-0464",
+      "target_file": "test/cypress/e2e/b2bOrder.spec.ts",
+      "file_bytes": 130,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 705
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3857
+              }
+            ],
+            "total_chars": 14986
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 705,
+              "derived_prompt_tokens": 283
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1240
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 924
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1325
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 701
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3857,
+              "derived_prompt_tokens": 1550
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6021,
+            "prompt_tokens": 6023,
+            "completion_tokens": 2104,
+            "total_tokens": 8127
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 17906
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1577
+              }
+            ],
+            "total_chars": 19483
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 17906,
+              "derived_prompt_tokens": 7977
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1577,
+              "derived_prompt_tokens": 702
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6021,
+            "cache_write_prompt_tokens": 2656,
+            "prompt_tokens": 8679,
+            "completion_tokens": 1761,
+            "total_tokens": 10440
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 14702,
+        "completion_tokens": 3865,
+        "total_tokens": 18567
+      }
+    },
+    {
+      "lane_id": "file-0462",
+      "target_file": "test/api/web3Wallet.test.ts",
+      "file_bytes": 1977,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 55,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 727
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5894
+              }
+            ],
+            "total_chars": 24621
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 727,
+              "derived_prompt_tokens": 276
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1170
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 871
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1249
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 860
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 2012
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 661
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5894,
+              "derived_prompt_tokens": 2233
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 9330,
+            "prompt_tokens": 9332,
+            "completion_tokens": 2784,
+            "total_tokens": 12116
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 55,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 29045
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1731
+              }
+            ],
+            "total_chars": 30776
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 29045,
+              "derived_prompt_tokens": 12022
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1731,
+              "derived_prompt_tokens": 716
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 9330,
+            "cache_write_prompt_tokens": 3406,
+            "prompt_tokens": 12738,
+            "completion_tokens": 3754,
+            "total_tokens": 16492
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 22070,
+        "completion_tokens": 6538,
+        "total_tokens": 28608
+      }
+    },
+    {
+      "lane_id": "file-0466",
+      "target_file": "test/cypress/e2e/changePassword.spec.ts",
+      "file_bytes": 727,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 24,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 740
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4532
+              }
+            ],
+            "total_chars": 22895
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 740,
+              "derived_prompt_tokens": 280
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 982
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1741
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1167
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 869
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1247
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 660
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4532,
+              "derived_prompt_tokens": 1714
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8658,
+            "prompt_tokens": 8660,
+            "completion_tokens": 3942,
+            "total_tokens": 12602
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 24,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 27558
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1736
+              }
+            ],
+            "total_chars": 29294
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 27558,
+              "derived_prompt_tokens": 12343
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1736,
+              "derived_prompt_tokens": 778
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8658,
+            "cache_write_prompt_tokens": 4461,
+            "prompt_tokens": 13121,
+            "completion_tokens": 3004,
+            "total_tokens": 16125
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 21781,
+        "completion_tokens": 6946,
+        "total_tokens": 28727
+      }
+    },
+    {
+      "lane_id": "file-0467",
+      "target_file": "test/cypress/e2e/chatbot.spec.ts",
+      "file_bytes": 263,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 12,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 733
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4013
+              }
+            ],
+            "total_chars": 22369
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 733,
+              "derived_prompt_tokens": 277
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 981
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1740
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1166
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 869
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1246
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 659
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4013,
+              "derived_prompt_tokens": 1517
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8453,
+            "prompt_tokens": 8455,
+            "completion_tokens": 2553,
+            "total_tokens": 11008
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 12,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 26632
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1688
+              }
+            ],
+            "total_chars": 28320
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 26632,
+              "derived_prompt_tokens": 10848
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1688,
+              "derived_prompt_tokens": 688
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8453,
+            "cache_write_prompt_tokens": 3081,
+            "prompt_tokens": 11536,
+            "completion_tokens": 3127,
+            "total_tokens": 14663
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 19991,
+        "completion_tokens": 5680,
+        "total_tokens": 25671
+      }
+    },
+    {
+      "lane_id": "file-0461",
+      "target_file": "test/api/wallet.test.ts",
+      "file_bytes": 3317,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 98,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 782
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:api-property-auth",
+                "chars": 2306
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:injection",
+                "chars": 5993
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 7402
+              }
+            ],
+            "total_chars": 41682
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 782,
+              "derived_prompt_tokens": 280
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 929
+            },
+            {
+              "segment_type": "playbook:api-property-auth",
+              "chars": 2306,
+              "derived_prompt_tokens": 826
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1648
+            },
+            {
+              "segment_type": "playbook:injection",
+              "chars": 5993,
+              "derived_prompt_tokens": 2146
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1105
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 823
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1180
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 812
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 1900
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 624
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 7402,
+              "derived_prompt_tokens": 2651
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 14922,
+            "prompt_tokens": 14924,
+            "completion_tokens": 5861,
+            "total_tokens": 20785
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 98,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 46238
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1726
+              }
+            ],
+            "total_chars": 47964
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 46238,
+              "derived_prompt_tokens": 20547
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1726,
+              "derived_prompt_tokens": 767
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 14922,
+            "cache_write_prompt_tokens": 6390,
+            "prompt_tokens": 21314,
+            "completion_tokens": 8222,
+            "total_tokens": 29536
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 36238,
+        "completion_tokens": 14083,
+        "total_tokens": 50321
+      }
+    },
+    {
+      "lane_id": "file-0460",
+      "target_file": "test/api/user.test.ts",
+      "file_bytes": 12013,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 318,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 780
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:api-property-auth",
+                "chars": 2306
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:injection",
+                "chars": 5993
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 17294
+              }
+            ],
+            "total_chars": 51572
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 780,
+              "derived_prompt_tokens": 294
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 977
+            },
+            {
+              "segment_type": "playbook:api-property-auth",
+              "chars": 2306,
+              "derived_prompt_tokens": 868
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1733
+            },
+            {
+              "segment_type": "playbook:injection",
+              "chars": 5993,
+              "derived_prompt_tokens": 2255
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1161
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 865
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1240
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 854
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 1998
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 656
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 17294,
+              "derived_prompt_tokens": 6508
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 19407,
+            "prompt_tokens": 19409,
+            "completion_tokens": 6408,
+            "total_tokens": 25817
+          },
+          "findings_emitted": 5
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 318,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 60213
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 2170
+              }
+            ],
+            "total_chars": 62383
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 60213,
+              "derived_prompt_tokens": 25520
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 2170,
+              "derived_prompt_tokens": 920
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 19407,
+            "cache_write_prompt_tokens": 7031,
+            "prompt_tokens": 26440,
+            "completion_tokens": 9545,
+            "total_tokens": 35985
+          },
+          "findings_emitted": 5,
+          "findings_added": 0,
+          "traces_extended": 5
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 45849,
+        "completion_tokens": 15953,
+        "total_tokens": 61802
+      }
+    },
+    {
+      "lane_id": "file-0465",
+      "target_file": "test/cypress/e2e/basket.spec.ts",
+      "file_bytes": 1805,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 67,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 760
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5774
+              }
+            ],
+            "total_chars": 31733
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 760,
+              "derived_prompt_tokens": 655
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 2235
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 3966
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2658
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 1980
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 2839
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 1954
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 4572
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1502
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5774,
+              "derived_prompt_tokens": 4974
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11605,
+            "cache_write_prompt_tokens": 15726,
+            "prompt_tokens": 27335,
+            "completion_tokens": 8184,
+            "total_tokens": 35519
+          },
+          "findings_emitted": 4
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 67,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 39190
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1931
+              }
+            ],
+            "total_chars": 41121
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 39190,
+              "derived_prompt_tokens": 18197
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1931,
+              "derived_prompt_tokens": 897
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 15726,
+            "cache_write_prompt_tokens": 3366,
+            "prompt_tokens": 19094,
+            "completion_tokens": 9297,
+            "total_tokens": 28391
+          },
+          "findings_emitted": 4,
+          "findings_added": 0,
+          "traces_extended": 3
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 46429,
+        "completion_tokens": 17481,
+        "total_tokens": 63910
+      }
+    },
+    {
+      "lane_id": "file-0469",
+      "target_file": "test/cypress/e2e/contact.spec.ts",
+      "file_bytes": 2301,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 90,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 744
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:injection",
+                "chars": 5993
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 6363
+              }
+            ],
+            "total_chars": 30723
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 744,
+              "derived_prompt_tokens": 274
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 957
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1698
+            },
+            {
+              "segment_type": "playbook:injection",
+              "chars": 5993,
+              "derived_prompt_tokens": 2211
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1138
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 848
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1216
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 643
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 6363,
+              "derived_prompt_tokens": 2349
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 11332,
+            "prompt_tokens": 11334,
+            "completion_tokens": 3863,
+            "total_tokens": 15197
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 90,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 37044
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1847
+              }
+            ],
+            "total_chars": 38891
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 37044,
+              "derived_prompt_tokens": 14989
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1847,
+              "derived_prompt_tokens": 747
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11332,
+            "cache_write_prompt_tokens": 4402,
+            "prompt_tokens": 15736,
+            "completion_tokens": 5700,
+            "total_tokens": 21436
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 3
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 27070,
+        "completion_tokens": 9563,
+        "total_tokens": 36633
+      }
+    },
+    {
+      "lane_id": "file-0468",
+      "target_file": "test/cypress/e2e/complain.spec.ts",
+      "file_bytes": 941,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 46,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 734
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4828
+              }
+            ],
+            "total_chars": 23185
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 734,
+              "derived_prompt_tokens": 279
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 987
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1751
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1174
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 874
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1254
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 663
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4828,
+              "derived_prompt_tokens": 1836
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8816,
+            "prompt_tokens": 8818,
+            "completion_tokens": 3375,
+            "total_tokens": 12193
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 46,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 28558
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1819
+              }
+            ],
+            "total_chars": 30377
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 28558,
+              "derived_prompt_tokens": 12120
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1819,
+              "derived_prompt_tokens": 772
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8816,
+            "cache_write_prompt_tokens": 4074,
+            "prompt_tokens": 12892,
+            "completion_tokens": 6301,
+            "total_tokens": 19193
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 3
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 21710,
+        "completion_tokens": 9676,
+        "total_tokens": 31386
+      }
+    },
+    {
+      "lane_id": "file-0470",
+      "target_file": "test/cypress/e2e/dataErasure.spec.ts",
+      "file_bytes": 161,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 9,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 737
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3894
+              }
+            ],
+            "total_chars": 22254
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 737,
+              "derived_prompt_tokens": 278
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 978
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1735
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1163
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 866
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1242
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 657
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3894,
+              "derived_prompt_tokens": 1466
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8383,
+            "prompt_tokens": 8385,
+            "completion_tokens": 2736,
+            "total_tokens": 11121
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 9,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 25800
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1713
+              }
+            ],
+            "total_chars": 27513
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 25800,
+              "derived_prompt_tokens": 11018
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1713,
+              "derived_prompt_tokens": 732
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8383,
+            "cache_write_prompt_tokens": 3365,
+            "prompt_tokens": 11750,
+            "completion_tokens": 6923,
+            "total_tokens": 18673
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 20135,
+        "completion_tokens": 9659,
+        "total_tokens": 29794
+      }
+    },
+    {
+      "lane_id": "file-0472",
+      "target_file": "test/cypress/e2e/deluxe.spec.ts",
+      "file_bytes": 147,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 703
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3872
+              }
+            ],
+            "total_chars": 14999
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 703,
+              "derived_prompt_tokens": 723
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 3175
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 2364
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 3391
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1794
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3872,
+              "derived_prompt_tokens": 3984
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6022,
+            "cache_write_prompt_tokens": 9405,
+            "prompt_tokens": 15431,
+            "completion_tokens": 4358,
+            "total_tokens": 19789
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 17463
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1585
+              }
+            ],
+            "total_chars": 19048
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 17463,
+              "derived_prompt_tokens": 10041
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1585,
+              "derived_prompt_tokens": 911
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 9405,
+            "cache_write_prompt_tokens": 1545,
+            "prompt_tokens": 10952,
+            "completion_tokens": 2411,
+            "total_tokens": 13363
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 26383,
+        "completion_tokens": 6769,
+        "total_tokens": 33152
+      }
+    },
+    {
+      "lane_id": "file-0474",
+      "target_file": "test/cypress/e2e/forgedJwt.spec.ts",
+      "file_bytes": 126,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 706
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3854
+              }
+            ],
+            "total_chars": 14984
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 706,
+              "derived_prompt_tokens": 664
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2904
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 2162
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 3101
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1641
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3854,
+              "derived_prompt_tokens": 3626
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6018,
+            "cache_write_prompt_tokens": 8076,
+            "prompt_tokens": 14098,
+            "completion_tokens": 2949,
+            "total_tokens": 17047
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 8,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 17273
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1582
+              }
+            ],
+            "total_chars": 18855
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 17273,
+              "derived_prompt_tokens": 8736
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1582,
+              "derived_prompt_tokens": 800
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8076,
+            "cache_write_prompt_tokens": 1458,
+            "prompt_tokens": 9536,
+            "completion_tokens": 3594,
+            "total_tokens": 13130
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 23634,
+        "completion_tokens": 6543,
+        "total_tokens": 30177
+      }
+    },
+    {
+      "lane_id": "file-0471",
+      "target_file": "test/cypress/e2e/dataExport.spec.ts",
+      "file_bytes": 767,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 707
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4572
+              }
+            ],
+            "total_chars": 15703
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 707,
+              "derived_prompt_tokens": 746
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 3254
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 2423
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 3476
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1839
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4572,
+              "derived_prompt_tokens": 4822
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6315,
+            "cache_write_prompt_tokens": 10241,
+            "prompt_tokens": 16560,
+            "completion_tokens": 5269,
+            "total_tokens": 21829
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 19541
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1670
+              }
+            ],
+            "total_chars": 21211
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 19541,
+              "derived_prompt_tokens": 11243
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1670,
+              "derived_prompt_tokens": 961
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 10241,
+            "cache_write_prompt_tokens": 1961,
+            "prompt_tokens": 12204,
+            "completion_tokens": 4899,
+            "total_tokens": 17103
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 28764,
+        "completion_tokens": 10168,
+        "total_tokens": 38932
+      }
+    },
+    {
+      "lane_id": "file-0473",
+      "target_file": "test/cypress/e2e/directAccess.spec.ts",
+      "file_bytes": 522,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 29,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 709
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4345
+              }
+            ],
+            "total_chars": 15478
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 709,
+              "derived_prompt_tokens": 286
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1246
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 928
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1331
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 704
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4345,
+              "derived_prompt_tokens": 1755
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6248,
+            "prompt_tokens": 6250,
+            "completion_tokens": 3885,
+            "total_tokens": 10135
+          },
+          "findings_emitted": 4
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 29,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 21551
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1954
+              }
+            ],
+            "total_chars": 23505
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 21551,
+              "derived_prompt_tokens": 9833
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1954,
+              "derived_prompt_tokens": 892
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6248,
+            "cache_write_prompt_tokens": 4475,
+            "prompt_tokens": 10725,
+            "completion_tokens": 9098,
+            "total_tokens": 19823
+          },
+          "findings_emitted": 4,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 16975,
+        "completion_tokens": 12983,
+        "total_tokens": 29958
+      }
+    },
+    {
+      "lane_id": "file-0475",
+      "target_file": "test/cypress/e2e/forgotPassword.spec.ts",
+      "file_bytes": 614,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 32,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 711
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4451
+              }
+            ],
+            "total_chars": 15586
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 711,
+              "derived_prompt_tokens": 287
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1244
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 927
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1329
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 703
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4451,
+              "derived_prompt_tokens": 1795
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6283,
+            "prompt_tokens": 6285,
+            "completion_tokens": 2794,
+            "total_tokens": 9079
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 32,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 19928
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1721
+              }
+            ],
+            "total_chars": 21649
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 19928,
+              "derived_prompt_tokens": 8917
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1721,
+              "derived_prompt_tokens": 770
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6283,
+            "cache_write_prompt_tokens": 3402,
+            "prompt_tokens": 9687,
+            "completion_tokens": 8412,
+            "total_tokens": 18099
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 15972,
+        "completion_tokens": 11206,
+        "total_tokens": 27178
+      }
+    },
+    {
+      "lane_id": "file-0478",
+      "target_file": "test/cypress/e2e/metrics.spec.ts",
+      "file_bytes": 87,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 704
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3804
+              }
+            ],
+            "total_chars": 14932
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 704,
+              "derived_prompt_tokens": 282
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1237
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 921
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1322
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 699
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3804,
+              "derived_prompt_tokens": 1526
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 5985,
+            "prompt_tokens": 5987,
+            "completion_tokens": 2510,
+            "total_tokens": 8497
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 17665
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1588
+              }
+            ],
+            "total_chars": 19253
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 17665,
+              "derived_prompt_tokens": 8306
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1588,
+              "derived_prompt_tokens": 747
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 5985,
+            "cache_write_prompt_tokens": 3066,
+            "prompt_tokens": 9053,
+            "completion_tokens": 1586,
+            "total_tokens": 10639
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 15040,
+        "completion_tokens": 4096,
+        "total_tokens": 19136
+      }
+    },
+    {
+      "lane_id": "file-0476",
+      "target_file": "test/cypress/e2e/geoStalking.spec.ts",
+      "file_bytes": 299,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 13,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 708
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4057
+              }
+            ],
+            "total_chars": 15189
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 708,
+              "derived_prompt_tokens": 285
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1243
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 926
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1328
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 702
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4057,
+              "derived_prompt_tokens": 1634
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6116,
+            "prompt_tokens": 6118,
+            "completion_tokens": 4113,
+            "total_tokens": 10231
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 13,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 18935
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1736
+              }
+            ],
+            "total_chars": 20671
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 18935,
+              "derived_prompt_tokens": 9865
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1736,
+              "derived_prompt_tokens": 904
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6116,
+            "cache_write_prompt_tokens": 4651,
+            "prompt_tokens": 10769,
+            "completion_tokens": 3896,
+            "total_tokens": 14665
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 16887,
+        "completion_tokens": 8009,
+        "total_tokens": 24896
+      }
+    },
+    {
+      "lane_id": "file-0481",
+      "target_file": "test/cypress/e2e/privacyPolicy.spec.ts",
+      "file_bytes": 111,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 710
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3834
+              }
+            ],
+            "total_chars": 14968
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 710,
+              "derived_prompt_tokens": 285
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1238
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 922
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1322
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 700
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3834,
+              "derived_prompt_tokens": 1538
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6003,
+            "prompt_tokens": 6005,
+            "completion_tokens": 462,
+            "total_tokens": 6467
+          },
+          "findings_emitted": 0
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 14983
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1435
+              }
+            ],
+            "total_chars": 16418
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 14983,
+              "derived_prompt_tokens": 6327
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1435,
+              "derived_prompt_tokens": 606
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6003,
+            "cache_write_prompt_tokens": 928,
+            "prompt_tokens": 6933,
+            "completion_tokens": 103,
+            "total_tokens": 7036
+          },
+          "findings_emitted": 0,
+          "findings_added": 0,
+          "traces_extended": 0
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 12938,
+        "completion_tokens": 565,
+        "total_tokens": 13503
+      }
+    },
+    {
+      "lane_id": "file-0479",
+      "target_file": "test/cypress/e2e/noSql.spec.ts",
+      "file_bytes": 748,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 36,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 731
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4592
+              }
+            ],
+            "total_chars": 22946
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 731,
+              "derived_prompt_tokens": 278
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 987
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1751
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1174
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 874
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1254
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 663
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4592,
+              "derived_prompt_tokens": 1747
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8726,
+            "prompt_tokens": 8728,
+            "completion_tokens": 3875,
+            "total_tokens": 12603
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 36,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 28313
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1822
+              }
+            ],
+            "total_chars": 30135
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 28313,
+              "derived_prompt_tokens": 12362
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1822,
+              "derived_prompt_tokens": 796
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8726,
+            "cache_write_prompt_tokens": 4430,
+            "prompt_tokens": 13158,
+            "completion_tokens": 3805,
+            "total_tokens": 16963
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 3
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 21886,
+        "completion_tokens": 7680,
+        "total_tokens": 29566
+      }
+    },
+    {
+      "lane_id": "file-0480",
+      "target_file": "test/cypress/e2e/passwordHashLeak.spec.ts",
+      "file_bytes": 148,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 7,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 742
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3880
+              }
+            ],
+            "total_chars": 22245
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 742,
+              "derived_prompt_tokens": 280
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 978
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1735
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1163
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 866
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1242
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 657
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3880,
+              "derived_prompt_tokens": 1461
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8380,
+            "prompt_tokens": 8382,
+            "completion_tokens": 2562,
+            "total_tokens": 10944
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 7,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 25735
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1692
+              }
+            ],
+            "total_chars": 27427
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 25735,
+              "derived_prompt_tokens": 10768
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1692,
+              "derived_prompt_tokens": 708
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8380,
+            "cache_write_prompt_tokens": 3094,
+            "prompt_tokens": 11476,
+            "completion_tokens": 2331,
+            "total_tokens": 13807
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 19858,
+        "completion_tokens": 4893,
+        "total_tokens": 24751
+      }
+    },
+    {
+      "lane_id": "file-0482",
+      "target_file": "test/cypress/e2e/profile.spec.ts",
+      "file_bytes": 2408,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 63,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 733
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 6362
+              }
+            ],
+            "total_chars": 24718
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 733,
+              "derived_prompt_tokens": 637
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 2257
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 4003
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2683
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 1998
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 2866
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1517
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 6362,
+              "derived_prompt_tokens": 5533
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 9352,
+            "cache_write_prompt_tokens": 12138,
+            "prompt_tokens": 21494,
+            "completion_tokens": 4590,
+            "total_tokens": 26084
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 63,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 30026
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1793
+              }
+            ],
+            "total_chars": 31819
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 30026,
+              "derived_prompt_tokens": 13906
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1793,
+              "derived_prompt_tokens": 830
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 12138,
+            "cache_write_prompt_tokens": 2596,
+            "prompt_tokens": 14736,
+            "completion_tokens": 5053,
+            "total_tokens": 19789
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 36230,
+        "completion_tokens": 9643,
+        "total_tokens": 45873
+      }
+    },
+    {
+      "lane_id": "file-0485",
+      "target_file": "test/cypress/e2e/register.spec.ts",
+      "file_bytes": 423,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 734
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4226
+              }
+            ],
+            "total_chars": 22583
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 734,
+              "derived_prompt_tokens": 277
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 980
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1739
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1166
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 868
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1245
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 659
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4226,
+              "derived_prompt_tokens": 1598
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8530,
+            "prompt_tokens": 8532,
+            "completion_tokens": 2341,
+            "total_tokens": 10873
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 26019
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1660
+              }
+            ],
+            "total_chars": 27679
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 26019,
+              "derived_prompt_tokens": 10786
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1660,
+              "derived_prompt_tokens": 688
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8530,
+            "cache_write_prompt_tokens": 2942,
+            "prompt_tokens": 11474,
+            "completion_tokens": 4254,
+            "total_tokens": 15728
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 20006,
+        "completion_tokens": 6595,
+        "total_tokens": 26601
+      }
+    },
+    {
+      "lane_id": "file-0486",
+      "target_file": "test/cypress/e2e/restApi.spec.ts",
+      "file_bytes": 2018,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 72,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 761
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 6008
+              }
+            ],
+            "total_chars": 31968
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 761,
+              "derived_prompt_tokens": 610
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 2081
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 3691
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2474
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 1843
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 2643
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 1818
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 4256
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1398
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 6008,
+              "derived_prompt_tokens": 4818
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11684,
+            "cache_write_prompt_tokens": 13944,
+            "prompt_tokens": 25632,
+            "completion_tokens": 2932,
+            "total_tokens": 28564
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 72,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 33769
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1554
+              }
+            ],
+            "total_chars": 35323
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 33769,
+              "derived_prompt_tokens": 14490
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1554,
+              "derived_prompt_tokens": 667
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 13944,
+            "cache_write_prompt_tokens": 1211,
+            "prompt_tokens": 15157,
+            "completion_tokens": 2899,
+            "total_tokens": 18056
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 40789,
+        "completion_tokens": 5831,
+        "total_tokens": 46620
+      }
+    },
+    {
+      "lane_id": "file-0484",
+      "target_file": "test/cypress/e2e/redirect.spec.ts",
+      "file_bytes": 456,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 17,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 705
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4227
+              }
+            ],
+            "total_chars": 15356
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 705,
+              "derived_prompt_tokens": 766
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 3355
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 2498
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 3583
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1896
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4227,
+              "derived_prompt_tokens": 4597
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6164,
+            "cache_write_prompt_tokens": 10527,
+            "prompt_tokens": 16695,
+            "completion_tokens": 6126,
+            "total_tokens": 22821
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 17,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 20006
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1762
+              }
+            ],
+            "total_chars": 21768
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 20006,
+              "derived_prompt_tokens": 11871
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1762,
+              "derived_prompt_tokens": 1045
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 10527,
+            "cache_write_prompt_tokens": 2387,
+            "prompt_tokens": 12916,
+            "completion_tokens": 4903,
+            "total_tokens": 17819
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 29611,
+        "completion_tokens": 11029,
+        "total_tokens": 40640
+      }
+    },
+    {
+      "lane_id": "file-0477",
+      "target_file": "test/cypress/e2e/login.spec.ts",
+      "file_bytes": 818,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 47,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 731
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4706
+              }
+            ],
+            "total_chars": 23060
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 731,
+              "derived_prompt_tokens": 278
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 988
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1753
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1175
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 875
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1255
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 664
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4706,
+              "derived_prompt_tokens": 1790
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8776,
+            "prompt_tokens": 8778,
+            "completion_tokens": 6518,
+            "total_tokens": 15296
+          },
+          "findings_emitted": 5
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 47,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 30917
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 2068
+              }
+            ],
+            "total_chars": 32985
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 30917,
+              "derived_prompt_tokens": 14913
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 2068,
+              "derived_prompt_tokens": 997
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8776,
+            "cache_write_prompt_tokens": 7132,
+            "prompt_tokens": 15910,
+            "completion_tokens": 12715,
+            "total_tokens": 28625
+          },
+          "findings_emitted": 5,
+          "findings_added": 0,
+          "traces_extended": 5
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 24688,
+        "completion_tokens": 19233,
+        "total_tokens": 43921
+      }
+    },
+    {
+      "lane_id": "file-0483",
+      "target_file": "test/cypress/e2e/publicFtp.spec.ts",
+      "file_bytes": 433,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 23,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 706
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4229
+              }
+            ],
+            "total_chars": 15359
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 706,
+              "derived_prompt_tokens": 285
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1245
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 927
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1330
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 704
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4229,
+              "derived_prompt_tokens": 1706
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6195,
+            "prompt_tokens": 6197,
+            "completion_tokens": 5414,
+            "total_tokens": 11611
+          },
+          "findings_emitted": 4
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 23,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 23430
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1993
+              }
+            ],
+            "total_chars": 25423
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 23430,
+              "derived_prompt_tokens": 11251
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1993,
+              "derived_prompt_tokens": 957
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6195,
+            "cache_write_prompt_tokens": 6011,
+            "prompt_tokens": 12208,
+            "completion_tokens": 7879,
+            "total_tokens": 20087
+          },
+          "findings_emitted": 4,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 18405,
+        "completion_tokens": 13293,
+        "total_tokens": 31698
+      }
+    },
+    {
+      "lane_id": "file-0488",
+      "target_file": "test/cypress/e2e/search.spec.ts",
+      "file_bytes": 1143,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 52,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 732
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5052
+              }
+            ],
+            "total_chars": 23407
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 732,
+              "derived_prompt_tokens": 278
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 986
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1750
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1173
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 873
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1253
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 663
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5052,
+              "derived_prompt_tokens": 1921
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8895,
+            "prompt_tokens": 8897,
+            "completion_tokens": 1399,
+            "total_tokens": 10296
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 52,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 25312
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1552
+              }
+            ],
+            "total_chars": 26864
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 25312,
+              "derived_prompt_tokens": 10208
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1552,
+              "derived_prompt_tokens": 626
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8895,
+            "cache_write_prompt_tokens": 1937,
+            "prompt_tokens": 10834,
+            "completion_tokens": 2481,
+            "total_tokens": 13315
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 19731,
+        "completion_tokens": 3880,
+        "total_tokens": 23611
+      }
+    },
+    {
+      "lane_id": "file-0489",
+      "target_file": "test/cypress/e2e/tokenSale.spec.ts",
+      "file_bytes": 92,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 706
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3811
+              }
+            ],
+            "total_chars": 14941
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 706,
+              "derived_prompt_tokens": 283
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1239
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 922
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1323
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 700
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3811,
+              "derived_prompt_tokens": 1530
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 5995,
+            "prompt_tokens": 5997,
+            "completion_tokens": 1391,
+            "total_tokens": 7388
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 5,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 17000
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1563
+              }
+            ],
+            "total_chars": 18563
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 17000,
+              "derived_prompt_tokens": 7259
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1563,
+              "derived_prompt_tokens": 667
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 5995,
+            "cache_write_prompt_tokens": 1929,
+            "prompt_tokens": 7926,
+            "completion_tokens": 5041,
+            "total_tokens": 12967
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 13923,
+        "completion_tokens": 6432,
+        "total_tokens": 20355
+      }
+    },
+    {
+      "lane_id": "file-0487",
+      "target_file": "test/cypress/e2e/scoreBoard.spec.ts",
+      "file_bytes": 1661,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 51,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 707
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5570
+              }
+            ],
+            "total_chars": 16701
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 707,
+              "derived_prompt_tokens": 284
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1240
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 924
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1325
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 701
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5570,
+              "derived_prompt_tokens": 2239
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6711,
+            "prompt_tokens": 6713,
+            "completion_tokens": 3826,
+            "total_tokens": 10539
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 51,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 21217
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1695
+              }
+            ],
+            "total_chars": 22912
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 21217,
+              "derived_prompt_tokens": 36428
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1695,
+              "derived_prompt_tokens": 2910
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 30589,
+            "cache_write_prompt_tokens": 8743,
+            "prompt_tokens": 39338,
+            "completion_tokens": 8479,
+            "total_tokens": 47817
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 46051,
+        "completion_tokens": 12305,
+        "total_tokens": 58356
+      }
+    },
+    {
+      "lane_id": "file-0494",
+      "target_file": "test/cypress/support/setup.ts",
+      "file_bytes": 155,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 6,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 701
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 3872
+              }
+            ],
+            "total_chars": 14997
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 701,
+              "derived_prompt_tokens": 281
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1238
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 922
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1323
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 700
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 3872,
+              "derived_prompt_tokens": 1554
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6016,
+            "prompt_tokens": 6018,
+            "completion_tokens": 724,
+            "total_tokens": 6742
+          },
+          "findings_emitted": 0
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 6,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 15012
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1435
+              }
+            ],
+            "total_chars": 16447
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 15012,
+              "derived_prompt_tokens": 6579
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1435,
+              "derived_prompt_tokens": 629
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6016,
+            "cache_write_prompt_tokens": 1190,
+            "prompt_tokens": 7208,
+            "completion_tokens": 103,
+            "total_tokens": 7311
+          },
+          "findings_emitted": 0,
+          "findings_added": 0,
+          "traces_extended": 0
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 13226,
+        "completion_tokens": 827,
+        "total_tokens": 14053
+      }
+    },
+    {
+      "lane_id": "file-0493",
+      "target_file": "test/cypress/support/e2e.ts",
+      "file_bytes": 321,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 18,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 728
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4090
+              }
+            ],
+            "total_chars": 22441
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 728,
+              "derived_prompt_tokens": 639
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 2278
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 4041
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2709
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 2017
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 2893
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1531
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4090,
+              "derived_prompt_tokens": 3588
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8436,
+            "cache_write_prompt_tokens": 11256,
+            "prompt_tokens": 19696,
+            "completion_tokens": 3615,
+            "total_tokens": 23311
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 18,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 24716
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1616
+              }
+            ],
+            "total_chars": 26332
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 24716,
+              "derived_prompt_tokens": 11839
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1616,
+              "derived_prompt_tokens": 774
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11256,
+            "cache_write_prompt_tokens": 1355,
+            "prompt_tokens": 12613,
+            "completion_tokens": 1626,
+            "total_tokens": 14239
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 32309,
+        "completion_tokens": 5241,
+        "total_tokens": 37550
+      }
+    },
+    {
+      "lane_id": "file-0491",
+      "target_file": "test/cypress/e2e/trackOrder.spec.ts",
+      "file_bytes": 689,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 707
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4494
+              }
+            ],
+            "total_chars": 15625
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 707,
+              "derived_prompt_tokens": 284
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1242
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 924
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1326
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 702
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4494,
+              "derived_prompt_tokens": 1808
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6284,
+            "prompt_tokens": 6286,
+            "completion_tokens": 4153,
+            "total_tokens": 10439
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 25,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 21184
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1923
+              }
+            ],
+            "total_chars": 23107
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 21184,
+              "derived_prompt_tokens": 10088
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1923,
+              "derived_prompt_tokens": 916
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6284,
+            "cache_write_prompt_tokens": 4718,
+            "prompt_tokens": 11004,
+            "completion_tokens": 4979,
+            "total_tokens": 15983
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 17290,
+        "completion_tokens": 9132,
+        "total_tokens": 26422
+      }
+    },
+    {
+      "lane_id": "file-0490",
+      "target_file": "test/cypress/e2e/totpSetup.spec.ts",
+      "file_bytes": 1423,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 48,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 735
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5319
+              }
+            ],
+            "total_chars": 23677
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 735,
+              "derived_prompt_tokens": 279
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 985
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1747
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1171
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 872
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1251
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 662
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5319,
+              "derived_prompt_tokens": 2018
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 8983,
+            "prompt_tokens": 8985,
+            "completion_tokens": 5048,
+            "total_tokens": 14033
+          },
+          "findings_emitted": 3
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 48,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 29273
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1814
+              }
+            ],
+            "total_chars": 31087
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 29273,
+              "derived_prompt_tokens": 13728
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1814,
+              "derived_prompt_tokens": 851
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 8983,
+            "cache_write_prompt_tokens": 5594,
+            "prompt_tokens": 14579,
+            "completion_tokens": 7636,
+            "total_tokens": 22215
+          },
+          "findings_emitted": 3,
+          "findings_added": 0,
+          "traces_extended": 3
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 23564,
+        "completion_tokens": 12684,
+        "total_tokens": 36248
+      }
+    },
+    {
+      "lane_id": "file-0495",
+      "target_file": "test/server/accuracy.unit.test.ts",
+      "file_bytes": 3702,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 86,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 705
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 7749
+              }
+            ],
+            "total_chars": 18878
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 705,
+              "derived_prompt_tokens": 292
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1277
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 951
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1364
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 722
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 7749,
+              "derived_prompt_tokens": 3204
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 7808,
+            "prompt_tokens": 7810,
+            "completion_tokens": 2985,
+            "total_tokens": 10795
+          },
+          "findings_emitted": 1
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 86,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 21942
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1557
+              }
+            ],
+            "total_chars": 23499
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 21942,
+              "derived_prompt_tokens": 10601
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1557,
+              "derived_prompt_tokens": 752
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 7808,
+            "cache_write_prompt_tokens": 3543,
+            "prompt_tokens": 11353,
+            "completion_tokens": 2857,
+            "total_tokens": 14210
+          },
+          "findings_emitted": 1,
+          "findings_added": 0,
+          "traces_extended": 1
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 19163,
+        "completion_tokens": 5842,
+        "total_tokens": 25005
+      }
+    },
+    {
+      "lane_id": "file-0492",
+      "target_file": "test/cypress/support/commands.ts",
+      "file_bytes": 1980,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 66,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 761
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:crypto-auth",
+                "chars": 4604
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5946
+              }
+            ],
+            "total_chars": 31906
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 761,
+              "derived_prompt_tokens": 280
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 956
+            },
+            {
+              "segment_type": "playbook:crypto-auth",
+              "chars": 4604,
+              "derived_prompt_tokens": 1696
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1137
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 847
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1214
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 836
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 1956
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 643
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5946,
+              "derived_prompt_tokens": 2190
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 11753,
+            "prompt_tokens": 11755,
+            "completion_tokens": 4263,
+            "total_tokens": 16018
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 66,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 36217
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1700
+              }
+            ],
+            "total_chars": 37917
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 36217,
+              "derived_prompt_tokens": 15801
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1700,
+              "derived_prompt_tokens": 742
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11753,
+            "cache_write_prompt_tokens": 4788,
+            "prompt_tokens": 16543,
+            "completion_tokens": 5529,
+            "total_tokens": 22072
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 28298,
+        "completion_tokens": 9792,
+        "total_tokens": 38090
+      }
     }
   ],
+  "rollup": {
+    "total_input_tokens": 10315210,
+    "total_output_tokens": 3086760,
+    "total_tokens": 13401970,
+    "input_by_segment_kind": {
+      "boilerplate": {
+        "tokens": 139132,
+        "share_of_input": 0.013488043384477873
+      },
+      "playbook:insecure-design": {
+        "tokens": 568379,
+        "share_of_input": 0.05510105950339353
+      },
+      "playbook:logging-monitoring": {
+        "tokens": 423249,
+        "share_of_input": 0.04103154468013739
+      },
+      "playbook:misconfiguration": {
+        "tokens": 607060,
+        "share_of_input": 0.05885095892376403
+      },
+      "arch_context": {
+        "tokens": 321211,
+        "share_of_input": 0.03113955023698015
+      },
+      "file_content": {
+        "tokens": 1522639,
+        "share_of_input": 0.14761105202899408
+      },
+      "conversation": {
+        "tokens": 5136588,
+        "share_of_input": 0.4979625233029672
+      },
+      "loop_instruction": {
+        "tokens": 289097,
+        "share_of_input": 0.028026283517252677
+      },
+      "playbook:access-control": {
+        "tokens": 170757,
+        "share_of_input": 0.016553904380036857
+      },
+      "playbook:crypto-auth": {
+        "tokens": 295110,
+        "share_of_input": 0.028609209119349
+      },
+      "route_context": {
+        "tokens": 1820,
+        "share_of_input": 0.00017643848259027203
+      },
+      "playbook:injection": {
+        "tokens": 319539,
+        "share_of_input": 0.030977459499127988
+      },
+      "playbook:integrity-failures": {
+        "tokens": 52578,
+        "share_of_input": 0.005097133262434793
+      },
+      "playbook:resource-consumption": {
+        "tokens": 137097,
+        "share_of_input": 0.01329076189432886
+      },
+      "playbook:ssrf": {
+        "tokens": 214253,
+        "share_of_input": 0.020770590225501952
+      },
+      "playbook:vulnerable-components": {
+        "tokens": 4573,
+        "share_of_input": 0.00044332592356335936
+      },
+      "playbook:api-property-auth": {
+        "tokens": 67655,
+        "share_of_input": 0.006558761285519151
+      },
+      "playbook:ai-llm-agency": {
+        "tokens": 12917,
+        "share_of_input": 0.0012522285052849141
+      },
+      "playbook:client-side": {
+        "tokens": 31556,
+        "share_of_input": 0.0030591718442959472
+      }
+    },
+    "input_by_playbook_class": [
+      {
+        "class_id": "misconfiguration",
+        "tokens": 607060,
+        "share_of_input": 0.05885095892376403
+      },
+      {
+        "class_id": "insecure-design",
+        "tokens": 568379,
+        "share_of_input": 0.05510105950339353
+      },
+      {
+        "class_id": "logging-monitoring",
+        "tokens": 423249,
+        "share_of_input": 0.04103154468013739
+      },
+      {
+        "class_id": "injection",
+        "tokens": 319539,
+        "share_of_input": 0.030977459499127988
+      },
+      {
+        "class_id": "crypto-auth",
+        "tokens": 295110,
+        "share_of_input": 0.028609209119349
+      },
+      {
+        "class_id": "ssrf",
+        "tokens": 214253,
+        "share_of_input": 0.020770590225501952
+      },
+      {
+        "class_id": "access-control",
+        "tokens": 170757,
+        "share_of_input": 0.016553904380036857
+      },
+      {
+        "class_id": "resource-consumption",
+        "tokens": 137097,
+        "share_of_input": 0.01329076189432886
+      },
+      {
+        "class_id": "api-property-auth",
+        "tokens": 67655,
+        "share_of_input": 0.006558761285519151
+      },
+      {
+        "class_id": "integrity-failures",
+        "tokens": 52578,
+        "share_of_input": 0.005097133262434793
+      },
+      {
+        "class_id": "client-side",
+        "tokens": 31556,
+        "share_of_input": 0.0030591718442959472
+      },
+      {
+        "class_id": "ai-llm-agency",
+        "tokens": 12917,
+        "share_of_input": 0.0012522285052849141
+      },
+      {
+        "class_id": "vulnerable-components",
+        "tokens": 4573,
+        "share_of_input": 0.00044332592356335936
+      }
+    ],
+    "top_20_expensive_lanes": [
+      {
+        "lane_id": "file-0159",
+        "target_file": "frontend/src/app/forgot-password/forgot-password.component.ts",
+        "file_bytes": 5976,
+        "chunk_count": 1,
+        "total_input_tokens": 88056,
+        "total_output_tokens": 30829,
+        "total_tokens": 118885,
+        "segment_breakdown": {
+          "boilerplate": 749,
+          "playbook:api-property-auth": 2199,
+          "playbook:injection": 5716,
+          "playbook:insecure-design": 2943,
+          "playbook:logging-monitoring": 2192,
+          "playbook:misconfiguration": 3143,
+          "playbook:resource-consumption": 2163,
+          "arch_context": 1663,
+          "file_content": 9949,
+          "conversation": 54454,
+          "loop_instruction": 2885
+        }
+      },
+      {
+        "lane_id": "file-0270",
+        "target_file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
+        "file_bytes": 10577,
+        "chunk_count": 1,
+        "total_input_tokens": 84679,
+        "total_output_tokens": 17360,
+        "total_tokens": 102039,
+        "segment_breakdown": {
+          "boilerplate": 768,
+          "playbook:access-control": 2312,
+          "playbook:ai-llm-agency": 2352,
+          "playbook:api-property-auth": 2055,
+          "playbook:client-side": 2399,
+          "playbook:crypto-auth": 4102,
+          "playbook:injection": 5340,
+          "playbook:insecure-design": 2750,
+          "playbook:integrity-failures": 1945,
+          "playbook:logging-monitoring": 2048,
+          "playbook:misconfiguration": 2937,
+          "playbook:resource-consumption": 2021,
+          "playbook:ssrf": 4730,
+          "arch_context": 1554,
+          "file_content": 14249,
+          "conversation": 32238,
+          "loop_instruction": 879
+        }
+      },
+      {
+        "lane_id": "file-0276",
+        "target_file": "frontend/src/assets/public/ContractABIs.ts",
+        "file_bytes": 21117,
+        "chunk_count": 1,
+        "total_input_tokens": 79973,
+        "total_output_tokens": 21472,
+        "total_tokens": 101445,
+        "segment_breakdown": {
+          "boilerplate": 721,
+          "playbook:access-control": 2517,
+          "playbook:crypto-auth": 4466,
+          "playbook:insecure-design": 2994,
+          "playbook:logging-monitoring": 2229,
+          "playbook:misconfiguration": 3198,
+          "arch_context": 1692,
+          "file_content": 31154,
+          "conversation": 30047,
+          "loop_instruction": 955
+        }
+      },
+      {
+        "lane_id": "file-0247",
+        "target_file": "frontend/src/app/search-result/search-result.component.spec.ts",
+        "file_bytes": 18310,
+        "chunk_count": 1,
+        "total_input_tokens": 79609,
+        "total_output_tokens": 19817,
+        "total_tokens": 99426,
+        "segment_breakdown": {
+          "boilerplate": 289,
+          "playbook:access-control": 954,
+          "playbook:client-side": 990,
+          "playbook:crypto-auth": 1693,
+          "playbook:injection": 2203,
+          "playbook:insecure-design": 1134,
+          "playbook:logging-monitoring": 845,
+          "playbook:misconfiguration": 1212,
+          "arch_context": 641,
+          "file_content": 8864,
+          "conversation": 58790,
+          "loop_instruction": 1994
+        }
+      },
+      {
+        "lane_id": "file-0154",
+        "target_file": "frontend/src/app/faucet/faucet.component.ts",
+        "file_bytes": 9695,
+        "chunk_count": 1,
+        "total_input_tokens": 77870,
+        "total_output_tokens": 23263,
+        "total_tokens": 101133,
+        "segment_breakdown": {
+          "boilerplate": 765,
+          "playbook:access-control": 2535,
+          "playbook:crypto-auth": 4498,
+          "playbook:injection": 5855,
+          "playbook:insecure-design": 3015,
+          "playbook:logging-monitoring": 2245,
+          "playbook:misconfiguration": 3220,
+          "playbook:resource-consumption": 2216,
+          "playbook:ssrf": 5186,
+          "arch_context": 1704,
+          "file_content": 14649,
+          "conversation": 30849,
+          "loop_instruction": 1133
+        }
+      },
+      {
+        "lane_id": "file-0021",
+        "target_file": "frontend/src/app/Services/basket.service.ts",
+        "file_bytes": 6559,
+        "chunk_count": 1,
+        "total_input_tokens": 76251,
+        "total_output_tokens": 21483,
+        "total_tokens": 97734,
+        "segment_breakdown": {
+          "boilerplate": 298,
+          "playbook:access-control": 941,
+          "playbook:api-property-auth": 836,
+          "playbook:crypto-auth": 1670,
+          "playbook:injection": 2174,
+          "playbook:insecure-design": 1119,
+          "playbook:integrity-failures": 792,
+          "playbook:logging-monitoring": 834,
+          "playbook:misconfiguration": 1195,
+          "playbook:resource-consumption": 823,
+          "playbook:ssrf": 1925,
+          "arch_context": 633,
+          "file_content": 4065,
+          "conversation": 56835,
+          "loop_instruction": 2111
+        }
+      },
+      {
+        "lane_id": "file-0188",
+        "target_file": "frontend/src/app/photo-wall/photo-wall.component.spec.ts",
+        "file_bytes": 14630,
+        "chunk_count": 1,
+        "total_input_tokens": 76013,
+        "total_output_tokens": 17850,
+        "total_tokens": 93863,
+        "segment_breakdown": {
+          "boilerplate": 301,
+          "playbook:access-control": 942,
+          "playbook:api-property-auth": 837,
+          "playbook:crypto-auth": 1671,
+          "playbook:injection": 2175,
+          "playbook:insecure-design": 1120,
+          "playbook:integrity-failures": 792,
+          "playbook:logging-monitoring": 834,
+          "playbook:misconfiguration": 1196,
+          "playbook:resource-consumption": 823,
+          "arch_context": 633,
+          "file_content": 7229,
+          "conversation": 55491,
+          "loop_instruction": 1969
+        }
+      },
+      {
+        "lane_id": "file-0254",
+        "target_file": "frontend/src/app/sidenav/sidenav.component.spec.ts",
+        "file_bytes": 23382,
+        "chunk_count": 1,
+        "total_input_tokens": 74203,
+        "total_output_tokens": 20169,
+        "total_tokens": 94372,
+        "segment_breakdown": {
+          "boilerplate": 693,
+          "playbook:access-control": 2396,
+          "playbook:crypto-auth": 4251,
+          "playbook:insecure-design": 2849,
+          "playbook:logging-monitoring": 2122,
+          "playbook:misconfiguration": 3043,
+          "arch_context": 1610,
+          "file_content": 27365,
+          "conversation": 28848,
+          "loop_instruction": 1026
+        }
+      },
+      {
+        "lane_id": "file-0131",
+        "target_file": "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.ts",
+        "file_bytes": 11896,
+        "chunk_count": 1,
+        "total_input_tokens": 69335,
+        "total_output_tokens": 14335,
+        "total_tokens": 83670,
+        "segment_breakdown": {
+          "boilerplate": 773,
+          "playbook:access-control": 2266,
+          "playbook:api-property-auth": 2013,
+          "playbook:crypto-auth": 4020,
+          "playbook:injection": 5233,
+          "playbook:insecure-design": 2695,
+          "playbook:integrity-failures": 1906,
+          "playbook:logging-monitoring": 2007,
+          "playbook:misconfiguration": 2878,
+          "playbook:resource-consumption": 1980,
+          "arch_context": 1523,
+          "file_content": 15177,
+          "conversation": 26013,
+          "loop_instruction": 851
+        }
+      },
+      {
+        "lane_id": "file-0304",
+        "target_file": "lib/codingChallenges.ts",
+        "file_bytes": 4440,
+        "chunk_count": 1,
+        "total_input_tokens": 66822,
+        "total_output_tokens": 23613,
+        "total_tokens": 90435,
+        "segment_breakdown": {
+          "boilerplate": 778,
+          "playbook:access-control": 2627,
+          "playbook:api-property-auth": 2334,
+          "playbook:injection": 6066,
+          "playbook:insecure-design": 3124,
+          "playbook:logging-monitoring": 2326,
+          "playbook:misconfiguration": 3336,
+          "playbook:resource-consumption": 2296,
+          "playbook:ssrf": 5373,
+          "arch_context": 1765,
+          "file_content": 8804,
+          "conversation": 26871,
+          "loop_instruction": 1122
+        }
+      },
+      {
+        "lane_id": "file-0205",
+        "target_file": "frontend/src/app/recycle/recycle.component.ts",
+        "file_bytes": 5595,
+        "chunk_count": 1,
+        "total_input_tokens": 66662,
+        "total_output_tokens": 19058,
+        "total_tokens": 85720,
+        "segment_breakdown": {
+          "boilerplate": 762,
+          "playbook:access-control": 2438,
+          "playbook:api-property-auth": 2166,
+          "playbook:injection": 5630,
+          "playbook:insecure-design": 2899,
+          "playbook:integrity-failures": 2051,
+          "playbook:logging-monitoring": 2159,
+          "playbook:misconfiguration": 3096,
+          "playbook:resource-consumption": 2131,
+          "playbook:ssrf": 4986,
+          "arch_context": 1638,
+          "file_content": 9440,
+          "conversation": 26220,
+          "loop_instruction": 1046
+        }
+      },
+      {
+        "lane_id": "file-0294",
+        "target_file": "frontend/src/hacking-instructor/helpers/helpers.ts",
+        "file_bytes": 7025,
+        "chunk_count": 1,
+        "total_input_tokens": 65059,
+        "total_output_tokens": 12860,
+        "total_tokens": 77919,
+        "segment_breakdown": {
+          "boilerplate": 735,
+          "playbook:access-control": 2338,
+          "playbook:api-property-auth": 2077,
+          "playbook:client-side": 2425,
+          "playbook:crypto-auth": 4147,
+          "playbook:injection": 5399,
+          "playbook:insecure-design": 2780,
+          "playbook:logging-monitoring": 2070,
+          "playbook:misconfiguration": 2969,
+          "playbook:resource-consumption": 2043,
+          "arch_context": 1571,
+          "file_content": 10910,
+          "conversation": 24721,
+          "loop_instruction": 874
+        }
+      },
+      {
+        "lane_id": "file-0183",
+        "target_file": "frontend/src/app/payment-method/payment-method.component.spec.ts",
+        "file_bytes": 13218,
+        "chunk_count": 1,
+        "total_input_tokens": 64534,
+        "total_output_tokens": 19624,
+        "total_tokens": 84158,
+        "segment_breakdown": {
+          "boilerplate": 733,
+          "playbook:api-property-auth": 2091,
+          "playbook:injection": 5435,
+          "playbook:insecure-design": 2799,
+          "playbook:integrity-failures": 1980,
+          "playbook:logging-monitoring": 2084,
+          "playbook:misconfiguration": 2989,
+          "playbook:resource-consumption": 2057,
+          "arch_context": 1582,
+          "file_content": 16754,
+          "conversation": 25056,
+          "loop_instruction": 974
+        }
+      },
+      {
+        "lane_id": "file-0201",
+        "target_file": "frontend/src/app/purchase-basket/purchase-basket.component.ts",
+        "file_bytes": 6678,
+        "chunk_count": 1,
+        "total_input_tokens": 64068,
+        "total_output_tokens": 17077,
+        "total_tokens": 81145,
+        "segment_breakdown": {
+          "boilerplate": 709,
+          "playbook:access-control": 2298,
+          "playbook:crypto-auth": 4078,
+          "playbook:injection": 5308,
+          "playbook:insecure-design": 2733,
+          "playbook:logging-monitoring": 2035,
+          "playbook:misconfiguration": 2919,
+          "playbook:resource-consumption": 2009,
+          "playbook:ssrf": 4701,
+          "arch_context": 1545,
+          "file_content": 10105,
+          "conversation": 24718,
+          "loop_instruction": 910
+        }
+      },
+      {
+        "lane_id": "file-0108",
+        "target_file": "frontend/src/app/app.routing.ts",
+        "file_bytes": 9307,
+        "chunk_count": 1,
+        "total_input_tokens": 62516,
+        "total_output_tokens": 26918,
+        "total_tokens": 89434,
+        "segment_breakdown": {
+          "boilerplate": 788,
+          "playbook:access-control": 2795,
+          "playbook:crypto-auth": 4959,
+          "playbook:insecure-design": 3324,
+          "playbook:logging-monitoring": 2475,
+          "playbook:misconfiguration": 3550,
+          "arch_context": 1878,
+          "file_content": 15716,
+          "conversation": 25739,
+          "loop_instruction": 1292
+        }
+      },
+      {
+        "lane_id": "file-0184",
+        "target_file": "frontend/src/app/payment-method/payment-method.component.ts",
+        "file_bytes": 5300,
+        "chunk_count": 1,
+        "total_input_tokens": 61933,
+        "total_output_tokens": 21215,
+        "total_tokens": 83148,
+        "segment_breakdown": {
+          "boilerplate": 735,
+          "playbook:access-control": 2312,
+          "playbook:api-property-auth": 2054,
+          "playbook:injection": 5338,
+          "playbook:insecure-design": 2749,
+          "playbook:integrity-failures": 1945,
+          "playbook:logging-monitoring": 2047,
+          "playbook:misconfiguration": 2936,
+          "playbook:resource-consumption": 2020,
+          "playbook:ssrf": 4728,
+          "arch_context": 1554,
+          "file_content": 8617,
+          "conversation": 23944,
+          "loop_instruction": 954
+        }
+      },
+      {
+        "lane_id": "file-0084",
+        "target_file": "frontend/src/app/Services/user.service.spec.ts",
+        "file_bytes": 8652,
+        "chunk_count": 1,
+        "total_input_tokens": 61756,
+        "total_output_tokens": 14511,
+        "total_tokens": 76267,
+        "segment_breakdown": {
+          "boilerplate": 689,
+          "playbook:access-control": 2183,
+          "playbook:api-property-auth": 1940,
+          "playbook:crypto-auth": 3873,
+          "playbook:injection": 5042,
+          "playbook:insecure-design": 2596,
+          "playbook:integrity-failures": 1836,
+          "playbook:logging-monitoring": 1933,
+          "playbook:misconfiguration": 2773,
+          "playbook:resource-consumption": 1908,
+          "arch_context": 1467,
+          "file_content": 11389,
+          "conversation": 23292,
+          "loop_instruction": 835
+        }
+      },
+      {
+        "lane_id": "file-0141",
+        "target_file": "frontend/src/app/complaint/complaint.component.ts",
+        "file_bytes": 4460,
+        "chunk_count": 1,
+        "total_input_tokens": 61424,
+        "total_output_tokens": 17755,
+        "total_tokens": 79179,
+        "segment_breakdown": {
+          "boilerplate": 750,
+          "playbook:access-control": 2366,
+          "playbook:api-property-auth": 2103,
+          "playbook:crypto-auth": 4198,
+          "playbook:injection": 5465,
+          "playbook:insecure-design": 2814,
+          "playbook:integrity-failures": 1991,
+          "playbook:logging-monitoring": 2095,
+          "playbook:misconfiguration": 3006,
+          "playbook:resource-consumption": 2068,
+          "arch_context": 1590,
+          "file_content": 8005,
+          "conversation": 23958,
+          "loop_instruction": 1015
+        }
+      },
+      {
+        "lane_id": "file-0007",
+        "target_file": "data/staticData.ts",
+        "file_bytes": 2415,
+        "chunk_count": 1,
+        "total_input_tokens": 61159,
+        "total_output_tokens": 14025,
+        "total_tokens": 75184,
+        "segment_breakdown": {
+          "boilerplate": 702,
+          "playbook:access-control": 2340,
+          "playbook:crypto-auth": 4152,
+          "playbook:injection": 5404,
+          "playbook:insecure-design": 2783,
+          "playbook:integrity-failures": 1969,
+          "playbook:logging-monitoring": 2072,
+          "playbook:misconfiguration": 2972,
+          "playbook:resource-consumption": 2045,
+          "playbook:ssrf": 4787,
+          "arch_context": 1573,
+          "file_content": 5850,
+          "conversation": 23553,
+          "loop_instruction": 957
+        }
+      },
+      {
+        "lane_id": "file-0266",
+        "target_file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
+        "file_bytes": 5631,
+        "chunk_count": 1,
+        "total_input_tokens": 59579,
+        "total_output_tokens": 15843,
+        "total_tokens": 75422,
+        "segment_breakdown": {
+          "boilerplate": 683,
+          "playbook:access-control": 2236,
+          "playbook:crypto-auth": 3967,
+          "playbook:injection": 5164,
+          "playbook:insecure-design": 2659,
+          "playbook:logging-monitoring": 1980,
+          "playbook:misconfiguration": 2840,
+          "playbook:resource-consumption": 1954,
+          "playbook:ssrf": 4574,
+          "arch_context": 1503,
+          "file_content": 8808,
+          "conversation": 22464,
+          "loop_instruction": 747
+        }
+      }
+    ],
+    "tokens_per_byte": 7.6258141305713885,
+    "lane_chunk_distribution": {
+      "1": 348
+    },
+    "repeated_boilerplate_cost": {
+      "total_extra_prompt_tokens": 0,
+      "description": "Total extra prompt tokens from re-sending boilerplate across multi-chunk lanes (0)"
+    }
+  },
   "legacy_entries": [
     {
       "lane_id": "file-0001",
@@ -50575,7 +56208,608 @@
       "tokens_used": 24757,
       "seconds_elapsed": 53.353,
       "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0464",
+      "tokens_used": 18567,
+      "seconds_elapsed": 56.952,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0462",
+      "tokens_used": 28608,
+      "seconds_elapsed": 86.048,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0466",
+      "tokens_used": 28727,
+      "seconds_elapsed": 88.283,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0467",
+      "tokens_used": 25671,
+      "seconds_elapsed": 68.039,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0461",
+      "tokens_used": 50321,
+      "seconds_elapsed": 157.366,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0460",
+      "tokens_used": 61802,
+      "seconds_elapsed": 178.849,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0465",
+      "tokens_used": 63910,
+      "seconds_elapsed": 184.925,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0469",
+      "tokens_used": 36633,
+      "seconds_elapsed": 102.73,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0468",
+      "tokens_used": 31386,
+      "seconds_elapsed": 114.576,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0470",
+      "tokens_used": 29794,
+      "seconds_elapsed": 124.128,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0472",
+      "tokens_used": 33152,
+      "seconds_elapsed": 85.333,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0474",
+      "tokens_used": 30177,
+      "seconds_elapsed": 79.488,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0471",
+      "tokens_used": 38932,
+      "seconds_elapsed": 123.253,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0473",
+      "tokens_used": 29958,
+      "seconds_elapsed": 132.581,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0475",
+      "tokens_used": 27178,
+      "seconds_elapsed": 124.433,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0478",
+      "tokens_used": 19136,
+      "seconds_elapsed": 55.216,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0476",
+      "tokens_used": 24896,
+      "seconds_elapsed": 91.471,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0481",
+      "tokens_used": 13503,
+      "seconds_elapsed": 15.878,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0479",
+      "tokens_used": 29566,
+      "seconds_elapsed": 88.445,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0480",
+      "tokens_used": 24751,
+      "seconds_elapsed": 65.485,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0482",
+      "tokens_used": 45873,
+      "seconds_elapsed": 114.605,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0485",
+      "tokens_used": 26601,
+      "seconds_elapsed": 81.125,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0486",
+      "tokens_used": 46620,
+      "seconds_elapsed": 75.077,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0484",
+      "tokens_used": 40640,
+      "seconds_elapsed": 128.196,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0477",
+      "tokens_used": 43921,
+      "seconds_elapsed": 206.775,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0483",
+      "tokens_used": 31698,
+      "seconds_elapsed": 153.966,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0488",
+      "tokens_used": 23611,
+      "seconds_elapsed": 49.134,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0489",
+      "tokens_used": 20355,
+      "seconds_elapsed": 83.895,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0487",
+      "tokens_used": 58356,
+      "seconds_elapsed": 116.684,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0494",
+      "tokens_used": 14053,
+      "seconds_elapsed": 17.677,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0493",
+      "tokens_used": 37550,
+      "seconds_elapsed": 60.942,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0491",
+      "tokens_used": 26422,
+      "seconds_elapsed": 106.044,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0490",
+      "tokens_used": 36248,
+      "seconds_elapsed": 133.718,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0499",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit reached — pass stopping cleanly: You've hit your session limit · resets 7:40am (UTC)"
+    },
+    {
+      "lane_id": "file-0500",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0501",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0502",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0503",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0504",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0505",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0506",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0507",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0508",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0509",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0510",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0511",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0512",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0513",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0514",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0515",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0516",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0517",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0518",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0519",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0520",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0521",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0522",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0523",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0524",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0525",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0526",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0527",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0528",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0529",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0851",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0852",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0853",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0854",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0855",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0856",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0857",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0858",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0859",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0860",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0861",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0862",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0863",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0864",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0496",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0865",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0498",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0497",
+      "tokens_used": 0,
+      "seconds_elapsed": 0,
+      "ceiling_hit": false,
+      "failed": true,
+      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
+    },
+    {
+      "lane_id": "file-0495",
+      "tokens_used": 25005,
+      "seconds_elapsed": 75.51,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0492",
+      "tokens_used": 38090,
+      "seconds_elapsed": 139.26,
+      "ceiling_hit": false
     }
-  ],
-  "_recovery_note": "lanes[] restored from commit 9229215 after a mid-pass pause; writeCheckpoint wrote a bare array and destroyed the in-file v2 records. Lane records for the 144 lanes completed in the interrupted pass are NOT recoverable here \u2014 their per-call usage is complete in cli-usage.jsonl."
+  ]
 }
