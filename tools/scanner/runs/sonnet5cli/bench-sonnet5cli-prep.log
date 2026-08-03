@@ -1,0 +1,94 @@
+  [PROVIDER] sonnet5cli / claude-sonnet-5 — Claude Sonnet 5 (Claude Code CLI transport)
+=== [sonnet5cli] stage0-recon ===
+(node:2751) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2766) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2778) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2778) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+=== Stage 0: Recon ===
+Target: /home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind
+
+[0/6] Detecting target frameworks...
+  Express: true (Express dependency + entry file "server.ts" found)
+  Frontend frameworks: angular
+
+[1/6] AST extraction from Express entry point...
+  Found 172 route registrations
+  Found 28 auto-CRUD resources
+  Persistence: sequelize / sqlite/mysql/postgres
+  Models: User, Card, Hint, Wallet, Product, Recycle, Address, Quantity, Feedback, Complaint, Challenge, ChallengeDependency, BasketItem, SecurityAnswer, PrivacyRequest, SecurityQuestion
+
+[2/6] Diffing routes against swagger.yml...
+  Documented paths: 1
+  Undocumented surfaces: 137
+  Coverage: Swagger documents 1 path(s). 109 hand-written route(s) are undocumented. 28 auto-CRUD route(s) are undocumented. 
+
+[3/6] Scanning frontend for escape-hatch APIs (angular)...
+  Found 28 escape-hatch occurrences
+    target-apps/juice-shop-blind/frontend/src/app/about/about.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/about/about.component.ts: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.html: 3 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/administration/administration.component.ts: 2 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/data-export/data-export.component.ts: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/feedback-details/feedback-details.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/last-login-ip/last-login-ip.component.ts: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/nft-unlock/nft-unlock.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/payment/payment.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/product-details/product-details.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenge-card/challenge-card.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/score-board/components/challenges-unavailable-warning/challenges-unavailable-warning.component.html: 2 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/score-board/score-board.component.ts: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.html: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/search-result/search-result.component.ts: 2 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/token-sale/token-sale.component.html: 2 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.html: 2 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/track-result/track-result.component.ts: 1 occurrence(s)
+    target-apps/juice-shop-blind/frontend/src/app/welcome-banner/welcome-banner.component.html: 1 occurrence(s)
+
+[4/6] Analyzing chat.ts for tool-calling capabilities...
+  [LLM OK] Tool-calling detection received a real API response
+  Genuine tool-calling: true
+  Tools detected: searchProducts, getProductReviews, getOrderById, generateCoupon
+  Confidence: 0.98
+  Evidence: The file uses the Vercel AI SDK's `tool()` function to define four tools with Zod input schemas and real `execute` implementations that perform genuine side-effects: querying ProductModel (Sequelize) for product search, querying a MongoDB reviews collection, looking up user/order data from MongoDB with authentication and email-masking checks, and generating a real coupon code via a security helper. These tools are wired into `streamText` via the `tools` option and invoked by the LLM during a streamed conversation (`stopWhen: stepCountIs(10)` allows multi-step tool use), with tool-call events explicitly handled and metered via Prometheus counters. This is genuine agentic tool-calling, not just an AI-sounding route.
+
+[5/6] Walking target directory for full file inventory...
+  Total source files: 865
+  typescript: 531 file(s)
+  json: 107 file(s)
+  css: 86 file(s)
+  html: 82 file(s)
+  yaml: 46 file(s)
+  solidity: 5 file(s)
+  python: 3 file(s)
+  docker: 2 file(s)
+  shell: 2 file(s)
+  javascript: 1 file(s)
+  Unclassified surface: 863 file(s) across 10 language(s)
+  Smart contract surface: YES (5 .sol file(s))
+    data/static/web3-snippets/BEEToken.sol
+    data/static/web3-snippets/BeeFaucet.sol
+    data/static/web3-snippets/ETHWalletBank.sol
+    data/static/web3-snippets/HoneyPotNFT.sol
+    data/static/web3-snippets/JuiceShopSBT.sol
+
+[6/6] Building architecture summary and running category applicability probe...
+  [LLM OK] Category applicability probe received a real API response
+  Category verdicts: 26
+  Present: 23, Absent: 0, Uncertain: 3
+
+[7/7] Extracting per-file signals...
+  Route handler names from route table: 103
+  865 files scanned (inventory total: 865)
+  Signal distribution (signals-per-file): {"0":344,"1":233,"2":116,"3":125,"4":29,"5":10,"6":4,"7":3,"8":1}
+
+Written: /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage0-recon/architecture-summary.json
+Written: /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage0-recon/category-applicability.json
+
+=== Stage 0 Recon complete ===
+=== [sonnet5cli] stage0-recon exited 0 ===

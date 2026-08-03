@@ -39,29 +39,29 @@ All figures rebased to the **97 reachable** ground-truth entries. All runs use
 the v2 per-file pipeline, `HUNT_LOOP=trace`, `reasoning_effort: high`,
 `max_output_tokens: 64000`.
 
-| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) | `gemini36flash` (Gemini 3.6 Flash) |
-|---|---|---|---|
-| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** | **57/97 = 58.8%** |
-| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% | 67/97 = 69.1% |
-| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** | **73/97 = 75.3%** |
-| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% | 89/97 = 91.8% |
-| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% | 96/97 = 99.0% |
-| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) | **16.5%** (47/285) |
-| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) | 23.5% (67/285) |
-| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 | **32m12s** at C=8 |
-| **Total cost (USD)** | **$4.37** | **$17.01** | **$24.85** |
-| **Input tokens** | **7,174,088** | **7,265,980** | **7,585,865** |
-| — of which prefix-cached | 0 | 3,278,400 | 14,486 |
-| **Output tokens** | **2,444,855** | **2,402,317** | **1,795,715** |
-| **Total tokens** | **9,618,943** | **9,668,297** | **9,381,580** |
-| **Model size** | no public record on model size | no public record on model size | no public record on model size |
-| Findings emitted | 553 | 892 | 285 |
-| Hedging (classes/finding) | 1.418 | 1.459 | 1.512 |
-| Distinct lines cited | 3,597 | 4,577 | 1,181 |
-| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 4.56 / 13 |
-| Lanes | 541/541 | 541/541 | 541/541 |
-| Calls | 1,082 | 1,082 | 1,082 |
-| Degraded | false | false | false |
+| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) | `gemini36flash` (Gemini 3.6 Flash) | `sonnet5cli` (Claude Sonnet 5, CLI transport) |
+|---|---|---|---|---|
+| **Recall** (file + exact line + category) | **69/97 = 71.1%** | **65/97 = 67.0%** | **57/97 = 58.8%** | **64/97 = 66.0%** |
+| Recall, category-blind | 77/97 = 79.4% | 77/97 = 79.4% | 67/97 = 69.1% | 77/97 = 79.4% |
+| **Localization** (±15 lines) | **86/97 = 88.7%** | **83/97 = 85.6%** | **73/97 = 75.3%** | **84/97 = 86.6%** |
+| Localization, category-blind | 93/97 = 95.9% | 91/97 = 93.8% | 89/97 = 91.8% | 94/97 = 96.9% |
+| File-level (any line, any category) | 97/97 = 100% | 97/97 = 100% | 96/97 = 99.0% | 97/97 = 100% |
+| **Precision proxy**, category-aware | **12.5%** (69/553) | **7.8%** (70/892) | **16.5%** (47/285) | **6.4%** (81/1270) |
+| Precision proxy, category-blind | 22.4% (124/553) | 13.8% (123/892) | 23.5% (67/285) | 11.5% (146/1270) |
+| **Total runtime** | **13m04s** at C=32 | **~18.5 min** at C=32 | **32m12s** at C=8 | **~4h wall across 4 usage windows** at C=6 |
+| **Total cost (USD)** | **$4.37** | **$17.01** | **$24.85** | **$84.04** |
+| **Input tokens** | **7,174,088** | **7,265,980** | **7,585,865** | **17,528,930** |
+| — of which prefix-cached | 0 | 3,278,400 | 14,486 | 8,552,056 |
+| **Output tokens** | **2,444,855** | **2,402,317** | **1,795,715** | **5,569,453** |
+| **Total tokens** | **9,618,943** | **9,668,297** | **9,381,580** | **23,098,383** |
+| **Model size** | no public record on model size | no public record on model size | no public record on model size | no public record on model size |
+| Findings emitted | 553 | 892 | 285 | 1,270 |
+| Hedging (classes/finding) | 1.418 | 1.459 | 1.512 | 1.536 |
+| Distinct lines cited | 3,597 | 4,577 | 1,181 | 6,709 |
+| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 4.56 / 13 | 6.66 / 30 |
+| Lanes | 541/541 | 541/541 | 541/541 | 541/541 |
+| Calls | 1,082 | 1,082 | 1,082 | 1,093 successful (+229 refused) |
+| Degraded | false | false | false | false |
 
 ---
 
@@ -153,6 +153,34 @@ Per-class recall:
 | ai-llm-agency | **1/4 = 25.0%** | 3/4 |
 | misconfiguration | 3/17 = 17.6% | 5/17 |
 
+### 2.4 `sonnet5cli` — Claude Sonnet 5 (Claude Code CLI transport)
+
+| | |
+|---|---|
+| Model id | `claude-sonnet-5` |
+| Run | 2026-08-03 |
+| Tree | `80b9f90` |
+| Concurrency | 6 |
+| Loop mode / effort | `trace` / `high` |
+| Rate | $2.00 / $0.20 cached / $2.50 cache-write / $10.00 per MTok, `price_asof` 2026-08-02 |
+| Artifacts | `tools/scanner/runs/sonnet5cli/` |
+
+Per-class recall:
+
+| Class | Recall | Localized |
+|---|---|---|
+| api-property-auth | 4/4 = 100% | 4/4 |
+| ssrf | 3/3 = 100% | 3/3 |
+| injection | 16/18 = 88.9% | 18/18 |
+| crypto-auth | 22/25 = 88.0% | 23/25 |
+| insecure-design | 9/13 = 69.2% | 11/13 |
+| integrity-failures | 2/3 = 66.7% | 2/3 |
+| resource-consumption | 1/2 = 50.0% | 2/2 |
+| access-control | 7/16 = 43.8% | 12/16 |
+| misconfiguration | 4/17 = 23.5% | 9/17 |
+| ai-llm-agency | 0/4 = 0.0% | 4/4 |
+| logging-monitoring | 0/1 = 0.0% | 1/1 |
+
 ---
 
 ## 3. Method — how a row here is produced
@@ -189,17 +217,3 @@ Also record, from `usage-v2.json` and the stage `meta.json` files: `lane_count`,
 **Every metric in §1 must be filled.** A metric that could not be obtained is
 recorded as the reason it could not be — as `model size` is recorded as
 "no public record on model size" — never left blank and never estimated.
-
----
-
-## 4. Pending
-
-| Model | Registry key | State |
-|---|---|---|
-| Qwen 3.7 Plus | `qwen37` | on hold |
-| Claude Sonnet 5 | `sonnet5` | on hold |
-| Claude Opus 5 | `opus5` | on hold |
-| Gemini 3.1 Pro | `gemini31pro` | on hold |
-
-See `protocols/benchmark-run-plan.md` for preconditions and the mandatory
-per-model checks (§3a) that must be cleared before a run is launched.

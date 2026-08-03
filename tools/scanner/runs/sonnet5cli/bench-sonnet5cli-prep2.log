@@ -1,0 +1,84 @@
+  [PROVIDER] sonnet5cli / claude-sonnet-5 — Claude Sonnet 5 (Claude Code CLI transport)
+=== [sonnet5cli] stage05-lane-selector-perfile ===
+(node:5285) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5300) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5312) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5312) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Stage 0.5 v3] [PROVIDER] sonnet5cli
+[Stage 0.5 v3] Loading Stage 0 outputs...
+[Stage 0.5 v3] Loaded architecture summary
+[Stage 0.5 v3] Loaded category applicability
+[Stage 0.5 v3] Loaded file signals: 865 files
+[Stage 0.5 v3] Loaded signal→class map: 15 signals, 3 floor classes
+[Stage 0.5 v3] All 13 referenced classes validated against vuln-classes.json
+[Stage 0.5 v3] Target directory: /home/user/Cybersecurity-Coding-Agent-Harness/target-apps/juice-shop-blind
+[Stage 0.5 v3] Category universe: 26 categories (23 present, 3 uncertain, 0 absent)
+[Stage 0.5 v3] Total files in inventory: 865
+[Stage 0.5 v3] Supplemental files found: 2
+[Stage 0.5 v3] Generating lanes...
+[Stage 0.5 v3] Generated 865 lanes
+[Stage 0.5 v3] Ledger balanced: 541 hunt + 324 skip = 865 total, unaccounted = 0
+[Stage 0.5 v3] Denylisted (never hunted): 3 — data/datacreator.ts, lib/antiCheat.ts, models/challenge.ts
+[Stage 0.5 v3] Lane count matches inventory: 865 == 865
+[Stage 0.5 v3] All category families present across lanes: A, API, LLM
+[Stage 0.5 v3] Classes per hunt lane: {"3":170,"4":28,"5":112,"6":29,"7":73,"8":52,"9":54,"10":18,"11":4,"12":1}
+[Stage 0.5 v3] Signals per hunt lane: {"0":165,"1":187,"2":93,"3":51,"4":28,"5":9,"6":4,"7":3,"8":1}
+[Stage 0.5 v3] Output written to /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage05-lane-selector-perfile/lane-assignments.json
+[Stage 0.5 v3] Done.
+=== [sonnet5cli] stage05-lane-selector-perfile exited 0 ===
+  [PROVIDER] sonnet5cli / claude-sonnet-5 — Claude Sonnet 5 (Claude Code CLI transport)
+=== [sonnet5cli] stage1-budget-governor-perfile ===
+(node:5369) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5384) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5396) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5396) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PROVIDER] sonnet5cli / claude-sonnet-5
+=== Stage 1 v2: Pre-run budget estimate ===
+
+Plan written to /home/user/Cybersecurity-Coding-Agent-Harness/tools/scanner/runs/sonnet5cli/stage1-budget-governor-perfile/budget-plan-v2.json
+Lanes: 541
+Total chunks: 541
+Total file bytes: 1,955,672
+Arm: HUNT_LOOP=trace (1 follow-up turn(s)), reasoning_effort=high
+Total projected calls: 1,082
+Total projected input tokens: 6,657,601
+Total projected output tokens: 2,742,329
+Total projected cost: $40.74
+Rate: $2/$10 per MTok, as of 2026-08-02
+Output projection basis: run 5 measured 718 output tokens/call at the default effort; effort "high" multiplies that by 3.53 (40-lane platform, 2026-08-01)
+
+Top 20 lanes by projected input tokens:
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Lane                                    File                           Chunks    Proj Input
+────────────────────────────────────────────────────────────────────────────────────────────────────
+file-0865                               server.ts                           1        39,385
+file-0418                               test/api/chat.test.ts               1        28,518
+file-0270                               frontend/src/app/web3-sandbox/web3-sandbox.component.ts      1        27,747
+file-0422                               test/api/data-export.test.ts        1        26,703
+file-0117                               frontend/src/app/chatbot/chat-conversation/chat-conversation.component.spec.ts      1        26,368
+file-0460                               test/api/user.test.ts               1        24,423
+file-0381                               routes/order.ts                     1        24,243
+file-0188                               frontend/src/app/photo-wall/photo-wall.component.spec.ts      1        24,125
+file-0186                               frontend/src/app/payment/payment.component.ts      1        24,013
+file-0864                               routes/chat.ts                      1        23,978
+file-0247                               frontend/src/app/search-result/search-result.component.spec.ts      1        23,928
+file-0103                               frontend/src/app/administration/administration.component.ts      1        23,599
+file-0446                               test/api/profile-image-upload.test.ts      1        23,503
+file-0306                               lib/insecurity.ts                   1        23,157
+file-0321                               lib/startup/validatePreconditions.ts      1        23,076
+file-0322                               lib/utils.ts                        1        22,883
+file-0199                               frontend/src/app/product/product.component.ts      1        22,829
+file-0426                               test/api/feedback.test.ts           1        22,734
+file-0021                               frontend/src/app/Services/basket.service.ts      1        22,629
+file-0131                               frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.ts      1        22,629
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Total (all 541 lanes): 6,657,601 projected input tokens
+=== [sonnet5cli] stage1-budget-governor-perfile exited 0 ===

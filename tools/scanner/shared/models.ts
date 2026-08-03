@@ -47,6 +47,23 @@ export interface ModelTarget {
   /** Which output-token cap parameter this API accepts. */
   token_limit_param: TokenLimitParam
   /**
+   * How calls reach the model. Absent means `openai` — an HTTP call through the
+   * OpenAI-compatible SDK, which is what every target used before this field
+   * existed and what they all still do.
+   *
+   * `claude-cli` spawns the local Claude Code binary in headless mode instead,
+   * so a Claude model can be measured against a subscription rather than a
+   * metered key. It is a property of the target, not of any stage, for the same
+   * reason the endpoint is: a stage that branched on a provider name here would
+   * break the rule that adding a model is a data change.
+   *
+   * The transport is NOT free of consequences for comparability — it changes
+   * the sandbox, the structured-output mechanism and the effort parameter — so
+   * a target using it must be recorded as its own row, never merged with a row
+   * measured over `openai`. See docs/protocols/benchmark-run-plan.md.
+   */
+  transport?: 'openai' | 'claude-cli'
+  /**
    * Sampling params to send. Empty for models that reject non-defaults.
    *
    * Values may be numbers or strings: the GPT-5.x family takes
@@ -133,6 +150,12 @@ const REGISTRY: Registry = (() => {
     }
     if (t.sampling == null || typeof t.sampling !== 'object') {
       throw new Error(`models.json: target "${key}" has a non-object "sampling"`)
+    }
+    if (t.transport != null && t.transport !== 'openai' && t.transport !== 'claude-cli') {
+      throw new Error(
+        `models.json: target "${key}" has transport "${t.transport}"; ` +
+          `expected "openai" or "claude-cli"`,
+      )
     }
     if (t.max_output_tokens != null &&
         (!Number.isInteger(t.max_output_tokens) || t.max_output_tokens <= 0)) {
