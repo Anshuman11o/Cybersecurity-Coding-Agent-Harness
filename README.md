@@ -802,4 +802,16 @@ SCANNER_MAX_OUTPUT_TOKENS=8000`.
 [OWASP Juice Shop](https://github.com/juice-shop/juice-shop) — a full-stack,
 deliberately vulnerable e-commerce application (Express/TypeScript backend,
 Angular frontend) with 113 documented challenges across the OWASP Top Ten.
-Vendored under `target-apps/` and used under its own license.
+
+Two modified copies are vendored under `target-apps/` (see §4). **Juice Shop is
+deliberately vulnerable software — do not deploy either copy anywhere
+reachable.** It is here as a measurement target, nothing else.
+
+## License
+
+This project is [MIT licensed](LICENSE).
+
+It vendors third-party code that is **not** covered by that license and stays
+under its own terms — Juice Shop itself, and the archived output of five
+external scanners. What, where, and under which license:
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

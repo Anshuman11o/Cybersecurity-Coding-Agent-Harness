@@ -74,11 +74,18 @@ export const SANDBOX_FLAGS: readonly string[] = Object.freeze([
   '--disable-slash-commands',
 ])
 
-/** Per-invocation record appended to the usage ledger. */
+/**
+ * Per-invocation record appended to the usage ledger.
+ *
+ * Deliberately carries no `session_id`. The CLI session id is an
+ * account-linked identifier, this ledger is committed to a public repository,
+ * and nothing ever reads the id back — resume is driven by the in-process
+ * `sessionByConversation` map, not by this file. `lane_hint` + `resumed` cover
+ * every correlation the ledger is actually used for.
+ */
 export interface CliUsageRecord {
   ts: string
   lane_hint: string
-  session_id: string
   resumed: boolean
   duration_ms: number | null
   num_turns: number | null
@@ -295,7 +302,6 @@ export function createClaudeCliClient(opts: ClaudeCliClientOptions) {
             const rec: CliUsageRecord = {
               ts: new Date().toISOString(),
               lane_hint: key.slice(0, 12),
-              session_id: sessionId,
               resumed: isFollowUp,
               duration_ms: res.duration_ms ?? null,
               num_turns: res.num_turns ?? null,
