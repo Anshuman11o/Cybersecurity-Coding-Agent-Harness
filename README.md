@@ -1,8 +1,7 @@
-# Cybersecurity Coding Agent Harness
+# Scanner AI Agent Harness
 
-**A staged LLM harness that finds OWASP-categorized vulnerabilities in a real
-codebase by reasoning about it, not by matching patterns — and reports every
-number next to the defect that qualifies it.**
+**An AI agent harness that scans a codebase for an entire class of
+OWASP-categorized vulnerabilities and reports it.**
 
 On OWASP Juice Shop (865-file corpus, 541 per-file hunt lanes, a fixed 97-entry
 ground truth held in a separate private repository):
@@ -18,14 +17,11 @@ Scored blind: the harness has never had access to the answer key, and neither
 has any agent that wrote its code. Four inference models have been run through
 the identical pipeline on identical prompts, lanes and corpus (§5).
 
-> **§1 is a draft.** The one-liner and the exact metrics to lead with are the
-> one open item in the README plan — see the PR description for alternatives.
-
 ---
 
 ## Contents
 
-1. [Headline](#cybersecurity-coding-agent-harness)
+1. [Headline](#scanner-ai-agent-harness)
 2. [The problem](#2-the-problem)
 3. [Architecture](#3-architecture)
 4. [Project structure and engineering process](#4-project-structure-and-engineering-process)
