@@ -1156,7 +1156,7 @@ async function main() {
   // Permanent seed-file denylist: internal bookkeeping files that must never
   // appear in any lane's seed_files, regardless of recon or orchestrator output.
   // SEED_DENYLIST now lives in shared/read-guard.ts so it also covers the
-  // model-controlled read paths in stage2/stage3, not just manifest writes.
+  // model-controlled read paths in stage2, not just manifest writes.
   for (const lane of lanes) {
     lane.seed_files = lane.seed_files.filter((f) => !SEED_DENYLIST.includes(f))
   }

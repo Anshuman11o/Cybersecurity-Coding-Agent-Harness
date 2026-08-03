@@ -102,13 +102,13 @@ check('defaults to registry default', resolveProvider('stage2') === defaultProvi
 check('default is luna',              defaultProvider() === 'luna')
 process.env.SCANNER_PROVIDER = 'qwen'
 check('global override',  resolveProvider('stage2') === 'qwen')
-process.env.SCANNER_PROVIDER_STAGE3 = 'luna'
-check('per-stage wins',   resolveProvider('stage3') === 'luna')
-delete process.env.SCANNER_PROVIDER_STAGE3
+process.env.SCANNER_PROVIDER_STAGE0 = 'luna'
+check('per-stage wins',   resolveProvider('stage0') === 'luna')
+delete process.env.SCANNER_PROVIDER_STAGE0
 process.env.SCANNER_PROVIDER = 'openai'
 check('alias openai -> luna', resolveProvider('stage2') === 'luna')
 check('alias reaches the same run tree',
-  runPath(resolveProvider('stage2'), 'stage3-validate') === runPath('luna', 'stage3-validate'))
+  runPath(resolveProvider('stage2'), 'stage2-hunt-lanes-perfile') === runPath('luna', 'stage2-hunt-lanes-perfile'))
 delete process.env.SCANNER_PROVIDER
 
 console.log('\n-- registry contract (holds for every configured model) --')

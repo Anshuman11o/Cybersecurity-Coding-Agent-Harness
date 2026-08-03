@@ -274,40 +274,6 @@ story.append(table([
                        "entrypoint step, and ends with a sink step."],
 ], [26 * mm, 140 * mm]))
 
-story += [P("Stage 3 &mdash; Validate", "h2")]
-story.append(table([
-    ["Direction", "Contract"],
-    ["Input", "One consolidated finding's claim (trace + impact) only. The hunting lane's "
-              "reasoning transcript and lane identity are deliberately withheld so the check is "
-              "blind and adversarial."],
-    ["Output", "<font face='Courier'>validated-findings.json</font> &mdash; per entry: "
-               "<font face='Courier'>consolidated_id</font>, "
-               "<font face='Courier'>original_finding_ids[]</font>, "
-               "<font face='Courier'>original_lane_ids[]</font>, "
-               "<font face='Courier'>verdict</font>, "
-               "<font face='Courier'>validator_evidence</font>, plus carried-through title, "
-               "trace and severity. Budget consumption is tracked per consolidated finding."],
-    ["Consolidation", "Overlapping candidates are merged before dispatch using the same "
-                      "plus/minus 15-line slack the scorer uses, so consolidation and scoring "
-                      "agree on what counts as the same finding."],
-    ["Pending redesign", "Current verdicts are CONFIRMED / REJECTED. The agreed direction is to "
-                         "move this stage to an annotator model (confidence plus concerns, no "
-                         "reject power). Not yet implemented."],
-], [26 * mm, 140 * mm]))
-
-story += [P("Stage 4 &mdash; Output", "h2")]
-story.append(table([
-    ["Direction", "Contract"],
-    ["Input", "Stage 3 verdicts plus validator evidence."],
-    ["Output", "Schema-validated <font face='Courier'>findings.json</font> plus a human-readable "
-               "summary, and a thin SARIF projection for interop. Schema follows "
-               "security-audit-skill's report schema with two additions: "
-               "<font face='Courier'>categories[]</font> (multi-label rather than one forced "
-               "category) and <font face='Courier'>lane_provenance</font>."],
-    ["Status", "Not started. Contract above is the design target, not a description of "
-               "existing code."],
-], [26 * mm, 140 * mm]))
-
 story.append(PageBreak())
 
 # --------------------------------------------------------------- eval ------

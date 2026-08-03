@@ -1,8 +1,8 @@
 # Cybersecurity Coding Agent Harness
 
-**A five-stage LLM harness that finds OWASP-categorized vulnerabilities in a
-real codebase by reasoning about it, not by matching patterns — and reports
-every number next to the defect that qualifies it.**
+**A staged LLM harness that finds OWASP-categorized vulnerabilities in a real
+codebase by reasoning about it, not by matching patterns — and reports every
+number next to the defect that qualifies it.**
 
 On OWASP Juice Shop (865-file corpus, 541 per-file hunt lanes, a fixed 97-entry
 ground truth held in a separate private repository):
@@ -15,9 +15,8 @@ ground truth held in a separate private repository):
 | **Cost / wall clock** | **$4.37**, **13m04s** at concurrency 32 | — |
 
 Scored blind: the harness has never had access to the answer key, and neither
-has any agent that wrote its code. Three inference models have been run through
-the identical pipeline on identical prompts (§5). The scanner is built and
-measured; the patcher and verifier are designed and not built (§8).
+has any agent that wrote its code. Four inference models have been run through
+the identical pipeline on identical prompts, lanes and corpus (§5).
 
 > **§1 is a draft.** The one-liner and the exact metrics to lead with are the
 > one open item in the README plan — see the PR description for alternatives.
@@ -31,59 +30,107 @@ measured; the patcher and verifier are designed and not built (§8).
 3. [Architecture](#3-architecture)
 4. [Project structure and engineering process](#4-project-structure-and-engineering-process)
 5. [Results and benchmarking](#5-results-and-benchmarking)
-6. [Technical challenges encountered](#6-technical-challenges-encountered)
+6. [Technical challenges, and how they were investigated](#6-technical-challenges-and-how-they-were-investigated)
 7. [Running it](#7-running-it)
-8. [Known limits](#8-known-limits)
 
 ---
 
 ## 2. The problem
 
-Two failure modes motivated this architecture, and both were measured before any
-of it was written. In July 2026 five existing open-source AI security scanners
-were run against a 10-challenge subset of the same app
-(`results/archive/2026-07-five-tool-benchmark/`).
+### 2.1 Vulnerable source code is now the primary attack surface
+
+The costliest breaches of the last few years did not start with a stolen
+password. They started with a defect sitting in source code that had already
+passed review. Log4Shell (CVE-2021-44228) was a lookup feature in a logging
+library that let a formatted string reach a JNDI resolver, and it put hundreds of
+millions of devices in scope within days. The Cl0p group's 2023 campaign against
+MOVEit Transfer (CVE-2023-34362) was a **SQL injection** — a textbook class,
+decades old, in a widely deployed file-transfer product — and it cascaded into
+data loss at thousands of downstream organizations. The XZ Utils backdoor of 2024
+(CVE-2024-3094) went further still: malicious logic deliberately staged into a
+compression library over the course of two years, caught by a maintainer chasing
+a fraction of a second of SSH latency rather than by any scanner.
+
+Those three are the pattern the industry now lives with. Software is assembled
+from far more code than any team reads, shipped far faster than any team can
+audit it, and a single reachable defect in a dependency is a supply-chain
+incident for everyone downstream. Meanwhile the defect classes that dominate real
+incident reports — broken access control, authentication and identity failures,
+insecure design — are precisely the ones no rule can describe, because the bug is
+something *absent*: a check that was never written, a parameter nobody thought to
+distrust, two operations in the wrong order.
+
+### 2.2 What AI is being asked to do about it, and how
+
+Conventional tooling splits the work and drops the middle. **SAST** reads code
+without running it and is fast, cheap and repeatable — and its rules only match
+what someone already knew to write a rule for, which is why teams drown in
+findings while the interesting bugs stay quiet. **DAST** exercises a running
+system and proves exploitability, but only for the paths it happens to reach, and
+it points at a URL rather than a line. **Fuzzing** is extremely effective at
+memory-safety and parser defects and largely mute on business logic. None of them
+can reason about intent, and intent is where the expensive bugs live.
+
+Several distinct AI-based approaches are being applied to exactly that gap:
+
+| Approach | What it does | Where it fits |
+|---|---|---|
+| **LLM-assisted triage** | Ranks and explains the output of existing SAST/DAST tooling | Cuts alert fatigue; cannot find what the underlying tool never flagged |
+| **LLM-guided fuzzing** | Uses a model to write harnesses and seed inputs, then runs a real fuzzer | Strong on memory safety and parsers; needs an executable target |
+| **Code-embedding retrieval** | Finds code semantically similar to known-vulnerable patterns | Good recall on *recurrences* of known bugs; weak on novel logic flaws |
+| **Autonomous exploitation agents** | Reason about a running target and attempt real exploits | Proves impact end to end; expensive, and needs a deployable environment |
+| **Agent harnesses over source** ← *this project* | Decompose a repository into bounded units of work, reason over each with an LLM, and emit located, classified, evidence-backed findings | Reads intent the way a reviewer does, at a cost and runtime that can be budgeted per unit |
+
+An agent harness is the approach that most directly targets the failure mode
+above, because it does the thing a rule cannot: read a file, hold the
+application's architecture in context, and ask whether the code *should* have
+done something it does not. The engineering problem is that reasoning is
+expensive and non-deterministic, so an agent left to roam a repository burns an
+unbounded budget and produces findings nobody can reproduce.
+
+### 2.3 What the field currently gets wrong — measured, not assumed
+
+Before any of this architecture was written, five existing open-source AI
+security scanners were run against a 10-challenge subset of the same target
+(`results/archive/2026-07-five-tool-benchmark/`). Two results shaped everything
+downstream.
 
 **Pattern matching misses the classes that need semantics.** The one tool run as
 a pure static-pattern scan (Semgrep rules, no agentic pass) reached **20% recall
 and 50% localization** — 2 of 10 challenges. It found the SSRF and, via a generic
 hardcoded-secret rule, one file. It found none of the access-control, auth-bypass
-or prompt-injection challenges. Those defects are not textual; they are a missing
-check, a trusted parameter, an ordering. A rule cannot express "this endpoint
-authenticates but never authorizes" — reading the code can.
+or prompt-injection challenges. Reading the code can express "this endpoint
+authenticates but never authorizes"; a rule cannot.
 
-**Naive LLM scanning fails on budget and time, not on reasoning.** Two of the
-five tools produced no scoreable output at all, and neither failure was a
-reasoning failure:
+**The LLM tools that failed, failed on budget and clock — not on reasoning.** Two
+of the five produced no scoreable output at all. One hit an org-wide monthly
+spend cap mid-scan and exited before writing a report. One timed out at stage 4
+of 11, having correctly predicted its own ~4M input tokens per pass across 9
+detection stages, reported that, and then run until the clock killed it anyway.
+Neither ever got to be wrong about a vulnerability.
 
-- one hit an org-wide monthly spend cap mid-scan and exited before writing a
-  report; it was scored from partial per-partition files left on disk;
-- one timed out at stage 4 of 11 — its own estimator correctly predicted ~4M
-  input tokens per pass across 9 detection stages, reported that, and then ran
-  until the clock killed it anyway.
-
-The lesson taken forward is structural: **per-lane budget ceilings rather than a
-single global cap**, so one expensive unit of work cannot starve the rest, and
-**a budget stage that stops rather than merely predicts**. Both live in Stage 1.
-The ≥95% precision / ≥90% recall / ≥90% localization targets used throughout
-this repo also come from that benchmark.
-
-That archive is superseded as a *measurement* — it scored a 10-entry ground
-truth against today's 98 — but it is the provenance for decisions still in
-force, which is why it is kept and marked rather than deleted.
+That is the specific gap this harness is built for: **make the reasoning
+bounded**. Per-lane budget ceilings rather than one global cap, so a single
+expensive unit cannot starve the rest; a budget stage that stops rather than
+merely predicts; and a unit of work small enough that a failure costs one file
+instead of a run. The ≥95% precision / ≥90% recall / ≥90% localization targets
+used throughout this repo come from that same benchmark. The archive is
+superseded as a *measurement* — it scored 10 entries against today's 97 — but it
+is the provenance for decisions still in force, which is why it is kept and
+marked rather than deleted.
 
 ---
 
 ## 3. Architecture
 
-Five stages. Each writes an artifact the next one reads; nothing is passed in
-memory across a stage boundary, so any stage can be re-run, inspected or
-replaced independently.
+Four stages, each writing an artifact the next one reads. Nothing crosses a stage
+boundary in memory, so any stage can be re-run, inspected, scored or replaced on
+its own — which is what makes the pipeline improvable rather than merely runnable
+(§3.3).
 
-**Only Stages 0 and 2 make model calls.** Lane selection and budgeting are plain
-TypeScript, which is why the same recon output always produces the same lane
-manifest and the same projection — the expensive, non-deterministic part of the
-pipeline is bounded to two stages.
+**Only Stages 0 and 2 make model calls.** Everything between them is plain
+TypeScript, which keeps the expensive, non-deterministic part of the pipeline
+bounded to two places.
 
 ```mermaid
 flowchart TD
@@ -98,35 +145,89 @@ flowchart TD
     A05 --> S1["<b>Stage 1 · Budget governor</b><br/>per-lane ceilings, never one global cap"]
     S1 --> A1["budget-plan-v2.json<br/><i>calls, tokens, projected cost</i>"]
 
-    A1 --> S2["<b>Stage 2 · Hunt lanes</b><br/>2 model turns per lane:<br/>hunt, then trace completion"]
-    S2 --> A2["candidate-findings.json<br/><i>553 findings, class-labelled, traced</i>"]
+    A1 --> S2["<b>Stage 2 · Hunt lanes</b><br/>per lane: hunt turn,<br/>then trace-completion turn"]
+    S2 -->|"agent loop<br/>same conversation,<br/>stops when a turn<br/>adds nothing"| S2
+    S2 --> A2["<b>candidate-findings.json</b><br/><i>final output — class-labelled,<br/>confidence-scored, line-traced</i>"]
 
-    A2 --> S3["<b>Stage 3 · Validate</b><br/>blind adversarial re-check"]
-    S3 --> S4["<b>Stage 4 · Output</b><br/>schema-valid findings + SARIF"]
-
-    A2 -.-> R["reconcile → usage-v2.json<br/><i>what the run actually spent</i>"]
+    A2 --> R["reconcile → usage-v2.json<br/><i>what the run actually spent</i>"]
 
     classDef llm fill:#7c2d12,stroke:#ea580c,color:#fff
     classDef det fill:#1e3a5f,stroke:#3b82f6,color:#fff
     classDef art fill:#1f2937,stroke:#6b7280,color:#e5e7eb
-    classDef todo fill:#292524,stroke:#57534e,color:#a8a29e,stroke-dasharray: 5 3
     class S0,S2 llm
     class S05,S1,R det
     class A0,A05,A1,A2,C art
-    class S3,S4 todo
 ```
 
-<sub>**Orange = calls a model. Blue = deterministic code. Grey dashed = built but
-not on the current path (Stage 3) or not built (Stage 4) — see §8.**</sub>
+<sub>**Orange = calls a model. Blue = deterministic code. The self-edge on Stage
+2 is the per-lane agent loop.**</sub>
+
+### 3.1 What each stage does, and why the pipeline needs it
+
+**Stage 0 · Recon — turn an unknown repository into a fact sheet.**
+A model cannot reason usefully about a single file without knowing what the
+application *is*. Recon builds that context once: an AST pass extracts the route
+table (hand-written routes, middleware, and auto-generated CRUD endpoints with
+their per-model exclude lists — the mass-assignment signal), a diff compares the
+declared API spec against the routes that actually exist, a frontend pass finds
+the framework's escape hatches where markup bypasses sanitization, and a model
+probe decides whether the app has agent/tool-calling surface at all. The output
+is one JSON fact sheet that every later stage reads, so no other stage ever
+re-parses raw source. Without it, each lane would be a file with no idea whether
+it sits behind authentication, is reachable from the internet, or touches the
+database.
+
+**Stage 0.5 · Lane selector — cut the codebase into units of work.**
+This is where "scan the repo" becomes a bounded, enumerable job. Every file in
+the inventory becomes one lane, carrying the vulnerability classes recon's
+evidence associates with *that* file plus a chunk plan covering it end to end.
+Files with no plausible attack surface get a `skip` disposition rather than
+silently disappearing, so coverage is provable by reading the manifest: hunt plus
+skip must equal inventory, and anything unaccounted for is a defect. It also
+applies the seed denylist, which keeps benchmark-infrastructure files out of
+model context entirely.
+
+**Stage 1 · Budget governor — know the cost before spending it.**
+Pure arithmetic over the manifest and the on-disk file sizes: how many calls,
+how many input and output tokens, what that costs at the selected model's rate.
+It exists because of §2.3 — a scan that discovers its own cost halfway through is
+a scan that dies halfway through. Ceilings are per-lane rather than global, so one
+pathological file cannot consume the budget for everything after it. The same
+stage runs again after the scan, in reconcile mode, to record what was actually
+spent — the projection and the measurement are separate artifacts and never
+overwrite each other.
+
+**Stage 2 · Hunt lanes — the actual vulnerability reasoning.**
+Each lane binds the model to exactly one file, loads only the playbooks for that
+file's assigned classes, and supplies the architectural and route context recon
+found. The model reads the code and reports what is wrong with it: a title, the
+classes it belongs to, a confidence, and a **trace** — the ordered file-and-line
+path from entry point to sink that constitutes the evidence. Then the loop runs:
+a second turn in the same conversation asks the model to complete traces it left
+partial, and it stops early when a turn adds nothing. Findings are the
+deliverable; the trace is what makes a finding checkable rather than an
+assertion.
+
+**Reconcile — close the loop on cost.**
+Reads Stage 2's own consumption artifact and writes what the run spent, per lane
+and in total, next to the rate that produced the number. It reports actuals only
+and deliberately does not compare them to the projection: a gap between an
+estimate and a measurement is a fact about the estimate, and the number wanted
+afterwards is the cost.
+
+`candidate-findings.json` is the pipeline's final output.
+
+### 3.2 Inputs and outputs
 
 | Stage | Input | Output | Kind |
 |---|---|---|---|
-| **0 · Recon** | target repo root | `architecture-summary.json` — route table (hand-written, middleware, auto-CRUD with per-model exclude lists), persistence layer, dependencies, swagger-vs-actual diff, client-side render sinks, file inventory | **LLM** for tool-calling detection and category applicability; AST/grep for the rest |
-| **0.5 · Lane selector** | `architecture-summary.json` | `lane-assignments.json` — one lane per inventory file, carrying the vulnerability classes recon's evidence associates with that file, plus a chunk plan covering the whole file | deterministic |
+| **0 · Recon** | target repo root | `architecture-summary.json` — route table (hand-written, middleware, auto-CRUD with per-model exclude lists), persistence layer, dependencies, swagger-vs-actual diff, client-side render sinks, file inventory | **LLM** for tool-calling detection and class applicability; AST/grep for the rest |
+| **0.5 · Lane selector** | `architecture-summary.json` | `lane-assignments.json` — one lane per inventory file, carrying the classes recon's evidence associates with that file, plus a chunk plan covering the whole file | deterministic |
 | **1 · Budget governor** | lane assignments + on-disk file sizes | `budget-plan-v2.json` — projected calls, input, output, cost for the selected arm | deterministic (arithmetic) |
-| **2 · Hunt lanes** | one file per lane + its assigned classes' playbooks + arch/route context | `candidate-findings.json` — findings with a class label, a confidence, and a line-level trace | **LLM**, 2 turns per lane |
-| **3 · Validate** | one consolidated finding's claim | `validated-findings.json` | **LLM** — v1 only, see §8 |
-| **4 · Output** | Stage 3 verdicts | schema-valid `findings.json` + SARIF projection | not built |
+| **2 · Hunt lanes** | one file per lane + its assigned classes' playbooks + arch/route context | `candidate-findings.json` — findings with class labels, a confidence, and a line-level trace | **LLM**, agent loop per lane |
+| **reconcile** | Stage 2's consumption artifact | `usage-v2.json` — measured tokens and cost, per lane and total | deterministic |
+
+### 3.3 Justifying the architecture
 
 **Why one lane per file.** The first architecture used one lane per *category
 theme*, seeded with many files. Two defects made it unfixable: seed files were
@@ -134,21 +235,61 @@ truncated at 15,000 characters — the main server file is 2.7× that and was se
 to every lane, so five ground-truth entries were physically unreachable — and
 every finding inherited its lane's entire category list, so a finding of one
 class carried the labels of several others. One lane per file makes coverage
-provable from the manifest and forces the model to label its own finding.
+provable from the manifest, forces the model to label its own finding, and caps
+the blast radius of any single failure at one file.
 
-**The lane loop.** Stage 2 is two turns in one conversation per chunk: a hunt
-turn, then a follow-up that completes each finding's trace. The arm is
-`HUNT_LOOP` (`none` | `trace` | `gap` | `reflect` | `sweep`); `trace` is shipped.
-It exists because the dominant residual after five runs was `LINE_MISS_NEAR` —
-the model reading the right code and citing a line 1–5 away from the defect.
-That pool halved (28 → 14) when the loop shipped.
+**Why the reasoning is bounded to two stages.** Stage 0.5 and Stage 1 are
+deterministic on purpose. Lane assignment and cost projection are decisions that
+must be *auditable* — you have to be able to answer "why was this file scanned
+this way" without re-running a model — and they are the two places where
+non-determinism would make every downstream comparison meaningless.
 
-**Classes, not categories.** A 14-class registry (`shared/vuln-classes.json`)
-maps to 25 OWASP codes, with one playbook per class. A finding may carry more
-than one class — a single line can genuinely be both an injection and an
-authentication failure — and the number of classes per finding is tracked as
-*hedging*, so "found it by labelling everything" is visible rather than
-rewarded.
+**Why a loop instead of a longer prompt.** A single turn asks the model to find
+and fully evidence a vulnerability at once, and it reliably does the first well
+and the second partially. Splitting into a hunt turn and a completion turn lets
+the second turn work against concrete findings rather than against a blank file.
+The arm is `HUNT_LOOP` (`none` | `trace` | `gap` | `reflect` | `sweep`) and
+`trace` is shipped; the alternatives are kept because the loop is the most
+promising place to keep experimenting.
+
+**Why classes rather than OWASP categories.** A 14-class registry
+(`shared/vuln-classes.json`) maps to 25 OWASP codes, with one playbook per class.
+Classes are what a playbook can actually teach; OWASP codes are what a report has
+to speak. A finding may carry more than one class — a single line can genuinely
+be both an injection and an authentication failure — and classes per finding is
+tracked as *hedging*, so "score well by labelling everything" shows up as a
+number rather than as recall.
+
+### 3.4 How the architecture is improved
+
+The stage split is not only an execution structure, it is the **experimental**
+structure. Because every stage reads and writes files, any stage can be run in
+isolation against a previous stage's frozen artifacts — which turns "did this
+change help?" into a single-variable question. Runs 5 and 6 both reused run 3's
+Stage 0 and 0.5 outputs unchanged, so the only thing that differed was Stage 2's
+arm.
+
+That property supports three things the project relies on:
+
+- **Isolated stage runs.** Re-run Stage 2 alone against a fixed manifest and the
+  lane assignments, class lists and chunk plans are identical by construction.
+- **Cheap measurement platforms.** All 97 ground-truth entries live in 40 of the
+  541 lanes, and restricting a run's own findings to those 40 reproduces its
+  published metrics exactly. A 40-lane arm is therefore a complete measurement of
+  recall and localization at 7.4% of a full run's cost — which is what made
+  testing five interventions affordable.
+- **Eval-driven iteration.** Every change is scored on the same metrics against
+  the same denominator, and the score decides whether it ships. Run 4's
+  intervention worked exactly as designed, moved nothing, and was reverted (§6).
+
+**Where it goes next.** The clearest measured lever is fewer classes per lane —
+lanes currently carry a mean of 5.55 classes and the model answers about 2.01, and
+a matched A/B on focused single-class lanes recovered 18/19 against the full
+list's 13/19 without ever losing a probe the full list won. Splitting lanes by
+class multiplies calls rather than playbook tokens, so the cost is bounded and
+known. Beyond that: a second target application to separate architecture from
+target-specific tuning, and a validation pass to raise precision, which the
+current pipeline does nothing to filter.
 
 Design intent is in `docs/architecture/`; the per-stage reference — exact inputs,
 outputs, which source file, which parts are code and which are model calls — is
@@ -173,14 +314,14 @@ docs/
   stages/                    per-stage reference: in, out, code vs. LLM
   analysis/                  investigation write-ups (aggregates; located
                              evidence lives in the answer-key repo)
-prompts/dispatch/            the written work spec for each change, dated
+prompts/runtime/             prompt templates the scanner sends during a scan
 results/
   eval-history/*.jsonl       append-only, one line per evaluated run — the
                              source of truth everything else derives from
   archive/                   superseded results, each with a README saying
                              what replaced it
 tools/
-  scanner/                   the pipeline: stage0-recon … stage3-validate
+  scanner/                   the pipeline: stage0-recon … stage2-hunt-lanes-perfile
     shared/                  registry, run paths, read guard, guard.test.ts
     runs/<provider>/<stage>/ per-model artifact namespace — never shared
   scan-benchmark/            scoring
@@ -218,14 +359,10 @@ alike.
 practical per-component reference. `orientation.md` and `run-history.md` sit at
 the top because they are the two documents most often wanted first.
 
-**Dispatch briefs are written work specs.** Each change was specified in a dated
-brief in `prompts/dispatch/` before implementation. They are never read at
-runtime — which is exactly the trap they created once, and §6 covers it.
-
 **An operational runbook with pre-run verification.**
 `docs/protocols/running-a-scan.md` is ordered, and its first step is *verify the
 tree, not the intent*: confirm each change you believe is in force by grepping
-the file it lives in, not by finding its brief on disk. Steps 2–4 clear the
+the file it lives in, not by finding the brief that asked for it. Steps 2–4 clear the
 Stage 2 checkpoint, probe the provider, and confirm the corpus. Step 7 is
 *verify before believing* — read `meta.json`, the coverage ledger, and the
 consumption entries before reporting anything.
@@ -245,11 +382,11 @@ records every model listed in it, so a deletion fails the suite instead of
 passing quietly.
 
 **A guard suite enforcing the invariants.** `tools/scanner/shared/guard.test.ts`
-carries ~80 assertion sites (more at runtime — the registry-contract block
-iterates every configured model) covering the read allowlist and its traversal
-escapes, the model-registry contract for every entry, price and `price_asof`
-presence, and the property that no lane manifest on disk assigns a denylisted
-file to a hunt lane.
+runs **256 assertions** covering the read allowlist and its traversal escapes,
+the model-registry contract for every configured entry, price and `price_asof`
+presence, line-number fidelity between what the model is shown and what the
+scorer reads, transport sandboxing, and the property that no lane manifest on
+disk assigns a denylisted file to a hunt lane.
 
 **The blind boundary is one of the guarantees this structure buys.** The rule is
 that nothing pairing a challenge identifier with a file or a line may exist
@@ -269,12 +406,6 @@ dropped.
 ---
 
 ## 5. Results and benchmarking
-
-Every ground-truth-denominated figure below is over the **97 reachable** entries
-of a 98-entry key. One entry sits in a file on the seed denylist that no finding
-can ever cite — unreachable by construction, a cost of the blind boundary rather
-than a scanner failure. Reporting it as a miss understated every run by ~1 point
-and put an unattainable point between the scanner and the ≥90% target.
 
 ### (a) Iteration trajectory
 
@@ -332,37 +463,50 @@ the published 43.3%. Runs 1–5 are left as published, per the never-rewrite rul
 Identical prompts, identical lane manifest, identical corpus, identical scorer
 and denominator. The only permitted differences are the ones the model registry
 declares — everything else and you are comparing two codebases rather than two
-models. All three use the v2 per-file pipeline at `HUNT_LOOP=trace`,
-`reasoning_effort: high`, `max_output_tokens: 64000`, 541/541 lanes, 1,082 calls.
+models. All four use the v2 per-file pipeline at `HUNT_LOOP=trace`,
+`reasoning_effort: high`, `max_output_tokens: 64000`, and completed 541/541
+lanes.
 
-| Metric | `luna` (GPT-5.6 Luna) | `glm52` (GLM-5.2) | `gemini36flash` (Gemini 3.6 Flash) |
-|---|---|---|---|
-| **Recall** (file + exact line + class) | **71.1%** (69/97) | 67.0% (65/97) | 58.8% (57/97) |
-| Recall, class-blind | 79.4% | 79.4% | 69.1% |
-| **Localization** (±15 lines) | **88.7%** (86/97) | 85.6% (83/97) | 75.3% (73/97) |
-| Localization, class-blind | 95.9% | 93.8% | 91.8% |
-| File-level | 100% | 100% | 99.0% |
-| **Precision proxy**, class-aware | 12.5% (69/553) | 7.8% (70/892) | **16.5%** (47/285) |
-| Findings emitted | 553 | 892 | 285 |
-| Hedging (classes/finding) | **1.418** | 1.459 | 1.512 |
-| Distinct lines cited | 3,597 | 4,577 | 1,181 |
-| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 4.56 / 13 |
-| Total tokens | 9.62M | 9.67M | 9.38M |
-| **Cost** | **$4.37** | $17.01 | $24.85 |
-| **Runtime** | **13m04s** at C=32 | ~18.5m at C=32 | 32m12s at C=8 |
+| Metric | `luna`<br/>GPT-5.6 Luna | `glm52`<br/>GLM-5.2 | `sonnet5cli`<br/>Claude Sonnet 5 | `gemini36flash`<br/>Gemini 3.6 Flash |
+|---|---|---|---|---|
+| **Recall** (file + exact line + class) | **71.1%** (69/97) | 67.0% (65/97) | 66.0% (64/97) | 58.8% (57/97) |
+| Recall, class-blind | 79.4% | 79.4% | 79.4% | 69.1% |
+| **Localization** (±15 lines) | **88.7%** (86/97) | 85.6% (83/97) | 86.6% (84/97) | 75.3% (73/97) |
+| Localization, class-blind | 95.9% | 93.8% | **96.9%** | 91.8% |
+| File-level | 100% | 100% | 100% | 99.0% |
+| **Precision proxy**, class-aware | 12.5% (69/553) | 7.8% (70/892) | 6.4% (81/1,270) | **16.5%** (47/285) |
+| Findings emitted | 553 | 892 | 1,270 | 285 |
+| Hedging (classes/finding) | **1.418** | 1.459 | 1.536 | 1.512 |
+| Distinct lines cited | 3,597 | 4,577 | 6,709 | 1,181 |
+| Mean / max trace steps | 8.74 / 51 | 6.64 / 38 | 6.66 / 30 | 4.56 / 13 |
+| Total tokens | 9.62M | 9.67M | 23.10M | 9.38M |
+| **Cost** | **$4.37** | $17.01 | $84.04 | $24.85 |
+| **Runtime** | **13m04s** at C=32 | ~18.5m at C=32 | ~4h at C=6 | 32m12s at C=8 |
 
-**What the spread shows.** Class-blind recall is identical for the top two
-(79.4%) while class-aware recall differs by 4 points — the gap is in labelling,
-not in finding. The three models sit within 3% of each other on total tokens and
-span **5.7× on cost**, which is a pricing property rather than a capability one.
-Gemini's concurrency of 8 is a measured ceiling on this target, not a
-configuration choice, and it is why its runtime is 2.5× Luna's on fewer tokens.
-Precision proxy inverts the recall order: the model emitting the fewest findings
-has the best ratio and the worst recall.
+*Precision proxy counts a finding as correct only if it matches one of the 97
+ground-truth entries, so genuine vulnerabilities elsewhere in the app score as
+false positives. It is a floor, not an estimate.*
 
-Per-class recall for each model is in `docs/benchmarking-results.md`, which is
-the append-only ledger every model's run writes into, with the rules a row must
-satisfy to be recorded. Four further models are staged and on hold.
+**What the spread shows.** Three of the four land on **identical class-blind
+recall (79.4%)** while class-aware recall spreads 5 points — the differences
+between the top models are in *labelling*, not in finding. Cost spans **19×**
+across models that sit within 3% of each other on ground-truth coverage, which
+is a pricing and transport property rather than a capability one. Precision
+proxy inverts the recall order almost exactly: Sonnet emits 1,270 findings and
+scores 6.4%, Gemini emits 285 and scores 16.5% — more output buys recall and
+costs precision, on every model measured.
+
+Two rows carry qualifications that belong next to the number. Gemini's
+concurrency of 8 is a *measured ceiling* on this target, not a configuration
+choice, which is why its runtime is 2.5× Luna's on fewer tokens. Sonnet 5 ran
+through the Claude Code CLI transport rather than a direct API, across four usage
+windows at concurrency 6, with 229 refused calls alongside its 1,093 successful
+ones — so its ~4h wall clock measures the transport and the account, not the
+model's speed.
+
+Per-class recall for each model is in `docs/benchmarking-results.md`, the
+append-only ledger every model's run writes into, with the rules a row must
+satisfy to be recorded. Three further models are staged and on hold.
 
 **Architectural provenance.** The five-tool external comparison in §2
 (`results/archive/2026-07-five-tool-benchmark/`) is the origin of the targets and
@@ -371,13 +515,15 @@ above — it scored 10 ground-truth entries where these score 97.
 
 ---
 
-## 6. Technical challenges encountered
+## 6. Technical challenges, and how they were investigated
+
+### (a) Five problems that changed the architecture
 
 Each of these was found by measurement, not by review, and each changed
 something. They are here because the investigation method is the transferable
 part.
 
-### A line-count desync that no metric could see
+#### A line-count desync that no metric could see
 
 **Problem.** Recall was stuck while localization improved — the signature of
 findings landing near the defect but never on it.
@@ -401,7 +547,7 @@ generalizable lesson: **any transform that changes line counts between what the
 model reads and what the scorer reads is invisible to every localization metric
 you have** — assert prompt fidelity byte-for-byte, per unit of work.
 
-### Concurrency versus rate limits, and lanes that vanish
+#### Concurrency versus rate limits, and lanes that vanish
 
 **Problem.** A run at concurrency 8 lost 52 of 541 lanes. A failed lane is not
 just a gap: a second pass triggers a defect where `laneRecordsV2` is not restored
@@ -425,7 +571,7 @@ could not outlast a sustained saturation period.
 concurrency 32 with 0 retries. The runbook now says to re-derive the number
 rather than reuse one, because the rate limit has already moved by 10×.
 
-### A 429 that was not a rate limit
+#### A 429 that was not a rate limit
 
 **Problem.** A full-pipeline run died, and a model-tier arm on a larger model
 failed, both throwing HTTP 429. The obvious reading — rate limiting — was
@@ -440,7 +586,7 @@ materially different statement about the architecture. The earlier attribution t
 rate limiting is left in place with the correction beneath it. The lesson is
 narrow and sharp: **a status code is not a diagnosis.**
 
-### A location-weighted metric producing ~10 points of phantom variance
+#### A location-weighted metric producing ~10 points of phantom variance
 
 **Problem.** Run 3 had the best recall and run 5 the best localization, and the
 two facts appeared to conflict.
@@ -461,7 +607,7 @@ nondeterminism floor** on byte-identical prompts is treated as the threshold
 below which nothing is a result. It is also why run 6's claim rests on *40 of 66
 distinct locations* rather than on 71.1%.
 
-### An experiment that hit 100% conformance and moved nothing
+#### An experiment that hit 100% conformance and moved nothing
 
 **Problem.** A persistent `FILE_ONLY` bucket — 13 entries where a finding sits in
 the right file but never within ±15 lines carrying the right class. The reading:
@@ -494,6 +640,80 @@ only thing that separates them is a control arm. The lever that did move both
 halves of the gap came out of the same investigation: fewer classes per lane,
 18/19 against 13/19, never losing a probe the full list wins.
 
+### (b) How the investigations were actually run
+
+None of the five above came out of someone reading the code and having an idea.
+Each was the product of a repeatable loop, run by Claude Code agents against an
+explicit numeric goal, and the loop is as much a part of this project as the
+pipeline is.
+
+**A goal is a slash command with a metric in it, not a description of a task.**
+An investigation starts by defining what would count as success in the same units
+the scorer reports: *raise recall to X% without losing localization*, *halve the
+`LINE_MISS_NEAR` pool*, *hold hedging at or below its current value*. Encoding
+the goal as thresholds rather than as prose is what makes the loop terminable —
+an agent can tell whether it is finished, and so can a reviewer. It also stops
+the usual failure mode of an agentic investigation, which is producing a
+plausible narrative about a change nobody measured.
+
+**A custom workflow fans the goal out across agents.** Rather than one agent
+carrying an investigation end to end, the work is decomposed and dispatched:
+agents that hypothesize a mechanism from the residual buckets, agents that
+implement a candidate change, agents that build the control arm, agents that
+score. They run in parallel where the work is independent — testing four
+candidate interventions concurrently costs the same wall clock as testing one —
+and their outputs come back as structured results rather than as prose, so they
+can be compared instead of read.
+
+**Every candidate fix is scored before it is believed.** An agent proposing a
+change also runs it: build the arm, execute it against the frozen upstream
+artifacts, score it with the same scorer and the same denominator as every
+published run, and report the delta against the goal's thresholds. The 40-lane
+measurement platform exists precisely to make this affordable — a full-corpus
+run per idea would have made five interventions unaffordable, and at 7.4% of the
+lanes each idea costs minutes rather than an hour. A change that does not clear
+its threshold is written up as falsified and does not ship, which is how run 4's
+F3 sweep and the windowing A/B both ended.
+
+**Findings are assembled, not just collected.** The last step of a workflow is
+synthesis: reconcile what the arms agree on, mark what is inside the ±7-entry
+nondeterminism floor and therefore not a result, separate mechanism from cause,
+and emit both a shipping decision and a ranked list of what to try next. That
+output lands in `docs/analysis/` as an aggregate write-up and, when it needs
+located evidence, in the answer-key repo — the split described in §4. The ranked
+remainder becomes the next goal, and the loop runs again.
+
+```mermaid
+flowchart LR
+    G["<b>Goal</b><br/>slash command with<br/>numeric thresholds<br/><i>recall ≥ X%, hedging ≤ Y</i>"]
+    H["<b>Hypothesize</b><br/>agents read residual<br/>buckets, propose<br/>mechanisms"]
+    I["<b>Implement + control</b><br/>parallel agents build<br/>each candidate arm<br/>and its matched control"]
+    S["<b>Score</b><br/>same scorer, same<br/>denominator, on the<br/>40-lane platform"]
+    D{"<b>Clears the<br/>threshold?</b>"}
+    SH["<b>Ship</b><br/>full-corpus run,<br/>archive, append to<br/>the run ledger"]
+    F["<b>Falsify</b><br/>write up the negative<br/>so it is not retried"]
+    Y["<b>Synthesize</b><br/>assemble findings,<br/>rank what to try next"]
+
+    G --> H --> I --> S --> D
+    D -->|yes| SH --> Y
+    D -->|no| F --> Y
+    Y -->|next goal| G
+
+    classDef goal fill:#4c1d95,stroke:#a78bfa,color:#fff
+    classDef work fill:#1e3a5f,stroke:#3b82f6,color:#fff
+    classDef good fill:#14532d,stroke:#22c55e,color:#fff
+    classDef bad fill:#7f1d1d,stroke:#ef4444,color:#fff
+    class G,Y goal
+    class H,I,S,D work
+    class SH good
+    class F bad
+```
+
+**What this bought.** Five interventions tested in the time one full-corpus run
+takes; two shipped, two falsified with evidence, one reverted after shipping. The
+negative results are the ones that compound — a falsified mechanism written down
+is a whole class of future work that nobody has to pay for twice.
+
 ---
 
 ## 7. Running it
@@ -508,14 +728,17 @@ in this repository.
 ### Quickstart
 
 ```bash
-# 0. Confirm the provider is reachable — costs a few tokens, exits non-zero on failure
-cd tools/scanner/stage3-validate
-NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=luna npx tsx ../shared/preflight.ts
+# 0. Install per-package node deps (gitignored; a fresh clone has none)
+./tools/scanner/install.sh
 
-# 1. Check the invariants
+# 1. Confirm the provider is reachable — costs a few tokens, exits non-zero on failure
+cd tools/scanner/shared
+NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=luna npx tsx preflight.ts
+
+# 2. Check the invariants — 256 assertions
 cd ../stage2-hunt-lanes-perfile && npx tsx ../shared/guard.test.ts
 
-# 2. Run a stage, or the whole v2 pipeline
+# 3. Run a stage, or the whole v2 pipeline
 ./tools/scanner/run.sh <provider> <stage|all-v2>
 ```
 
@@ -607,50 +830,6 @@ with nothing in the log to say why.
 
 To reproduce runs 1–5: `HUNT_LOOP=none SCANNER_REASONING_EFFORT=
 SCANNER_MAX_OUTPUT_TOKENS=8000`.
-
----
-
-## 8. Known limits
-
-**The measurement is n=97 on one application.** Every number in §5 is Juice
-Shop. The pipeline is target-agnostic by construction — Stage 0 derives its
-architecture summary from the tree it is pointed at, and the corpus path is a
-parameter — but that generality is untested. A second target is the single
-highest-value thing that could be added.
-
-**Public-corpus pretraining is an unquantified confound.** Juice Shop is one of
-the most widely mirrored codebases on the internet and every model here was
-trained on data that almost certainly includes it, along with write-ups of its
-challenges. The blind split removes the in-repo giveaways; it cannot remove what
-a model already knows. Cross-model comparison is unaffected — all three models
-face the same confound — but the absolute level is an upper bound on what the
-same architecture would do against code the model has never seen.
-
-**The ≥90% targets are not met.** Recall 71.1% against ≥90%, localization 88.7%
-against ≥90%. Two structural caps are known and quantified: 5 of the residual
-`LINE_MISS_NEAR` entries have a ground-truth line that is blank,
-punctuation-only, or a comment and is therefore not citable at all, which caps
-exact-line recall near 94%; and one entry is unreachable by the seed denylist,
-which is why the denominator is 97. `ai-llm-agency` remains at or near 0/4 across
-every run to date.
-
-**v2 has no validator stage, so precision is unrecovered.** Stage 3 exists and
-works, but it consumes v1's Stage 2 output and its committed results predate both
-the v2 architecture and the target-app cleanup — treat any number from it as
-stale. Nothing downstream of v2's Stage 2 filters findings, which is why the
-precision proxy sits at 7.8–16.5% against a ≥95% target. That figure is a
-*proxy*: it counts a finding as correct only if it matches a ground-truth entry,
-so genuine vulnerabilities outside the 97-entry key are scored as false
-positives. The real precision is higher by an unknown amount, and no honest
-number for it exists without hand-adjudicating several hundred findings.
-
-**Stage 4 is not built**, so there is no schema-validated or SARIF output; the
-pipeline's terminal artifact is `candidate-findings.json`.
-
-**The patcher and verifier are designed, not built.** The stated goal — fix every
-real instance of a class and prove both that the exploit no longer works and that
-functionality is unchanged — has a ground-truth schema and an agent-facing
-contract, and no implementation.
 
 ---
 

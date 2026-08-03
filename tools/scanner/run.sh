@@ -37,7 +37,7 @@ REGISTRY="$SCANNER_DIR/shared/registry-cli.mjs"
 registry() { NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= node "$REGISTRY" "$@"; }
 
 # v1 — category-themed lanes.
-STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes stage3-validate)
+STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes)
 # v2 — one lane per file. Shares stage0-recon with v1; reconcile runs last,
 # after stage 2 has produced the consumption it reconciles against.
 STAGES_V2=(stage0-recon stage05-lane-selector-perfile stage1-budget-governor-perfile stage2-hunt-lanes-perfile reconcile-v2)

@@ -19,9 +19,9 @@ Everything below assumes the v2 track. Substitute the v1 stage names for a v1 ru
     git log --oneline origin/main..HEAD
 
 Then confirm each change you believe is in force **by grepping the file it
-should be in**, not by finding its dispatch prompt on disk.
+should be in**, not by finding the brief that asked for it.
 
-This exists because on 2026-07-28 three dispatched changes — playbook
+This exists because on 2026-07-28 three requested changes — playbook
 adjacent-class disambiguation, removal of the two-class cap, and the
 misconfiguration/insecure-design prompt work — were all implemented and
 committed *before* a run started, but on a branch that run's tree had forked away
@@ -54,8 +54,8 @@ not.
 
 ## 3. Confirm the provider is reachable
 
-    cd tools/scanner/stage3-validate
-    NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=<provider> npx tsx ../shared/preflight.ts
+    cd tools/scanner/shared
+    NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=<provider> npx tsx preflight.ts
 
 Costs a few tokens. Prints provider, model, sampling/token params and key length,
 then does a plain completion and a `json_schema` round-trip. Exits non-zero on

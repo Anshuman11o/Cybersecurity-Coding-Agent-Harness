@@ -1,19 +1,5 @@
 # Prompts
 
-Two kinds, deliberately separated.
-
-## `dispatch/`
-
-Task prompts sent to the implementing agent (Qwen Code) to build or run
-something. Named `<YYYY-MM-DD>__<short-description>.md`.
-
-These are kept because they are the record of *what was asked for*. When a
-component behaves unexpectedly, the first question is usually whether it was
-built to do that — and the answer is here.
-
-Previously these lived only in an ephemeral scratchpad and were lost when a
-container was reclaimed. Anything dispatched should be saved here.
-
 ## `runtime/`
 
 Prompt templates the scanner itself sends during a scan — the hunt-lane

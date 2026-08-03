@@ -115,8 +115,8 @@ which needs §9.6 resolved first.
 | Isolation | one git worktree per model (§5) |
 | Concurrency | 8–32, per model (§6) |
 
-Stage 3 (`stage3-validate`) is **not part of this benchmark**. It is not in the
-v2 pipeline and must not be run. The scored artifact is Stage 2's output.
+The scored artifact is Stage 2's `candidate-findings.json`, which is the
+pipeline's final output — there is no validation or reporting stage after it.
 
 ## 2. Models
 

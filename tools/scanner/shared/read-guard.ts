@@ -1,12 +1,11 @@
 /**
  * Corpus read guard.
  *
- * Three call sites in the scanner read a file path that a MODEL produced:
+ * Two call sites in the scanner read a file path that a MODEL produced:
  *   - stage2 readSeedFiles()        (lane manifest seed_files)
  *   - stage2 scope expansion        (LLM scope_requests, orchestrator-approved)
- *   - stage3 readCitedFiles()       (trace steps emitted by the stage2 model)
  *
- * All three must go through readCorpusFile(). It is an ALLOWLIST confined to
+ * Both must go through readCorpusFile(). It is an ALLOWLIST confined to
  * the target-app corpus, so it fails closed: anything not explicitly permitted
  * is denied without needing a new denylist entry. This is what keeps prior-run
  * artifacts under tools/scanner/runs/, scored results under results/, and the

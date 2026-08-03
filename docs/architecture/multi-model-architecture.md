@@ -173,7 +173,6 @@ tools/scanner/
 ├── stage05-lane-selector/src/
 ├── stage1-budget-governor/src/  (also hosts v2's governor, behind --v2)
 ├── stage2-hunt-lanes/src/
-├── stage3-validate/src/
 │
 ├── stage05-lane-selector-perfile/src/   v2 — one lane per file
 ├── stage2-hunt-lanes-perfile/src/
@@ -257,17 +256,17 @@ rather than only the manifest write in stage 0.5.
 ```
 
 ```bash
-./tools/scanner/run.sh luna all-v2                # v2 pipeline, per-file lanes
-./tools/scanner/run.sh qwen stage3-validate       # v1 baseline
-./tools/scanner/run.sh luna stage3-validate       # v1 challenger
-./tools/scanner/diff.sh stage3-validate qwen luna # compare
+./tools/scanner/run.sh luna all-v2                            # v2 pipeline, per-file lanes
+./tools/scanner/run.sh qwen stage2-hunt-lanes-perfile          # baseline
+./tools/scanner/run.sh luna stage2-hunt-lanes-perfile          # challenger
+./tools/scanner/diff.sh stage2-hunt-lanes-perfile qwen luna    # compare
 ```
 
 Two pipelines, selected by target:
 
 | Target | Stages, in order |
 |---|---|
-| `all` (v1) | `stage0-recon` → `stage05-lane-selector` → `stage1-budget-governor` → `stage2-hunt-lanes` → `stage3-validate` |
+| `all` (v1) | `stage0-recon` → `stage05-lane-selector` → `stage1-budget-governor` → `stage2-hunt-lanes` |
 | `all-v2` | `stage0-recon` → `stage05-lane-selector-perfile` → `stage1-budget-governor-perfile` → `stage2-hunt-lanes-perfile` → `reconcile-v2` |
 
 Both tracks share Stage 0. `stage1-budget-governor-perfile` and `reconcile-v2`
@@ -291,8 +290,8 @@ Before spending money on a stage run, verify credentials, model access, and
 parameter shape:
 
 ```bash
-cd tools/scanner/stage3-validate
-SCANNER_PROVIDER=luna npx tsx ../shared/preflight.ts
+cd tools/scanner/shared
+SCANNER_PROVIDER=luna npx tsx preflight.ts
 ```
 
 Checks the key is present, makes one tiny completion call, and probes
@@ -301,12 +300,12 @@ Checks the key is present, makes one tiny completion call, and probes
 ### Seeding upstream artifacts
 
 `assertUpstream()` refuses to run a stage whose upstream artifacts belong to a
-different provider. For a **validator-only** comparison (same candidates,
-different judge), copy the upstream across:
+different provider. For a **single-stage** comparison (same upstream inputs,
+different model doing the hunting), copy the upstream across:
 
 ```bash
-./tools/scanner/seed-upstream.sh qwen luna stage1-budget-governor stage2-hunt-lanes
-./tools/scanner/run.sh luna stage3-validate
+./tools/scanner/seed-upstream.sh qwen luna stage0-recon stage05-lane-selector-perfile
+./tools/scanner/run.sh luna stage2-hunt-lanes-perfile
 ```
 
 The rewritten `meta.json` carries `seeded_from`, so the artifacts stay honestly

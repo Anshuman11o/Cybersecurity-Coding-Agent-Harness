@@ -30,7 +30,7 @@ export { listProviders, listProviderSpellings, defaultProvider, targetFor }
 
 /**
  * @param stageKey short key for the per-stage override env var,
- *                 e.g. 'stage3' -> SCANNER_PROVIDER_STAGE3
+ *                 e.g. 'stage2' -> SCANNER_PROVIDER_STAGE2
  */
 export function resolveProvider(stageKey: string): Provider {
   const raw =
