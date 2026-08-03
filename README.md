@@ -21,7 +21,7 @@ the identical pipeline on identical prompts, lanes and corpus (§5).
 
 ## Contents
 
-1. [Headline](#scanner-ai-agent-harness)
+1. [Headline](#cybersecurity-scanner-ai-agent-harness)
 2. [The problem](#2-the-problem)
 3. [Architecture](#3-architecture)
 4. [Project structure and engineering process](#4-project-structure-and-engineering-process)
@@ -787,15 +787,15 @@ SCANNER_MAX_OUTPUT_TOKENS=8000`.
 
 | You want to… | Read |
 |---|---|
-| Get oriented in 15 minutes | `docs/orientation.md` |
-| Know the rules that must not be broken | `CLAUDE.md` |
-| Run a scan end to end | `docs/protocols/running-a-scan.md` |
-| Score a run and compare it to the last | `docs/protocols/eval-howto.md` |
-| See every run and what it showed | `docs/run-history.md` |
-| Compare models | `docs/benchmarking-results.md` |
-| Add or switch an inference model | `docs/architecture/multi-model-architecture.md` |
-| Understand what one stage reads and writes | `docs/stages/<stage>.md` |
-| Understand what the scanner may never see | `docs/protocols/blind-development.md` |
+| Get oriented in 15 minutes | [`docs/orientation.md`](docs/orientation.md) |
+| Know the rules that must not be broken | [`CLAUDE.md`](CLAUDE.md) |
+| Run a scan end to end | [`docs/protocols/running-a-scan.md`](docs/protocols/running-a-scan.md) |
+| Score a run and compare it to the last | [`docs/protocols/eval-howto.md`](docs/protocols/eval-howto.md) |
+| See every run and what it showed | [`docs/run-history.md`](docs/run-history.md) |
+| Compare models | [`docs/benchmarking-results.md`](docs/benchmarking-results.md) |
+| Add or switch an inference model | [`docs/architecture/multi-model-architecture.md`](docs/architecture/multi-model-architecture.md) |
+| Understand what one stage reads and writes | [`docs/stages/<stage>.md`](docs/stages) |
+| Understand what the scanner may never see | [`docs/protocols/blind-development.md`](docs/protocols/blind-development.md) |
 
 ## Target application
 
