@@ -1784,6 +1784,7 @@ function writeCheckpoint(
   outDir: string,
   findings: CandidateFinding[],
   consumption: BudgetConsumption[],
+  laneRecords: LaneTokenRecordV2[] = [],
 ): void {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
@@ -1792,8 +1793,25 @@ function writeCheckpoint(
   writeFileSync(findingsTmp, JSON.stringify(findings, null, 2) + '\n')
   renameSync(findingsTmp, findingsPath)
 
+  // Write the v2 SHAPE mid-run, not a bare array.
+  //
+  // This used to emit `consumption` alone, which silently destroyed the
+  // `lanes` array living in the same file — the per-lane v2 token records
+  // accumulated by every previous pass. A pass that ended cleanly rewrote them
+  // a moment later, so the loss was invisible; a pass that was interrupted left
+  // a file with none, and the next pass's carry-forward then had nothing to
+  // carry. Measured 2026-08-03: a pause at lane 457 left 0 lane records on disk
+  // where 457 were expected, and the run's cost rollup would have covered only
+  // the lanes that happened to follow the last clean pass boundary.
+  //
+  // `rollup` is deliberately not written here: it is derived, it is expensive
+  // to recompute per lane, and a partial rollup on disk would read as a
+  // finished one. Its absence mid-run is unambiguous.
   const consumptionTmp = consumptionPath + '.tmp'
-  writeFileSync(consumptionTmp, JSON.stringify(consumption, null, 2) + '\n')
+  writeFileSync(
+    consumptionTmp,
+    JSON.stringify({ lanes: laneRecords, legacy_entries: consumption }, null, 2) + '\n',
+  )
   renameSync(consumptionTmp, consumptionPath)
 }
 
@@ -2242,7 +2260,7 @@ async function main() {
         console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
         // ── Checkpoint: write results immediately after each lane ─────────
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
       } catch (err: any) {
         console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
         // Marked failed, not merely zero-token. Without the flag this entry is
@@ -2257,7 +2275,7 @@ async function main() {
           failed: true,
           failure_reason: String(err?.message ?? err).slice(0, 300),
         })
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
       } finally {
         sem.release()
       }
@@ -2283,7 +2301,7 @@ async function main() {
   }
 
   // Final legacy write (includes skip lanes in consumption)
-  writeCheckpoint(outDir, allFindings, consumptionReport)
+  writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
 
   // ── v2 budget consumption output ────────────────────────────────────────
   const totalSourceBytes = laneRecordsV2.reduce((s, l) => s + l.file_bytes, 0)
