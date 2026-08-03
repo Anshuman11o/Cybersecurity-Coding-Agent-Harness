@@ -51050,6 +51050,696 @@
         "completion_tokens": 5912,
         "total_tokens": 51219
       }
+    },
+    {
+      "lane_id": "file-0499",
+      "target_file": "test/server/appVersion.unit.test.ts",
+      "file_bytes": 772,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 22,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 707
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4565
+              }
+            ],
+            "total_chars": 15696
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 707,
+              "derived_prompt_tokens": 284
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1241
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 924
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1325
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 701
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4565,
+              "derived_prompt_tokens": 1836
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6309,
+            "prompt_tokens": 6311,
+            "completion_tokens": 4393,
+            "total_tokens": 10704
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 22,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 20027
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1706
+              }
+            ],
+            "total_chars": 21733
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 20027,
+              "derived_prompt_tokens": 10405
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1706,
+              "derived_prompt_tokens": 886
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6309,
+            "cache_write_prompt_tokens": 4980,
+            "prompt_tokens": 11291,
+            "completion_tokens": 2668,
+            "total_tokens": 13959
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 17602,
+        "completion_tokens": 7061,
+        "total_tokens": 24663
+      }
+    },
+    {
+      "lane_id": "file-0498",
+      "target_file": "test/server/appConfiguration.unit.test.ts",
+      "file_bytes": 1016,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 34,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 713
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4863
+              }
+            ],
+            "total_chars": 16000
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 713,
+              "derived_prompt_tokens": 1201
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 5196
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 3869
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 5550
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 2936
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4863,
+              "derived_prompt_tokens": 8188
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 15898,
+            "cache_write_prompt_tokens": 11036,
+            "prompt_tokens": 26940,
+            "completion_tokens": 6048,
+            "total_tokens": 32988
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 34,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 20575
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1710
+              }
+            ],
+            "total_chars": 22285
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 20575,
+              "derived_prompt_tokens": 12162
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1710,
+              "derived_prompt_tokens": 1011
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 11036,
+            "cache_write_prompt_tokens": 2135,
+            "prompt_tokens": 13173,
+            "completion_tokens": 3122,
+            "total_tokens": 16295
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 40113,
+        "completion_tokens": 9170,
+        "total_tokens": 49283
+      }
+    },
+    {
+      "lane_id": "file-0496",
+      "target_file": "test/server/angular.unit.test.ts",
+      "file_bytes": 1301,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 50,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 704
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 5203
+              }
+            ],
+            "total_chars": 16331
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 704,
+              "derived_prompt_tokens": 286
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1255
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 934
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1340
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 709
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 5203,
+              "derived_prompt_tokens": 2117
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6639,
+            "prompt_tokens": 6641,
+            "completion_tokens": 4010,
+            "total_tokens": 10651
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 50,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 20830
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1734
+              }
+            ],
+            "total_chars": 22564
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 20830,
+              "derived_prompt_tokens": 10325
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1734,
+              "derived_prompt_tokens": 860
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6639,
+            "cache_write_prompt_tokens": 4544,
+            "prompt_tokens": 11185,
+            "completion_tokens": 5638,
+            "total_tokens": 16823
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 17826,
+        "completion_tokens": 9648,
+        "total_tokens": 27474
+      }
+    },
+    {
+      "lane_id": "file-0503",
+      "target_file": "test/server/challengeTag.unit.test.ts",
+      "file_bytes": 1091,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 27,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 784
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:injection",
+                "chars": 5993
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:integrity-failures",
+                "chars": 2183
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4906
+              }
+            ],
+            "total_chars": 34461
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 784,
+              "derived_prompt_tokens": 283
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 936
+            },
+            {
+              "segment_type": "playbook:injection",
+              "chars": 5993,
+              "derived_prompt_tokens": 2162
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1113
+            },
+            {
+              "segment_type": "playbook:integrity-failures",
+              "chars": 2183,
+              "derived_prompt_tokens": 788
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 829
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1189
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 818
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 1915
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 629
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4906,
+              "derived_prompt_tokens": 1772
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 12432,
+            "prompt_tokens": 12434,
+            "completion_tokens": 2002,
+            "total_tokens": 14436
+          },
+          "findings_emitted": 0
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 27,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 34476
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1435
+              }
+            ],
+            "total_chars": 35911
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 34476,
+              "derived_prompt_tokens": 14307
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1435,
+              "derived_prompt_tokens": 595
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 12432,
+            "cache_write_prompt_tokens": 2468,
+            "prompt_tokens": 14902,
+            "completion_tokens": 123,
+            "total_tokens": 15025
+          },
+          "findings_emitted": 0,
+          "findings_added": 0,
+          "traces_extended": 0
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 27336,
+        "completion_tokens": 2125,
+        "total_tokens": 29461
+      }
+    },
+    {
+      "lane_id": "file-0500",
+      "target_file": "test/server/b2bOrder.unit.test.ts",
+      "file_bytes": 724,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 33,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 705
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 4559
+              }
+            ],
+            "total_chars": 15688
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 705,
+              "derived_prompt_tokens": 285
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 1247
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 929
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 1332
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 705
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 4559,
+              "derived_prompt_tokens": 1843
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 0,
+            "cache_write_prompt_tokens": 6339,
+            "prompt_tokens": 6341,
+            "completion_tokens": 5444,
+            "total_tokens": 11785
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 33,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 20683
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1751
+              }
+            ],
+            "total_chars": 22434
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 20683,
+              "derived_prompt_tokens": 11365
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1751,
+              "derived_prompt_tokens": 962
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 6339,
+            "cache_write_prompt_tokens": 5986,
+            "prompt_tokens": 12327,
+            "completion_tokens": 6163,
+            "total_tokens": 18490
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 18668,
+        "completion_tokens": 11607,
+        "total_tokens": 30275
+      }
     }
   ],
   "legacy_entries": [
@@ -55953,6 +56643,36 @@
       "lane_id": "file-0501",
       "tokens_used": 51219,
       "seconds_elapsed": 72.125,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0499",
+      "tokens_used": 24663,
+      "seconds_elapsed": 89.13,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0498",
+      "tokens_used": 49283,
+      "seconds_elapsed": 107.779,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0496",
+      "tokens_used": 27474,
+      "seconds_elapsed": 109.213,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0503",
+      "tokens_used": 29461,
+      "seconds_elapsed": 35.381,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0500",
+      "tokens_used": 30275,
+      "seconds_elapsed": 138.976,
       "ceiling_hit": false
     }
   ]

@@ -72062,5 +72062,495 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.12
+  },
+  {
+    "finding_id": "FIND-2244",
+    "lane_id": "file-0499",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Tautological unit test provides no real assurance for version-disclosure security control",
+    "description": "The route handler retrieveAppVersion() implements a security-relevant control: it should suppress the application version number in API responses when application.showVersionNumber is configured false, preventing information disclosure (CWE-200) that could help an attacker fingerprint the running Juice Shop version and target known CVEs. The unit test that is supposed to validate this control (lines 14-20) derives BOTH the expected value (line 19) and, implicitly, the executed behavior (line 18) from the same live config.get('application.showVersionNumber') call rather than mocking two distinct scenarios (showVersionNumber = true and = false). Because the test never forces the flag into both states, it only ever exercises whichever single state config resolves to in the test environment, and the assertion is self-referential: it will pass as long as retrieveAppVersion() reads the same config key at all, even if the underlying logic that decides whether to include the version is subtly broken (e.g., inverted condition) as long as it happens to coincide with the current config value used at test time, or if the flag is left at its default in CI. This means a regression that re-enables version disclosure (or fails to hide it under the 'false' branch) can silently pass CI because that code path is never independently exercised. This is a design gap in how the security control's verification harness is built — the control itself is never proven under both configurations, so its correctness is never actually established by automated testing.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 11,
+        "description": "retrieveAppVersion is imported from the route handler that enforces the info-disclosure control based on application.showVersionNumber."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 18,
+        "description": "Test invokes retrieveAppVersion()(req, res) exactly once, exercising only whatever config state is currently active rather than both true/false branches of the security control."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 8,
+        "description": "The 'config' module is imported and will be read directly (not mocked/stubbed) both to drive and to verify the handler's behavior, coupling the test's expectation to whatever the live config currently resolves to."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 15,
+        "description": "A bare stub request object is created with no config override or injected state, so the handler under test will consult the real global config rather than a test-controlled value."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 16,
+        "description": "A mock res.json is created to capture whatever the handler returns for the single, unforced config state that happens to be active."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 19,
+        "description": "Assertion computes the expected value using the identical config.get('application.showVersionNumber') call used implicitly by the handler, making the test tautological and unable to catch a broken/regressed disclosure control under the untested branch."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-2245",
+    "lane_id": "file-0499",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Broken test description (operator precedence bug) reduces traceability of security-control test results",
+    "description": "The test description on line 14 is built with a string concatenation and ternary whose operator precedence does not do what was intended: `'should ' + config.get<boolean>('application.showVersionNumber') ? '' : 'not ' + 'return version specified in package.json'` is parsed as `('should ' + config.get(...)) ? '' : ('not ' + '...')`. Since `'should ' + <boolean>` always yields a non-empty (truthy) string, the ternary always evaluates to the empty string `''`, so the test is registered under the test runner with an essentially blank/uninformative name rather than a name reflecting whether the version-disclosure control is enabled or disabled. In a test-results/CI log used to audit whether the security-relevant version-disclosure test ran and what scenario it covered, this produces an unlabeled or misleading entry, hampering an analyst's ability to reconstruct from CI/test logs which configuration branch of a security control was validated in a given run.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 13,
+        "description": "describe block registers the appVersion security-control test suite."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 20,
+        "description": "The test case closes and is reported by the runner under the broken, uninformative name computed on line 14, so CI/test logs cannot be used to tell which security-control branch a given pass/fail result corresponds to."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/appVersion.unit.test.ts",
+        "line": 14,
+        "description": "Operator-precedence bug causes the test name/log label to always collapse to an uninformative empty-string branch, obscuring which security state (show vs hide version) was exercised in test/CI logs."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-2249",
+    "lane_id": "file-0498",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 12
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 12
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Sensitive configuration data exposed via blocklist-only redaction (missing allowlist control)",
+    "description": "The test file documents the security contract of retrieveAppConfiguration(): the handler returns the entire 'application' configuration object to the caller, and the only safeguard verified is that a single named field, chatBot.llmApiUrl, is stripped out (lines 24-32). This is a blocklist-style control: it enumerates one specific sensitive key to exclude rather than defining a positive allowlist of fields that are safe to expose. The rest of the 'application' config object (line 20-21, 'returnedConfig.application != null') is returned wholesale with no assertion constraining its shape or contents. If any other sensitive value is added to the application configuration in the future (e.g. another API key, internal URL, or secret), there is no structural control preventing it from being serialized into the public-facing config response — only this test's ad hoc field check would need to be extended, and nothing in the design forces that to happen. This is a design-level trust violation: the server hands back its full internal configuration object to any caller and relies on manually remembering to blocklist individual sensitive fields, rather than the design enforcing that only vetted/allowlisted fields are ever serialized to the client.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 18,
+        "description": "retrieveAppConfiguration()(req, res) is invoked with an empty req object, mirroring how the route handler (defined outside this file in routes/appConfiguration) is invoked for any inbound request."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 20,
+        "description": "The full res.json() payload's config.application object is extracted and only checked for non-null, meaning the handler serializes the entire internal application configuration object into the HTTP response."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 19,
+        "description": "res.json mock is asserted to have been called exactly once, confirming the handler unconditionally responds with a serialized config payload on every invocation, with no branching for authorization or field filtering visible here."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 21,
+        "description": "The only shape assertion made on the returned application config is that it is non-null — no allowlist of permitted keys is asserted, so any field present on the underlying config object passes through unchecked."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 24,
+        "description": "A second, narrowly-scoped test begins, whose title ('should not expose chatBot.llmApiUrl') signals that the exposure-prevention control is implemented as a single named-field check rather than a general allowlist policy."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 25,
+        "description": "req is reset to an empty object for the second call, again exercising the handler with no request-side constraints on what gets returned."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 26,
+        "description": "res is reset with a fresh json mock, so the second invocation's full response body will again be captured for inspection."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 28,
+        "description": "retrieveAppConfiguration()(req, res) is invoked a second time, reconfirming the handler serializes the full application config object on this call as well."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 29,
+        "description": "The returned config.application object is again extracted wholesale from the response for inspection, rather than the response itself being restricted to a known-safe subset of fields."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 30,
+        "description": "returnedConfig.application.chatBot is asserted non-null, confirming the chatBot sub-object (which is where the sensitive llmApiUrl field would live) is itself exposed in full to the caller, minus the one blocklisted key."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 15,
+        "description": "req is set to an empty object with no auth/session data, standing in for an unauthenticated caller reaching the config route handler defined outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 16,
+        "description": "res is constructed as a bare mock with only a json function, meaning no authentication middleware, status-code gate, or authorization check is modeled between the unauthenticated request and the handler's response."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 31,
+        "description": "Only one specific sensitive key (chatBot.llmApiUrl) is asserted absent from the exposed config; all other fields of the application configuration are returned without any allowlist/redaction control being verified or apparently enforced by design."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-2250",
+    "lane_id": "file-0498",
+    "finding_classes": [
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 2
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 2
+      }
+    ],
+    "categories": [
+      "A05",
+      "API8",
+      "API9",
+      "A04"
+    ],
+    "title": "Configuration retrieval endpoint tested with no authentication/authorization context",
+    "description": "retrieveAppConfiguration()(req, res) is exercised in both tests with req = {} — an empty request object carrying no session, token, user, or role information (lines 15, 18, 25, 28). The handler nonetheless returns a full configuration object including the 'application' section on every call, with no test asserting that unauthenticated or unauthorized callers are rejected. This strongly suggests the underlying route handler performs no authentication/authorization check before serving internal application configuration data, meaning the config data (aside from the one blocklisted llmApiUrl field) is available to any caller who can reach the route. Since the entrypoint (the actual Express route registration and any auth middleware) lives outside this file, this cannot be fully confirmed here, but nothing in this test suite — which is the closest available spec of the handler's behavior — exercises or requires an authenticated caller, which is consistent with a misconfigured/missing access-control on a sensitive configuration-disclosure endpoint.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 15,
+        "description": "req is set to an empty object with no auth/session data, standing in for an unauthenticated caller reaching the config route handler defined outside this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 18,
+        "description": "retrieveAppConfiguration()(req, res) is called and succeeds without any authorization check being exercised or asserted."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/appConfiguration.unit.test.ts",
+        "line": 21,
+        "description": "The handler returns the full application configuration object (res.json with config.application) to the unauthenticated caller, and the test asserts this succeeds rather than being denied."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-2240",
+    "lane_id": "file-0496",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 6
+      },
+      {
+        "class": "misconfiguration",
+        "justified_by_step": 6
+      }
+    ],
+    "categories": [
+      "A04",
+      "A05",
+      "API8",
+      "API9"
+    ],
+    "title": "Deny-list based SPA fallback validated only for exact '/api' and '/rest' strings, not sub-paths or variants",
+    "description": "The test suite for serveAngularClient() only exercises three cases: an arbitrary URL ('/any/thing') that is served as index.html, and the exact strings '/api' and '/rest' that raise an error. There is no test coverage (and thus no evidence of a corresponding implementation guarantee) for sub-paths such as '/api/Users', '/api/', '/rest/products', case variations ('/API'), or query-string suffixed variants ('/api?x=1'). A catch-all Angular client route that is protected by an exact-match deny-list rather than a prefix/allow-list check is a design flaw: any URL that is not byte-for-byte equal to the two blocked strings falls into the 'serve any URL' branch exercised at line 24, meaning a request like '/api/Users' (which per the architecture map is a real backend route) could be silently served the Angular index.html instead of correctly reaching the REST handler or producing a controlled error, if routing order or matching logic in the untested implementation file relies on the same exact-match semantics implied by this test. This is a trust-boundary design issue: the server is supposed to distinguish API/REST traffic from client-asset traffic, and the tested contract only proves that distinction holds for two exact literal strings, not for the actual space of possible URLs that begin with those prefixes.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 22,
+        "description": "req.url is set to an arbitrary path and passed into serveAngularClient(), demonstrating the fallback serves index.html for any URL not explicitly blocked."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 31,
+        "description": "Only the exact literal string '/api' is tested as a blocked path; no sub-path or case-variant of the API prefix is exercised."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 24,
+        "description": "serveAngularClient()(req, res, next) is invoked with the arbitrary URL, forwarding it into the fallback handler which unconditionally attempts to serve the client bundle for any path not on the deny-list."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 26,
+        "description": "Assertion confirms res.sendFile was called exactly once for the arbitrary URL, establishing that the handler's default branch is 'serve' rather than 'deny', i.e. the deny-list is the only gate."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 27,
+        "description": "Assertion confirms the served file path matches /index\\.html/, confirming the SPA fallback content is returned for the untested class of URLs, reinforcing that anything not exactly matching the blocked literals is treated as client content."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 37,
+        "description": "Final assertion confirms next() received an Error only for the exact literal '/api', closing the loop on a contract that is proven narrow (exact-match) rather than broad (prefix-match), which is the misconfigured/insecurely-designed decision point for any URL beginning with the blocked prefixes but not identical to them."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 33,
+        "description": "serveAngularClient()(req, res, next) is invoked with the exact-match blocked URL; the test only proves protection for this single literal value, leaving the broader prefix space unverified and implying a possible exact-match (rather than prefix-match) deny-list in the underlying route handler in routes/angular.ts."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-2241",
+    "lane_id": "file-0496",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "No verification that anomalous /api or /rest requests reaching the SPA catch-all are logged",
+    "description": "Requests to '/api' or '/rest' hitting the Angular catch-all route (serveAngularClient) represent an anomalous condition — these paths are supposed to be handled by dedicated REST/API route handlers registered earlier in the middleware chain (per the architecture map, e.g. GET /api/Users, POST /rest/memories). Reaching the SPA fallback with such a URL could indicate a misrouted request, a probing/reconnaissance attempt, or a routing misconfiguration. The test suite verifies only that an Error is passed to next() (lines 36-37, 46-47) but never asserts that this security-relevant event (a request to a sensitive-looking path being rejected by the client-serving layer) is logged, recorded, or surfaces any audit trail. If the underlying implementation likewise performs no logging on this path (which this test would not catch either way), then attempts to reach unmatched API/REST paths through the catch-all route leave no trace for incident detection or investigation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 30,
+        "description": "Test simulates an external request to the sensitive path '/api' reaching the Angular catch-all handler."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 33,
+        "description": "serveAngularClient()(req, res, next) is invoked; the only externally observable effect asserted is that next() is called with an Error object."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 31,
+        "description": "req.url is set to '/api', the concrete externally-supplied value that will be handed to the handler under test."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 35,
+        "description": "Assertion confirms res.sendFile was never called, verifying only the negative outcome (no file served) and not any observability outcome (no log/metric emitted)."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 37,
+        "description": "Final assertion confirms the propagated error is an instanceof Error and stops there — the security-relevant rejection event completes its observable lifecycle in this test without any log record being produced or verified, meaning such events would not generate an audit trail for detection or investigation."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/angular.unit.test.ts",
+        "line": 36,
+        "description": "Assertions only check next.mock.calls.length and that the argument is an instanceof Error — no assertion exists (and by extension no behavior is enforced) that this security-relevant rejection event is logged anywhere for monitoring/alerting purposes."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.2
+  },
+  {
+    "finding_id": "FIND-2251",
+    "lane_id": "file-0500",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 9
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Security-critical b2bOrder route has zero executable test assertions (missing compensating control)",
+    "description": "The test file imports the b2bOrder handler and wires up mocks that are clearly designed to exercise a security-sensitive code path: challenges.rceChallenge is explicitly reset to solved: false in beforeEach (lines 18-25), which only makes sense if b2bOrder can flip this flag as a side effect of processing attacker-supplied order data (this is the Juice Shop 'RCE challenge', historically tied to unsafe deserialization/parsing of B2B order payloads). However, the describe block never calls b2bOrder(req, res, next) inside an it() test — the body of the suite (lines 28-31) is empty. Every piece of the harness (req at line 19, res at line 20, next at line 21, the save mock at line 22, and the challenge reset at line 25) is fully assembled by the end of beforeEach (line 26), and then simply never used: no it()/test() call ever invokes b2bOrder with this harness before the describe block closes. There is no assertion that: (a) malicious/unexpected input does not trigger the RCE code path, (b) the response/next behavior is correct for valid vs. invalid input, or (c) the challenge-solved side effect only occurs under the intended narrow condition. For a route whose own test scaffolding acknowledges it processes input that can achieve remote code execution, shipping with a test suite that assembles a full invocation harness and then performs no verification at all is a missing compensating control for an inherently risky operation: regressions that widen the RCE trigger condition, or that remove input validation upstream, would not be caught by CI.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 10,
+        "description": "b2bOrder route handler (whose logic lives outside this file, in routes/b2bOrder) is imported specifically to be exercised by this test suite."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 25,
+        "description": "beforeEach resets challenges.rceChallenge.solved = false before every test, revealing that b2bOrder's business logic can mark an RCE-style challenge as solved based on request content — an inherently risky code path that the suite is set up to probe."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 12,
+        "description": "describe('b2bOrder', ...) opens the sole suite intended to validate the route's behavior, establishing the scope within which the risky code path should be exercised."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 18,
+        "description": "beforeEach hook is registered to build a fresh invocation harness before every test in the suite."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 19,
+        "description": "req is initialized with an empty body, representing the attacker-controlled input surface that would be passed into b2bOrder."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 20,
+        "description": "res is mocked with json/status stubs, representing the response channel through which b2bOrder's behavior would need to be asserted."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 21,
+        "description": "next is mocked, representing the middleware-continuation control that assertions could inspect to confirm correct error/success flow."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 22,
+        "description": "save mock is defined as the persistence stand-in that the challenge object will use."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 26,
+        "description": "beforeEach block closes with a fully assembled req/res/next/challenge harness ready to invoke b2bOrder, but this harness is only built — never dispatched to the handler within the suite."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 30,
+        "description": "The describe block body contains no it()/test invocation that actually calls b2bOrder(req, res, next); the risky code path identified by the mock setup is never exercised or asserted against, so no regression or bypass of the intended safeguard would be caught."
+      }
+    ],
+    "severity_estimate": "medium",
+    "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-2252",
+    "lane_id": "file-0500",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 1
+      },
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A09",
+      "A04"
+    ],
+    "title": "Mock save() thenable never resolves/rejects, masking absence of async error handling around a security-state mutation",
+    "description": "The mocked model save() (lines 22-24) returns an object whose then() method (line 23) is a no-op — it never invokes the resolve or reject callback passed to it. This mock is presumably meant to stand in for challenges.rceChallenge.save(), a call that (in the real, unseen route code) likely persists the challenge-solved state after some triggering condition. At line 25 this inert save function is attached directly as the .save property of challenges.rceChallenge, meaning any real or test code that calls rceChallenge.save().then(cb) will have cb silently never invoked. A thenable that silently never settles is consistent with production code that does something.save().then(...) without a .catch() and without awaiting/handling rejection — meaning a persistence failure for a security-relevant state change (marking a challenge solved, which is itself evidence of an exploit attempt) would fail silently with no error surfaced, logged, or alerted on. Because the actual route file is not visible here, this is inferred from the shape of the test double rather than confirmed directly, but the mock's design (an intentionally inert then() attached at the exact property the route logic depends on) is a strong signal that the calling code does not handle save failures, which would be a security-logging/monitoring gap for a state change tied to abuse detection.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 22,
+        "description": "Test defines save as a function returning a thenable whose then() callback is never invoked, standing in for the real persistence call used by the (external) b2bOrder route."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 25,
+        "description": "This mocked save is attached to challenges.rceChallenge, the object whose solved flag records a security-relevant event (an RCE-challenge trigger) — the shape of the mock implies the real code path calls .then() on this save with no rejection handling visible or tested."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 23,
+        "description": "The thenable's then() method is implemented as an empty no-op body — it never invokes the resolve or reject callback it would be given, so any .then(onSuccess, onError) or .catch() chained by calling code can never fire."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/b2bOrder.unit.test.ts",
+        "line": 24,
+        "description": "The no-op then() means neither success nor failure of the save is ever observed or asserted, so any test (or, by extension, production error path) that depends on the outcome of persisting this security state change would silently hang or be ignored rather than log/alert on failure."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
   }
 ]
