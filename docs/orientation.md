@@ -8,7 +8,7 @@ Fifteen minutes here saves a day of rediscovery.
 
 A harness that scans a codebase for OWASP-categorized vulnerabilities, and is
 intended to go on to fix them and prove the fix. **Only the scanner exists
-today.** The patcher, verifier and Stage 4 output are designed, not built.
+today.** The patcher and verifier are designed, not built.
 
 The target is OWASP Juice Shop. Accuracy is scored against a fixed 98-entry
 answer key that lives in a **separate private repository** and is never present
@@ -58,19 +58,17 @@ produced one wrong baseline — see `protocols/running-a-scan.md` §1.
 | Stage 0.5 | `stage05-lane-selector/` | `stage05-lane-selector-perfile/` |
 | Stage 2 | `stage2-hunt-lanes/` | `stage2-hunt-lanes-perfile/` |
 | Class model | none | 14 classes → 25 OWASP codes |
-| Validator | Stage 3 works | **none — Stage 3 reads v1 output** |
 
 All active work is v2. **Preserve v1 exactly** when changing v2; they share
-`shared/` but v1 does not read the class registry. The v2 gap at Stage 3 is real
-and unresolved: nothing downstream recovers v2 precision.
+`shared/` but v1 does not read the class registry.
 
 ## The shape of a run
 
     Stage 0   recon              LLM           → architecture summary, file signals
     Stage 0.5 lane selector      deterministic → lane assignments (hunt | skip)
     Stage 1   budget governor    deterministic → token projection
-    Stage 2   hunt lanes         LLM x2/lane   → candidate findings
-    Stage 3   validate           LLM           v1 only
+    Stage 2   hunt lanes         LLM x2/lane   → candidate findings (final output)
+    reconcile deterministic                     → measured usage and cost
 
 Stage 2 is two model turns per lane as of 2026-08-01: a hunt turn and a
 follow-up turn in the same conversation that completes each finding's trace.

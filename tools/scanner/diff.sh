@@ -2,11 +2,10 @@
 # Compare two providers' results for a stage.
 #
 #   ./tools/scanner/diff.sh <stage> <provider-a> <provider-b>
-#   ./tools/scanner/diff.sh stage3-validate qwen luna
 #   ./tools/scanner/diff.sh stage2-hunt-lanes-perfile qwen luna
 #
-# This is the deliverable of the multi-provider setup: which verdicts changed,
-# and in which direction.
+# This is the deliverable of the multi-provider setup: where two models
+# disagree about the same codebase, and in which direction.
 #
 # Both providers are required arguments. There is no default pair: with more
 # than two models in the registry, a defaulted comparison silently answers a
@@ -44,47 +43,6 @@ echo "B: $(meta "$B")"
 echo
 
 case "$STAGE" in
-  stage3-validate)
-    fa="$SCANNER_DIR/runs/$A/$STAGE/validated-findings.json"
-    fb="$SCANNER_DIR/runs/$B/$STAGE/validated-findings.json"
-    for f in "$fa" "$fb"; do
-      [ -f "$f" ] || { echo "error: missing $f" >&2; exit 1; }
-    done
-
-    # Consolidated IDs are positional, not stable across differing stage-2
-    # input. Comparing verdicts across runs whose IDs mean different things
-    # produces a plausible-looking but meaningless diff. Verify alignment.
-    aligned=$(join -t'|' \
-      <(jq -r '.[]|"\(.consolidated_id)|\(.title)"' "$fa" | sort) \
-      <(jq -r '.[]|"\(.consolidated_id)|\(.title)"' "$fb" | sort) \
-      | awk -F'|' '$2==$3' | wc -l | xargs)
-    common=$(join -t'|' \
-      <(jq -r '.[].consolidated_id' "$fa" | sort) \
-      <(jq -r '.[].consolidated_id' "$fb" | sort) | wc -l | xargs)
-    if [ "$common" -eq 0 ] || [ "$aligned" -lt $(( common * 9 / 10 )) ]; then
-      echo "ABORT: candidate IDs are not aligned between these two runs." >&2
-      echo "       $aligned of $common shared IDs refer to the same finding." >&2
-      echo "       The runs consumed different stage-2 input, so a verdict diff" >&2
-      echo "       would be meaningless. Re-run both providers against the same" >&2
-      echo "       candidate-findings.json (see seed-upstream.sh) first." >&2
-      exit 1
-    fi
-    echo "  (ID alignment verified: $aligned/$common shared candidates match)"
-    echo
-    echo "--- verdict counts ---"
-    printf '%-8s ' "$A"; jq -r '[.[].verdict]|group_by(.)|map("\(.[0])=\(length)")|join(" ")' "$fa"
-    printf '%-8s ' "$B"; jq -r '[.[].verdict]|group_by(.)|map("\(.[0])=\(length)")|join(" ")' "$fb"
-
-    echo
-    echo "--- per-candidate verdict changes ---"
-    join -t'|' \
-      <(jq -r '.[]|"\(.consolidated_id)|\(.verdict)"' "$fa" | sort) \
-      <(jq -r '.[]|"\(.consolidated_id)|\(.verdict)"' "$fb" | sort) \
-      | awk -F'|' -v a="$A" -v b="$B" \
-          'BEGIN{n=0} $2!=$3 {printf "  %-12s %s: %-10s -> %s: %s\n",$1,a,$2,b,$3; n++} \
-           END{if(n==0) print "  (no verdict changes)"; else printf "\n  %d of the candidates changed verdict\n", n}'
-    ;;
-
   stage2-hunt-lanes|stage2-hunt-lanes-perfile)
     fa="$SCANNER_DIR/runs/$A/$STAGE/candidate-findings.json"
     fb="$SCANNER_DIR/runs/$B/$STAGE/candidate-findings.json"
@@ -96,9 +54,9 @@ case "$STAGE" in
     printf '%-8s %s findings\n' "$B" "$(jq 'length' "$fb")"
 
     # Per-lane counts. Lane ids are deterministic (assigned by stage 0.5, not
-    # by the model), so unlike stage 3's consolidated ids they mean the same
-    # thing in both runs and can be joined directly. In v2 one lane is one
-    # file, so this is where the two models disagree about the codebase.
+    # by the model), so they mean the same thing in both runs and can be joined
+    # directly. In v2 one lane is one file, so this is where the two models
+    # disagree about the codebase.
     echo
     echo "--- lanes where finding counts differ ---"
     join -t'|' -a1 -a2 -e0 -o 0,1.2,2.2 \

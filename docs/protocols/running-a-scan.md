@@ -54,8 +54,8 @@ not.
 
 ## 3. Confirm the provider is reachable
 
-    cd tools/scanner/stage3-validate
-    NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=<provider> npx tsx ../shared/preflight.ts
+    cd tools/scanner/shared
+    NODE_USE_ENV_PROXY=1 SCANNER_PROVIDER=<provider> npx tsx preflight.ts
 
 Costs a few tokens. Prints provider, model, sampling/token params and key length,
 then does a plain completion and a `json_schema` round-trip. Exits non-zero on

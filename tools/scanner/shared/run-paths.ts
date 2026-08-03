@@ -35,7 +35,6 @@ export const STAGES = [
   'stage05-lane-selector',
   'stage1-budget-governor',
   'stage2-hunt-lanes',
-  'stage3-validate',
   // v2 — one lane per file. Shares stage0-recon with v1.
   'stage05-lane-selector-perfile',
   'stage1-budget-governor-perfile',
@@ -46,8 +45,8 @@ export type Stage = (typeof STAGES)[number]
 
 /**
  * Directory holding one stage's artifacts for one provider.
- *   runPath('luna', 'stage3-validate')
- *     -> <repo>/tools/scanner/runs/luna/stage3-validate
+ *   runPath('luna', 'stage2-hunt-lanes-perfile')
+ *     -> <repo>/tools/scanner/runs/luna/stage2-hunt-lanes-perfile
  *
  * The provider key is validated here rather than trusted. Path centralisation
  * only prevents a mix-up if an unknown key is a crash instead of a new,
