@@ -20,6 +20,7 @@
     --series-1:       #2a78d6;
     --series-2:       #eb6834;
     --series-3:       #1baf7a;
+    --series-4:       #a83c9c;
 
     --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
@@ -42,6 +43,7 @@
       --series-1:       #3987e5;
       --series-2:       #d95926;
       --series-3:       #199e70;
+      --series-4:       #c45fb5;
     }
   }
   :root[data-theme="dark"] .viz-root {
@@ -56,6 +58,7 @@
     --series-1:       #3987e5;
     --series-2:       #d95926;
     --series-3:       #199e70;
+    --series-4:       #c45fb5;
   }
 
   .stack { max-width: 1240px; margin: 0 auto; padding: 28px 20px 64px; }
@@ -125,11 +128,12 @@
 
     <details class="tv"><summary>Table view</summary>
       <table>
-        <thead><tr><th>Model</th><th>Recall score</th><th>Total evaluation cost</th><th>Cost per vulnerability</th></tr></thead>
+        <thead><tr><th>Model</th><th>Recall score</th><th>Total evaluation cost</th><th>Cost per vulnerability</th><th>Total tokens</th><th>Cost basis</th></tr></thead>
         <tbody>
-          <tr><td>GPT-5.6 Luna</td><td>88.7% (86/97)</td><td>$4.37</td><td>$0.045</td></tr>
-          <tr><td>GLM-5.2</td><td>85.6% (83/97)</td><td>$6.22</td><td>$0.064</td></tr>
-          <tr><td>Gemini 3.6 Flash</td><td>75.3% (73/97)</td><td>$24.85</td><td>$0.256</td></tr>
+          <tr><td>GPT-5.6 Luna</td><td>88.7% (86/97)</td><td>$4.37</td><td>$0.045</td><td>9,618,943</td><td>metered API spend</td></tr>
+          <tr><td>Claude Sonnet 5</td><td>86.6% (84/97)</td><td>$84.04</td><td>$0.866</td><td>23,098,383</td><td>CLI transport — see note</td></tr>
+          <tr><td>GLM-5.2</td><td>85.6% (83/97)</td><td>$6.22</td><td>$0.064</td><td>9,668,297</td><td>self-hosted estimate</td></tr>
+          <tr><td>Gemini 3.6 Flash</td><td>75.3% (73/97)</td><td>$24.85</td><td>$0.256</td><td>9,381,580</td><td>metered API spend</td></tr>
         </tbody>
       </table>
     </details>
@@ -144,9 +148,10 @@
              9,668,297 tokens x $0.643/MTok (8xH200 vLLM FP8 at 73% utilisation).
    Cost per vulnerability = cost / 97. Computed, not plotted. */
 const MODELS = [
-  { name:'GPT-5.6 Luna',     cost:4.37,  recall:88.7, hits:86, tokens:'9,618,943', costBasis:'metered API spend',  slot:1 },
-  { name:'GLM-5.2',          cost:6.22,  recall:85.6, hits:83, tokens:'9,668,297', costBasis:'self-hosted equivalent', slot:2 },
-  { name:'Gemini 3.6 Flash', cost:24.85, recall:75.3, hits:73, tokens:'9,381,580', costBasis:'metered API spend',  slot:3 },
+  { name:'GPT-5.6 Luna',     cost:4.37,  recall:88.7, hits:86, tokens:'9,618,943',  costBasis:'metered API spend',      slot:1 },
+  { name:'GLM-5.2',          cost:6.22,  recall:85.6, hits:83, tokens:'9,668,297',  costBasis:'self-hosted equivalent', slot:2 },
+  { name:'Gemini 3.6 Flash', cost:24.85, recall:75.3, hits:73, tokens:'9,381,580',  costBasis:'metered API spend',      slot:3 },
+  { name:'Claude Sonnet 5',  cost:84.04, recall:86.6, hits:84, tokens:'23,098,383', costBasis:'CLI transport',          slot:4 },
 ];
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -159,21 +164,22 @@ const S = i => `var(--series-${i})`;
   const W = 1088, H = 470;
   const M = { t: 24, r: 40, b: 96, l: 96 };
   const x0 = M.l, x1 = W - M.r, y0 = M.t, y1 = H - M.b;
-  const XD = [0, 28], YD = [70, 94];
-  const sx = v => x0 + (v - XD[0]) / (XD[1] - XD[0]) * (x1 - x0);
+  /* Log cost axis: the four runs span $4.37 to $84.04, a 19x range. On a linear
+     axis Luna and GLM-5.2 land 19px apart and their marks overlap. */
+  const XD = [3, 120], YD = [70, 94];
+  const lg = Math.log;
+  const sx = v => x0 + (lg(v) - lg(XD[0])) / (lg(XD[1]) - lg(XD[0])) * (x1 - x0);
   const sy = v => y1 - (v - YD[0]) / (YD[1] - YD[0]) * (y1 - y0);
 
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img',
-    'aria-label': 'Recall score against total evaluation cost. GPT-5.6 Luna 88.7 percent at $4.37. GLM-5.2 85.6 percent at $6.22. Gemini 3.6 Flash 75.3 percent at $24.85.' });
+    'aria-label': 'Recall score against total evaluation cost. GPT-5.6 Luna 88.7 percent at $4.37. Claude Sonnet 5 86.6 percent at $84.04. GLM-5.2 85.6 percent at $6.22. Gemini 3.6 Flash 75.3 percent at $24.85.' });
 
   /* vertical hairline grid */
-  for (let v = 5; v <= 25; v += 5) {
+  [5, 10, 20, 50, 100].forEach(v => {
     svg.appendChild(el('line', { x1: sx(v), x2: sx(v), y1: y0, y2: y1, stroke: 'var(--grid)', 'stroke-width': 1 }));
-  }
-  for (let v = 0; v <= 25; v += 5) {
     svg.appendChild(txt('$' + v, { x: sx(v), y: y1 + 30, 'text-anchor': 'middle', 'font-size': 15,
       fill: 'var(--text-secondary)', 'font-variant-numeric': 'tabular-nums' }));
-  }
+  });
 
   /* y ticks, no y rule */
   for (let v = 70; v <= 90; v += 5) {
@@ -185,7 +191,7 @@ const S = i => `var(--series-${i})`;
   svg.appendChild(el('line', { x1: x0, x2: x1, y1: y1, y2: y1, stroke: 'var(--axis)', 'stroke-width': 1.6 }));
 
   /* axis titles */
-  svg.appendChild(txt('Total evaluation cost (USD)', { x: (x0 + x1) / 2, y: y1 + 66,
+  svg.appendChild(txt('Total evaluation cost (USD, log scale)', { x: (x0 + x1) / 2, y: y1 + 66,
     'text-anchor': 'middle', 'font-size': 19, 'font-weight': 700, fill: 'var(--text-primary)',
     'letter-spacing': '-0.01em' }));
   svg.appendChild(txt('all models ran on high effort', { x: (x0 + x1) / 2, y: y1 + 88,
@@ -196,9 +202,10 @@ const S = i => `var(--series-${i})`;
 
   /* direct labels — placed to keep the two low-cost points apart */
   const LBL = [
-    { i: 0, dx:  20, dy: -44, anchor: 'start' },  /* Luna   — above right */
-    { i: 1, dx:  20, dy:  34, anchor: 'start' },  /* GLM    — below right */
-    { i: 2, dx: -20, dy: -44, anchor: 'end'   },  /* Gemini — above left  */
+    { i: 0, dx:  20, dy: -44, anchor: 'start' },  /* Luna     — above right */
+    { i: 1, dx:  20, dy:  34, anchor: 'start' },  /* GLM      — below right */
+    { i: 2, dx: -20, dy: -44, anchor: 'end'   },  /* Gemini   — above left  */
+    { i: 3, dx: -20, dy: -44, anchor: 'end'   },  /* Sonnet 5 — above left  */
   ];
   LBL.forEach(({ i, dx, dy, anchor }) => {
     const m = MODELS[i], px = sx(m.cost), py = sy(m.recall);
