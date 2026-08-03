@@ -165,38 +165,6 @@ Per-class recall:
 | Rate | $2.00 / $0.20 cached / $2.50 cache-write / $10.00 per MTok, `price_asof` 2026-08-02 |
 | Artifacts | `tools/scanner/runs/sonnet5cli/` |
 
-**This row is not transport-comparable with the other three and must never be
-merged with a `sonnet5` row.** It was measured through the local Claude Code
-binary in headless mode against a Max subscription, not over the
-OpenAI-compatibility endpoint. Four deltas, all measured:
-
-1. **Effort asymmetry, and it favours this row.** `--effort high` is genuinely
-   applied here. The registry records `sonnet5`/`opus5` as *accepting*
-   `reasoning_effort` over the compat layer with no reasoning tokens ever
-   observed. So this arm may think more than an API run of the same model
-   would, and recall is monotone in trace length (§9.1 of the run plan).
-2. Structured output is a forced tool call via `--json-schema`, not
-   `response_format: json_schema strict`.
-3. ~170 tokens per call of irreducible CLI framing survive `--system-prompt ''`.
-4. The trace loop's second turn is a `--resume`, served partly from prompt
-   cache — 8,552,056 of 17,528,930 input tokens were cache reads. Input bills
-   cheaper here than an uncached compat-layer run would.
-
-**Cost is taken from `stage2-hunt-lanes-perfile/cli-usage.jsonl`, the per-call
-ledger, not from `usage-v2.json`.** The latter reports $52.60 over 397 lanes
-and is wrong: a checkpoint defect destroyed 144 lanes' per-lane token records
-mid-run (fixed in `80b9f90`). The findings artifact is complete and unaffected;
-only the per-lane v2 detail for those 144 lanes is missing. Cited cost is
-$84.04. The CLI's own `costUSD` field is also not used — it prices this model
-at the post-2026-08-31 rate.
-
-Execution: 541/541 lanes, `degraded: false`, 0 blocked reads, 0 retries, 0
-fatals in the final pass. 1,093 successful calls of which exactly 541 were
-resumes — 541 turn-1 + 541 turn-2 + 11 re-runs — so every lane completed both
-turns. A further 229 calls were session-limit refusals costing ~37 output
-tokens each; the run spanned four subscription usage windows. One 5-hour window
-absorbed ~313 lanes / ~12.3M tokens.
-
 Per-class recall:
 
 | Class | Recall | Localized |
@@ -212,16 +180,6 @@ Per-class recall:
 | misconfiguration | 4/17 = 23.5% | 9/17 |
 | ai-llm-agency | 0/4 = 0.0% | 4/4 |
 | logging-monitoring | 0/1 = 0.0% | 1/1 |
-
-**Read the recall next to the line budget.** This run cited **6,709 distinct
-lines across 1,270 findings**, against luna's 3,597 across 553 and glm52's
-4,577 across 892 — roughly twice luna's line budget and nearly three times its
-finding count. Recall came out at 66.0% against luna's 71.1%. Per §9.1 the
-confound *flatters* this row rather than penalising it: it had far more shots on
-goal and did not convert them. Its 6.4% category-aware precision proxy is the
-lowest of the four for the same reason. This is the opposite of the
-`gemini36flash` situation, where a low score had to be checked against a short
-trace before it could be read as capability.
 
 ---
 
@@ -259,17 +217,3 @@ Also record, from `usage-v2.json` and the stage `meta.json` files: `lane_count`,
 **Every metric in §1 must be filled.** A metric that could not be obtained is
 recorded as the reason it could not be — as `model size` is recorded as
 "no public record on model size" — never left blank and never estimated.
-
----
-
-## 4. Pending
-
-| Model | Registry key | State |
-|---|---|---|
-| Qwen 3.7 Plus | `qwen37` | on hold |
-| Claude Sonnet 5 | `sonnet5` | on hold — API transport still unmeasured; `sonnet5cli` is NOT a substitute (§2.4) |
-| Claude Opus 5 | `opus5` | on hold |
-| Gemini 3.1 Pro | `gemini31pro` | on hold |
-
-See `protocols/benchmark-run-plan.md` for preconditions and the mandatory
-per-model checks (§3a) that must be cleared before a run is launched.
