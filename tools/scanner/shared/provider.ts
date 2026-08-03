@@ -95,6 +95,19 @@ export function clientConfigFor(
 }
 
 /**
+ * How this target's calls reach the model. Defaults to `openai` — an HTTP call
+ * through the OpenAI-compatible SDK — which is what every target did before the
+ * field existed.
+ *
+ * A stage may branch on this to choose a client. That is a transport branch,
+ * not a model branch: nothing downstream learns a model name from it, and
+ * adding another CLI-backed target stays a registry entry.
+ */
+export function transportFor(provider: Provider): 'openai' | 'claude-cli' {
+  return targetFor(provider).transport ?? 'openai'
+}
+
+/**
  * Output-token limit parameter name differs by provider, so it is declared per
  * target rather than branched on here. GPT-5.x reasoning models reject
  * `max_tokens` with a 400 and require `max_completion_tokens`; DashScope/Qwen

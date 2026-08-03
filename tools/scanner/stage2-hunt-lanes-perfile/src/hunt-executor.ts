@@ -34,7 +34,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from '
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
-import { resolveLoopConfig, DEFAULT_LOOP_MODE, type LoopMode } from '../../shared/loop-config.js'
+import { resolveLoopConfig, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
+import { setUsageLedgerPath } from '../../shared/claude-cli-client.js'
 import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
@@ -1783,6 +1784,7 @@ function writeCheckpoint(
   outDir: string,
   findings: CandidateFinding[],
   consumption: BudgetConsumption[],
+  laneRecords: LaneTokenRecordV2[] = [],
 ): void {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
@@ -1791,8 +1793,25 @@ function writeCheckpoint(
   writeFileSync(findingsTmp, JSON.stringify(findings, null, 2) + '\n')
   renameSync(findingsTmp, findingsPath)
 
+  // Write the v2 SHAPE mid-run, not a bare array.
+  //
+  // This used to emit `consumption` alone, which silently destroyed the
+  // `lanes` array living in the same file — the per-lane v2 token records
+  // accumulated by every previous pass. A pass that ended cleanly rewrote them
+  // a moment later, so the loss was invisible; a pass that was interrupted left
+  // a file with none, and the next pass's carry-forward then had nothing to
+  // carry. Measured 2026-08-03: a pause at lane 457 left 0 lane records on disk
+  // where 457 were expected, and the run's cost rollup would have covered only
+  // the lanes that happened to follow the last clean pass boundary.
+  //
+  // `rollup` is deliberately not written here: it is derived, it is expensive
+  // to recompute per lane, and a partial rollup on disk would read as a
+  // finished one. Its absence mid-run is unambiguous.
   const consumptionTmp = consumptionPath + '.tmp'
-  writeFileSync(consumptionTmp, JSON.stringify(consumption, null, 2) + '\n')
+  writeFileSync(
+    consumptionTmp,
+    JSON.stringify({ lanes: laneRecords, legacy_entries: consumption }, null, 2) + '\n',
+  )
   renameSync(consumptionTmp, consumptionPath)
 }
 
@@ -1805,6 +1824,7 @@ function loadCheckpoint(outDir: string): {
   findings: CandidateFinding[]
   consumption: BudgetConsumption[]
   completedLaneIds: Set<string>
+  laneRecordsV2: LaneTokenRecordV2[]
 } | null {
   const findingsPath = join(outDir, 'candidate-findings.json')
   const consumptionPath = join(outDir, 'budget-consumption.json')
@@ -1828,6 +1848,16 @@ function loadCheckpoint(outDir: string): {
         ? rawConsumption.legacy_entries
         : []
 
+    // The v2 per-lane token records live only in the v2 object shape. They must
+    // be carried forward or a resumed run rebuilds `rollup` from this pass's
+    // lanes alone — findings would be complete while total_input_tokens,
+    // total_output_tokens and cost_usd silently covered a fraction of the run.
+    // That is the artifact the benchmark reads cost from, so the failure would
+    // surface as an implausibly cheap run rather than as an error.
+    const laneRecordsV2: LaneTokenRecordV2[] = Array.isArray(rawConsumption?.lanes)
+      ? rawConsumption.lanes
+      : []
+
     if (!Array.isArray(findings) || consumption.length === 0) {
       return null
     }
@@ -1842,7 +1872,7 @@ function loadCheckpoint(outDir: string): {
     if (failedCount > 0) {
       console.log(`[RESUME] ${failedCount} lane(s) previously failed — they will be retried`)
     }
-    return { findings, consumption, completedLaneIds }
+    return { findings, consumption, completedLaneIds, laneRecordsV2 }
   } catch {
     return null
   }
@@ -2089,6 +2119,13 @@ async function main() {
   const outDir = runPath(PROVIDER, 'stage2-hunt-lanes-perfile')
   mkdirSync(outDir, { recursive: true })
 
+  // Per-call usage ledger for the claude-cli transport. Appended to, never
+  // rewritten, so it survives a chunked run and records every invocation
+  // including the ancillary Haiku calls the CLI makes on its own account —
+  // which must be separable from the scanner's own inference spend rather than
+  // silently folded into it. Inert for HTTP transports.
+  setUsageLedgerPath(join(outDir, 'cli-usage.jsonl'))
+
   // ── Checkpoint resume ───────────────────────────────────────────────────
   let allFindings: CandidateFinding[] = []
   const consumptionReport: BudgetConsumption[] = []
@@ -2103,6 +2140,12 @@ async function main() {
     // zero-token entry arriving last would silently zero out a lane that
     // actually ran.
     consumptionReport.push(...checkpoint.consumption.filter(c => !c.failed))
+    // Same reasoning as the consumption filter above: a lane about to be
+    // retried must not keep its previous v2 record, or the rollup would count
+    // it twice.
+    laneRecordsV2.push(
+      ...checkpoint.laneRecordsV2.filter(l => checkpoint.completedLaneIds.has(l.lane_id)),
+    )
     const maxId = allFindings.reduce((max, f) => {
       const num = parseInt(f.finding_id.split('-')[1], 10)
       return num > max ? num : max
@@ -2113,6 +2156,29 @@ async function main() {
     huntLanes = huntLanes.filter(l => !checkpoint.completedLaneIds.has(l.lane_id))
     console.log(`\n[RESUME] Found checkpoint: ${checkpoint.findings.length} findings, ${checkpoint.completedLaneIds.size} lanes done`)
     console.log(`[RESUME] Skipping ${beforeCount - huntLanes.length} completed lanes, ${huntLanes.length} lanes remaining`)
+  }
+
+  // ── Chunk bound ─────────────────────────────────────────────────────────
+  // HUNT_MAX_LANES stops this pass after N *newly executed* lanes and exits
+  // cleanly, leaving the checkpoint complete and resumable. It exists so a run
+  // can be split across several sittings — a subscription-backed transport has
+  // a rolling usage window that a 541-lane run does not fit inside.
+  //
+  // Deliberately a clean stop rather than killing the process: a SIGKILL at an
+  // arbitrary moment discards every lane currently in flight, and those lanes
+  // have already been billed. Bounding the work list wastes nothing.
+  //
+  // It bounds lanes STARTED in this pass, counted after the resume filter, so
+  // successive passes of N advance by N. Unset means no bound, which is what
+  // every run before this change did.
+  if (process.env.HUNT_MAX_LANES !== undefined) {
+    const bound = positiveEnvInt('HUNT_MAX_LANES', 0)
+    if (huntLanes.length > bound) {
+      console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — running ${bound} of ${huntLanes.length} remaining lanes this pass`)
+      huntLanes = huntLanes.slice(0, bound)
+    } else {
+      console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — ${huntLanes.length} lanes remain, all run this pass`)
+    }
   }
 
   console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)
@@ -2194,7 +2260,7 @@ async function main() {
         console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
         // ── Checkpoint: write results immediately after each lane ─────────
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
       } catch (err: any) {
         console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
         // Marked failed, not merely zero-token. Without the flag this entry is
@@ -2209,7 +2275,7 @@ async function main() {
           failed: true,
           failure_reason: String(err?.message ?? err).slice(0, 300),
         })
-        writeCheckpoint(outDir, allFindings, consumptionReport)
+        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
       } finally {
         sem.release()
       }
@@ -2235,7 +2301,7 @@ async function main() {
   }
 
   // Final legacy write (includes skip lanes in consumption)
-  writeCheckpoint(outDir, allFindings, consumptionReport)
+  writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
 
   // ── v2 budget consumption output ────────────────────────────────────────
   const totalSourceBytes = laneRecordsV2.reduce((s, l) => s + l.file_bytes, 0)
@@ -2268,10 +2334,32 @@ async function main() {
     ...(LOOP_MODE === 'sweep' ? { sweep_group_size: SWEEP_GROUP_SIZE } : {}),
   })
 
+  // A pass that lost lanes must say so where the reader is looking, not only in
+  // 200 scattered [FATAL] lines. Stage 2 has always printed "Complete" and
+  // exited 0 regardless — on 2026-08-03 it did that with 228 of 341 lanes
+  // failed to a subscription limit, and the summary alone read like a clean
+  // run. The exit code is deliberately left alone: a bounded chunk stopping
+  // early is normal here, so failure is reported rather than signalled.
+  const failedLanes = consumptionReport.filter(c => c.failed)
+  const completedHuntLanes = consumptionReport.filter(c => (c.tokens_used ?? 0) > 0).length
+
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)
   console.log(`Total candidate findings: ${allFindings.length}`)
   console.log(`Lanes processed: ${huntLanes.length} hunt, ${skipLanes.length} skip`)
+  if (failedLanes.length > 0) {
+    const reasons = new Map<string, number>()
+    for (const f of failedLanes) {
+      const key = String(f.failure_reason ?? 'unknown').slice(0, 120)
+      reasons.set(key, (reasons.get(key) ?? 0) + 1)
+    }
+    console.log(`\n*** INCOMPLETE: ${failedLanes.length} lane(s) FAILED and produced no findings ***`)
+    for (const [reason, n] of [...reasons].sort((a, b) => b[1] - a[1])) {
+      console.log(`      ${String(n).padStart(4)} x ${reason}`)
+    }
+    console.log(`    They are recorded failed and will be RETRIED on the next pass.`)
+    console.log(`    This output covers ${completedHuntLanes} completed lane(s) and is NOT a finished run.`)
+  }
   console.log(`Total tokens: ${consumptionReport.reduce((s, r) => s + r.tokens_used, 0).toLocaleString()}`)
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)

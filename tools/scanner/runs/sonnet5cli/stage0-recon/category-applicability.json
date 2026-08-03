@@ -1,0 +1,184 @@
+[
+  {
+    "name": "A01: Broken Access Control",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Numerous authenticated, ID-scoped routes (e.g. /api/Addresss/:id, /api/Cards/:id, /api/Users/:id, /rest/basket/:id) mixed with denyAll()/isAuthorized()/appendUserId() patterns and 28 auto-CRUD routes on models like User/Product/Card exposed generically, creating clear structural potential for horizontal/vertical access-control bypass.",
+    "confidence": 0.9
+  },
+  {
+    "name": "A02: Cryptographic Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "jsonwebtoken@0.4.0 and express-jwt@0.1.3 (extremely outdated, historically vulnerable JWT libs), lib/insecurity.ts for password/crypto handling, and User model password storage indicate crypto-relevant surface.",
+    "confidence": 0.85
+  },
+  {
+    "name": "A03: Injection",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "uncertain",
+    "evidence": "Sequelize ORM reports raw_queries:false and mongodb_detected:false, yet LLM tool evidence separately describes querying a 'MongoDB reviews collection' and user/order lookups from MongoDB - this inconsistency plus YAML/XML upload parsing (js-yaml, libxml2-wasm) leaves genuine ambiguity about parameterization and injection vectors.",
+    "confidence": 0.5
+  },
+  {
+    "name": "A04: Insecure Design",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Deliberately constructed CTF-style design with hidden/easter-egg routes, a 'honeypot' NFT contract, denyAll() placeholders, and paywall/gimmick endpoints suggest structurally insecure design choices baked into the architecture (Juice Shop pattern).",
+    "confidence": 0.6
+  },
+  {
+    "name": "A05: Security Misconfiguration",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Directory listings exposed via serveIndex for /ftp, /.well-known, /encryptionkeys, /support/logs; hardcoded IP allow-list in IpFilter; Swagger only covers 1/148 routes; helmet is on an old major version (^4.6.0).",
+    "confidence": 0.85
+  },
+  {
+    "name": "A06: Vulnerable and Outdated Components",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "jsonwebtoken@0.4.0, express-jwt@0.1.3, sanitize-html@1.4.2, helmet@^4.6.0 are all significantly outdated versions with known historical CVEs among 117 total dependencies.",
+    "confidence": 0.9
+  },
+  {
+    "name": "A07: Identification and Authentication Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "Login, password reset, security questions, and full 2FA setup/verify/disable flow exist with rate limiting applied inconsistently (present on 2FA/reset-password but absent on /rest/user/login).",
+    "confidence": 0.85
+  },
+  {
+    "name": "A08: Software and Data Integrity Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "YAML upload/parsing (js-yaml, handleYamlUpload) and XML upload handling (libxml2-wasm, handleXmlUpload) with no visible signature/integrity verification, plus a yamlBomb.yml test fixture, indicate deserialization integrity risk.",
+    "confidence": 0.75
+  },
+  {
+    "name": "A09: Security Logging and Monitoring Failures",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "lib/logger.ts and a /metrics Prometheus endpoint exist, but no evidence of security-event-specific logging (auth failures, access-control violations) tied to alerting.",
+    "confidence": 0.6
+  },
+  {
+    "name": "A10: Server-Side Request Forgery (SSRF)",
+    "framework": "OWASP Top 10 2021",
+    "verdict": "present",
+    "evidence": "POST /profile/image/url (profileImageUrlUpload) accepts a URL and fetches remote content server-side, a classic SSRF vector; web3 endpoints (nftMintListener, contractExploitListener) also make outbound calls to blockchain infra.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API1: Broken Object Level Authorization (BOLA)",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "ID-parameterized endpoints like /api/Addresss/:id, /api/Cards/:id, /api/Users/:id rely on appendUserId()/isAuthorized() middleware patterns that are easy to bypass if object ownership isn't re-checked per-record.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API2: Broken Authentication",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Same auth stack as A07 (old JWT libs, login/2FA/reset-password flows) directly exposed as REST API surface.",
+    "confidence": 0.8
+  },
+  {
+    "name": "API3: Broken Object Property Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Auto-CRUD routes for Product, Feedback, Card, BasketItem etc. have empty excludeAttributes (only User excludes password/totpSecret), risking mass assignment/over-exposure of internal properties.",
+    "confidence": 0.75
+  },
+  {
+    "name": "API4: Unrestricted Resource Consumption",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "File upload endpoints (checkUploadSize/checkFileType present) and /rest/chat (LLM calls) lack visible rate limiting, unlike 2FA/reset-password routes that do have rateLimit() applied.",
+    "confidence": 0.65
+  },
+  {
+    "name": "API5: Broken Function Level Authorization",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Mix of security.denyAll(), security.isAccounting(), and security.isAuthorized() across similar CRUD resources (e.g. /api/Recycles GET open vs PUT/DELETE denyAll) shows fragile, inconsistent function-level authorization decisions.",
+    "confidence": 0.8
+  },
+  {
+    "name": "API6: Unrestricted Access to Sensitive Business Flows",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Checkout (/rest/basket/:id/checkout), coupon application, wallet balance top-up, and deluxe membership upgrade flows show no visible anti-automation/business-flow throttling.",
+    "confidence": 0.65
+  },
+  {
+    "name": "API7: Server Side Request Forgery",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Same as A10 - profileImageUrlUpload fetching arbitrary URLs server-side is a direct API-level SSRF vector.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API8: Security Misconfiguration",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Same misconfig evidence as A05 (exposed directories, hardcoded IP allowlist, minimal Swagger coverage) directly affects the API surface.",
+    "confidence": 0.85
+  },
+  {
+    "name": "API9: Improper Inventory Management",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Swagger documents only 1 of 148 total routes; 109 hand-written and 28 auto-CRUD routes are explicitly flagged as undocumented, a textbook improper inventory scenario.",
+    "confidence": 0.95
+  },
+  {
+    "name": "API10: Unsafe Consumption of APIs",
+    "framework": "API Security Top 10",
+    "verdict": "present",
+    "evidence": "Web3 endpoints (checkKeys, nftMintListener, walletNFTVerify, contractExploitListener) consume external blockchain/contract data, and /rest/chat consumes an external LLM provider API, both without described response validation.",
+    "confidence": 0.6
+  },
+  {
+    "name": "LLM01: Prompt Injection",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Genuine tool-calling chat route (/rest/chat) built on Vercel AI SDK streamText with user-controlled input feeding an LLM that can invoke tools, the canonical prompt injection surface.",
+    "confidence": 0.85
+  },
+  {
+    "name": "LLM02: Sensitive Information Disclosure",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Tools getOrderById and getProductReviews query real order/user data (with email-masking checks mentioned), meaning a manipulated LLM could still leak sensitive user/order details through tool responses.",
+    "confidence": 0.7
+  },
+  {
+    "name": "LLM03: Supply Chain",
+    "framework": "LLM Top 10",
+    "verdict": "uncertain",
+    "evidence": "Dependency on @ai-sdk/openai-compatible and ai (^6.0.116) introduces third-party model-provider supply chain exposure, but no evidence of self-hosted/fine-tuned model or plugin ecosystem to assess further.",
+    "confidence": 0.5
+  },
+  {
+    "name": "LLM05: Improper Output Handling",
+    "framework": "LLM Top 10",
+    "verdict": "uncertain",
+    "evidence": "Frontend has 28 innerHTML/bypassSecurityTrustHtml escape hatches in many Angular components, but the chatbot conversation component itself isn't explicitly listed among them, leaving unclear whether raw LLM output is rendered unsanitized.",
+    "confidence": 0.45
+  },
+  {
+    "name": "LLM06: Excessive Agency",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "Tool generateCoupon performs a genuine side-effect (creates a real usable coupon code) and getOrderById/searchProducts perform real DB lookups, invoked autonomously by the LLM across multiple steps (stopWhen: stepCountIs(10)) - real-world capability granted to the model.",
+    "confidence": 0.85
+  },
+  {
+    "name": "LLM10: Unbounded Consumption",
+    "framework": "LLM Top 10",
+    "verdict": "present",
+    "evidence": "/rest/chat has no rate-limiting middleware shown (unlike 2FA routes), and while stepCountIs(10) bounds tool-call loops, no token/cost/frequency limits are evident for the LLM endpoint itself.",
+    "confidence": 0.65
+  }
+]
