@@ -37226,5 +37226,103 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.3
+  },
+  {
+    "finding_id": "FIND-1204",
+    "lane_id": "file-0320",
+    "finding_classes": [
+      {
+        "class": "insecure-design",
+        "justified_by_step": 1
+      }
+    ],
+    "categories": [
+      "A04"
+    ],
+    "title": "Dependency checker is imported but never invoked — validation is a no-op",
+    "description": "The function is named validateIfDependencyCheckerIsInstalled and the file is named validateDependenciesBasic.ts, both implying that dependencies are validated against what is expected (e.g., package.json vs. installed node_modules, detecting missing/tampered/mismatched packages). However, the implementation only performs a dynamic `import('check-dependencies')` (line 11) and checks whether that import itself succeeds. It never calls any exported function of the 'check-dependencies' package (e.g., its checkDependencies() API) to actually compare installed packages against the manifest. As a result, the application's dependency-integrity check is effectively a no-op beyond verifying the checker library is present in node_modules — it provides no real assurance that dependencies are complete, correctly versioned, or untampered. This is a design gap: the security-relevant control the name/comment implies (verify dependencies before startup) is never actually executed, so a supply-chain issue (missing, downgraded, or substituted packages) would go undetected while the check reports success.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 8,
+        "description": "Exported startup function, presumably invoked during application bootstrap (caller is outside this file) to validate dependencies before starting the app."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 11,
+        "description": "Only a dynamic import of the 'check-dependencies' module is performed; the module's actual dependency-validation API is never called."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 9,
+        "description": "Try block opened to wrap the sole dependency-related check performed by this function."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 10,
+        "description": "Type checking on the import is explicitly suppressed via @ts-expect-error, masking that the resolved module's validation API is never referenced or typed."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 16,
+        "description": "Try/catch block ends here with no further logic: if the import resolves, the function simply falls through to an implicit successful return without performing any real dependency validation."
+      },
+      {
+        "kind": "sink",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 18,
+        "description": "Function is exported and presumably relied upon elsewhere as the dependency validation gate, but it never performs real validation logic — only import success/failure is checked."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.35
+  },
+  {
+    "finding_id": "FIND-1205",
+    "lane_id": "file-0320",
+    "finding_classes": [
+      {
+        "class": "logging-monitoring",
+        "justified_by_step": 3
+      }
+    ],
+    "categories": [
+      "A09"
+    ],
+    "title": "Startup failure error details discarded from logs",
+    "description": "In the catch block, the actual caught error object `err` is never logged or inspected — only a generic, hardcoded message ('Please run \"npm install\" before starting the application!') is printed. If the dynamic import fails for a reason other than a missing package (e.g., a corrupted or tampered 'check-dependencies' module, a permissions error, or an unexpected runtime error), that diagnostic information is silently discarded. This reduces the ability to detect and investigate anomalous startup failures (e.g., distinguishing a legitimate missing-dependency condition from a suspicious module-loading failure indicative of tampering), and the process is terminated immediately without any structured or persisted record of the real cause.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 9,
+        "description": "Try block attempts dynamic import of 'check-dependencies'; failures fall into the catch block."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 12,
+        "description": "Catch clause captures the error as `err` but never references it."
+      },
+      {
+        "kind": "propagation",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 11,
+        "description": "Dynamic import of 'check-dependencies' is awaited here; a thrown error from module resolution (e.g., missing package, corrupted module, filesystem/permission error) is the value that will be caught."
+      },
+      {
+        "kind": "sink",
+        "file": "lib/startup/validateDependenciesBasic.ts",
+        "line": 13,
+        "description": "Only a generic static string is logged via console.error; the actual error object/stack that could reveal the true failure cause is never logged, then the process exits (line 14)."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.3
   }
 ]
