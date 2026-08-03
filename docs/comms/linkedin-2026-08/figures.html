@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind security-scanner benchmark — recall by cost</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  .viz-root {
+    color-scheme: light;
+    --page:           #faf9f5;
+    --surface-1:      #ffffff;
+    --text-primary:   #191817;
+    --text-secondary: #55534d;
+    --text-muted:     #85837b;
+    --grid:           #e7e5dc;
+    --axis:           #191817;
+    --border:         rgba(25,24,23,0.09);
+    --series-1:       #2a78d6;
+    --series-2:       #eb6834;
+    --series-3:       #1baf7a;
+    --deemph:         #e3e1d8;
+    --wash:           rgba(42,120,214,0.045);
+    --seq-100:        #cde2fb;
+    --seq-200:        #9ec5f4;
+    --seq-300:        #6da7ec;
+    --seq-450:        #2a78d6;
+    --seq-600:        #184f95;
+
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+
+    font-family: var(--sans);
+    background: var(--page);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --axis:           #c3c2b7;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #d95926;
+      --series-3:       #199e70;
+      --deemph:         #35342f;
+      --wash:           rgba(57,135,229,0.10);
+      --seq-100:        #184f95;
+      --seq-200:        #1c5cab;
+      --seq-300:        #2a78d6;
+      --seq-450:        #5598e7;
+      --seq-600:        #9ec5f4;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --axis:           #c3c2b7;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --series-3:       #199e70;
+    --deemph:         #35342f;
+    --wash:           rgba(57,135,229,0.10);
+    --seq-100:        #184f95;
+    --seq-200:        #1c5cab;
+    --seq-300:        #2a78d6;
+    --seq-450:        #5598e7;
+    --seq-600:        #9ec5f4;
+  }
+
+  .stack { max-width: 1240px; margin: 0 auto; padding: 28px 20px 72px; display: grid; gap: 28px; }
+
+  .card {
+    width: 1200px; max-width: 100%;
+    margin: 0;
+    background: var(--surface-1);
+    border-radius: 26px;
+    padding: 48px 56px 40px;
+  }
+
+  .hd { text-align: center; margin-bottom: 34px; }
+  .hd h2 {
+    font-family: var(--sans);
+    font-size: 43px; line-height: 1.1; font-weight: 700; letter-spacing: -0.025em;
+    margin: 0 0 12px; color: var(--text-primary);
+  }
+  .hd .sub {
+    font-family: var(--serif);
+    font-size: 25px; line-height: 1.25; font-weight: 400;
+    margin: 0; color: var(--text-secondary);
+  }
+
+  .plot { position: relative; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+  .foot { display: flex; gap: 40px; align-items: flex-start; justify-content: space-between; margin-top: 26px; }
+  .foot .note { font-size: 12.5px; line-height: 1.6; color: var(--text-muted); max-width: 78ch; margin: 0; }
+  .foot .note strong { color: var(--text-secondary); font-weight: 600; }
+  .foot .pg { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; padding-top: 1px; }
+
+  /* the PNG export drops the disclosure; the live page keeps it */
+  .capture details.tv { display: none; }
+  details.tv { margin-top: 18px; font-size: 13px; color: var(--text-secondary); }
+  details.tv summary { cursor: pointer; color: var(--text-muted); font-size: 12.5px; }
+  table { border-collapse: collapse; margin-top: 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; width: 100%; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--text-muted); font-weight: 600; }
+
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0; transform: translate(-50%, -100%);
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 26px rgba(0,0,0,0.12); padding: 11px 13px; font-size: 12.5px;
+    color: var(--text-primary); white-space: nowrap; transition: opacity .1s; z-index: 5;
+  }
+  .tip .t-title { font-weight: 660; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+  .tip .t-row { color: var(--text-secondary); font-variant-numeric: tabular-nums; line-height: 1.5; }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="stack">
+
+  <!-- ==================== FIGURE 1 ==================== -->
+  <figure class="card" id="fig1">
+    <div class="hd">
+      <h2>Vulnerability recall by cost</h2>
+      <p class="sub">Blind benchmark · OWASP Juice Shop · 97 ground-truth entries</p>
+    </div>
+    <div class="plot"><div id="plot1"></div><div class="tip" id="tip1"></div></div>
+    <div class="foot">
+      <p class="note">
+        Three models driving one identical agentic scanning pipeline over one identical codebase, scored by one
+        script against an answer key held in a separate repository that neither the scanner nor its coding agent
+        can read. A ground-truth entry counts as found only on the correct file, the exact line and the correct
+        OWASP category. Every run: 541 file lanes, 1,082 model calls, <strong>reasoning_effort = high</strong>,
+        no run degraded, and <strong>9.4–9.7M tokens</strong> — the price spread is pricing, not effort. Wall-clock
+        is not comparable: Gemini 3.6 Flash ran at concurrency 8, a measured rate ceiling on this target, against
+        32 for the other two.
+      </p>
+      <span class="pg">1 / 3</span>
+    </div>
+    <details class="tv"><summary>Table view</summary>
+      <table>
+        <thead><tr><th>Model</th><th>Recall</th><th>Total cost</th><th>Cost per entry found</th><th>Total tokens</th><th>Runtime</th></tr></thead>
+        <tbody>
+          <tr><td>GPT-5.6 Luna</td><td>71.1% (69/97)</td><td>$4.37</td><td>$0.06</td><td>9,618,943</td><td>13m04s @ C=32</td></tr>
+          <tr><td>GLM-5.2</td><td>67.0% (65/97)</td><td>$17.01</td><td>$0.26</td><td>9,668,297</td><td>~18.5m @ C=32</td></tr>
+          <tr><td>Gemini 3.6 Flash</td><td>58.8% (57/97)</td><td>$24.85</td><td>$0.44</td><td>9,381,580</td><td>32m12s @ C=8</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </figure>
+
+  <!-- ==================== FIGURE 2 ==================== -->
+  <figure class="card" id="fig2">
+    <div class="hd">
+      <h2>Every model fails on the same things</h2>
+      <p class="sub">Recall by vulnerability class</p>
+    </div>
+    <div class="plot"><div id="plot2"></div><div class="tip" id="tip2"></div></div>
+    <div class="foot">
+      <p class="note">
+        Rows ordered by how many ground-truth entries sit in each class, so the top five carry most of the
+        headline. The ranking barely moves between models: near-solved where a vulnerability looks like a
+        pattern, weak where finding it means reading intent across files. A swap of model buys a few points;
+        the shape of the failure does not change — which makes the remaining gap an architecture problem,
+        not a model-choice problem. An entry can carry more than one class, so rows do not sum to the headline.
+        One model's <em>insecure-design</em> row is recorded against 12 entries rather than 13 and is shown
+        exactly as recorded. One- and two-entry classes are shown for completeness; a single entry moves
+        them 50 to 100 points.
+      </p>
+      <span class="pg">2 / 3</span>
+    </div>
+    <details class="tv"><summary>Table view</summary><table id="tv2"></table></details>
+  </figure>
+
+  <!-- ==================== FIGURE 3 ==================== -->
+  <figure class="card" id="fig3">
+    <div class="hd">
+      <h2>Finding it is easy. Not crying wolf is hard.</h2>
+      <p class="sub">Findings emitted per scan, and how many matched ground truth</p>
+    </div>
+    <div class="plot"><div id="plot3"></div><div class="tip" id="tip3"></div></div>
+    <div class="foot">
+      <p class="note">
+        <strong>This is an upper bound on review burden, not a false-positive rate.</strong> An unmatched
+        finding is not automatically wrong — Juice Shop holds real weaknesses that are not among the 98
+        catalogued entries, and this measurement cannot separate those from noise. The pipeline has a
+        validation stage designed to cut the volume; it currently runs only against the older per-category
+        track, so nothing filtered these numbers. That is the next piece of work, and it is why no headline
+        here claims a false-positive rate. Note also that the ranking inverts: the model that emitted the
+        fewest findings has the best precision proxy and the worst recall.
+      </p>
+      <span class="pg">3 / 3</span>
+    </div>
+    <details class="tv"><summary>Table view</summary>
+      <table>
+        <thead><tr><th>Model</th><th>Findings emitted</th><th>Matched ground truth</th><th>Precision proxy</th><th>Recall</th></tr></thead>
+        <tbody>
+          <tr><td>GPT-5.6 Luna</td><td>553</td><td>69</td><td>12.5%</td><td>71.1%</td></tr>
+          <tr><td>GLM-5.2</td><td>892</td><td>70</td><td>7.8%</td><td>67.0%</td></tr>
+          <tr><td>Gemini 3.6 Flash</td><td>285</td><td>47</td><td>16.5%</td><td>58.8%</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </figure>
+
+</div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ data */
+const MODELS = [
+  { key:'luna',   name:'GPT-5.6 Luna',     cost:4.37,  recall:71.1, hits:69, findings:553, matched:69, prec:12.5, tokens:'9,618,943', runtime:'13m04s @ C=32',  slot:1 },
+  { key:'glm52',  name:'GLM-5.2',          cost:17.01, recall:67.0, hits:65, findings:892, matched:70, prec:7.8,  tokens:'9,668,297', runtime:'~18.5m @ C=32', slot:2 },
+  { key:'gemini', name:'Gemini 3.6 Flash', cost:24.85, recall:58.8, hits:57, findings:285, matched:47, prec:16.5, tokens:'9,381,580', runtime:'32m12s @ C=8',  slot:3 },
+];
+
+const CLASSES = [
+  { name:'crypto-auth',          n:25, v:[92.0, 88.0, 80.0] },
+  { name:'injection',            n:18, v:[83.3, 94.4, 83.3] },
+  { name:'misconfiguration',     n:17, v:[58.8, 23.5, 17.6] },
+  { name:'access-control',       n:16, v:[56.2, 43.8, 37.5] },
+  { name:'insecure-design',      n:13, v:[53.8, 61.5, 41.7] },
+  { name:'api-property-auth',    n:4,  v:[75.0, 75.0, 75.0] },
+  { name:'ai-llm-agency',        n:4,  v:[0.0,  0.0,  25.0] },
+  { name:'ssrf',                 n:3,  v:[100,  100,  100 ] },
+  { name:'integrity-failures',   n:3,  v:[66.7, 66.7, 66.7] },
+  { name:'resource-consumption', n:2,  v:[50.0, 50.0, 50.0] },
+  { name:'logging-monitoring',   n:1,  v:[100,  100,  100 ] },
+];
+
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a = {}) => { const n = document.createElementNS(NS, t);
+  for (const k in a) if (a[k] !== undefined && a[k] !== null) n.setAttribute(k, a[k]); return n; };
+const txt = (s, a = {}) => { const n = el('text', a); n.textContent = s; return n; };
+const S = i => `var(--series-${i})`;
+
+function bindTip(target, tipId, hostId, html) {
+  const tipEl = document.getElementById(tipId);
+  const host = document.getElementById(hostId).parentElement;
+  const show = () => {
+    tipEl.innerHTML = html;
+    const hb = host.getBoundingClientRect(), b = target.getBoundingClientRect();
+    tipEl.style.left = (b.left - hb.left + b.width / 2) + 'px';
+    tipEl.style.top  = (b.top  - hb.top  - 10) + 'px';
+    tipEl.style.opacity = 1;
+  };
+  const hide = () => { tipEl.style.opacity = 0; };
+  ['mouseenter', 'mousemove', 'focus'].forEach(e => target.addEventListener(e, show));
+  ['mouseleave', 'blur'].forEach(e => target.addEventListener(e, hide));
+}
+
+/* ============================================ FIGURE 1 — recall by cost */
+(function () {
+  const W = 1088, H = 600;
+  const M = { t: 26, r: 40, b: 92, l: 96 };
+  const x0 = M.l, x1 = W - M.r, y0 = M.t, y1 = H - M.b;
+  const XD = [3.5, 34], YD = [50, 76];
+  const lg = Math.log;
+  const sx = v => x0 + (lg(v) - lg(XD[0])) / (lg(XD[1]) - lg(XD[0])) * (x1 - x0);
+  const sy = v => y1 - (v - YD[0]) / (YD[1] - YD[0]) * (y1 - y0);
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': 'Recall against total scan cost. GPT-5.6 Luna reaches 71.1 percent recall at $4.37; GLM-5.2 67.0 percent at $17.01; Gemini 3.6 Flash 58.8 percent at $24.85.' });
+
+  const lead = MODELS[0];
+
+  /* dominated region — costlier AND less accurate than the leader */
+  svg.appendChild(el('rect', { x: sx(lead.cost), y: sy(lead.recall), width: x1 - sx(lead.cost),
+    height: y1 - sy(lead.recall), fill: 'var(--wash)' }));
+
+  /* vertical gridlines */
+  const XT = [4, 5, 7, 10, 15, 20, 30];
+  XT.forEach(v => {
+    svg.appendChild(el('line', { x1: sx(v), x2: sx(v), y1: y0, y2: y1, stroke: 'var(--grid)', 'stroke-width': 1 }));
+    svg.appendChild(txt('$' + v, { x: sx(v), y: y1 + 30, 'text-anchor': 'middle', 'font-size': 15,
+      fill: 'var(--text-secondary)', 'font-variant-numeric': 'tabular-nums' }));
+  });
+
+  /* y ticks (no y rule, matching the reference) */
+  for (let v = 50; v <= 75; v += 5) {
+    svg.appendChild(txt(v + '%', { x: x0 - 18, y: sy(v) + 5.5, 'text-anchor': 'end', 'font-size': 15,
+      fill: 'var(--text-secondary)', 'font-variant-numeric': 'tabular-nums' }));
+  }
+
+  /* solid baseline */
+  svg.appendChild(el('line', { x1: x0, x2: x1, y1: y1, y2: y1, stroke: 'var(--axis)', 'stroke-width': 1.6 }));
+
+  /* axis titles */
+  svg.appendChild(txt('Total cost of one full scan (USD, log scale)', { x: (x0 + x1) / 2, y: y1 + 66,
+    'text-anchor': 'middle', 'font-size': 19, 'font-weight': 700, fill: 'var(--text-primary)',
+    'letter-spacing': '-0.01em' }));
+  svg.appendChild(txt('Recall (%)', { x: -(y0 + y1) / 2, y: 24, transform: 'rotate(-90)',
+    'text-anchor': 'middle', 'font-size': 19, 'font-weight': 700, fill: 'var(--text-primary)',
+    'letter-spacing': '-0.01em' }));
+
+  /* dominated-region caption */
+  svg.appendChild(txt('costlier and finds less than the leader', { x: x1 - 8, y: y1 - 16,
+    'text-anchor': 'end', 'font-size': 13.5, fill: 'var(--text-muted)' }));
+
+  /* better-direction cue */
+  svg.appendChild(txt('↖ better', { x: x0 + 12, y: y0 + 22, 'font-size': 15, 'font-weight': 700,
+    fill: 'var(--text-secondary)' }));
+
+  /* measurement bracket between leader and most expensive — an annotation,
+     deliberately not a line through the marks (that would read as a series) */
+  const g = MODELS[2], bx0 = sx(lead.cost), bx1 = sx(g.cost), by = sy(53.4);
+  svg.appendChild(el('path', {
+    d: `M ${bx0} ${by - 6} V ${by} H ${bx1} V ${by - 6}`,
+    fill: 'none', stroke: 'var(--text-muted)', 'stroke-width': 1.3, 'stroke-opacity': 0.7 }));
+  svg.appendChild(txt('5.7× cheaper  ·  +12.3 points of recall', { x: (bx0 + bx1) / 2, y: by - 16,
+    'text-anchor': 'middle', 'font-size': 16, 'font-weight': 660, fill: 'var(--text-secondary)' }));
+
+  /* labels */
+  const LBL = [
+    { i: 0, dx:  20, dy: -30, anchor: 'start' },
+    { i: 1, dx:  20, dy: -30, anchor: 'start' },
+    { i: 2, dx: -20, dy: -30, anchor: 'end'   },
+  ];
+  LBL.forEach(({ i, dx, dy, anchor }) => {
+    const m = MODELS[i], px = sx(m.cost), py = sy(m.recall);
+    svg.appendChild(txt(m.name, { x: px + dx, y: py + dy, 'text-anchor': anchor, 'font-size': 19,
+      'font-weight': 700, fill: 'var(--text-primary)', 'letter-spacing': '-0.01em' }));
+    svg.appendChild(txt(m.recall.toFixed(1) + '%  ·  $' + m.cost.toFixed(2), { x: px + dx, y: py + dy + 24,
+      'text-anchor': anchor, 'font-size': 16, fill: 'var(--text-secondary)',
+      'font-variant-numeric': 'tabular-nums' }));
+  });
+
+  /* dots */
+  MODELS.forEach(m => {
+    const px = sx(m.cost), py = sy(m.recall);
+    svg.appendChild(el('circle', { cx: px, cy: py, r: 13, fill: 'var(--surface-1)' }));
+    svg.appendChild(el('circle', { cx: px, cy: py, r: 11, fill: S(m.slot), tabindex: 0, style: 'outline:none' }));
+    const hit = el('circle', { cx: px, cy: py, r: 24, fill: 'transparent', style: 'cursor:pointer' });
+    svg.appendChild(hit);
+    bindTip(hit, 'tip1', 'plot1',
+      `<div class="t-title"><span class="swatch" style="background:${S(m.slot)}"></span>${m.name}</div>
+       <div class="t-row">Recall ${m.recall.toFixed(1)}% — ${m.hits} of 97 entries</div>
+       <div class="t-row">$${m.cost.toFixed(2)} total · $${(m.cost / m.hits).toFixed(2)} per entry found</div>
+       <div class="t-row">${m.tokens} tokens · ${m.runtime}</div>`);
+  });
+
+  document.getElementById('plot1').appendChild(svg);
+})();
+
+/* ==================================== FIGURE 2 — per-class recall heatmap */
+(function () {
+  const rowH = 42, gapY = 3;
+  const labelW = 320, colW = 190, colGap = 3;
+  const headH = 46, legendH = 74;
+  const W = labelW + MODELS.length * colW + 150;
+  const H = headH + CLASSES.length * rowH + legendH;
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': 'Heatmap of recall by vulnerability class for three models; values are printed in each cell and repeated in the table view.' });
+
+  const bin = v => v < 20 ? 0 : v < 40 ? 1 : v < 60 ? 2 : v < 80 ? 3 : 4;
+  const FILL = ['var(--seq-100)', 'var(--seq-200)', 'var(--seq-300)', 'var(--seq-450)', 'var(--seq-600)'];
+  const LIGHT_INK = [false, false, false, true, true];
+
+  MODELS.forEach((m, c) => {
+    const cx = labelW + c * colW + (colW - colGap) / 2;
+    const g = el('g');
+    g.appendChild(el('circle', { cx: cx - 66, cy: headH - 22, r: 6, fill: S(m.slot) }));
+    g.appendChild(txt(m.name, { x: cx - 52, y: headH - 16, 'font-size': 16.5, 'font-weight': 700,
+      fill: 'var(--text-primary)', 'letter-spacing': '-0.01em' }));
+    svg.appendChild(g);
+  });
+
+  CLASSES.forEach((cl, r) => {
+    const y = headH + r * rowH;
+    svg.appendChild(txt(cl.name, { x: 0, y: y + rowH / 2, 'font-size': 16, 'font-weight': 560,
+      fill: 'var(--text-primary)', 'dominant-baseline': 'central' }));
+    svg.appendChild(txt(cl.n + (cl.n === 1 ? ' entry' : ' entries'), { x: labelW - 30, y: y + rowH / 2,
+      'text-anchor': 'end', 'font-size': 13.5, fill: 'var(--text-muted)',
+      'font-variant-numeric': 'tabular-nums', 'dominant-baseline': 'central' }));
+
+    cl.v.forEach((v, c) => {
+      const b = bin(v), rx = labelW + c * colW;
+      svg.appendChild(el('rect', { x: rx, y: y + gapY / 2, width: colW - colGap, height: rowH - gapY,
+        rx: 6, fill: FILL[b] }));
+      const label = (v === 100 || v === 0) ? v.toFixed(0) + '%' : v.toFixed(1) + '%';
+      svg.appendChild(txt(label, { x: rx + (colW - colGap) / 2, y: y + rowH / 2, 'text-anchor': 'middle',
+        'font-size': 15.5, 'font-weight': 660, 'dominant-baseline': 'central',
+        'font-variant-numeric': 'tabular-nums',
+        fill: LIGHT_INK[b] ? '#ffffff' : 'var(--text-primary)' }));
+
+      const hit = el('rect', { x: rx, y: y + gapY / 2, width: colW - colGap, height: rowH - gapY,
+        fill: 'transparent', style: 'cursor:pointer' });
+      svg.appendChild(hit);
+      bindTip(hit, 'tip2', 'plot2',
+        `<div class="t-title"><span class="swatch" style="background:${S(MODELS[c].slot)}"></span>${MODELS[c].name}</div>
+         <div class="t-row">${cl.name} — ${label} of ${cl.n} ground-truth ${cl.n === 1 ? 'entry' : 'entries'}</div>`);
+    });
+  });
+
+  /* sequential scale legend */
+  const ly = headH + CLASSES.length * rowH + 26;
+  svg.appendChild(txt('Recall', { x: 0, y: ly + 8, 'font-size': 13.5, fill: 'var(--text-muted)',
+    'dominant-baseline': 'central' }));
+  FILL.forEach((f, i) => svg.appendChild(el('rect', { x: 62 + i * 50, y: ly, width: 47, height: 14, rx: 3, fill: f })));
+  ['0%', '20', '40', '60', '80', '100%'].forEach((t, i) =>
+    svg.appendChild(txt(t, { x: 62 + i * 50, y: ly + 34, 'text-anchor': 'middle', 'font-size': 12.5,
+      fill: 'var(--text-muted)', 'font-variant-numeric': 'tabular-nums' })));
+
+  document.getElementById('plot2').appendChild(svg);
+
+  document.getElementById('tv2').innerHTML =
+    '<thead><tr><th>Class</th><th>Entries</th>' + MODELS.map(m => `<th>${m.name}</th>`).join('') +
+    '</tr></thead><tbody>' + CLASSES.map(cl =>
+      `<tr><td>${cl.name}</td><td>${cl.n}</td>` + cl.v.map(v => `<td>${v.toFixed(1)}%</td>`).join('') + '</tr>'
+    ).join('') + '</tbody>';
+})();
+
+/* ============================== FIGURE 3 — findings volume vs. matched */
+(function () {
+  const W = 1088, H = 566;
+  const M = { t: 44, r: 322, b: 104, l: 196 };
+  const x0 = M.l, x1 = W - M.r;
+  const maxV = 900;
+  const sx = v => x0 + v / maxV * (x1 - x0);
+  const band = (H - M.t - M.b) / MODELS.length;
+  const barH = 64;
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': 'Findings emitted per scan with the matched portion highlighted; values printed beside each bar.' });
+
+  for (let v = 0; v <= 900; v += 150) {
+    if (v > 0) svg.appendChild(el('line', { x1: sx(v), x2: sx(v), y1: M.t, y2: H - M.b,
+      stroke: 'var(--grid)', 'stroke-width': 1 }));
+    if (v % 300 === 0) svg.appendChild(txt(v.toLocaleString(), { x: sx(v), y: H - M.b + 28,
+      'text-anchor': 'middle', 'font-size': 15, fill: 'var(--text-secondary)',
+      'font-variant-numeric': 'tabular-nums' }));
+  }
+  svg.appendChild(el('line', { x1: x0, x2: x1, y1: H - M.b, y2: H - M.b, stroke: 'var(--axis)', 'stroke-width': 1.6 }));
+  svg.appendChild(txt('Findings emitted in one scan', { x: (x0 + x1) / 2, y: H - M.b + 62,
+    'text-anchor': 'middle', 'font-size': 19, 'font-weight': 700, fill: 'var(--text-primary)',
+    'letter-spacing': '-0.01em' }));
+
+  const rr = (x, y, w, h, rL, rR) => {
+    w = Math.max(w, 0.001);
+    return `M ${x + rL} ${y} H ${x + w - rR} A ${rR} ${rR} 0 0 1 ${x + w} ${y + rR} V ${y + h - rR}
+            A ${rR} ${rR} 0 0 1 ${x + w - rR} ${y + h} H ${x + rL} A ${rL} ${rL} 0 0 1 ${x} ${y + h - rL}
+            V ${y + rL} A ${rL} ${rL} 0 0 1 ${x + rL} ${y} Z`;
+  };
+
+  MODELS.forEach((m, i) => {
+    const y = M.t + i * band + (band - barH) / 2;
+    const wM = sx(m.matched) - x0, wR = sx(m.findings) - sx(m.matched) - 3;
+
+    svg.appendChild(txt(m.name, { x: x0 - 22, y: y + barH / 2, 'text-anchor': 'end', 'font-size': 16.5,
+      'font-weight': 700, fill: 'var(--text-primary)', 'dominant-baseline': 'central',
+      'letter-spacing': '-0.01em' }));
+
+    svg.appendChild(el('path', { d: rr(x0, y, wM, barH, 0, 0), fill: 'var(--series-1)' }));
+    svg.appendChild(el('path', { d: rr(x0 + wM + 3, y, wR, barH, 0, 5), fill: 'var(--deemph)' }));
+
+    svg.appendChild(txt(`${m.findings} emitted`, { x: sx(m.findings) + 18, y: y + barH / 2 - 8,
+      'font-size': 15.5, 'font-weight': 660, fill: 'var(--text-primary)',
+      'dominant-baseline': 'central', 'font-variant-numeric': 'tabular-nums' }));
+    svg.appendChild(txt(`${m.matched} matched — ${m.prec}%`, { x: sx(m.findings) + 18, y: y + barH / 2 + 12,
+      'font-size': 14.5, fill: 'var(--text-secondary)', 'dominant-baseline': 'central',
+      'font-variant-numeric': 'tabular-nums' }));
+
+    const hit = el('rect', { x: x0, y: y - 8, width: sx(m.findings) - x0, height: barH + 16,
+      fill: 'transparent', style: 'cursor:pointer' });
+    svg.appendChild(hit);
+    bindTip(hit, 'tip3', 'plot3',
+      `<div class="t-title"><span class="swatch" style="background:${S(m.slot)}"></span>${m.name}</div>
+       <div class="t-row">${m.findings} findings emitted</div>
+       <div class="t-row">${m.matched} matched a ground-truth entry — ${m.prec}%</div>
+       <div class="t-row">${m.findings - m.matched} unmatched</div>`);
+  });
+
+  /* legend, bottom-right in a soft chip like the reference */
+  const lgx = x1 + 26, lgy = M.t + 10;
+  const lg = el('g');
+  lg.appendChild(el('rect', { x: lgx - 14, y: lgy - 16, width: 296, height: 78, rx: 12,
+    fill: 'var(--page)' }));
+  [['var(--series-1)', 'Matched a ground-truth entry'],
+   ['var(--deemph)',   'Unmatched — noise, or a real']].forEach(([c, t], i) => {
+    lg.appendChild(el('circle', { cx: lgx + 2, cy: lgy + 5 + i * 26, r: 6, fill: c }));
+    lg.appendChild(txt(t, { x: lgx + 16, y: lgy + 5 + i * 26, 'font-size': 14,
+      fill: 'var(--text-secondary)', 'dominant-baseline': 'central' }));
+  });
+  lg.appendChild(txt('issue outside the answer key', { x: lgx + 16, y: lgy + 50, 'font-size': 14,
+    fill: 'var(--text-secondary)', 'dominant-baseline': 'central' }));
+  svg.appendChild(lg);
+
+  document.getElementById('plot3').appendChild(svg);
+})();
+</script>
+</body>
+</html>
