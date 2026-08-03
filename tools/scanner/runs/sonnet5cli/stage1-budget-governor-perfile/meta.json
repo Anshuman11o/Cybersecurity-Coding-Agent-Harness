@@ -2,9 +2,9 @@
   "provider": "sonnet5cli",
   "model": "deterministic",
   "stage": "stage1-budget-governor-perfile",
-  "git_sha": "83aca08",
-  "started": "2026-08-02T21:24:22.545Z",
-  "ended": "2026-08-02T21:24:22.660Z",
+  "git_sha": "e5b85b5",
+  "started": "2026-08-03T08:30:14.264Z",
+  "ended": "2026-08-03T08:30:14.302Z",
   "exit_code": 0,
   "blocked_reads": 0,
   "degraded": false
