@@ -26,12 +26,14 @@
  *    its own client from the registry and depends on no stage at all.
  */
 import OpenAI from 'openai'
+import { createClaudeCliClient } from './claude-cli-client.js'
 import {
   resolveProvider,
   modelFor,
   labelFor,
   apiKeyEnvFor,
   clientConfigFor,
+  transportFor,
   tokenLimitParam,
   samplingParams,
   outputTokenCap,
@@ -60,21 +62,41 @@ async function main() {
   console.log(`model    : ${model}`)
   console.log(`params   : ${JSON.stringify({ ...samplingParams(provider), ...tokenLimitParam(provider, cap) })}`)
 
-  const keyVar = apiKeyEnvFor(provider)
-  if (!process.env[keyVar]) fail(`${keyVar} is not set`)
-  console.log(`key      : ${keyVar} present (${process.env[keyVar]!.length} chars)`)
+  const transport = transportFor(provider)
+  console.log(`transport: ${transport}`)
 
-  const { apiKey, baseURL } = clientConfigFor(provider)
-  console.log(`endpoint : ${baseURL ?? '(SDK default)'}`)
-
-  const price = pricingFor(provider)
-  console.log(`price    : ${price ? `$${price.input}/$${price.output} per MTok` : '(unpriced — runs will report no cost)'}`)
-
+  // A CLI-backed target authenticates through the local Claude Code session and
+  // declares no usable credential env var, so the key and endpoint checks below
+  // do not apply to it. The two live calls that follow are the real preflight
+  // either way — they are what proves the target can emit content and honour a
+  // schema, and they run identically over both transports.
   let client: OpenAI
-  try {
-    client = new OpenAI({ apiKey: apiKey!, ...(baseURL ? { baseURL } : {}) })
-  } catch (e: any) {
-    fail(`client construction — ${e?.message}`)
+  if (transport === 'claude-cli') {
+    console.log(`key      : (n/a — authenticates through the Claude Code session)`)
+    console.log(`endpoint : (n/a — local CLI, no HTTP endpoint)`)
+    const price = pricingFor(provider)
+    console.log(`price    : ${price ? `$${price.input}/$${price.output} per MTok` : '(unpriced — runs will report no cost)'}`)
+    const effort = samplingParams(provider).reasoning_effort
+    client = createClaudeCliClient({
+      model,
+      effort: typeof effort === 'string' ? effort : undefined,
+    }) as unknown as OpenAI
+  } else {
+    const keyVar = apiKeyEnvFor(provider)
+    if (!process.env[keyVar]) fail(`${keyVar} is not set`)
+    console.log(`key      : ${keyVar} present (${process.env[keyVar]!.length} chars)`)
+
+    const { apiKey, baseURL } = clientConfigFor(provider)
+    console.log(`endpoint : ${baseURL ?? '(SDK default)'}`)
+
+    const price = pricingFor(provider)
+    console.log(`price    : ${price ? `$${price.input}/$${price.output} per MTok` : '(unpriced — runs will report no cost)'}`)
+
+    try {
+      client = new OpenAI({ apiKey: apiKey!, ...(baseURL ? { baseURL } : {}) })
+    } catch (e: any) {
+      fail(`client construction — ${e?.message}`)
+    }
   }
 
   // 1. Plain completion — proves auth, model access, and that the target can

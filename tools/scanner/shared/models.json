@@ -201,7 +201,25 @@
       "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "cache_write": 2.5, "output": 10.0 },
       "price_asof": "2026-08-01",
       "price_tier": "standard first-party API, global inference_geo, 5m cache writes, INTRODUCTORY",
+      "_note_see_also": "sonnet5cli is the same model reached through the Claude Code CLI transport. Keep the two entries' prices identical or the two rows stop being comparable on cost.",
       "notes": "EFFORT: reasoning_effort=high is set per the benchmark mandate. Accepted without error but no reasoning tokens observed — see opus5, same compatibility layer, same open question. INTRODUCTORY pricing, expires 2026-08-31. From 2026-09-01 the rate becomes 3.0/15.0 (cached 0.30, 5m write 3.75), a 50% increase that takes a full run from ~$43.88 to ~$65.83. Update this entry on that date or every later run under-reports by a third. Added 2026-08-01. VERIFIED 2026-08-01 via shared/preflight.ts: model id resolves, plain completion returns content with finish_reason=stop, and json_schema strict is honoured. Same transport and same credential handling as opus5 — see that entry for why the vars are SCANNER_ANTHROPIC_API_KEY and SCANNER_ANTHROPIC_BASE_URL. Shares ANTHROPIC_MODEL with opus5, so setting that env var overrides both targets at once and would collapse an opus-vs-sonnet comparison into a single model. Leave it unset. max_output_tokens 24000 is inherited slack rather than a measured ceiling."
+    },
+
+    "sonnet5cli": {
+      "label": "Claude Sonnet 5 (Claude Code CLI transport)",
+      "model": "claude-sonnet-5",
+      "model_env": "SONNET5CLI_MODEL_UNUSED",
+      "api_key_env": "SONNET5CLI_API_KEY_UNUSED",
+      "base_url": null,
+      "base_url_env": null,
+      "token_limit_param": "max_tokens",
+      "transport": "claude-cli",
+      "sampling": { "reasoning_effort": "high" },
+      "max_output_tokens": 64000,
+      "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "cache_write": 2.5, "output": 10.0 },
+      "price_asof": "2026-08-02",
+      "price_tier": "standard first-party API, global inference_geo, 5m cache writes, INTRODUCTORY",
+      "notes": "Claude Sonnet 5 measured through the local Claude Code binary in headless mode (`claude -p`) rather than over HTTP, so the run draws on a Max subscription instead of a metered key. Same weights and same model id as `sonnet5`; a SEPARATE key because the transport is not neutral and the two must never share a results row. Added 2026-08-02. TRANSPORT DELTAS, all measured on 2026-08-02 and all of which must travel with any number from this target: (1) ~170 tokens per call of irreducible CLI framing survive `--system-prompt ''` (175 input tokens on a 5-token prompt), about 184k tokens across a 1,082-call run; (2) structured output is a forced tool call via `--json-schema`, not `response_format: json_schema strict`; (3) `--effort high` is Claude Code's thinking budget and IS applied, whereas `sonnet5`'s `reasoning_effort` over the OpenAI-compat layer is accepted with no reasoning tokens ever observed — since recall is monotone in trace length this biases THIS target upward, and a sonnet5cli-vs-sonnet5 gap is not a capability result; (4) the trace loop's second turn is a `--resume`, which the CLI serves partly from prompt cache, so input bills cheaper here than the uncached compat path. SANDBOX: the transport passes `--tools \"\" --strict-mcp-config --disable-slash-commands` on EVERY invocation including resumes. Measured: a session resumed WITHOUT re-passing `--tools \"\"` regains the full tool set and will read an arbitrary file off disk — which for this project means the answer key one directory above the corpus. guard.test.ts asserts both paths. COST: computed downstream from the CLI's reported per-model token counts against the rates above. Do NOT use the CLI's own costUSD field — it prices this model at 3.0/15.0, the post-2026-08-31 rate, and disagrees with this entry. The rates here are the August 2026 introductory rates and are the ones this benchmark reports. api_key_env and model_env are placeholders that are deliberately never read: this transport authenticates through the CLI's own session and takes its model id from `model`. base_url is null for the same reason — there is no HTTP endpoint."
     }
   }
 }

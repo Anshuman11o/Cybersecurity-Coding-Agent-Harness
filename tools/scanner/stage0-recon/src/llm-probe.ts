@@ -10,7 +10,8 @@
 import OpenAI from 'openai'
 import * as fs from 'fs'
 import type { EscapeHatchFinding } from './frontend-grep.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor, outputTokenCap } from '../../shared/provider.js'
+import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfigFor, outputTokenCap, transportFor } from '../../shared/provider.js'
+import { createClaudeCliClient } from '../../shared/claude-cli-client.js'
 import { markDegraded } from '../../shared/degraded.js'
 
 const PROVIDER = resolveProvider('stage0')
@@ -60,6 +61,19 @@ export interface CategoryVerdict {
  * Proxying via NODE_USE_ENV_PROXY=1; openai v6 has no httpAgent option.
  */
 function createClient(): OpenAI | null {
+  // Transport branch, not a model branch — the value is registry data. Must
+  // precede the credential check: a CLI-backed target authenticates through the
+  // Claude Code session and declares no usable api_key_env, so the credential
+  // path would return null here and silently degrade Stage 0 to deterministic
+  // analysis. That failure is invisible downstream: the stage still emits a
+  // category verdict, just not one the model produced.
+  if (transportFor(PROVIDER) === 'claude-cli') {
+    const effort = samplingParams(PROVIDER).reasoning_effort
+    return createClaudeCliClient({
+      model: modelFor(PROVIDER),
+      effort: typeof effort === 'string' ? effort : undefined,
+    }) as unknown as OpenAI
+  }
   const { apiKey, baseURL } = clientConfigFor(PROVIDER)
   if (!apiKey) return null
   return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })

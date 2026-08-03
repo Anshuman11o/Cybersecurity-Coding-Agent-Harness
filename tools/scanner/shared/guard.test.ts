@@ -324,6 +324,78 @@ console.log('\n-- pricing: verified rates, with the date they were verified --')
   }
 }
 
+console.log('\n-- claude-cli transport: the sandbox IS the blind-development boundary --')
+// A `claude -p` process is an agent harness, not a completion endpoint. Left at
+// its defaults it carries the full Claude Code system prompt, every CLAUDE.md in
+// scope, and the Read/Bash tool set — any of which reaches the answer key that
+// sits one directory above the corpus.
+//
+// Measured 2026-08-02: a session created with `--tools ""` and then resumed
+// WITHOUT re-passing it regains the full tool set and will read an arbitrary
+// file off disk. The trace loop's second turn is a resume, so this is not a
+// hypothetical path — it is every lane's turn 2. These assertions are over the
+// transport source, so they fail if a future edit drops a flag from either
+// branch rather than only from the one someone remembered to test.
+{
+  const { readFileSync, existsSync } = await import('fs')
+  const { join } = await import('path')
+  const SRC = join(import.meta.dirname ?? '.', 'claude-cli-client.ts')
+  const exists = existsSync(SRC)
+  check('claude-cli-client.ts exists', exists)
+  if (exists) {
+    const src = readFileSync(SRC, 'utf8')
+    // Assert over code, not prose. The file documents at length which flags are
+    // forbidden and why, so a naive substring search matches its own warnings
+    // and reports a violation that is actually the explanation of the rule.
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+    const { SANDBOX_FLAGS } = await import('./claude-cli-client.js')
+
+    check('sandbox disables all tools', SANDBOX_FLAGS.includes('--tools') &&
+      SANDBOX_FLAGS[SANDBOX_FLAGS.indexOf('--tools') + 1] === '')
+    // Without this the scanner runs inside the repo with CLAUDE.md
+    // auto-discovered: measured at 2,959 extra tokens per call describing the
+    // denylisted files, the answer key's location and the blind-development
+    // scheme the scanner is being scored under.
+    check('sandbox disables CLAUDE.md and other customizations',
+      SANDBOX_FLAGS.includes('--safe-mode'))
+    check('sandbox ignores ambient MCP servers', SANDBOX_FLAGS.includes('--strict-mcp-config'))
+    check('sandbox disables skills', SANDBOX_FLAGS.includes('--disable-slash-commands'))
+
+    // One spread of SANDBOX_FLAGS into the argv that BOTH branches share. If a
+    // refactor ever builds resume args separately, this stops matching.
+    check('every invocation spreads the sandbox flags',
+      /const args:\s*string\[\]\s*=\s*\[[^\]]*\.\.\.SANDBOX_FLAGS/.test(code))
+    check('resume reuses the same argv (no second, unsandboxed builder)',
+      (code.match(/\.\.\.SANDBOX_FLAGS/g) ?? []).length === 1 &&
+      /args\.push\('--resume'/.test(code))
+
+    // Nothing is inherited across a resume. Measured: dropping --system-prompt
+    // on turn 2 restored the default Claude Code preamble (660 -> 10,428 prompt
+    // tokens) and dropping --json-schema made turn 2 answer in prose, which the
+    // trace loop records as a lane that found nothing. So every parameter must
+    // be pushed BEFORE the create-or-resume branch, not inside the create arm.
+    const branchAt = code.indexOf('if (isFollowUp)')
+    check('resume path is reached (branch exists)', branchAt > 0)
+    for (const flag of ["'--system-prompt'", "'--json-schema'", "'--model'", "'--effort'"]) {
+      const at = code.indexOf(flag)
+      check(`${flag} is set for resumes too (pushed before the branch)`,
+        at > 0 && at < branchAt)
+    }
+
+    // --add-dir would hand back filesystem scope the tool ban removed.
+    check('transport never widens directory scope', !code.includes('--add-dir'))
+    // Replacing the system prompt is what keeps CLAUDE.md and the Claude Code
+    // preamble out of the corpus prompt; --append- would add to it instead.
+    check('transport replaces rather than appends the system prompt',
+      code.includes("'--system-prompt'") && !code.includes('--append-system-prompt'))
+    // The CLI prices Sonnet 5 at the post-2026-08-31 rate; the registry is the
+    // authority. Reading costUSD here would silently overstate every run.
+    check('transport does not consume the CLI cost field', !/\bcostUSD\b/.test(code))
+  }
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

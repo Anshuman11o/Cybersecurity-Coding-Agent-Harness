@@ -1,0 +1,11 @@
+{
+  "provider": "sonnet5cli",
+  "model": "claude-sonnet-5",
+  "stage": "stage0-recon",
+  "git_sha": "83aca08",
+  "started": "2026-08-02T21:24:07.871Z",
+  "ended": "2026-08-02T21:24:07.883Z",
+  "exit_code": 0,
+  "blocked_reads": 0,
+  "degraded": false
+}
