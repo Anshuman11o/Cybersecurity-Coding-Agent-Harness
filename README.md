@@ -7,12 +7,12 @@ number next to the defect that qualifies it.**
 On OWASP Juice Shop (865-file corpus, 541 per-file hunt lanes, a fixed 97-entry
 ground truth held in a separate private repository):
 
-| | Result | Target |
-|---|---|---|
-| **Recall** — correct file, **exact line**, correct OWASP class | **71.1%** (69/97) | ≥90% |
-| **Localization** — correct file, within ±15 lines, correct class | **88.7%** (86/97) | ≥90% |
-| **File-level** — the right file, any line, any class | **100%** (97/97) | — |
-| **Cost / wall clock** | **$4.37**, **13m04s** at concurrency 32 | — |
+| | Result |
+|---|---|
+| **Recall** — correct file, **exact line**, correct OWASP class | **71.1%** (69/97) |
+| **Localization** — correct file, within ±15 lines, correct class | **88.7%** (86/97) |
+| **File-level** — the right file, any line, any class | **100%** (97/97) |
+| **Cost / wall clock** | **$4.37**, **13m04s** at concurrency 32 |
 
 Scored blind: the harness has never had access to the answer key, and neither
 has any agent that wrote its code. Four inference models have been run through
@@ -88,45 +88,14 @@ done something it does not. The engineering problem is that reasoning is
 expensive and non-deterministic, so an agent left to roam a repository burns an
 unbounded budget and produces findings nobody can reproduce.
 
-### 2.3 What the field currently gets wrong — measured, not assumed
-
-Before any of this architecture was written, five existing open-source AI
-security scanners were run against a 10-challenge subset of the same target
-(`results/archive/2026-07-five-tool-benchmark/`). Two results shaped everything
-downstream.
-
-**Pattern matching misses the classes that need semantics.** The one tool run as
-a pure static-pattern scan (Semgrep rules, no agentic pass) reached **20% recall
-and 50% localization** — 2 of 10 challenges. It found the SSRF and, via a generic
-hardcoded-secret rule, one file. It found none of the access-control, auth-bypass
-or prompt-injection challenges. Reading the code can express "this endpoint
-authenticates but never authorizes"; a rule cannot.
-
-**The LLM tools that failed, failed on budget and clock — not on reasoning.** Two
-of the five produced no scoreable output at all. One hit an org-wide monthly
-spend cap mid-scan and exited before writing a report. One timed out at stage 4
-of 11, having correctly predicted its own ~4M input tokens per pass across 9
-detection stages, reported that, and then run until the clock killed it anyway.
-Neither ever got to be wrong about a vulnerability.
-
-That is the specific gap this harness is built for: **make the reasoning
-bounded**. Per-lane budget ceilings rather than one global cap, so a single
-expensive unit cannot starve the rest; a budget stage that stops rather than
-merely predicts; and a unit of work small enough that a failure costs one file
-instead of a run. The ≥95% precision / ≥90% recall / ≥90% localization targets
-used throughout this repo come from that same benchmark. The archive is
-superseded as a *measurement* — it scored 10 entries against today's 97 — but it
-is the provenance for decisions still in force, which is why it is kept and
-marked rather than deleted.
-
 ---
 
 ## 3. Architecture
 
 Four stages, each writing an artifact the next one reads. Nothing crosses a stage
 boundary in memory, so any stage can be re-run, inspected, scored or replaced on
-its own — which is what makes the pipeline improvable rather than merely runnable
-(§3.3).
+its own — which is what makes each stage independently measurable rather than
+only collectively runnable.
 
 **Only Stages 0 and 2 make model calls.** Everything between them is plain
 TypeScript, which keeps the expensive, non-deterministic part of the pipeline
@@ -145,22 +114,31 @@ flowchart TD
     A05 --> S1["<b>Stage 1 · Budget governor</b><br/>per-lane ceilings, never one global cap"]
     S1 --> A1["budget-plan-v2.json<br/><i>calls, tokens, projected cost</i>"]
 
-    A1 --> S2["<b>Stage 2 · Hunt lanes</b><br/>per lane: hunt turn,<br/>then trace-completion turn"]
-    S2 -->|"agent loop<br/>same conversation,<br/>stops when a turn<br/>adds nothing"| S2
-    S2 --> A2["<b>candidate-findings.json</b><br/><i>final output — class-labelled,<br/>confidence-scored, line-traced</i>"]
+    A1 --> S2
 
+    subgraph LOOP ["Stage 2 · Hunt lanes — per-lane agent loop"]
+        direction LR
+        S2["<b>Hunt turn</b><br/>read the file, report<br/>findings and classes"]
+        S2B["<b>Trace-completion turn</b><br/>same conversation —<br/>finish each finding's trace"]
+        S2 --> S2B
+        S2B -.->|"another turn only if<br/>the last one added something"| S2
+    end
+
+    S2B --> A2["<b>candidate-findings.json</b><br/><i>final output — class-labelled,<br/>confidence-scored, line-traced</i>"]
     A2 --> R["reconcile → usage-v2.json<br/><i>what the run actually spent</i>"]
 
     classDef llm fill:#7c2d12,stroke:#ea580c,color:#fff
     classDef det fill:#1e3a5f,stroke:#3b82f6,color:#fff
     classDef art fill:#1f2937,stroke:#6b7280,color:#e5e7eb
-    class S0,S2 llm
+    class S0,S2,S2B llm
     class S05,S1,R det
     class A0,A05,A1,A2,C art
+    style LOOP fill:#1c1917,stroke:#ea580c,color:#fbbf24
 ```
 
-<sub>**Orange = calls a model. Blue = deterministic code. The self-edge on Stage
-2 is the per-lane agent loop.**</sub>
+<sub>**Orange = calls a model. Blue = deterministic code. Stage 2's two turns
+share one conversation and repeat only while a turn is still adding
+something.**</sub>
 
 ### 3.1 What each stage does, and why the pipeline needs it
 
@@ -190,8 +168,8 @@ model context entirely.
 **Stage 1 · Budget governor — know the cost before spending it.**
 Pure arithmetic over the manifest and the on-disk file sizes: how many calls,
 how many input and output tokens, what that costs at the selected model's rate.
-It exists because of §2.3 — a scan that discovers its own cost halfway through is
-a scan that dies halfway through. Ceilings are per-lane rather than global, so one
+A scan that discovers its own cost halfway through is a scan that dies halfway
+through. Ceilings are per-lane rather than global, so one
 pathological file cannot consume the budget for everything after it. The same
 stage runs again after the scan, in reconcile mode, to record what was actually
 spent — the projection and the measurement are separate artifacts and never
@@ -259,37 +237,6 @@ to speak. A finding may carry more than one class — a single line can genuinel
 be both an injection and an authentication failure — and classes per finding is
 tracked as *hedging*, so "score well by labelling everything" shows up as a
 number rather than as recall.
-
-### 3.4 How the architecture is improved
-
-The stage split is not only an execution structure, it is the **experimental**
-structure. Because every stage reads and writes files, any stage can be run in
-isolation against a previous stage's frozen artifacts — which turns "did this
-change help?" into a single-variable question. Runs 5 and 6 both reused run 3's
-Stage 0 and 0.5 outputs unchanged, so the only thing that differed was Stage 2's
-arm.
-
-That property supports three things the project relies on:
-
-- **Isolated stage runs.** Re-run Stage 2 alone against a fixed manifest and the
-  lane assignments, class lists and chunk plans are identical by construction.
-- **Cheap measurement platforms.** All 97 ground-truth entries live in 40 of the
-  541 lanes, and restricting a run's own findings to those 40 reproduces its
-  published metrics exactly. A 40-lane arm is therefore a complete measurement of
-  recall and localization at 7.4% of a full run's cost — which is what made
-  testing five interventions affordable.
-- **Eval-driven iteration.** Every change is scored on the same metrics against
-  the same denominator, and the score decides whether it ships. Run 4's
-  intervention worked exactly as designed, moved nothing, and was reverted (§6).
-
-**Where it goes next.** The clearest measured lever is fewer classes per lane —
-lanes currently carry a mean of 5.55 classes and the model answers about 2.01, and
-a matched A/B on focused single-class lanes recovered 18/19 against the full
-list's 13/19 without ever losing a probe the full list won. Splitting lanes by
-class multiplies calls rather than playbook tokens, so the cost is bounded and
-known. Beyond that: a second target application to separate architecture from
-target-specific tuning, and a validation pass to raise precision, which the
-current pipeline does nothing to filter.
 
 Design intent is in `docs/architecture/`; the per-stage reference — exact inputs,
 outputs, which source file, which parts are code and which are model calls — is
@@ -514,10 +461,11 @@ Per-class recall for each model is in `docs/benchmarking-results.md`, the
 append-only ledger every model's run writes into, with the rules a row must
 satisfy to be recorded. Three further models are staged and on hold.
 
-**Architectural provenance.** The five-tool external comparison in §2
-(`results/archive/2026-07-five-tool-benchmark/`) is the origin of the targets and
-of three design decisions, and is deliberately **not** comparable to the tables
-above — it scored 10 ground-truth entries where these score 97.
+**Architectural provenance.** An earlier comparison against five external
+open-source scanners is archived at
+`results/archive/2026-07-five-tool-benchmark/`. It is the origin of several
+design decisions still in force, and is deliberately **not** comparable to the
+tables above — it scored 10 ground-truth entries where these score 97.
 
 ---
 
