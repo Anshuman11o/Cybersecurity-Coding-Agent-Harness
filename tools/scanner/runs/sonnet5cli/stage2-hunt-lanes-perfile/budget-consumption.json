@@ -1,7 +1,4 @@
 {
-  "generated_at": "2026-08-03T06:14:38.681Z",
-  "provider": "sonnet5cli",
-  "model": "claude-sonnet-5",
   "lanes": [
     {
       "lane_id": "file-0001",
@@ -50879,649 +50876,182 @@
         "completion_tokens": 9792,
         "total_tokens": 38090
       }
+    },
+    {
+      "lane_id": "file-0501",
+      "target_file": "test/server/blueprint.unit.test.ts",
+      "file_bytes": 2391,
+      "chunk_count": 1,
+      "chunks": [
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 64,
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "boilerplate",
+                "chars": 780
+              },
+              {
+                "segment_type": "playbook:access-control",
+                "chars": 2595
+              },
+              {
+                "segment_type": "playbook:api-property-auth",
+                "chars": 2306
+              },
+              {
+                "segment_type": "playbook:injection",
+                "chars": 5993
+              },
+              {
+                "segment_type": "playbook:insecure-design",
+                "chars": 3086
+              },
+              {
+                "segment_type": "playbook:logging-monitoring",
+                "chars": 2298
+              },
+              {
+                "segment_type": "playbook:misconfiguration",
+                "chars": 3296
+              },
+              {
+                "segment_type": "playbook:resource-consumption",
+                "chars": 2268
+              },
+              {
+                "segment_type": "playbook:ssrf",
+                "chars": 5308
+              },
+              {
+                "segment_type": "arch_context",
+                "chars": 1744
+              },
+              {
+                "segment_type": "file_content",
+                "chars": 6351
+              }
+            ],
+            "total_chars": 36025
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "boilerplate",
+              "chars": 780,
+              "derived_prompt_tokens": 609
+            },
+            {
+              "segment_type": "playbook:access-control",
+              "chars": 2595,
+              "derived_prompt_tokens": 2027
+            },
+            {
+              "segment_type": "playbook:api-property-auth",
+              "chars": 2306,
+              "derived_prompt_tokens": 1802
+            },
+            {
+              "segment_type": "playbook:injection",
+              "chars": 5993,
+              "derived_prompt_tokens": 4682
+            },
+            {
+              "segment_type": "playbook:insecure-design",
+              "chars": 3086,
+              "derived_prompt_tokens": 2411
+            },
+            {
+              "segment_type": "playbook:logging-monitoring",
+              "chars": 2298,
+              "derived_prompt_tokens": 1795
+            },
+            {
+              "segment_type": "playbook:misconfiguration",
+              "chars": 3296,
+              "derived_prompt_tokens": 2575
+            },
+            {
+              "segment_type": "playbook:resource-consumption",
+              "chars": 2268,
+              "derived_prompt_tokens": 1772
+            },
+            {
+              "segment_type": "playbook:ssrf",
+              "chars": 5308,
+              "derived_prompt_tokens": 4147
+            },
+            {
+              "segment_type": "arch_context",
+              "chars": 1744,
+              "derived_prompt_tokens": 1363
+            },
+            {
+              "segment_type": "file_content",
+              "chars": 6351,
+              "derived_prompt_tokens": 4962
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 12883,
+            "cache_write_prompt_tokens": 15258,
+            "prompt_tokens": 28145,
+            "completion_tokens": 3694,
+            "total_tokens": 31839
+          },
+          "findings_emitted": 2
+        },
+        {
+          "chunk_index": 1,
+          "start_line": 1,
+          "end_line": 64,
+          "loop_pass": 1,
+          "loop_mode": "trace",
+          "prompt_breakdown": {
+            "segments": [
+              {
+                "segment_type": "conversation",
+                "chars": 39383
+              },
+              {
+                "segment_type": "loop_instruction",
+                "chars": 1639
+              }
+            ],
+            "total_chars": 41022
+          },
+          "segment_attribution": [
+            {
+              "segment_type": "conversation",
+              "chars": 39383,
+              "derived_prompt_tokens": 16476
+            },
+            {
+              "segment_type": "loop_instruction",
+              "chars": 1639,
+              "derived_prompt_tokens": 686
+            }
+          ],
+          "measured": {
+            "cached_prompt_tokens": 15258,
+            "cache_write_prompt_tokens": 1902,
+            "prompt_tokens": 17162,
+            "completion_tokens": 2218,
+            "total_tokens": 19380
+          },
+          "findings_emitted": 2,
+          "findings_added": 0,
+          "traces_extended": 2
+        }
+      ],
+      "lane_totals": {
+        "prompt_tokens": 45307,
+        "completion_tokens": 5912,
+        "total_tokens": 51219
+      }
     }
   ],
-  "rollup": {
-    "total_input_tokens": 10315210,
-    "total_output_tokens": 3086760,
-    "total_tokens": 13401970,
-    "input_by_segment_kind": {
-      "boilerplate": {
-        "tokens": 139132,
-        "share_of_input": 0.013488043384477873
-      },
-      "playbook:insecure-design": {
-        "tokens": 568379,
-        "share_of_input": 0.05510105950339353
-      },
-      "playbook:logging-monitoring": {
-        "tokens": 423249,
-        "share_of_input": 0.04103154468013739
-      },
-      "playbook:misconfiguration": {
-        "tokens": 607060,
-        "share_of_input": 0.05885095892376403
-      },
-      "arch_context": {
-        "tokens": 321211,
-        "share_of_input": 0.03113955023698015
-      },
-      "file_content": {
-        "tokens": 1522639,
-        "share_of_input": 0.14761105202899408
-      },
-      "conversation": {
-        "tokens": 5136588,
-        "share_of_input": 0.4979625233029672
-      },
-      "loop_instruction": {
-        "tokens": 289097,
-        "share_of_input": 0.028026283517252677
-      },
-      "playbook:access-control": {
-        "tokens": 170757,
-        "share_of_input": 0.016553904380036857
-      },
-      "playbook:crypto-auth": {
-        "tokens": 295110,
-        "share_of_input": 0.028609209119349
-      },
-      "route_context": {
-        "tokens": 1820,
-        "share_of_input": 0.00017643848259027203
-      },
-      "playbook:injection": {
-        "tokens": 319539,
-        "share_of_input": 0.030977459499127988
-      },
-      "playbook:integrity-failures": {
-        "tokens": 52578,
-        "share_of_input": 0.005097133262434793
-      },
-      "playbook:resource-consumption": {
-        "tokens": 137097,
-        "share_of_input": 0.01329076189432886
-      },
-      "playbook:ssrf": {
-        "tokens": 214253,
-        "share_of_input": 0.020770590225501952
-      },
-      "playbook:vulnerable-components": {
-        "tokens": 4573,
-        "share_of_input": 0.00044332592356335936
-      },
-      "playbook:api-property-auth": {
-        "tokens": 67655,
-        "share_of_input": 0.006558761285519151
-      },
-      "playbook:ai-llm-agency": {
-        "tokens": 12917,
-        "share_of_input": 0.0012522285052849141
-      },
-      "playbook:client-side": {
-        "tokens": 31556,
-        "share_of_input": 0.0030591718442959472
-      }
-    },
-    "input_by_playbook_class": [
-      {
-        "class_id": "misconfiguration",
-        "tokens": 607060,
-        "share_of_input": 0.05885095892376403
-      },
-      {
-        "class_id": "insecure-design",
-        "tokens": 568379,
-        "share_of_input": 0.05510105950339353
-      },
-      {
-        "class_id": "logging-monitoring",
-        "tokens": 423249,
-        "share_of_input": 0.04103154468013739
-      },
-      {
-        "class_id": "injection",
-        "tokens": 319539,
-        "share_of_input": 0.030977459499127988
-      },
-      {
-        "class_id": "crypto-auth",
-        "tokens": 295110,
-        "share_of_input": 0.028609209119349
-      },
-      {
-        "class_id": "ssrf",
-        "tokens": 214253,
-        "share_of_input": 0.020770590225501952
-      },
-      {
-        "class_id": "access-control",
-        "tokens": 170757,
-        "share_of_input": 0.016553904380036857
-      },
-      {
-        "class_id": "resource-consumption",
-        "tokens": 137097,
-        "share_of_input": 0.01329076189432886
-      },
-      {
-        "class_id": "api-property-auth",
-        "tokens": 67655,
-        "share_of_input": 0.006558761285519151
-      },
-      {
-        "class_id": "integrity-failures",
-        "tokens": 52578,
-        "share_of_input": 0.005097133262434793
-      },
-      {
-        "class_id": "client-side",
-        "tokens": 31556,
-        "share_of_input": 0.0030591718442959472
-      },
-      {
-        "class_id": "ai-llm-agency",
-        "tokens": 12917,
-        "share_of_input": 0.0012522285052849141
-      },
-      {
-        "class_id": "vulnerable-components",
-        "tokens": 4573,
-        "share_of_input": 0.00044332592356335936
-      }
-    ],
-    "top_20_expensive_lanes": [
-      {
-        "lane_id": "file-0159",
-        "target_file": "frontend/src/app/forgot-password/forgot-password.component.ts",
-        "file_bytes": 5976,
-        "chunk_count": 1,
-        "total_input_tokens": 88056,
-        "total_output_tokens": 30829,
-        "total_tokens": 118885,
-        "segment_breakdown": {
-          "boilerplate": 749,
-          "playbook:api-property-auth": 2199,
-          "playbook:injection": 5716,
-          "playbook:insecure-design": 2943,
-          "playbook:logging-monitoring": 2192,
-          "playbook:misconfiguration": 3143,
-          "playbook:resource-consumption": 2163,
-          "arch_context": 1663,
-          "file_content": 9949,
-          "conversation": 54454,
-          "loop_instruction": 2885
-        }
-      },
-      {
-        "lane_id": "file-0270",
-        "target_file": "frontend/src/app/web3-sandbox/web3-sandbox.component.ts",
-        "file_bytes": 10577,
-        "chunk_count": 1,
-        "total_input_tokens": 84679,
-        "total_output_tokens": 17360,
-        "total_tokens": 102039,
-        "segment_breakdown": {
-          "boilerplate": 768,
-          "playbook:access-control": 2312,
-          "playbook:ai-llm-agency": 2352,
-          "playbook:api-property-auth": 2055,
-          "playbook:client-side": 2399,
-          "playbook:crypto-auth": 4102,
-          "playbook:injection": 5340,
-          "playbook:insecure-design": 2750,
-          "playbook:integrity-failures": 1945,
-          "playbook:logging-monitoring": 2048,
-          "playbook:misconfiguration": 2937,
-          "playbook:resource-consumption": 2021,
-          "playbook:ssrf": 4730,
-          "arch_context": 1554,
-          "file_content": 14249,
-          "conversation": 32238,
-          "loop_instruction": 879
-        }
-      },
-      {
-        "lane_id": "file-0276",
-        "target_file": "frontend/src/assets/public/ContractABIs.ts",
-        "file_bytes": 21117,
-        "chunk_count": 1,
-        "total_input_tokens": 79973,
-        "total_output_tokens": 21472,
-        "total_tokens": 101445,
-        "segment_breakdown": {
-          "boilerplate": 721,
-          "playbook:access-control": 2517,
-          "playbook:crypto-auth": 4466,
-          "playbook:insecure-design": 2994,
-          "playbook:logging-monitoring": 2229,
-          "playbook:misconfiguration": 3198,
-          "arch_context": 1692,
-          "file_content": 31154,
-          "conversation": 30047,
-          "loop_instruction": 955
-        }
-      },
-      {
-        "lane_id": "file-0247",
-        "target_file": "frontend/src/app/search-result/search-result.component.spec.ts",
-        "file_bytes": 18310,
-        "chunk_count": 1,
-        "total_input_tokens": 79609,
-        "total_output_tokens": 19817,
-        "total_tokens": 99426,
-        "segment_breakdown": {
-          "boilerplate": 289,
-          "playbook:access-control": 954,
-          "playbook:client-side": 990,
-          "playbook:crypto-auth": 1693,
-          "playbook:injection": 2203,
-          "playbook:insecure-design": 1134,
-          "playbook:logging-monitoring": 845,
-          "playbook:misconfiguration": 1212,
-          "arch_context": 641,
-          "file_content": 8864,
-          "conversation": 58790,
-          "loop_instruction": 1994
-        }
-      },
-      {
-        "lane_id": "file-0154",
-        "target_file": "frontend/src/app/faucet/faucet.component.ts",
-        "file_bytes": 9695,
-        "chunk_count": 1,
-        "total_input_tokens": 77870,
-        "total_output_tokens": 23263,
-        "total_tokens": 101133,
-        "segment_breakdown": {
-          "boilerplate": 765,
-          "playbook:access-control": 2535,
-          "playbook:crypto-auth": 4498,
-          "playbook:injection": 5855,
-          "playbook:insecure-design": 3015,
-          "playbook:logging-monitoring": 2245,
-          "playbook:misconfiguration": 3220,
-          "playbook:resource-consumption": 2216,
-          "playbook:ssrf": 5186,
-          "arch_context": 1704,
-          "file_content": 14649,
-          "conversation": 30849,
-          "loop_instruction": 1133
-        }
-      },
-      {
-        "lane_id": "file-0021",
-        "target_file": "frontend/src/app/Services/basket.service.ts",
-        "file_bytes": 6559,
-        "chunk_count": 1,
-        "total_input_tokens": 76251,
-        "total_output_tokens": 21483,
-        "total_tokens": 97734,
-        "segment_breakdown": {
-          "boilerplate": 298,
-          "playbook:access-control": 941,
-          "playbook:api-property-auth": 836,
-          "playbook:crypto-auth": 1670,
-          "playbook:injection": 2174,
-          "playbook:insecure-design": 1119,
-          "playbook:integrity-failures": 792,
-          "playbook:logging-monitoring": 834,
-          "playbook:misconfiguration": 1195,
-          "playbook:resource-consumption": 823,
-          "playbook:ssrf": 1925,
-          "arch_context": 633,
-          "file_content": 4065,
-          "conversation": 56835,
-          "loop_instruction": 2111
-        }
-      },
-      {
-        "lane_id": "file-0188",
-        "target_file": "frontend/src/app/photo-wall/photo-wall.component.spec.ts",
-        "file_bytes": 14630,
-        "chunk_count": 1,
-        "total_input_tokens": 76013,
-        "total_output_tokens": 17850,
-        "total_tokens": 93863,
-        "segment_breakdown": {
-          "boilerplate": 301,
-          "playbook:access-control": 942,
-          "playbook:api-property-auth": 837,
-          "playbook:crypto-auth": 1671,
-          "playbook:injection": 2175,
-          "playbook:insecure-design": 1120,
-          "playbook:integrity-failures": 792,
-          "playbook:logging-monitoring": 834,
-          "playbook:misconfiguration": 1196,
-          "playbook:resource-consumption": 823,
-          "arch_context": 633,
-          "file_content": 7229,
-          "conversation": 55491,
-          "loop_instruction": 1969
-        }
-      },
-      {
-        "lane_id": "file-0254",
-        "target_file": "frontend/src/app/sidenav/sidenav.component.spec.ts",
-        "file_bytes": 23382,
-        "chunk_count": 1,
-        "total_input_tokens": 74203,
-        "total_output_tokens": 20169,
-        "total_tokens": 94372,
-        "segment_breakdown": {
-          "boilerplate": 693,
-          "playbook:access-control": 2396,
-          "playbook:crypto-auth": 4251,
-          "playbook:insecure-design": 2849,
-          "playbook:logging-monitoring": 2122,
-          "playbook:misconfiguration": 3043,
-          "arch_context": 1610,
-          "file_content": 27365,
-          "conversation": 28848,
-          "loop_instruction": 1026
-        }
-      },
-      {
-        "lane_id": "file-0131",
-        "target_file": "frontend/src/app/coding-challenge-page/components/coding-challenge-find-it/coding-challenge-find-it.component.ts",
-        "file_bytes": 11896,
-        "chunk_count": 1,
-        "total_input_tokens": 69335,
-        "total_output_tokens": 14335,
-        "total_tokens": 83670,
-        "segment_breakdown": {
-          "boilerplate": 773,
-          "playbook:access-control": 2266,
-          "playbook:api-property-auth": 2013,
-          "playbook:crypto-auth": 4020,
-          "playbook:injection": 5233,
-          "playbook:insecure-design": 2695,
-          "playbook:integrity-failures": 1906,
-          "playbook:logging-monitoring": 2007,
-          "playbook:misconfiguration": 2878,
-          "playbook:resource-consumption": 1980,
-          "arch_context": 1523,
-          "file_content": 15177,
-          "conversation": 26013,
-          "loop_instruction": 851
-        }
-      },
-      {
-        "lane_id": "file-0304",
-        "target_file": "lib/codingChallenges.ts",
-        "file_bytes": 4440,
-        "chunk_count": 1,
-        "total_input_tokens": 66822,
-        "total_output_tokens": 23613,
-        "total_tokens": 90435,
-        "segment_breakdown": {
-          "boilerplate": 778,
-          "playbook:access-control": 2627,
-          "playbook:api-property-auth": 2334,
-          "playbook:injection": 6066,
-          "playbook:insecure-design": 3124,
-          "playbook:logging-monitoring": 2326,
-          "playbook:misconfiguration": 3336,
-          "playbook:resource-consumption": 2296,
-          "playbook:ssrf": 5373,
-          "arch_context": 1765,
-          "file_content": 8804,
-          "conversation": 26871,
-          "loop_instruction": 1122
-        }
-      },
-      {
-        "lane_id": "file-0205",
-        "target_file": "frontend/src/app/recycle/recycle.component.ts",
-        "file_bytes": 5595,
-        "chunk_count": 1,
-        "total_input_tokens": 66662,
-        "total_output_tokens": 19058,
-        "total_tokens": 85720,
-        "segment_breakdown": {
-          "boilerplate": 762,
-          "playbook:access-control": 2438,
-          "playbook:api-property-auth": 2166,
-          "playbook:injection": 5630,
-          "playbook:insecure-design": 2899,
-          "playbook:integrity-failures": 2051,
-          "playbook:logging-monitoring": 2159,
-          "playbook:misconfiguration": 3096,
-          "playbook:resource-consumption": 2131,
-          "playbook:ssrf": 4986,
-          "arch_context": 1638,
-          "file_content": 9440,
-          "conversation": 26220,
-          "loop_instruction": 1046
-        }
-      },
-      {
-        "lane_id": "file-0294",
-        "target_file": "frontend/src/hacking-instructor/helpers/helpers.ts",
-        "file_bytes": 7025,
-        "chunk_count": 1,
-        "total_input_tokens": 65059,
-        "total_output_tokens": 12860,
-        "total_tokens": 77919,
-        "segment_breakdown": {
-          "boilerplate": 735,
-          "playbook:access-control": 2338,
-          "playbook:api-property-auth": 2077,
-          "playbook:client-side": 2425,
-          "playbook:crypto-auth": 4147,
-          "playbook:injection": 5399,
-          "playbook:insecure-design": 2780,
-          "playbook:logging-monitoring": 2070,
-          "playbook:misconfiguration": 2969,
-          "playbook:resource-consumption": 2043,
-          "arch_context": 1571,
-          "file_content": 10910,
-          "conversation": 24721,
-          "loop_instruction": 874
-        }
-      },
-      {
-        "lane_id": "file-0183",
-        "target_file": "frontend/src/app/payment-method/payment-method.component.spec.ts",
-        "file_bytes": 13218,
-        "chunk_count": 1,
-        "total_input_tokens": 64534,
-        "total_output_tokens": 19624,
-        "total_tokens": 84158,
-        "segment_breakdown": {
-          "boilerplate": 733,
-          "playbook:api-property-auth": 2091,
-          "playbook:injection": 5435,
-          "playbook:insecure-design": 2799,
-          "playbook:integrity-failures": 1980,
-          "playbook:logging-monitoring": 2084,
-          "playbook:misconfiguration": 2989,
-          "playbook:resource-consumption": 2057,
-          "arch_context": 1582,
-          "file_content": 16754,
-          "conversation": 25056,
-          "loop_instruction": 974
-        }
-      },
-      {
-        "lane_id": "file-0201",
-        "target_file": "frontend/src/app/purchase-basket/purchase-basket.component.ts",
-        "file_bytes": 6678,
-        "chunk_count": 1,
-        "total_input_tokens": 64068,
-        "total_output_tokens": 17077,
-        "total_tokens": 81145,
-        "segment_breakdown": {
-          "boilerplate": 709,
-          "playbook:access-control": 2298,
-          "playbook:crypto-auth": 4078,
-          "playbook:injection": 5308,
-          "playbook:insecure-design": 2733,
-          "playbook:logging-monitoring": 2035,
-          "playbook:misconfiguration": 2919,
-          "playbook:resource-consumption": 2009,
-          "playbook:ssrf": 4701,
-          "arch_context": 1545,
-          "file_content": 10105,
-          "conversation": 24718,
-          "loop_instruction": 910
-        }
-      },
-      {
-        "lane_id": "file-0108",
-        "target_file": "frontend/src/app/app.routing.ts",
-        "file_bytes": 9307,
-        "chunk_count": 1,
-        "total_input_tokens": 62516,
-        "total_output_tokens": 26918,
-        "total_tokens": 89434,
-        "segment_breakdown": {
-          "boilerplate": 788,
-          "playbook:access-control": 2795,
-          "playbook:crypto-auth": 4959,
-          "playbook:insecure-design": 3324,
-          "playbook:logging-monitoring": 2475,
-          "playbook:misconfiguration": 3550,
-          "arch_context": 1878,
-          "file_content": 15716,
-          "conversation": 25739,
-          "loop_instruction": 1292
-        }
-      },
-      {
-        "lane_id": "file-0184",
-        "target_file": "frontend/src/app/payment-method/payment-method.component.ts",
-        "file_bytes": 5300,
-        "chunk_count": 1,
-        "total_input_tokens": 61933,
-        "total_output_tokens": 21215,
-        "total_tokens": 83148,
-        "segment_breakdown": {
-          "boilerplate": 735,
-          "playbook:access-control": 2312,
-          "playbook:api-property-auth": 2054,
-          "playbook:injection": 5338,
-          "playbook:insecure-design": 2749,
-          "playbook:integrity-failures": 1945,
-          "playbook:logging-monitoring": 2047,
-          "playbook:misconfiguration": 2936,
-          "playbook:resource-consumption": 2020,
-          "playbook:ssrf": 4728,
-          "arch_context": 1554,
-          "file_content": 8617,
-          "conversation": 23944,
-          "loop_instruction": 954
-        }
-      },
-      {
-        "lane_id": "file-0084",
-        "target_file": "frontend/src/app/Services/user.service.spec.ts",
-        "file_bytes": 8652,
-        "chunk_count": 1,
-        "total_input_tokens": 61756,
-        "total_output_tokens": 14511,
-        "total_tokens": 76267,
-        "segment_breakdown": {
-          "boilerplate": 689,
-          "playbook:access-control": 2183,
-          "playbook:api-property-auth": 1940,
-          "playbook:crypto-auth": 3873,
-          "playbook:injection": 5042,
-          "playbook:insecure-design": 2596,
-          "playbook:integrity-failures": 1836,
-          "playbook:logging-monitoring": 1933,
-          "playbook:misconfiguration": 2773,
-          "playbook:resource-consumption": 1908,
-          "arch_context": 1467,
-          "file_content": 11389,
-          "conversation": 23292,
-          "loop_instruction": 835
-        }
-      },
-      {
-        "lane_id": "file-0141",
-        "target_file": "frontend/src/app/complaint/complaint.component.ts",
-        "file_bytes": 4460,
-        "chunk_count": 1,
-        "total_input_tokens": 61424,
-        "total_output_tokens": 17755,
-        "total_tokens": 79179,
-        "segment_breakdown": {
-          "boilerplate": 750,
-          "playbook:access-control": 2366,
-          "playbook:api-property-auth": 2103,
-          "playbook:crypto-auth": 4198,
-          "playbook:injection": 5465,
-          "playbook:insecure-design": 2814,
-          "playbook:integrity-failures": 1991,
-          "playbook:logging-monitoring": 2095,
-          "playbook:misconfiguration": 3006,
-          "playbook:resource-consumption": 2068,
-          "arch_context": 1590,
-          "file_content": 8005,
-          "conversation": 23958,
-          "loop_instruction": 1015
-        }
-      },
-      {
-        "lane_id": "file-0007",
-        "target_file": "data/staticData.ts",
-        "file_bytes": 2415,
-        "chunk_count": 1,
-        "total_input_tokens": 61159,
-        "total_output_tokens": 14025,
-        "total_tokens": 75184,
-        "segment_breakdown": {
-          "boilerplate": 702,
-          "playbook:access-control": 2340,
-          "playbook:crypto-auth": 4152,
-          "playbook:injection": 5404,
-          "playbook:insecure-design": 2783,
-          "playbook:integrity-failures": 1969,
-          "playbook:logging-monitoring": 2072,
-          "playbook:misconfiguration": 2972,
-          "playbook:resource-consumption": 2045,
-          "playbook:ssrf": 4787,
-          "arch_context": 1573,
-          "file_content": 5850,
-          "conversation": 23553,
-          "loop_instruction": 957
-        }
-      },
-      {
-        "lane_id": "file-0266",
-        "target_file": "frontend/src/app/wallet-web3/wallet-web3.component.ts",
-        "file_bytes": 5631,
-        "chunk_count": 1,
-        "total_input_tokens": 59579,
-        "total_output_tokens": 15843,
-        "total_tokens": 75422,
-        "segment_breakdown": {
-          "boilerplate": 683,
-          "playbook:access-control": 2236,
-          "playbook:crypto-auth": 3967,
-          "playbook:injection": 5164,
-          "playbook:insecure-design": 2659,
-          "playbook:logging-monitoring": 1980,
-          "playbook:misconfiguration": 2840,
-          "playbook:resource-consumption": 1954,
-          "playbook:ssrf": 4574,
-          "arch_context": 1503,
-          "file_content": 8808,
-          "conversation": 22464,
-          "loop_instruction": 747
-        }
-      }
-    ],
-    "tokens_per_byte": 7.6258141305713885,
-    "lane_chunk_distribution": {
-      "1": 348
-    },
-    "repeated_boilerplate_cost": {
-      "total_extra_prompt_tokens": 0,
-      "description": "Total extra prompt tokens from re-sending boilerplate across multi-chunk lanes (0)"
-    }
-  },
   "legacy_entries": [
     {
       "lane_id": "file-0001",
@@ -56408,398 +55938,6 @@
       "ceiling_hit": false
     },
     {
-      "lane_id": "file-0499",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit reached — pass stopping cleanly: You've hit your session limit · resets 7:40am (UTC)"
-    },
-    {
-      "lane_id": "file-0500",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0501",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0502",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0503",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0504",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0505",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0506",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0507",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0508",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0509",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0510",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0511",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0512",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0513",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0514",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0515",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0516",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0517",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0518",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0519",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0520",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0521",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0522",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0523",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0524",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0525",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0526",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0527",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0528",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0529",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0851",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0852",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0853",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0854",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0855",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0856",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0857",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0858",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0859",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0860",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0861",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0862",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0863",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0864",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0496",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0865",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0498",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
-      "lane_id": "file-0497",
-      "tokens_used": 0,
-      "seconds_elapsed": 0,
-      "ceiling_hit": false,
-      "failed": true,
-      "failure_reason": "claude CLI usage limit already reached in this pass — not spawning. Resume in the next window; the checkpoint is intact."
-    },
-    {
       "lane_id": "file-0495",
       "tokens_used": 25005,
       "seconds_elapsed": 75.51,
@@ -56809,6 +55947,12 @@
       "lane_id": "file-0492",
       "tokens_used": 38090,
       "seconds_elapsed": 139.26,
+      "ceiling_hit": false
+    },
+    {
+      "lane_id": "file-0501",
+      "tokens_used": 51219,
+      "seconds_elapsed": 72.125,
       "ceiling_hit": false
     }
   ]

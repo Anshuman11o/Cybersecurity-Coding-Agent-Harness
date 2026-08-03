@@ -71933,5 +71933,134 @@
     ],
     "severity_estimate": "low",
     "confidence": 0.25
+  },
+  {
+    "finding_id": "FIND-2242",
+    "lane_id": "file-0501",
+    "finding_classes": [
+      {
+        "class": "ssrf",
+        "justified_by_step": 5
+      }
+    ],
+    "categories": [
+      "A10",
+      "API7"
+    ],
+    "title": "Unvalidated outbound fetch of config-supplied image URL (potential SSRF sink)",
+    "description": "At line 37, the test code calls `fetch(product.image)` where `product.image` originates from the application's products configuration (loaded via `config.get<ProductConfig[]>('products')` at line 28). There is no validation of the URL's scheme, host, or destination before the outbound HTTP request is made — only a prior `utils.isUrl()` check (line 35) that merely confirms the string is URL-shaped, not that it targets an allowed origin. If the products configuration is ever populated from a source that is not fully trusted (e.g., seeded/imported product data, admin-editable catalog entries, or a future feature that lets less-trusted actors add products), an attacker-supplied `image` value could cause the process to issue requests to internal/loopback/cloud-metadata addresses. Because this file is test/build tooling rather than a live request handler, the immediate blast radius is limited to whoever/whatever populates the config at build or test time — but the pattern itself (fetch of an externally-sourced URL with no origin allow-list) is the same defect the SSRF playbook flags, and confidence is lowered accordingly.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 28,
+        "description": "Product configuration list is loaded via config.get('products'); each product's image field flows into the loop below."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 35,
+        "description": "product.image is checked only for being URL-shaped via utils.isUrl(), no origin/host allow-listing performed."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 33,
+        "description": "Loop iterates over each product from the config-derived array, binding `product` for the rest of the trace."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 34,
+        "description": "Conditional gate: only requires product.fileForRetrieveBlueprintChallenge and product.image to be truthy before proceeding — no check on the content or origin of product.image."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 36,
+        "description": "pathToImage is computed by resolving a local write path that incorporates a substring of product.image (filename portion), still carrying the untrusted value forward alongside the URL used for the fetch below."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 37,
+        "description": "fetch(product.image) issues an outbound HTTP(S) request to the config-supplied URL with no destination restriction."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.15
+  },
+  {
+    "finding_id": "FIND-2243",
+    "lane_id": "file-0501",
+    "finding_classes": [
+      {
+        "class": "resource-consumption",
+        "justified_by_step": 8
+      }
+    ],
+    "categories": [
+      "API4"
+    ],
+    "title": "Unbounded download written to disk without size limit",
+    "description": "After fetching a config-supplied URL (line 37), the response body is streamed directly to a file via fs.createWriteStream and piped without any Content-Length check or maximum size cap (lines 42-43). If the fetched URL points to an extremely large or slow-drip resource, this could exhaust disk space or hang the process. This is only reachable through the same config-controlled product.image value, and the code is test/build tooling rather than a production request handler, so real-world exploitability depends on how untrusted the products configuration source is.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 28,
+        "description": "Product list, including image URLs, is loaded from configuration."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 37,
+        "description": "fetch(product.image) retrieves the remote resource with no size limit enforced on the response."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 33,
+        "description": "Loop iterates over each product from the config-derived array."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 34,
+        "description": "Conditional gate only checks presence of fileForRetrieveBlueprintChallenge and image, no size/type constraint on the referenced resource."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 35,
+        "description": "isUrl(product.image) selects the remote-download branch, still with no bound on the eventual response size."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 36,
+        "description": "pathToImage is resolved as the local destination file path that the fetched bytes will be written to."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 38,
+        "description": "Only a truthiness/ok check is performed on the response before proceeding to write it to disk — no Content-Length or size cap is inspected here."
+      },
+      {
+        "kind": "propagation",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 43,
+        "description": "Response body is piped to the local file via Readable.fromWeb(response.body).pipe(fileStream) with no cap on bytes written, allowing unbounded disk consumption if the remote resource is large."
+      },
+      {
+        "kind": "sink",
+        "file": "test/server/blueprint.unit.test.ts",
+        "line": 42,
+        "description": "Response body is piped to a local file (fs.createWriteStream) with no cap on bytes written, allowing unbounded disk consumption if the remote resource is large."
+      }
+    ],
+    "severity_estimate": "low",
+    "confidence": 0.12
   }
 ]
