@@ -2316,10 +2316,32 @@ async function main() {
     ...(LOOP_MODE === 'sweep' ? { sweep_group_size: SWEEP_GROUP_SIZE } : {}),
   })
 
+  // A pass that lost lanes must say so where the reader is looking, not only in
+  // 200 scattered [FATAL] lines. Stage 2 has always printed "Complete" and
+  // exited 0 regardless — on 2026-08-03 it did that with 228 of 341 lanes
+  // failed to a subscription limit, and the summary alone read like a clean
+  // run. The exit code is deliberately left alone: a bounded chunk stopping
+  // early is normal here, so failure is reported rather than signalled.
+  const failedLanes = consumptionReport.filter(c => c.failed)
+  const completedHuntLanes = consumptionReport.filter(c => (c.tokens_used ?? 0) > 0).length
+
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)
   console.log(`Total candidate findings: ${allFindings.length}`)
   console.log(`Lanes processed: ${huntLanes.length} hunt, ${skipLanes.length} skip`)
+  if (failedLanes.length > 0) {
+    const reasons = new Map<string, number>()
+    for (const f of failedLanes) {
+      const key = String(f.failure_reason ?? 'unknown').slice(0, 120)
+      reasons.set(key, (reasons.get(key) ?? 0) + 1)
+    }
+    console.log(`\n*** INCOMPLETE: ${failedLanes.length} lane(s) FAILED and produced no findings ***`)
+    for (const [reason, n] of [...reasons].sort((a, b) => b[1] - a[1])) {
+      console.log(`      ${String(n).padStart(4)} x ${reason}`)
+    }
+    console.log(`    They are recorded failed and will be RETRIED on the next pass.`)
+    console.log(`    This output covers ${completedHuntLanes} completed lane(s) and is NOT a finished run.`)
+  }
   console.log(`Total tokens: ${consumptionReport.reduce((s, r) => s + r.tokens_used, 0).toLocaleString()}`)
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)

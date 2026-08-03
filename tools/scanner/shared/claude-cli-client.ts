@@ -116,7 +116,8 @@ const sessionByConversation = new Map<string, string>()
  * per-minute rate limit. Kept narrow deliberately: mistaking a rate limit for
  * this would abandon a run that a 62-second backoff would have carried through.
  */
-const USAGE_LIMIT_RE = /usage limit reached|limit will reset|out of (?:usage|credits)/i
+const USAGE_LIMIT_RE =
+  /(?:session|usage|weekly|rate) limit(?!\s*exceeded)|limit will reset|resets?\s+(?:at\s+)?\d{1,2}[:.]?\d{0,2}\s*(?:am|pm)?|out of (?:usage|credits)/i
 
 /**
  * Latched once a usage limit is seen. Not reset within a pass: the window is
@@ -332,7 +333,15 @@ export function createClaudeCliClient(opts: ClaudeCliClientOptions) {
             }
             const e: any = new Error(`claude CLI returned is_error: ${text.slice(0, 300)}`)
             // A genuine rate limit IS worth the backoff.
-            if (/rate limit|429|overloaded/i.test(text)) e.status = 429
+            if (/429|overloaded/i.test(text)) e.status = 429
+            // So is a transport hiccup. Observed 2026-08-03: two lanes died on
+            // "Self-signed certificate detected" through the egress proxy while
+            // 300+ neighbours on the same config succeeded, so it is transient
+            // rather than a misconfiguration. Without a status the executor
+            // treats it as fatal and burns the lane on one bad moment.
+            if (/self-signed certificate|unable to connect|socket hang up|ECONN|EAI_AGAIN|fetch failed/i.test(text)) {
+              e.status = 503
+            }
             throw e
           }
 
