@@ -1,4 +1,4 @@
-# Scanner AI Agent Harness
+# Cybersecurity Scanner AI Agent Harness
 
 **An AI agent harness that scans a codebase for an entire class of
 OWASP-categorized vulnerabilities and reports it.**
