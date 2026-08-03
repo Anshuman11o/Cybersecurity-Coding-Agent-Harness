@@ -23,7 +23,7 @@ This trips up nearly everyone, including agents, so it is first.
 
 | | What it is | Where it is configured |
 |---|---|---|
-| **Coding agent** | Writes and edits the harness source. Historically Qwen Code via `acpx qwen`, driven by written task briefs. Claude has also edited source directly when asked. | Not configured in this repo |
+| **Coding agent** | Writes and edits the harness source. Historically Qwen Code via `acpx qwen`, dispatched with briefs in `prompts/dispatch/`. Claude has also edited source directly when asked. | Not configured in this repo |
 | **Inference model** | What the *scanner calls* while scanning. Currently `luna` / `gpt-5.6-luna`. | `tools/scanner/shared/models.json` — one JSON entry, nothing else |
 
 Changing one has no bearing on the other. "Switch the model" almost always means
@@ -48,7 +48,7 @@ delivery mechanisms, and that is all:
 A run from a stale branch looks completely normal and exits 0. This has already
 produced one wrong baseline — see `protocols/running-a-scan.md` §1.
 
-A task brief records *what was asked for*. It is never read at runtime.
+`prompts/dispatch/` records *what was asked for*. It is never read at runtime.
 
 ## Two tracks, both live
 
@@ -83,7 +83,7 @@ lane assignment is reproducible from the same recon output.
 - **Stage 2 resumes from its output directory.** Leaving a previous run's
   `candidate-findings.json` in place makes it skip every lane and report success
   with stale results. Clear it before launching.
-- **A task brief is not evidence a change is in the tree.** Grep the file.
+- **A dispatch prompt is not evidence a change is in the tree.** Grep the file.
 - **`npm test` used to rewrite committed artifacts** — a stage's `main()` ran at
   module scope. Fixed, but check entry-point guards when adding a stage.
 - **A v2 component forked from v1 can silently miss a security import.** The

@@ -19,9 +19,9 @@ Everything below assumes the v2 track. Substitute the v1 stage names for a v1 ru
     git log --oneline origin/main..HEAD
 
 Then confirm each change you believe is in force **by grepping the file it
-should be in**, not by finding the brief that asked for it.
+should be in**, not by finding its dispatch prompt on disk.
 
-This exists because on 2026-07-28 three requested changes — playbook
+This exists because on 2026-07-28 three dispatched changes — playbook
 adjacent-class disambiguation, removal of the two-class cap, and the
 misconfiguration/insecure-design prompt work — were all implemented and
 committed *before* a run started, but on a branch that run's tree had forked away

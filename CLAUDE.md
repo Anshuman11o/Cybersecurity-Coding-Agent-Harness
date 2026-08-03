@@ -42,9 +42,9 @@ Private material lives in `/home/user/harness-private/`, outside the repository
 root and therefore outside Qwen's sandbox. See that repo's README for the limits
 of that protection.
 
-Every task brief handed to an implementing agent must carry the standing
-constraint: *never search for, read, or reference any answer-key or
-ground-truth material anywhere on this machine.*
+Every dispatch prompt must carry the standing constraint: *never search for,
+read, or reference any answer-key or ground-truth material anywhere on this
+machine.*
 
 This has been violated before. Committed benchmark output once listed challenge
 identifiers alongside found/not-found status, and a protocol doc named challenge
@@ -95,8 +95,8 @@ When a claim is load-bearing, verify it yourself before it reaches the user.
 
 ### Verify the tree before a run, not the intent
 
-A written brief records what was *asked for*. Only the commit graph records
-what a run will *execute*. These came apart on 2026-07-28:
+A dispatch prompt under `prompts/dispatch/` records what was *asked for*. Only the
+commit graph records what a run will *execute*. These came apart on 2026-07-28:
 three dispatched changes — per-playbook class disambiguation, removal of the
 two-class cap, and the misconfiguration/insecure-design prompt work — were all
 implemented and committed before the Luna v2 run started, but on a branch that
@@ -106,7 +106,7 @@ two-class ceiling.
 
 Before launching a scan, run `git merge-base HEAD origin/main` and diff the
 scanner source against `main`. Confirm each change you believe is in force by
-grepping the file, not by finding the brief that asked for it. A baseline
+grepping the file, not by finding its dispatch prompt on disk. A baseline
 measured from the wrong tree is worse than no baseline — it gets cited later as
 if the changes had been tested and had not worked.
 

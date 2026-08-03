@@ -314,7 +314,9 @@ docs/
   stages/                    per-stage reference: in, out, code vs. LLM
   analysis/                  investigation write-ups (aggregates; located
                              evidence lives in the answer-key repo)
-prompts/runtime/             prompt templates the scanner sends during a scan
+prompts/
+  dispatch/                  the written work spec for each change, dated
+  runtime/                   prompt templates the scanner sends during a scan
 results/
   eval-history/*.jsonl       append-only, one line per evaluated run — the
                              source of truth everything else derives from
@@ -359,10 +361,14 @@ alike.
 practical per-component reference. `orientation.md` and `run-history.md` sit at
 the top because they are the two documents most often wanted first.
 
+**Dispatch briefs are written work specs.** Each change was specified in a dated
+brief in `prompts/dispatch/` before implementation. They are never read at
+runtime — which is exactly the trap they created once, and §6 covers it.
+
 **An operational runbook with pre-run verification.**
 `docs/protocols/running-a-scan.md` is ordered, and its first step is *verify the
 tree, not the intent*: confirm each change you believe is in force by grepping
-the file it lives in, not by finding the brief that asked for it. Steps 2–4 clear the
+the file it lives in, not by finding its brief on disk. Steps 2–4 clear the
 Stage 2 checkpoint, probe the provider, and confirm the corpus. Step 7 is
 *verify before believing* — read `meta.json`, the coverage ledger, and the
 consumption entries before reporting anything.
