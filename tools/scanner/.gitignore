@@ -1,5 +1,12 @@
 # Run mutex — process-local, never committed
 .run.lock/
 
-# Verbose per-run logs: results are durable, logs are not
+# Verbose per-run logs: results are durable, logs are not.
+#
+# Both patterns are needed. `runs/*/*/logs/` is where run.sh tees, but a log
+# launched by hand lands at runs/<provider>/<name>.log, one level higher — ten
+# of those were committed before this rule covered them. They carry no
+# credentials, but they do carry operational detail (subscription reset times,
+# proxy errors) that has no business in a public repository.
 runs/*/*/logs/
+runs/**/*.log
