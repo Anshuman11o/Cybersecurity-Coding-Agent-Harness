@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness/tools/patcher/contracts/playbook.schema.json",
+  "title": "Patcher input — remediation playbook",
+  "description": "OWASP remediation guidance, one entry per vulnerability class present in the bug report. GENERAL guidance about how a class of defect is fixed, never a fix for a specific line of this application. That distinction is the blind boundary: 'parameterise the query' is guidance; 'replace line 19 with models.sequelize.query(..., {replacements})' is the answer key.",
+
+  "type": "object",
+  "required": ["playbook_id", "entries"],
+  "additionalProperties": false,
+
+  "properties": {
+    "playbook_id": { "type": "string" },
+    "kind": { "const": "remediation-playbook" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "string",
+      "description": "Where the guidance came from, e.g. 'OWASP Cheat Sheet Series'. Recorded for provenance."
+    },
+    "content_status": {
+      "type": "string",
+      "description": "Free text. Set this when guidance text could not be retrieved, so a thin run is not later read as a weak model. A prior attempt hit an egress block on owasp.org and the fact matters when interpreting the number."
+    },
+
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/entry" }
+    },
+
+    "general_guidance": {
+      "type": ["string", "null"],
+      "description": "Guidance that applies to every task regardless of class — e.g. defence in depth, fail-closed defaults, preserving the public contract. Prepended to every playbook section."
+    }
+  },
+
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["entry_id", "guidance"],
+      "additionalProperties": false,
+      "description": "Selected for a bug by, in order: exact bug_id in applies_to_bug_ids, then class match, then OWASP code match. First match wins; the resolution used is recorded per task so a thin section can be traced.",
+      "properties": {
+        "entry_id": { "type": "string" },
+        "title": { "type": "string" },
+
+        "owasp_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(A(0[1-9]|10)|API(0?[1-9]|10))$"
+          },
+          "description": "Classes this entry covers. Second-priority selector."
+        },
+        "classes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Human-readable class strings this entry covers, matched against a bug's `class`. First-priority selector after an explicit bug_id."
+        },
+        "applies_to_bug_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional explicit pin. Use sparingly: guidance pinned to a single bug drifts toward being that bug's answer, which is exactly what must not be handed over."
+        },
+
+        "guidance": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The remediation guidance itself, markdown. Goes verbatim into the prompt."
+        },
+        "principles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Short imperative bullets, e.g. 'Validate on an allow-list, never a deny-list'."
+        },
+        "common_mistakes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Plausible-but-wrong remediations for this class. High value: a patcher landing on one is making a known human mistake, and naming them up front is cheap. Must stay generic to the class."
+        },
+        "preserve": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What a correct fix for this class must NOT break. This is the axis-B half of the guidance and the main defence against fixing by deletion."
+        },
+        "reference_url": {
+          "type": ["string", "null"],
+          "description": "Citation. The agent cannot fetch it — network egress is denied — so guidance must be self-contained. Present for provenance and for the reader of the report."
+        },
+        "content_retrieved": {
+          "type": "boolean",
+          "description": "False means `guidance` is derived rather than quoted from the cited document. Surfaces in the report as a qualifier on the number."
+        }
+      }
+    }
+  },
+
+  "x-forbidden-keys": {
+    "description": "Same enforcement as the bug report. `challenge_key` in particular has appeared in a prior playbook artefact on the sighted side; this list is why it cannot reach a prompt.",
+    "keys": [
+      "challenge_key", "challengeKey", "challenge", "challenges",
+      "reference_correct_fix", "referenceCorrectFix", "correct_fix", "codefix", "codefixes",
+      "solve_condition", "solveCondition", "solve_conditions", "solveIf", "notSolved",
+      "it_title", "it_titles", "exploit_test", "exploit_tests", "exploitTest",
+      "oracle", "oracle_class", "oracles", "ground_truth", "groundTruth",
+      "benchmark_ground_truth", "answer_key", "answerKey", "expected_diff", "patch", "diff",
+      "ground_truth_mitigation_url"
+    ]
+  },
+
+  "x-forbidden-value-patterns": {
+    "patterns": [
+      "juice-shop-answer-key",
+      "patcher-ground-truth",
+      "harness-private",
+      "benchmark_ground_truth",
+      "answer[ _-]?key",
+      "ground[ _-]?truth",
+      "SOLUTIONS\\.md",
+      "codefixes?/",
+      "_correct\\.ts",
+      "expectChallengeSolved"
+    ]
+  }
+}

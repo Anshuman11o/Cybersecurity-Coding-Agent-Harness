@@ -1,0 +1,67 @@
+{
+  "_comment": [
+    "Shape reference for the remediation playbook. GENERAL guidance per vulnerability",
+    "class -- how this kind of defect is fixed anywhere, never how this application's",
+    "specific line is fixed. The moment an entry describes one call site it stops being",
+    "guidance and starts being the answer.",
+    "",
+    "`preserve` and `common_mistakes` are the two fields that earn their keep: the first",
+    "is the only part of the guidance that argues for the feature, and the second names",
+    "the plausible-but-wrong fix before the agent invents it."
+  ],
+
+  "playbook_id": "example-playbook",
+  "kind": "remediation-playbook",
+  "source": "OWASP Cheat Sheet Series",
+
+  "general_guidance": "Fix at the trust boundary, not at the symptom. Prefer a change that makes the unsafe construction impossible over one that filters the unsafe input. Keep the feature: every endpoint here exists because something legitimate calls it, and a remediation that stops the legitimate caller has traded one defect for another.",
+
+  "entries": [
+    {
+      "entry_id": "a03-injection",
+      "title": "Injection",
+      "owasp_codes": ["A03"],
+      "classes": ["Injection / SQL", "Injection / NoSQL", "Injection / Command"],
+      "guidance": "Separate code from data. Send the query structure and the user-supplied values to the interpreter over different channels -- parameterised statements, bound replacements, or an ORM's typed query builder -- so a value can never be read as syntax. Where the variable part is a table or column name and cannot be parameterised, resolve it through a fixed allow-list of permitted identifiers rather than by escaping.",
+      "principles": [
+        "Parameterise; do not escape.",
+        "Validate on an allow-list, never a deny-list.",
+        "Least privilege on the database account: a read path should not hold write rights."
+      ],
+      "preserve": [
+        "The endpoint must still accept the same inputs and return the same result shape for legitimate values, including values that merely contain punctuation.",
+        "Search and filter behaviour, including partial and case-insensitive matching, must be unchanged."
+      ],
+      "common_mistakes": [
+        "Blocking a keyword list (UNION, SELECT, --). Trivially bypassed by casing, comments, or encoding, and it rejects legitimate input containing those words.",
+        "Escaping quotes by hand. Misses numeric contexts and every dialect-specific escape.",
+        "Rejecting all input containing a quote. Stops the attack and breaks every surname with an apostrophe."
+      ],
+      "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+      "content_retrieved": false
+    },
+    {
+      "entry_id": "a02-crypto-storage",
+      "title": "Cryptographic Failures — credential storage",
+      "owasp_codes": ["A02", "A07"],
+      "classes": ["Cryptographic Failures / Weak Password Hashing"],
+      "guidance": "Store credentials with a memory-hard, salted, deliberately slow password hash (argon2id, scrypt, or bcrypt), never a general-purpose digest. Generate a unique random salt per record and store it with the hash. Verify with the library's constant-time comparison.",
+      "principles": [
+        "A password hash must be slow by design; a checksum is the wrong tool.",
+        "Salt per record, generated from a cryptographic source.",
+        "Compare in constant time."
+      ],
+      "preserve": [
+        "Existing accounts must still be able to authenticate. A change in hashing scheme that invalidates stored credentials has locked out every user.",
+        "Registration, login, and password change must all continue to work end to end."
+      ],
+      "common_mistakes": [
+        "Adding a salt while keeping the fast digest. Salting defeats rainbow tables and does nothing about brute force.",
+        "Double-hashing with the same fast function. No meaningful cost increase.",
+        "Rehashing on the fly without a migration path, so old credentials silently stop verifying."
+      ],
+      "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+      "content_retrieved": false
+    }
+  ]
+}

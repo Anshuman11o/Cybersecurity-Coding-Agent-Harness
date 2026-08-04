@@ -1,0 +1,215 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness/tools/patcher/contracts/patcher-report.schema.json",
+  "title": "Patcher output — the aggregated final report",
+  "description": "One of the run's two outputs; the other is the patched tree. This report describes what the PATCHER DID. It contains no oracle result and no score: scoring happens later, sighted, against the tree. Numbers here are in-sandbox self-measurements and must never be quoted as eval results.",
+
+  "type": "object",
+  "required": ["run", "blind_audit", "totals", "tasks"],
+  "additionalProperties": false,
+
+  "properties": {
+    "run": {
+      "type": "object",
+      "required": ["run_id", "started_at", "finished_at", "target_dir"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": { "type": "string" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "wall_s": { "type": "number" },
+
+        "target_dir": { "type": "string" },
+        "target_sha": { "type": ["string", "null"] },
+        "tree_digest_start": { "type": ["string", "null"] },
+        "tree_digest_end": {
+          "type": ["string", "null"],
+          "description": "Digest of the patched tree. Pairs the report with the codebase it describes; a scorer handed a tree whose digest does not match this refuses to run."
+        },
+
+        "bug_report_id": { "type": ["string", "null"] },
+        "playbook_id": { "type": ["string", "null"] },
+        "config_digest": { "type": ["string", "null"] },
+        "resumed_from": { "type": ["string", "null"] },
+
+        "agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "runner": { "type": "string" },
+            "model": { "type": ["string", "null"] },
+            "max_turns": { "type": ["integer", "null"] },
+            "reconcile_rounds": { "type": ["integer", "null"] },
+            "characterise_rounds": { "type": ["integer", "null"] },
+            "on_exhausted": { "type": ["string", "null"] },
+            "regression_net": { "type": ["string", "null"] },
+            "require_probe": { "type": ["boolean", "null"] }
+          }
+        },
+
+        "cost": {
+          "type": "object",
+          "description": "Measured, from the runtime's own reporting. Never estimated. Report cost even when the run failed — an unreported cost is a cost that gets paid twice.",
+          "additionalProperties": false,
+          "properties": {
+            "total_usd": { "type": ["number", "null"] },
+            "invocations": { "type": "integer" },
+            "by_model": { "type": "object" }
+          }
+        },
+
+        "infrastructure_failures": {
+          "type": "array",
+          "description": "Timeouts, rate limits, unparseable output, crashes. Listed by name so an infrastructure failure is never later read as a reasoning result.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["timeout", "rate_limit", "unparseable", "crash", "tree_unbuildable"] },
+              "bug_id": { "type": ["string", "null"] },
+              "phase": { "type": ["string", "null"] },
+              "detail": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "blind_audit": {
+      "type": "object",
+      "required": ["contaminated"],
+      "additionalProperties": false,
+      "description": "Verdict of tools/patcher/src/blind_guard.py. This block is read before any number in this file is believed.",
+      "properties": {
+        "contaminated": {
+          "type": "boolean",
+          "description": "True disqualifies every number in this report. It means the agent reached, or was handed, material it was supposed to be blind to."
+        },
+        "runtime_enforced": {
+          "type": "boolean",
+          "description": "False means the run used a runtime with no sandbox hook (the fake runner). Such a run exercises the loop and does not measure a patcher; its numbers must never be quoted as a result. Distinct from `contaminated`, which means the boundary existed and was crossed."
+        },
+        "input_scrub": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bug_report_clean": { "type": "boolean" },
+            "playbook_clean": { "type": "boolean" },
+            "keys_stripped": { "type": "array", "items": { "type": "string" } },
+            "value_pattern_hits": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "runtime_denials": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "out_of_tree": { "type": "integer" },
+            "test_dir_write": { "type": "integer" },
+            "gate_artefact_edit": { "type": "integer" },
+            "network_egress": { "type": "integer" },
+            "answer_key_pattern": { "type": "integer" },
+            "total": { "type": "integer" }
+          }
+        },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "totals": {
+      "type": "object",
+      "required": ["tasks", "dispositions"],
+      "additionalProperties": false,
+      "properties": {
+        "tasks": { "type": "integer", "minimum": 0 },
+
+        "dispositions": {
+          "type": "object",
+          "description": "Counts by terminal disposition. Must sum to `tasks`. `fixed` and `fixed_workflow_only` stay separate.",
+          "additionalProperties": false,
+          "properties": {
+            "fixed": { "type": "integer" },
+            "fixed_workflow_only": { "type": "integer" },
+            "already_remediated": { "type": "integer" },
+            "abandoned": { "type": "integer" },
+            "partial": { "type": "integer" },
+            "agent_failed": { "type": "integer" },
+            "blocked": { "type": "integer" }
+          }
+        },
+
+        "self_verification": {
+          "type": "object",
+          "description": "How well the agent could check its own work. Diagnostics about the ARCHITECTURE, not about the app.",
+          "additionalProperties": false,
+          "properties": {
+            "probe_coverage": {
+              "type": ["number", "null"],
+              "description": "Fraction of tasks whose exploit probe reached PROVEN before the fix. The ceiling on in-sandbox axis-A confidence."
+            },
+            "workflow_characterised": {
+              "type": ["number", "null"],
+              "description": "Fraction of tasks with a green pre-fix workflow test. Below 1.0 means some tasks had no damage detector at all."
+            },
+            "probe_unproven_tasks": { "type": "integer" },
+            "characterisation_blocked_tasks": { "type": "integer" }
+          }
+        },
+
+        "rounds_to_green": {
+          "type": "object",
+          "description": "Distribution, not a mean. The mean hides the tail, and the tail is where the cost is.",
+          "additionalProperties": false,
+          "properties": {
+            "histogram": {
+              "type": "object",
+              "description": "round -> count. Key `never` counts tasks that never went green.",
+              "additionalProperties": { "type": "integer" }
+            },
+            "median": { "type": ["number", "null"] },
+            "max": { "type": ["integer", "null"] }
+          }
+        },
+
+        "blast_radius": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "files_touched_total": { "type": "integer" },
+            "lines_added_total": { "type": "integer" },
+            "lines_removed_total": { "type": "integer" },
+            "tasks_touching_outside_bug_file": { "type": "integer" },
+            "tasks_net_deletion": {
+              "type": "integer",
+              "description": "Candidate fix-by-deletion. Worth reading every one of these by hand before publishing a number."
+            }
+          }
+        },
+
+        "tasks_reverted": { "type": "integer" },
+        "violations_total": { "type": "integer" },
+
+        "attestation_calibration": {
+          "type": "object",
+          "description": "Agent claim vs the runner's own measurement, IN SANDBOX ONLY. This is not the sighted False Confidence Rate and must never be presented as one — the sandbox has no oracle. It is the best in-sandbox proxy, and it is a lower bound.",
+          "additionalProperties": false,
+          "properties": {
+            "claimed_fixed": { "type": "integer" },
+            "claimed_fixed_and_gates_green": { "type": "integer" },
+            "claimed_fixed_but_gates_red": { "type": "integer" },
+            "claimed_not_fixed_but_gates_green": { "type": "integer" },
+            "in_sandbox_overclaim_rate": { "type": ["number", "null"] }
+          }
+        }
+      }
+    },
+
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "task-record.schema.json" }
+    }
+  },
+
+  "x-publishing-rule": {
+    "description": "Per the root CLAUDE.md publishing rule: `totals` and `run` are aggregate and publishable. `tasks[]` pairs a bug identifier with a file and a line, so it is NOT publishable outside the project. Ship the aggregate; keep the array."
+  }
+}

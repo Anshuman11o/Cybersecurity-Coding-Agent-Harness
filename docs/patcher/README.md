@@ -10,6 +10,18 @@ including agents that build or run the patcher.
 | `VERIFICATION-TECHNIQUES.md` | Candidate in-sandbox self-checks, both axes. **Unvalidated** — the adopted set must be chosen empirically |
 | `contracts/` | Mirrored JSON Schemas for what the patcher and verifier emit |
 
+## The agent itself
+
+The remediation agent architecture — the task-wise loop, its prompts, its
+gates, and the sandbox that enforces the blind boundary — lives in code at
+**[`tools/patcher/`](../../tools/patcher/)**. Start with its `README.md` for the
+shape and `ARCHITECTURE.md` for the loop specification.
+
+It reads a bug report and a remediation playbook, and emits two things: an
+aggregated report and one patched codebase. The numbers it produces are
+in-sandbox self-measurements and are not eval results; scoring happens
+afterwards, sighted, against the tree.
+
 ## What is NOT here, deliberately
 
 Ground truth, scoring, and metric definitions live in the private answer-key

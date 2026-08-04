@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness/tools/patcher/contracts/task-record.schema.json",
+  "title": "Patcher output — one task record",
+  "description": "What the orchestrator recorded for one bug. Two kinds of fact live here and are never merged: MEASURED (the runner executed something and observed the result) and ATTESTED (the agent said so). Where they disagree the measurement is authoritative and the disagreement is itself recorded — that delta is the input to verifier calibration on the sighted side.",
+
+  "type": "object",
+  "required": ["bug_id", "disposition", "measured", "diff_stats"],
+  "additionalProperties": false,
+
+  "properties": {
+    "bug_id": { "type": "string" },
+    "task_index": { "type": "integer", "minimum": 0 },
+
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer" }
+      },
+      "description": "Copied from the bug report so a record is readable on its own."
+    },
+    "owasp_codes": { "type": "array", "items": { "type": "string" } },
+    "class": { "type": "string" },
+
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "fixed_workflow_only",
+        "already_remediated",
+        "abandoned",
+        "partial",
+        "agent_failed",
+        "blocked"
+      ],
+      "description": "Terminal state. `fixed` and `fixed_workflow_only` are never summed into one bucket: the second means the agent could not demonstrate the vulnerability in its own sandbox, so axis A is unverified."
+    },
+    "disposition_reason": {
+      "type": ["string", "null"],
+      "description": "Required non-null for every disposition except `fixed`. Says what actually stopped the task, in the runner's words, not the agent's."
+    },
+
+    "measured": {
+      "type": "object",
+      "description": "Facts the orchestrator observed by executing something.",
+      "required": ["characterisation", "rounds", "final_gates"],
+      "additionalProperties": false,
+      "properties": {
+        "characterisation": {
+          "type": "object",
+          "required": ["workflow_green_pre_fix", "probe_proven_pre_fix"],
+          "additionalProperties": false,
+          "properties": {
+            "workflow_green_pre_fix": {
+              "type": "boolean",
+              "description": "Gate G1. False here means the task could never have detected damage and was blocked."
+            },
+            "probe_proven_pre_fix": {
+              "type": "boolean",
+              "description": "Gate G2. False means axis A is unverifiable in-sandbox for this task."
+            },
+            "attempts": { "type": "integer", "minimum": 1 },
+            "workflow_test_path": { "type": ["string", "null"] },
+            "exploit_probe_path": { "type": ["string", "null"] },
+            "related_test_files": { "type": "array", "items": { "type": "string" } },
+            "baseline_failures": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Related tests already red at TASK start, not run start. Excluded from this task's regression count so damage done by an earlier task is not charged here."
+            }
+          }
+        },
+
+        "rounds": {
+          "type": "array",
+          "description": "One entry per FIX/VERIFY pass. Index 0 is the first fix; 1..N are reconciles.",
+          "items": {
+            "type": "object",
+            "required": ["round", "green"],
+            "additionalProperties": false,
+            "properties": {
+              "round": { "type": "integer", "minimum": 0 },
+              "green": { "type": "boolean" },
+              "gates": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "V1_typecheck": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V2_workflow": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V3_probe_blocked": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V4_no_regression": { "enum": ["pass", "fail", "skipped", "error"] }
+                }
+              },
+              "failures": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "gate": { "type": "string" },
+                    "kind": {
+                      "enum": ["typecheck", "workflow_broken", "still_exploitable", "regression", "harness_error"]
+                    },
+                    "test_file": { "type": ["string", "null"] },
+                    "test_title": { "type": ["string", "null"] },
+                    "was": { "type": ["string", "null"] },
+                    "now": { "type": ["string", "null"] },
+                    "output_tail": { "type": ["string", "null"] }
+                  }
+                }
+              },
+              "agent": { "$ref": "#/definitions/invocation" }
+            }
+          }
+        },
+
+        "final_gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "typecheck": { "enum": ["pass", "fail", "skipped", "error"] },
+            "workflow": { "enum": ["pass", "fail", "skipped", "error"] },
+            "probe_blocked": { "enum": ["pass", "fail", "skipped", "error"] },
+            "no_regression": { "enum": ["pass", "fail", "skipped", "error"] }
+          }
+        },
+
+        "rounds_to_green": {
+          "type": ["integer", "null"],
+          "description": "Null when the task never went green. The main cost lever; recorded per task rather than averaged so the distribution survives."
+        },
+        "wall_s": { "type": "number" },
+        "cost_usd": {
+          "type": ["number", "null"],
+          "description": "Sum of measured per-invocation cost from the runtime's own reporting. Never estimated. Null if the runtime did not report it."
+        }
+      }
+    },
+
+    "attested": {
+      "type": ["object", "null"],
+      "description": "The agent's own claim, verbatim. Evidence about the agent, never about the patch.",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["fixed", "not_fixed"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "what_changed": { "type": ["string", "null"] },
+        "why_it_closes_the_path": { "type": ["string", "null"] },
+        "why_the_workflow_still_works": { "type": ["string", "null"] },
+        "residual_risk": { "type": ["string", "null"] },
+        "rounds_used": { "type": ["integer", "null"] }
+      }
+    },
+
+    "attestation_delta": {
+      "type": ["object", "null"],
+      "description": "Set when the agent's claim and the measurement disagree. Present or absent, this field is never used to alter `disposition`.",
+      "additionalProperties": false,
+      "properties": {
+        "agent_said": { "type": "string" },
+        "measurement_said": { "type": "string" },
+        "kind": { "enum": ["overclaim", "underclaim"] }
+      }
+    },
+
+    "diff_stats": {
+      "type": "object",
+      "required": ["files_touched", "lines_added", "lines_removed"],
+      "additionalProperties": false,
+      "properties": {
+        "files_touched": { "type": "array", "items": { "type": "string" } },
+        "lines_added": { "type": "integer", "minimum": 0 },
+        "lines_removed": { "type": "integer", "minimum": 0 },
+        "touched_outside_bug_file": {
+          "type": "boolean",
+          "description": "Advisory. Legitimate for a shared-utility fix, a warning sign for over-patching. Never blocks."
+        },
+        "net_deletion": {
+          "type": "boolean",
+          "description": "True when removals exceed additions by a wide margin. The signature of fixing by deleting the feature, which scores as a failure."
+        }
+      }
+    },
+
+    "violations": {
+      "type": "array",
+      "description": "Rules the runner had to enforce rather than merely state. Non-empty is a finding about the architecture, not only about the run.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "source_edited_in_characterise",
+              "test_dir_write_denied",
+              "gate_artefact_edit_denied",
+              "out_of_tree_access_denied",
+              "network_egress_denied",
+              "answer_key_pattern_denied",
+              "scratch_missing"
+            ]
+          },
+          "detail": { "type": "string" },
+          "phase": { "type": "string" },
+          "auto_reverted": { "type": "boolean" }
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "invocation": {
+      "type": "object",
+      "description": "One agent run. Usage is captured from the runtime's own output.",
+      "additionalProperties": false,
+      "properties": {
+        "phase": { "enum": ["characterise", "fix", "reconcile"] },
+        "ok": { "type": "boolean" },
+        "reason": { "type": ["string", "null"] },
+        "wall_s": { "type": "number" },
+        "num_turns": { "type": ["integer", "null"] },
+        "cost_usd": { "type": ["number", "null"] },
+        "usage": { "type": ["object", "null"] },
+        "model_usage": { "type": ["object", "null"] },
+        "rate_limited_s": { "type": ["number", "null"] },
+        "log_path": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
