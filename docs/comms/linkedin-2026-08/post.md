@@ -1,4 +1,4 @@
-# LinkedIn post — blind scanner benchmark, August 2026
+# LinkedIn post — scanner benchmark, August 2026
 
 | File | Use |
 |---|---|
@@ -11,10 +11,13 @@
 |---|---|---|---|---|
 | GPT-5.6 Luna | 88.7% (86/97) | $4.37 | **$0.045** | 9,618,943 |
 | Claude Sonnet 5 | 86.6% (84/97) | $84.04 | **$0.866** | 23,098,383 |
-| GLM-5.2 | 85.6% (83/97) | $6.22 | **$0.064** | 9,668,297 |
+| GLM-5.2 | 85.6% (83/97) | $7.33* | **$0.076** | 9,668,297 |
 | Gemini 3.6 Flash | 75.3% (73/97) | $24.85 | **$0.256** | 9,381,580 |
 
-Cost per vulnerability is cost ÷ 97. Computed for the table; deliberately not plotted.
+\* Estimated model cost for self hosting at a large organization.
+
+Cost per vulnerability is cost ÷ 97. Carried in the table and the figure's tooltips;
+deliberately not plotted.
 
 ## What the two axes mean
 
@@ -27,20 +30,20 @@ scanners report against. Say which one you mean if anyone asks — both are in t
 **Cost** is metered run spend for Luna and Gemini, straight from each run's usage
 artifact. Two rows carry qualifications:
 
-- **GLM-5.2's $6.22 is a self-hosted equivalent, not what the run was billed.** The run
-  was billed $17.01 against Z.ai's API. GLM-5.2 ships MIT-licensed open weights (753B
-  MoE, 40B active, ~750GB at FP8 → an 8×H200 node), so $6.22 = the run's 9,668,297
-  tokens × $0.643/MTok, an 8×H200 vLLM FP8 figure at 73% utilization. That rate is
-  transferred from a 70B dense model and assumes a utilization this run never sustained.
-  It estimates what self-hosting *would* cost. Alternatives if challenged: $17.01 metered,
-  or ~$14.11 at the cheapest published third-party rate for the same weights.
+- **GLM-5.2's $7.33 is a self-hosting estimate, not what the run was billed.** The run was
+  billed **$17.01** against Z.ai's API. GLM-5.2 ships MIT-licensed open weights (753B MoE,
+  40B active, ~750GB at FP8 → an 8×H200 node), so a large organization running it on its
+  own hardware pays compute rather than API margin. The $7.33 figure is supplied, not
+  derived here; the figure marks it with an asterisk and names the basis. For reference,
+  two other defensible numbers for the same run are **$17.01** metered and **~$14.11** at
+  the cheapest published third-party rate for the same weights.
 
 - **Claude Sonnet 5 ran over the Claude Code CLI transport, not a direct API client**,
   at concurrency 6 across four usage windows. See the open question below before citing
   its $84.04.
 
-The x axis is **log scale**, and the label says so. The four runs span $4.37 to $84.04;
-on a linear axis Luna and GLM-5.2 land 19px apart and their marks overlap.
+The cost axis is **log scale**, and the label says so. The four runs span $4.37 to $84.04;
+on a linear axis the two cheapest marks overlap.
 
 ## Open question on the Sonnet 5 cost — read before posting
 
@@ -62,107 +65,68 @@ also spent 4,143,486 input and 9,435 output tokens on `claude-haiku-4-5` — $4.
 CLI's own accounting — which is real spend on this run and is not in the row. Including
 it, the CLI's total for the run is $144.15.
 
-The figure currently plots $84.04, the recorded value, because that is the citable
-number in the permanent record. If the CLI's own accounting is right, Sonnet 5's true
-position is roughly $144 and its cost per vulnerability is $1.49 rather than $0.866 —
-which strengthens rather than weakens the post's argument, but changes the number.
-Worth resolving before this goes out.
+The figure plots $84.04, the recorded value, because that is the citable number in the
+permanent record. If the CLI's own accounting is right, Sonnet 5 sits near $144 and its
+cost per vulnerability is $1.49 rather than $0.866. The post's "cost 19 times more"
+becomes "33 times more". Worth resolving before this goes out.
 
 Also in the record and worth knowing: of Sonnet 5's 1,322 lane calls, **229 terminated on
 `stop_sequence` rather than `tool_use`** and are recorded as refusals. A safety classifier
 declining a share of a defensive security-scanning workload is a genuinely interesting
-result, and it is not in any headline here.
+result, and it is in no headline here.
 
 ---
 
-## Main post
+## The post
 
-> I built an AI security scanner. Then I spent most of the project making sure it couldn't cheat.
->
-> **The problem.** LLMs are genuinely good at finding vulnerabilities in code. They are also
-> very good at recognising a benchmark they've already seen. OWASP Juice Shop — the standard
-> target for this work — ships its own answer key inside the repository: challenge definitions,
-> solution write-ups, test fixtures. Point an agent at it and you cannot tell reasoning from
-> recall.
->
-> **So I split it.** A script mechanically strips every answer out of the checkout — challenge
-> definitions, solutions, fixtures, hint files — into a separate private repository. The scanner
-> runs against the stripped copy. The answer key is opened exactly once, by a scoring script,
-> after the pipeline has already finished. Neither the scanner nor the coding agent that writes
-> the scanner can read it.
->
-> That boundary has been breached three times during this project. Each breach invalidated a
-> run. Which is exactly why it's the interesting part.
->
-> **What's on the other side of it:** a five-stage pipeline — recon, deterministic lane
-> selection, budget projection, 541 parallel per-file hunt lanes with a two-turn trace loop,
-> validation. The inference model sits behind a registry, so swapping it is one JSON entry.
->
-> Then I ran four models through it. Same pipeline, same 541 lanes, same scorer, same 97-entry
-> denominator, all four on high reasoning effort.
->
-> **The result I did not expect: paying more bought less.** GPT-5.6 Luna found the most —
-> 88.7% — for $4.37. Claude Sonnet 5 came second at 86.6%, and cost $84.04 to get there.
-> Nineteen times the money for two points less. Self-hosted GLM-5.2 landed third at 85.6% for
-> an estimated $6.22. Gemini 3.6 Flash cost $24.85 and finished last at 75.3%.
->
-> Per vulnerability found, that is **4.5 cents against 86.6 cents** for the same job on the
-> same code.
->
-> Three of the four did genuinely identical work — 9.4 to 9.7M tokens each — so between them
-> the entire price spread is pricing, not effort. Sonnet was the exception: it spent 23M tokens
-> and emitted 1,270 findings against Luna's 553, and still didn't out-find it. More looking is
-> not more finding.
->
-> **What it cost me to learn that:** about $130 in inference, and several weeks building the
-> measurement rather than the thing being measured. That was the real lesson. The scanner took
-> days. A number I'd be willing to defend took weeks — the blind split, the scoring harness,
-> the denominator argument, and three separate incidents where the answer key leaked into
-> somewhere the agent could see it.
->
-> If you are building agentic evals: the measurement infrastructure *is* the project.
->
-> Happy to talk about any of it — agentic evals, security tooling, or how to design a
-> benchmark your own system can't quietly read.
->
-> #AppSec #AIEngineering #LLM #SecurityEngineering #Benchmarking
+1,504 characters. Attach `recall-by-cost.png` after the line ending "cybersecurity scanning:".
 
----
+> The cheapest and most thorough model for detecting security vulnerabilities in code is
+> GPT-5.6 Luna. With a total run cost of $4.37 and recall of 88.7%, it costs 4.5 cents per
+> vulnerability.
+>
+> I built a five stage AI agent harness that scans a codebase for OWASP-categorised
+> vulnerabilities. Subagents recon the code and map where vulnerabilities likely sit, then
+> each suspect file gets its own subagent to pin down the exact line and type. The output
+> is a report with run cost and time taken.
+>
+> Why this is important: last month OpenAI reported two of its models broke out of a test
+> sandbox, unprompted, and reached Hugging Face's production systems to steal benchmark
+> answers. Attackers move at agent speed. Defenders still read code at human speed.
+>
+> I ran four models through the harness to benchmark them at cybersecurity scanning:
+>
+> Luna won outright. It was the cheapest and had the highest recall. Claude Sonnet 5 came
+> second at 86.6% and cost 19 times more. Gemini 3.6 Flash cost $24.85 and finished last
+> at 75.3%.
+>
+> I made multiple rounds of architecture changes to improve recall from 38% to 88% from
+> first to last run. The harness was improved through continuous testing and evaluation,
+> with subagents on persistent custom loops that found gaps and proposed fixes.
+>
+> For finding vulnerabilities in code, Luna is clearly the best value today.
+>
+> Source: openai.com/index/hugging-face-model-evaluation-security-incident/
+>
+> #AppSec #CyberSecurity #AIAgentHarness #Benchmark #Claude #ChatGPT #Gemini #GLM
 
-## Short variant
-
-> The cheapest model in my security-scanner benchmark was also the most accurate.
->
-> $4.37 and 88.7% recall. The runner-up scored 86.6% and cost $84.04 — nineteen times the
-> money for two points less. Per vulnerability found: 4.5 cents against 86.6 cents.
->
-> I built the scanner against OWASP Juice Shop with every answer mechanically stripped into a
-> separate private repository, so neither the scanner nor the coding agent writing it could read
-> the ground truth. Scoring happens once, afterwards, by a script.
->
-> Three of the four models consumed near-identical tokens, so between them the price spread is
-> pricing, not effort. The expensive one spent 23M tokens and emitted more than twice as many
-> findings as the winner — and still found less. More looking is not more finding.
->
-> Getting that measurement honest took longer than building the thing being measured. The
-> answer key leaked into agent-readable space three separate times before the boundary held.
-> If you are building agentic evals, that is the actual project.
->
-> #AppSec #AIEngineering #LLM #Benchmarking
-
----
+House style for this post: no em dashes, no semicolons.
 
 ## Suggested first comment
 
+The post never defines recall, which is the first thing a sceptical reader will ask about.
+Post this within a minute of publishing.
+
 > Method, for anyone who wants to poke holes in it: 97 reachable ground-truth entries (one
 > sits in a denylisted file and is unreachable by construction, so it's excluded rather than
-> counted as a miss). Recall here is localization — the finding lands within ±15 lines of the
-> ground-truth location. On the stricter exact-line-plus-correct-OWASP-category scoring the
-> same four runs read 71.1 / 66.0 / 67.0 / 58.8. Same scorer and denominator across all four.
-> GLM-5.2's cost is a self-hosted estimate on its open weights, not the $17.01 the API run was
-> billed. Sonnet 5 ran over a CLI transport rather than a direct API client. And the honest
-> gap: high recall is the easy half — the best run emitted 553 findings to land those 86, and
-> the validation stage that would cut the noise isn't wired into this pipeline track yet.
+> counted as a miss). Recall here is localization, meaning the finding lands within ±15
+> lines of the ground-truth location. On the stricter exact-line-plus-correct-OWASP-category
+> scoring the same four runs read 71.1 / 66.0 / 67.0 / 58.8. Same scorer and denominator
+> across all four. GLM-5.2's cost is a self-hosting estimate on its open weights, not the
+> $17.01 the API run was billed. Sonnet 5 ran over a CLI transport rather than a direct API
+> client. And the honest gap: high recall is the easy half. The best run emitted 553
+> findings to land those 86, and the validation stage that would cut the noise isn't wired
+> into this pipeline track yet.
 
 ---
 
@@ -182,4 +146,4 @@ await b.close();
 EOF
 ```
 
-Export is 2400 px wide (2× device scale), 1.56:1, which LinkedIn renders without cropping.
+Export is 2400 px wide (2× device scale), 1.51:1, which LinkedIn renders without cropping.

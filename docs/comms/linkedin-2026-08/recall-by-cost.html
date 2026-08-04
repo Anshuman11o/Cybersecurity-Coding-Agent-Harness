@@ -83,8 +83,11 @@
   .plot { position: relative; }
   svg { display: block; width: 100%; height: auto; overflow: visible; }
 
+  .fnote {
+    margin: 26px 0 0; font-size: 13px; line-height: 1.6; color: var(--text-muted);
+  }
   .desc {
-    margin: 30px 0 0; max-width: 62ch;
+    margin: 10px 0 0; max-width: 62ch;
     font-size: 13px; line-height: 1.6; color: var(--text-muted);
   }
 
@@ -115,10 +118,12 @@
   <figure class="card" id="fig">
     <div class="hd">
       <h1>Vulnerability scan recall by cost</h1>
-      <p class="sub">OWASP scan | AI agent harness</p>
+      <p class="sub">OWASP scan</p>
     </div>
 
     <div class="plot"><div id="plot"></div><div class="tip" id="tip"></div></div>
+
+    <p class="fnote">*Estimated model cost for self hosting at a large organization.</p>
 
     <p class="desc">
       The results are of an AI scanner agent harness run on a web application codebase
@@ -132,7 +137,7 @@
         <tbody>
           <tr><td>GPT-5.6 Luna</td><td>88.7% (86/97)</td><td>$4.37</td><td>$0.045</td><td>9,618,943</td><td>metered API spend</td></tr>
           <tr><td>Claude Sonnet 5</td><td>86.6% (84/97)</td><td>$84.04</td><td>$0.866</td><td>23,098,383</td><td>CLI transport — see note</td></tr>
-          <tr><td>GLM-5.2</td><td>85.6% (83/97)</td><td>$6.22</td><td>$0.064</td><td>9,668,297</td><td>self-hosted estimate</td></tr>
+          <tr><td>GLM-5.2</td><td>85.6% (83/97)</td><td>$7.33*</td><td>$0.076</td><td>9,668,297</td><td>self-hosted estimate</td></tr>
           <tr><td>Gemini 3.6 Flash</td><td>75.3% (73/97)</td><td>$24.85</td><td>$0.256</td><td>9,381,580</td><td>metered API spend</td></tr>
         </tbody>
       </table>
@@ -144,12 +149,13 @@
 
 <script>
 /* Recall  = localization within +/-15 lines, over the 97 reachable ground-truth entries.
-   Cost    = metered run cost, except GLM-5.2, which is the self-hosted equivalent:
-             9,668,297 tokens x $0.643/MTok (8xH200 vLLM FP8 at 73% utilisation).
-   Cost per vulnerability = cost / 97. Computed, not plotted. */
+   Cost    = metered run cost, except GLM-5.2, which carries an estimated self-hosting
+             cost for a large organization and is starred on the figure. The metered
+             figure for that run was $17.01 against the vendor API.
+   Cost per vulnerability = cost / 97. Carried in the tooltips and table, not plotted. */
 const MODELS = [
   { name:'GPT-5.6 Luna',     cost:4.37,  recall:88.7, hits:86, tokens:'9,618,943',  costBasis:'metered API spend',      slot:1 },
-  { name:'GLM-5.2',          cost:6.22,  recall:85.6, hits:83, tokens:'9,668,297',  costBasis:'self-hosted equivalent', slot:2 },
+  { name:'GLM-5.2',          cost:7.33,  recall:85.6, hits:83, tokens:'9,668,297',  costBasis:'self-hosted equivalent', slot:2, star:true },
   { name:'Gemini 3.6 Flash', cost:24.85, recall:75.3, hits:73, tokens:'9,381,580',  costBasis:'metered API spend',      slot:3 },
   { name:'Claude Sonnet 5',  cost:84.04, recall:86.6, hits:84, tokens:'23,098,383', costBasis:'CLI transport',          slot:4 },
 ];
@@ -172,7 +178,7 @@ const S = i => `var(--series-${i})`;
   const sy = v => y1 - (v - YD[0]) / (YD[1] - YD[0]) * (y1 - y0);
 
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img',
-    'aria-label': 'Recall score against total evaluation cost. GPT-5.6 Luna 88.7 percent at $4.37. Claude Sonnet 5 86.6 percent at $84.04. GLM-5.2 85.6 percent at $6.22. Gemini 3.6 Flash 75.3 percent at $24.85.' });
+    'aria-label': 'Recall score against total evaluation cost. GPT-5.6 Luna 88.7 percent at $4.37. Claude Sonnet 5 86.6 percent at $84.04. GLM-5.2 85.6 percent at $7.33. Gemini 3.6 Flash 75.3 percent at $24.85.' });
 
   /* vertical hairline grid */
   [5, 10, 20, 50, 100].forEach(v => {
@@ -211,7 +217,7 @@ const S = i => `var(--series-${i})`;
     const m = MODELS[i], px = sx(m.cost), py = sy(m.recall);
     svg.appendChild(txt(m.name, { x: px + dx, y: py + dy, 'text-anchor': anchor, 'font-size': 19,
       'font-weight': 700, fill: 'var(--text-primary)', 'letter-spacing': '-0.01em' }));
-    svg.appendChild(txt(m.recall.toFixed(1) + '%  ·  $' + m.cost.toFixed(2), { x: px + dx, y: py + dy + 24,
+    svg.appendChild(txt(m.recall.toFixed(1) + '%  ·  $' + m.cost.toFixed(2) + (m.star ? '*' : ''), { x: px + dx, y: py + dy + 24,
       'text-anchor': anchor, 'font-size': 16, fill: 'var(--text-secondary)',
       'font-variant-numeric': 'tabular-nums' }));
   });
