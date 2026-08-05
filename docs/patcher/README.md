@@ -8,6 +8,7 @@ including agents that build or run the patcher.
 | `EVAL-METRICS.md` | **What the patcher is judged on**, in aggregate: the two axes, the verdict buckets, and which architectural lever each number moves |
 | `DATASET-READINESS-AND-HANDOFF.md` | Whether the target app can be patched today (it cannot — three blockers), and the scanner→patcher data structure |
 | `VERIFICATION-TECHNIQUES.md` | Candidate in-sandbox self-checks, both axes. **Unvalidated** — the adopted set must be chosen empirically |
+| `GPT-SUBAGENT-PATCHER-PLAN.md` | Plan for using GPT-backed phase subagents while preserving the model-agnostic patcher loop |
 | `contracts/` | Mirrored JSON Schemas for what the patcher and verifier emit |
 
 ## The agent itself

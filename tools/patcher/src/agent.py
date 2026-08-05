@@ -63,7 +63,7 @@ class AgentRunner:
 
 
 # ----------------------------------------------------------------------------
-# Claude CLI
+# Claude CLI adapter
 # ----------------------------------------------------------------------------
 
 class ClaudeCliRunner(AgentRunner):
@@ -241,6 +241,13 @@ class FakeRunner(AgentRunner):
 
 
 def build_runner(cfg: dict, sandbox_dir: str, kind: str | None = None) -> AgentRunner:
+    """Build the configured runtime adapter.
+
+    The task loop depends only on AgentRunner, so model/runtime swaps happen
+    here. `claude-cli` is the currently implemented live adapter; planned GPT
+    subagent support should register another adapter here without changing the
+    orchestration loop.
+    """
     kind = kind or cfg.get('agent', {}).get('runner', 'claude-cli')
     if kind == 'fake':
         return FakeRunner()
@@ -249,4 +256,8 @@ def build_runner(cfg: dict, sandbox_dir: str, kind: str | None = None) -> AgentR
         return ClaudeCliRunner(cfg, sandbox_dir,
                                extra_path_patterns=sb.get('extra_denied_path_patterns', []),
                                extra_cmd_patterns=sb.get('extra_denied_command_patterns', []))
+    if kind == 'gpt-subagents':
+        raise NotImplementedError(
+            'gpt-subagents runner is planned but not implemented; see '
+            'docs/patcher/GPT-SUBAGENT-PATCHER-PLAN.md')
     raise ValueError(f'unknown agent runner {kind!r}')

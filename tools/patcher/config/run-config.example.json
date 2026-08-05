@@ -30,6 +30,7 @@
   "agent": {
     "runner": "claude-cli",
     "model": "opus",
+    "role_models": {},
     "max_turns": 120,
     "timeout_s": 2400,
     "permission_mode": "acceptEdits",
@@ -37,6 +38,9 @@
     "rate_limit_probe_s": 600,
     "rate_limit_max_wait_s": 21600,
     "_comment": [
+      "runner is an adapter name, not an architecture choice: claude-cli is implemented,",
+      "fake is for tests, and gpt-subagents is the planned GPT phase-subagent adapter.",
+      "role_models may override model per phase when an adapter supports it.",
       "allowed_tools deliberately omits WebFetch and WebSearch. Upstream Juice Shop is",
       "the answer key; a single fetch of it would end the run's validity.",
       "A 429 is 'not yet', not 'could not': the runner blocks and re-probes rather than",
