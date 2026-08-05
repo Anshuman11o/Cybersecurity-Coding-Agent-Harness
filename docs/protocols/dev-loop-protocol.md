@@ -58,19 +58,20 @@ whose cost scales per ground-truth item) and caching (below).
 
 | Tier | Contents | Used by | When |
 |---|---|---|---|
-| **Fast** | 5 items (exact set to be finalized when patcher/verifier development starts — parked for now, see Resolved Decisions): the SQLi class-coverage pair, one semantic/IDOR item with no pattern to match, one LLM-specific remediation item, and one frontend fix-path item (identifiers withheld — see the private eval archive) | Patcher, Verifier | Every dev iteration |
+| **Fast / Subset 3** | 2 items drawn from Subset 2, selected from the 12 ready patcher items. Use this for the first GPT-subagent patcher pilot: one backend/server-side item and one frontend or cross-layer item, with identifiers withheld in the private eval archive. | Patcher architecture smoke test | First patcher pilot and adapter bring-up |
+| **Fast / Subset 2** | 12 ready patcher items with bug reports, playbooks, and ground-truth tests prepared in the private eval archive. This is the first meaningful patcher/verifier development set after Subset 3 proves the loop. | Patcher, Verifier | Every normal dev iteration after the 2-item pilot |
 | **Standard** | All 10 `benchmark_ground_truth` items, full `juice-shop-blind` app | Scanner | Every dev iteration (see caching note — this doesn't mean every *stage* re-runs) |
 | **Milestone** | Same 10 items, full app, all components run together | All components; end-to-end | Before declaring any single component "done"; always, for end-to-end integration runs |
 
 **Why the scanner has no Fast tier:** its cost is dominated by lane count and recon, not by how many
 ground-truth items it's scored against afterward (scoring itself is free, non-LLM Python over
 `score.py`). Running against 5 items instead of 10 wouldn't make a scanner run cheaper, only less
-informative. **Why the patcher/verifier get one:** their cost genuinely scales per item — each
-ground-truth entry needs its own fix-write, test-write/run, and verify cycle — so 5 items instead of
-10 is a real ~2x cost/time cut per iteration, and the chosen five exercise every architecturally
-distinct fix path (pure pattern-based backend fix, semantic-reasoning-only fix, LLM-specific fix,
-frontend/Angular fix) plus the one real class-coverage pair available without inventing new ground
-truth.
+informative. **Why the patcher/verifier get small tiers:** their cost genuinely scales per item — each
+ground-truth entry needs its own fix-write, test-write/run, and verify cycle. Start with Subset 3
+(two items) to validate orchestration, sandboxing, GPT-subagent handoff, and report shape before
+spending on the 12-item Subset 2. Once Subset 3 is green, use Subset 2 for normal patcher/verifier
+development because it is broad enough to exercise repeated class fixes, semantic fixes, and
+frontend/cross-layer fixes without paying for a full benchmark on every edit.
 
 **Caching, so "every iteration" isn't a full re-run every time:** recon and lane-selection output
 (the route table, category-applicability table, lane manifest) doesn't change unless the target app
@@ -84,6 +85,32 @@ even in the stripped working copy and could seed a larger tier later, specifical
 instances within Injection (14 available), Broken Access Control (12), or XSS (9) for real
 statistical signal on class-coverage beyond the one SQLi pair. Not required to start.
 
+
+## Subset 3 patcher pilot plan
+
+Run Subset 3 before any 12-item Subset 2 patcher run. The goal is not to estimate final recall; it
+is to prove the patcher architecture and GPT-subagent adapter can complete two real tasks without
+violating the blind boundary or weakening application behaviour.
+
+1. **Select two items from Subset 2 in the private eval archive.** Keep identifiers, file names,
+   oracle titles, and reference fixes out of this repository. Pick one backend/server-side item and
+   one frontend or cross-layer item so the pilot covers different edit/test paths.
+2. **Generate blind-safe inputs only.** Export the two-item bug report and matching playbook bundle
+   with no challenge keys, category-label leaks, oracle names, or reference fixes.
+3. **Preflight the run.** Execute `run_patcher.py --check` with `agent.runner = "gpt-subagents"`
+   and confirm input validation, toolchain detection, sandbox policy, output paths, and model config.
+4. **Run the patcher harness tests.** They must stay green before spending tokens; this ensures
+   the GPT adapter has not changed loop semantics.
+5. **Run the two tasks serially.** Keep `loop.task_concurrency = 1`, `policy.on_exhausted =
+   "revert"`, and the default runner-executed VERIFY gates.
+6. **Accept the pilot only if both tasks produce complete task records.** A task may be `fixed`,
+   `fixed_workflow_only`, or honestly reverted/abandoned, but missing artefacts, edited frozen
+   tests, unparseable attestations, sandbox denials for answer-key paths, or absent transcripts fail
+   the architecture pilot.
+7. **Inspect metrics before scaling to Subset 2.** Report disposition, probe coverage, workflow
+   pass rate, regression count, rounds-to-green, cost, wall time, and any guard denials. Only move to
+   the 12-item run after the report shape and blind audit are clean.
+
 ## Expected usage per tier (planning estimate — no instrumented baseline exists yet; replace with
 real telemetry from each component's first real run)
 
@@ -91,7 +118,8 @@ real telemetry from each component's first real run)
 |---|---|---|---|
 | Scanner, Standard tier, full multi-lane run (recon + ~9 lanes + validation) | ~180k–250k | 5–15 min (lanes parallel) | low single-digit $ |
 | Scanner, single-lane re-run (cached recon) | ~10k–25k | 1–3 min | well under $1 |
-| Patcher or Verifier, Fast tier (5 items, sequential — each needs the app running) | ~80k–160k | 10–20 min | ~$1 |
+| Patcher or Verifier, Subset 3 pilot (2 items, sequential — each needs the app running) | ~32k–64k | 5–10 min | well under $1 |
+| Patcher or Verifier, Subset 2 dev tier (12 items) | ~190k–385k | 25–50 min | low single-digit $ |
 | Patcher or Verifier, Milestone tier (10 items) | ~160k–320k | 20–40 min | ~$2 |
 | End-to-end, Milestone tier, full pipeline | sum of the above | up to ~1 hr | a few $ |
 
@@ -167,9 +195,11 @@ again.
   needing human judgment, not something a 4th attempt fixes.
 - **Early-stop threshold (`<3-point gain`) confirmed as-is.** The point is specifically to stop the
   loop from burning iterations chasing marginal, noisy improvements.
-- **The Fast tier's exact 5-item selection is parked, not decided now.** This tier belongs to the
-  patcher/verifier; current focus is scanner-only. Revisit when patcher/verifier development
-  actually starts.
+- **Subset 3 is the initial patcher pilot.** It contains exactly 2 vulnerabilities selected from
+  the 12 ready Subset 2 items. Selection happens in the private eval archive so this public repo
+  remains blind-safe; choose one backend/server-side item and one frontend or cross-layer item,
+  avoid two near-duplicate fixes, and keep any intentional paired class-coverage items together in
+  Subset 2 rather than spending both pilot slots on the same pattern.
 - **What a failed Milestone-tier confirmation means for an already-approved component:** an
   already-approved, already-finalized component is **presumed correct** when a later full-pipeline
   run turns up a problem — the default assumption is that the issue lives in a newer or
