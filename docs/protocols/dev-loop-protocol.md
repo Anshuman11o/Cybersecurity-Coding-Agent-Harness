@@ -99,8 +99,8 @@ violating the blind boundary or weakening application behaviour.
    with no challenge keys, category-label leaks, oracle names, or reference fixes.
 3. **Preflight the run.** Execute `run_patcher.py --check` with `agent.runner = "gpt-subagents"`
    and confirm input validation, toolchain detection, sandbox policy, output paths, and model config.
-4. **Run the fake-agent state-machine tests.** They must stay green before spending tokens; this
-   ensures the GPT adapter has not changed loop semantics.
+4. **Run the patcher harness tests.** They must stay green before spending tokens; this ensures
+   the GPT adapter has not changed loop semantics.
 5. **Run the two tasks serially.** Keep `loop.task_concurrency = 1`, `policy.on_exhausted =
    "revert"`, and the default runner-executed VERIFY gates.
 6. **Accept the pilot only if both tasks produce complete task records.** A task may be `fixed`,

@@ -39,7 +39,7 @@
     "rate_limit_max_wait_s": 21600,
     "_comment": [
       "runner is an adapter name, not an architecture choice: claude-cli is implemented,",
-      "fake is for tests, and gpt-subagents is the planned GPT phase-subagent adapter.",
+      "gpt-subagents is the planned GPT phase-subagent adapter.",
       "role_models may override model per phase when an adapter supports it.",
       "allowed_tools deliberately omits WebFetch and WebSearch. Upstream Juice Shop is",
       "the answer key; a single fetch of it would end the run's validity.",

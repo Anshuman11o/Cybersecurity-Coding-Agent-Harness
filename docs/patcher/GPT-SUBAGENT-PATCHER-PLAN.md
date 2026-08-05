@@ -20,7 +20,6 @@ the loop:
 
 | Adapter | Purpose | Notes |
 |---|---|---|
-| `fake` | Unit tests and no-cost state-machine checks | Already available. |
 | `claude-cli` | Existing CLI-based runtime | Keep for comparability and fallback. |
 | `gpt-subagents` | Planned GPT-backed patcher runtime | Spawns one fresh GPT subagent per phase and returns the same `Invocation` record. |
 | Future adapters | Other local CLIs, OpenAI API, or hosted workers | Must implement the same interface and measured-usage fields. |
@@ -112,7 +111,7 @@ The artefacts remain unchanged:
    current Claude hook directly, implement the same checks at the adapter's file
    operation boundary and keep the denial log shape compatible with
    `guard.jsonl`.
-5. Run the existing fake-agent tests unchanged. Passing them proves the model
+5. Run the patcher harness tests unchanged. Passing them proves the model
    swap did not leak into the orchestration loop.
 6. Run a two-vulnerability pilot before any 12-vulnerability run.
 
