@@ -1,0 +1,52 @@
+{
+ "report_id": "bug-report-subset3-pilot",
+ "kind": "bug-report-agent",
+ "visibility": "BLIND -- safe to place in a worktree and a prompt",
+ "target_dir": "target-apps/juice-shop-blind",
+ "target_sha": "514b48cd5ee352472ca9f771f0f9e9bf38d51eaf",
+ "provenance": "Every entry is a confirmed defect at a verified file and line. This report contains no false positives: spend no effort deciding whether an entry is real. Locations were checked against the target tree.",
+ "generated_at": "2026-08-06T21:58:15+00:00",
+ "scoped_files": [
+  "models/feedback.ts",
+  "routes/updateUserProfile.ts"
+ ],
+ "bug_count": 2,
+ "bugs": [
+  {
+   "bug_id": "BUG-017",
+   "location": {
+    "file": "models/feedback.ts",
+    "line": 44
+   },
+   "owasp": [
+    {
+     "code": "A03",
+     "framework": "OWASP Top 10:2021",
+     "title": "Injection"
+    }
+   ],
+   "class": "Cross-Site Scripting - Persisted",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "persisted-xss"
+  },
+  {
+   "bug_id": "BUG-087",
+   "location": {
+    "file": "routes/updateUserProfile.ts",
+    "line": 32
+   },
+   "owasp": [
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Access Control / CSRF",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "csrf"
+  }
+ ]
+}
