@@ -33,6 +33,23 @@ DIFF_EXCLUDES = [
     SCRATCH_DIRNAME, '.patcher-snapshots',
 ]
 
+# Root-relative paths the target application GENERATES when it runs. Its own
+# .gitignore lists them (`i18n/*.json`, `ftp/legal.md`) and only `i18n/.gitkeep`
+# is tracked, so they are never the patcher's work -- a test run populates them.
+#
+# These cannot go in DIFF_EXCLUDES above. `diff --exclude` matches a basename,
+# and the same locale filenames (ar_SA.json, bg_BG.json, ...) also live under
+# frontend/src/assets/i18n and data/static/i18n, which ARE tracked source a patch
+# may legitimately touch. Excluding by basename would silently hide a real
+# frontend change, so the filter has to be path-anchored instead.
+#
+# Measured before this existed: a task's deliverable diff was 4,000,043 bytes,
+# hit the truncation cap, and contained NONE of the actual patch --
+# diff_stats.files_touched listed 32 generated locale files and zero real ones.
+# Since build_reconcile() feeds this diff back into the prompt, the agent was
+# being asked to review locale data instead of its own change.
+GENERATED_PATH_PREFIXES = ('i18n/', 'ftp/legal.md')
+
 # Digest inputs. Source only: anything a test run can touch would make the
 # digest a measure of test execution rather than of the patch.
 SOURCE_EXTS = ('.ts', '.js', '.mjs', '.cjs', '.tsx', '.json', '.yml', '.yaml',
@@ -227,6 +244,42 @@ def diff_against_base(work_tree: str, base_tree: str, *, max_bytes=4_000_000) ->
     return _diff_dirs(base_tree, work_tree, max_bytes=max_bytes)
 
 
+def _is_generated(rel: str) -> bool:
+    rel = rel.lstrip('./')
+    return any(rel == p.rstrip('/') or rel.startswith(p)
+               for p in GENERATED_PATH_PREFIXES)
+
+
+def _rel_to_root(path: str, roots: tuple) -> str:
+    for r in sorted(roots, key=len, reverse=True):
+        pre = r.rstrip('/') + '/'
+        if path.startswith(pre):
+            return path[len(pre):]
+    return path
+
+
+def _drop_generated(text: str, roots: tuple) -> str:
+    """Strip file sections for paths the application generates at run time.
+
+    Applied before truncation, so generated data can never crowd the real patch
+    out of the diff.
+    """
+    out, skipping = [], False
+    for line in text.splitlines(keepends=True):
+        if line.startswith('diff '):
+            parts = line.rstrip('\n').split()
+            skipping = bool(parts) and _is_generated(_rel_to_root(parts[-1], roots))
+        elif line.startswith('Only in '):
+            body = line[len('Only in '):].rstrip('\n')
+            d, _, name = body.partition(': ')
+            skipping = False
+            if _is_generated(_rel_to_root(os.path.join(d, name), roots)):
+                continue
+        if not skipping:
+            out.append(line)
+    return ''.join(out)
+
+
 def _diff_dirs(a: str, b: str, *, max_bytes: int) -> str:
     # `--text` and a lenient decode: the target ships images and key material,
     # and one undecodable byte used to abort a whole unit AFTER the agent had
@@ -235,6 +288,7 @@ def _diff_dirs(a: str, b: str, *, max_bytes: int) -> str:
             + ['--text', a, b])
     r = subprocess.run(argv, capture_output=True)
     text = r.stdout.decode('utf-8', errors='replace')
+    text = _drop_generated(text, (a, b))
     if len(text) > max_bytes:
         text = text[:max_bytes] + f'\n[... diff truncated at {max_bytes} bytes ...]\n'
     return text
