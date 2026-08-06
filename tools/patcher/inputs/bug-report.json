@@ -1,0 +1,499 @@
+{
+ "report_id": "bug-report-investigation-02",
+ "kind": "bug-report-agent",
+ "visibility": "BLIND -- safe to place in a worktree and a prompt",
+ "target_dir": "target-apps/juice-shop-blind",
+ "target_sha": "fbfa68e04a6591a32334b5c66652c4d78cd50f09",
+ "provenance": "Every entry is a confirmed defect at a verified file and line. This report contains no false positives: spend no effort deciding whether an entry is real. Locations were checked against the target tree.",
+ "generated_at": "2026-08-06T08:28:52+00:00",
+ "scoped_files": [
+  "lib/insecurity.ts",
+  "models/feedback.ts",
+  "routes/easterEgg.ts",
+  "routes/fileServer.ts",
+  "routes/metrics.ts",
+  "routes/premiumReward.ts",
+  "routes/updateUserProfile.ts",
+  "server.ts"
+ ],
+ "bug_count": 24,
+ "bugs": [
+  {
+   "bug_id": "BUG-010",
+   "location": {
+    "file": "lib/insecurity.ts",
+    "line": 41
+   },
+   "owasp": [
+    {
+     "code": "A02",
+     "framework": "OWASP Top 10:2021",
+     "title": "Cryptographic Failures"
+    },
+    {
+     "code": "A07",
+     "framework": "OWASP Top 10:2021",
+     "title": "Identification and Authentication Failures"
+    }
+   ],
+   "class": "Broken Authentication / Cryptographic Failure",
+   "vulnerability": "Originally verified in routes/login.ts by checking whether the admin account could be authenticated with the well-known weak password 'admin123' -- made feasible because passwords are hashed with unsalted MD5.",
+   "reproduction": "POST /rest/user/login with email=admin@<domain> and password=admin123 and confirm successful authentication.",
+   "playbook_ref": "crypto-and-encoding"
+  },
+  {
+   "bug_id": "BUG-011",
+   "location": {
+    "file": "lib/insecurity.ts",
+    "line": 55
+   },
+   "owasp": [
+    {
+     "code": "A07",
+     "framework": "OWASP Top 10:2021",
+     "title": "Identification and Authentication Failures"
+    },
+    {
+     "code": "A02",
+     "framework": "OWASP Top 10:2021",
+     "title": "Cryptographic Failures"
+    },
+    {
+     "code": "API2",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Authentication"
+    }
+   ],
+   "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "jwt-verification"
+  },
+  {
+   "bug_id": "BUG-012",
+   "location": {
+    "file": "lib/insecurity.ts",
+    "line": 55
+   },
+   "owasp": [
+    {
+     "code": "A07",
+     "framework": "OWASP Top 10:2021",
+     "title": "Identification and Authentication Failures"
+    },
+    {
+     "code": "A02",
+     "framework": "OWASP Top 10:2021",
+     "title": "Cryptographic Failures"
+    },
+    {
+     "code": "API2",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Authentication"
+    }
+   ],
+   "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "jwt-verification"
+  },
+  {
+   "bug_id": "BUG-013",
+   "location": {
+    "file": "lib/insecurity.ts",
+    "line": 135
+   },
+   "owasp": [
+    {
+     "code": "A10",
+     "framework": "OWASP Top 10:2021",
+     "title": "Server-Side Request Forgery (SSRF)"
+    }
+   ],
+   "class": "Server-Side Request Forgery / Open Redirect",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "open-redirect"
+  },
+  {
+   "bug_id": "BUG-014",
+   "location": {
+    "file": "lib/insecurity.ts",
+    "line": 135
+   },
+   "owasp": [
+    {
+     "code": "A10",
+     "framework": "OWASP Top 10:2021",
+     "title": "Server-Side Request Forgery (SSRF)"
+    }
+   ],
+   "class": "Server-Side Request Forgery / Open Redirect",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "open-redirect"
+  },
+  {
+   "bug_id": "BUG-017",
+   "location": {
+    "file": "models/feedback.ts",
+    "line": 44
+   },
+   "owasp": [
+    {
+     "code": "A03",
+     "framework": "OWASP Top 10:2021",
+     "title": "Injection"
+    }
+   ],
+   "class": "Cross-Site Scripting - Persisted",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "persisted-xss"
+  },
+  {
+   "bug_id": "BUG-018",
+   "location": {
+    "file": "models/feedback.ts",
+    "line": 51
+   },
+   "owasp": [
+    {
+     "code": "A04",
+     "framework": "OWASP Top 10:2021",
+     "title": "Insecure Design"
+    }
+   ],
+   "class": "Insecure Design / Missing Input Validation",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "input-validation-design"
+  },
+  {
+   "bug_id": "BUG-038",
+   "location": {
+    "file": "routes/easterEgg.ts",
+    "line": 13
+   },
+   "owasp": [
+    {
+     "code": "A02",
+     "framework": "OWASP Top 10:2021",
+     "title": "Cryptographic Failures"
+    }
+   ],
+   "class": "Cryptographic Failures / Weak Encoding",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "crypto-and-encoding"
+  },
+  {
+   "bug_id": "BUG-039",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Directory Listing Enabled",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "directory-listing"
+  },
+  {
+   "bug_id": "BUG-040",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-041",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-042",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-043",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Path Filter Bypass",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-062",
+   "location": {
+    "file": "routes/metrics.ts",
+    "line": 86
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Information Exposure",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "information-exposure"
+  },
+  {
+   "bug_id": "BUG-067",
+   "location": {
+    "file": "routes/premiumReward.ts",
+    "line": 13
+   },
+   "owasp": [
+    {
+     "code": "A04",
+     "framework": "OWASP Top 10:2021",
+     "title": "Insecure Design"
+    }
+   ],
+   "class": "Broken Access Control / Business Logic Flaw",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "authorization-and-business-logic"
+  },
+  {
+   "bug_id": "BUG-087",
+   "location": {
+    "file": "routes/updateUserProfile.ts",
+    "line": 32
+   },
+   "owasp": [
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Access Control / CSRF",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "csrf"
+  },
+  {
+   "bug_id": "BUG-091",
+   "location": {
+    "file": "server.ts",
+    "line": 234
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Improper Input Handling",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-092",
+   "location": {
+    "file": "server.ts",
+    "line": 235
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-093",
+   "location": {
+    "file": "server.ts",
+    "line": 267
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Directory Listing Enabled",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "directory-listing"
+  },
+  {
+   "bug_id": "BUG-094",
+   "location": {
+    "file": "server.ts",
+    "line": 365
+   },
+   "owasp": [
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    },
+    {
+     "code": "API5",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Function Level Authorization"
+    }
+   ],
+   "class": "Broken Access Control / Broken Function Level Authorization",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "authorization-and-business-logic"
+  },
+  {
+   "bug_id": "BUG-095",
+   "location": {
+    "file": "server.ts",
+    "line": 477
+   },
+   "owasp": [
+    {
+     "code": "API3",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Object Property Level Authorization"
+    },
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Object Property Level Authorization / Mass Assignment",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "mass-assignment"
+  },
+  {
+   "bug_id": "BUG-096",
+   "location": {
+    "file": "server.ts",
+    "line": 477
+   },
+   "owasp": [
+    {
+     "code": "API3",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Object Property Level Authorization"
+    },
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Object Property Level Authorization / Mass Assignment",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "mass-assignment"
+  },
+  {
+   "bug_id": "BUG-097",
+   "location": {
+    "file": "server.ts",
+    "line": 479
+   },
+   "owasp": [
+    {
+     "code": "API3",
+     "framework": "OWASP API Security Top 10:2023",
+     "title": "Broken Object Property Level Authorization"
+    },
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Object Property Level Authorization / Mass Assignment",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "mass-assignment"
+  },
+  {
+   "bug_id": "BUG-098",
+   "location": {
+    "file": "server.ts",
+    "line": 674
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Verbose Error Messages",
+   "vulnerability": null,
+   "reproduction": null,
+   "playbook_ref": "information-exposure"
+  }
+ ]
+}
