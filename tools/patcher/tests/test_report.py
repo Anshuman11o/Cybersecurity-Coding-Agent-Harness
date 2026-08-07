@@ -160,6 +160,18 @@ def _build_fixture(tmp_path, n_bugs=3):
     base = tmp_path / 'base'
     (base / 'routes').mkdir(parents=True)
     (base / 'package.json').write_text('{"name":"fake"}')
+    # Preflight refuses an unbuilt tree, because the application will not start
+    # without its build output and the API suite boots the application. A fixture
+    # missing these is not a lighter version of the real tree -- it is the exact
+    # tree that voided a run -- so stand the files up here rather than teaching
+    # the check to look away.
+    fe = base / 'frontend' / 'dist' / 'frontend'
+    fe.mkdir(parents=True)
+    (base / 'build').mkdir(parents=True)
+    (base / 'build' / 'server.js').write_text('//\n')
+    for f in ('index.html', 'styles.css', 'main.js', 'polyfills.js',
+              'hacking-instructor-0.js'):
+        (fe / f).write_text('//\n')
     marks = ' '.join(f'VULN{i}' for i in range(n_bugs))
     (base / 'routes' / 'app.ts').write_text(f'// FEATURE {marks}\n')
 
