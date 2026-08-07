@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import glob
 import json
 import os
 import shutil
@@ -121,6 +122,31 @@ def preflight(cfg: dict, runner_kind: str) -> list:
             '(`npm ci` against a committed lockfile), and point the config at it. The '
             'patcher may not run installs, and an unpinned tree makes every differential '
             'metric unattributable.')
+
+    # The application refuses to start unless its build output is present, and the
+    # API suite boots the application. Point base_tree at an unbuilt checkout and
+    # every API test aborts at load with "unsatisfied precondition" -- before a
+    # single assertion runs. Nothing downstream distinguishes that from a patch
+    # that broke the app: the agent's workflow gate goes red for a reason that has
+    # nothing to do with its work, and the run reads as damage.
+    #
+    # This cost a full 2-task run. Checked here because it is free here.
+    if os.path.isdir(base):
+        required = ['build/server.js',
+                    'frontend/dist/frontend/index.html',
+                    'frontend/dist/frontend/styles.css',
+                    'frontend/dist/frontend/main.js',
+                    'frontend/dist/frontend/polyfills.js']
+        missing = [r for r in required if not os.path.isfile(os.path.join(base, r))]
+        if not glob.glob(os.path.join(base, 'frontend/dist/frontend/hacking-instructor-*.js')):
+            missing.append('frontend/dist/frontend/hacking-instructor-*.js')
+        if missing:
+            problems.append(
+                f'{base} is not built: {len(missing)} file(s) the application requires at '
+                f'startup are missing ({", ".join(missing[:3])}'
+                + (' ...' if len(missing) > 3 else '')
+                + '). The API suite boots the app, so every API gate would fail at load '
+                  'regardless of any patch. Point base_tree at a built tree, or build it.')
 
     hook = agent_mod.HOOK
     if not os.path.isfile(hook):
