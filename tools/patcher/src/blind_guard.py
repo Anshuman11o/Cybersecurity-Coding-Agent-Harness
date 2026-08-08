@@ -258,13 +258,92 @@ def load_playbook(path: str):
     return doc, rep
 
 
+def _merge_entries(playbook: dict, members: list):
+    """Merge the distinct entries matching a per-file unit's members.
+
+    Deduplicated by entry_id and kept in first-match order, so a unit whose
+    findings share a class gets that class's guidance exactly once. Returns
+    (entry|None, how) with the same contract as select_entry.
+    """
+    picked, hows = [], []
+    for m in members:
+        en, how = select_entry(playbook, m)
+        if en is None:
+            continue
+        if any(e.get('entry_id') == en.get('entry_id') for e in picked):
+            continue
+        picked.append(en)
+        hows.append(how)
+    if not picked:
+        return None, 'no_match'
+    if len(picked) == 1:
+        return picked[0], hows[0] + '+unit'
+
+    def union(field):
+        out = []
+        for e in picked:
+            for v in e.get(field) or []:
+                if v not in out:
+                    out.append(v)
+        return out
+
+    # Entries cite overlapping documents -- three of the classes in one file all
+    # cite A05:2021 -- so merging naively repeats whole cheat sheets verbatim.
+    # Measured on the 8-bug server.ts unit: 24KB of a 59KB prompt was the same
+    # document three times. Sections are keyed by their source URL and emitted
+    # once; a class whose documents were all already shown still gets its banner
+    # and a pointer, so the agent knows the class was considered.
+    seen_docs: set = set()
+    guidance = []
+    for e in picked:
+        banner = f"## {e.get('title') or e.get('entry_id')}"
+        body = e.get('guidance') or ''
+        sections = re.split(r'(?m)^(?=### From )', body)
+        keep, skipped = [], []
+        for sec in sections:
+            if not sec.strip():
+                continue
+            m = re.match(r'### From (\S+)', sec)
+            key = m.group(1) if m else sec[:200]
+            if key in seen_docs:
+                skipped.append(key)
+                continue
+            seen_docs.add(key)
+            keep.append(sec.rstrip())
+        if keep:
+            guidance.append(banner + '\n\n' + '\n\n'.join(keep))
+        else:
+            guidance.append(banner + '\n\n(Guidance for this class is the '
+                            'document already quoted above.)')
+    return {
+        'entry_id': '+'.join(e.get('entry_id', '?') for e in picked),
+        'title': f'{len(picked)} vulnerability classes in this file',
+        'classes': union('classes'),
+        'owasp_codes': union('owasp_codes'),
+        'guidance': '\n\n---\n\n'.join(guidance),
+        'principles': union('principles'),
+        'common_mistakes': union('common_mistakes'),
+        'preserve': union('preserve'),
+        'reference_url': picked[0].get('reference_url'),
+        'content_retrieved': all(e.get('content_retrieved') for e in picked),
+    }, 'unit_merge(' + ','.join(sorted(set(hows))) + ')'
+
+
 def select_entry(playbook: dict, bug: dict):
     """Pick one playbook entry for a bug. Returns (entry|None, how).
 
     Order: explicit bug pin, then class, then OWASP code. First match wins, and
     the resolution used is recorded per task so a thin section can be traced back
     to why it was thin.
+
+    A per-file unit carries `members` and usually spans several classes, so one
+    entry cannot cover it. Picking the first member's entry would hand the agent
+    guidance for one finding and silence for the rest, which is worse than a thin
+    section because it looks complete. Those get a merged entry instead.
     """
+    if bug.get('members'):
+        return _merge_entries(playbook, bug['members'])
+
     entries = playbook.get('entries') or []
     bid = bug.get('bug_id')
     for en in entries:

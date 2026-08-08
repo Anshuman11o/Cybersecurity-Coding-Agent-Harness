@@ -30,6 +30,7 @@ import agent as agent_mod          # noqa: E402
 import blind_guard                 # noqa: E402
 import report as report_mod        # noqa: E402
 import state as state_mod          # noqa: E402
+import grouping                    # noqa: E402
 import task_loop                   # noqa: E402
 import verify                      # noqa: E402
 import workspace                   # noqa: E402
@@ -175,6 +176,11 @@ def preflight(cfg: dict, runner_kind: str) -> list:
         if not cfg.get('commands', {}).get(key):
             problems.append(f'commands.{key} is not configured; gate {key} cannot run')
 
+    gran = cfg.get('loop', {}).get('task_granularity', 'bug')
+    if gran not in grouping.GRANULARITIES:
+        problems.append(f'loop.task_granularity must be one of '
+                        f'{", ".join(grouping.GRANULARITIES)} (got {gran!r})')
+
     if cfg.get('policy', {}).get('on_exhausted') not in (
             'revert', 'keep_best', 'keep_if_workflow_intact'):
         problems.append("policy.on_exhausted must be revert | keep_best | "
@@ -255,7 +261,10 @@ def main() -> int:
             loc = r.get('location') or {}
             ctx.touched_locations[f"{loc.get('file')}:{loc.get('line')}"] = r['bug_id']
 
-    pending = st.pending(bug_report['bugs'])
+    granularity = cfg['loop'].get('task_granularity', 'bug')
+    units = grouping.group(bug_report['bugs'], granularity)
+    log(f'granularity={granularity}: {grouping.describe(units)}')
+    pending = st.pending(units)
     if args.limit:
         pending = pending[:args.limit]
     log(f'{len(pending)} task(s) to run  '
@@ -266,8 +275,10 @@ def main() -> int:
     # -- THE OUTER LOOP -----------------------------------------------------
     index = len(st.records)
     for bug in pending:
-        log(f"task {index + 1}/{len(bug_report['bugs'])}  {bug['bug_id']}  "
-            f"{bug['location']['file']}:{bug['location']['line']}  [{bug.get('class')}]")
+        n_in_unit = len(bug.get('members') or [])
+        log(f"task {index + 1}/{len(units)}  {bug['bug_id']}  "
+            f"{bug['location']['file']}:{bug['location']['line']}  [{bug.get('class')}]"
+            + (f'  ({n_in_unit} bugs)' if n_in_unit else ''))
         try:
             rec = task_loop.run_task(bug, index, ctx)
         except KeyboardInterrupt:

@@ -49,6 +49,25 @@ HOUSE_RULES = """\
 
 
 def _fmt_bug(bug: dict) -> str:
+    members = bug.get('members')
+    if members:
+        # A per-file unit. Every finding is rendered, because the agent is being
+        # asked to fix all of them in one pass and a summary would hide the ones
+        # it has to act on. The shared file is stated once, up front, so the
+        # relationship between them is not something it has to infer.
+        head = [f"  file        : {bug['location']['file']}",
+                f"  findings    : {len(members)} confirmed defects in this one file",
+                '',
+                '  Fix all of them. They share a file, so read it once, understand the',
+                '  whole picture, then make one coherent set of changes rather than',
+                '  several independent edits that fight each other. Where two findings',
+                '  have the same root cause, fix the cause once and say so.']
+        body = []
+        for i, m in enumerate(members, start=1):
+            body.append(f'\n  --- finding {i} of {len(members)} ---')
+            body.append(_fmt_bug({k: v for k, v in m.items() if k != 'members'}))
+        return '\n'.join(head + body)
+
     loc = bug.get('location', {})
     codes = ', '.join(
         f"{o.get('code')} ({o.get('title')})" if o.get('title') else str(o.get('code'))
