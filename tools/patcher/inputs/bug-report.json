@@ -1,11 +1,11 @@
 {
- "report_id": "bug-report-investigation-02",
+ "report_id": "bug-report-subset2",
  "kind": "bug-report-agent",
  "visibility": "BLIND -- safe to place in a worktree and a prompt",
  "target_dir": "target-apps/juice-shop-blind",
- "target_sha": "3c6544a39085f7fb0315f6749add2395943c504d",
+ "target_sha": "e65421827ebae5dd102271d91bd588879c923720",
  "provenance": "Every entry is a confirmed defect at a verified file and line. This report contains no false positives: spend no effort deciding whether an entry is real. Locations were checked against the target tree.",
- "generated_at": "2026-08-06T22:07:43+00:00",
+ "generated_at": "2026-08-08T02:13:36+00:00",
  "scoped_files": [
   "lib/insecurity.ts",
   "models/feedback.ts",
@@ -65,8 +65,8 @@
     }
    ],
    "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "Session tokens are verified by a call that is handed only the token and a key, with no permitted-algorithm list. The algorithm named in the token's own header therefore decides how the token is checked. Because the key the server verifies with is a public one, a caller can present a token whose header declares a symmetric algorithm and have that public key used as the shared secret -- material the caller already has -- so a token the server never issued verifies as genuine.",
+   "reproduction": "Obtain the application's public verification key. Build a token whose header names a symmetric algorithm such as HS256 and whose payload identifies an existing account, and sign it using the public key bytes as the HMAC secret. Present it as the session token on an authenticated endpoint and observe the request served as that account.",
    "playbook_ref": "jwt-verification"
   },
   {
@@ -93,8 +93,8 @@
     }
    ],
    "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The same token verification accepts whatever algorithm the token's header declares, including the \"none\" algorithm, which asserts that the token is unsigned. A token carrying that header and an empty signature segment is accepted, so its payload can be written freely by the caller and is trusted as an authenticated identity.",
+   "reproduction": "Construct a token whose header sets the algorithm to \"none\", whose payload identifies an existing account, and whose signature segment is empty. Send it as the session token on an authenticated endpoint and observe the request served as that account.",
    "playbook_ref": "jwt-verification"
   },
   {
@@ -111,8 +111,8 @@
     }
    ],
    "class": "Server-Side Request Forgery / Open Redirect",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The redirect allow-list is enforced by testing whether the requested URL contains an allow-listed URL anywhere within it. Containment is not identity: a URL pointing at an entirely unrelated host satisfies the test as long as an allow-listed string appears somewhere in it, including inside a query string or fragment the destination host ignores. The check therefore admits destinations the allow-list was written to exclude.",
+   "reproduction": "Call the redirect endpoint with a target URL whose host is one you control and which carries an allow-listed URL as a substring -- appended as a query parameter, for example. Observe the application issue a redirect to your host rather than rejecting the request.",
    "playbook_ref": "open-redirect"
   },
   {
@@ -129,8 +129,8 @@
     }
    ],
    "class": "Server-Side Request Forgery / Open Redirect",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The same containment test guards the redirect allow-list, whose entries include fixed cryptocurrency donation addresses. Any URL that merely contains one of those address URLs as a substring passes, so a caller can have the application redirect to a destination of their choosing while borrowing the legitimacy of a donation link the application publishes.",
+   "reproduction": "Call the redirect endpoint with a target URL on a host you control that contains one of the allow-listed cryptocurrency address URLs as a substring, and observe the redirect issued to your host.",
    "playbook_ref": "open-redirect"
   },
   {
@@ -165,8 +165,8 @@
     }
    ],
    "class": "Insecure Design / Missing Input Validation",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The feedback rating column is declared non-null but carries no bound on its value, and its setter stores whatever it is handed without inspecting it. A rating outside the range the product offers -- zero, or a negative number -- is persisted and later returned and aggregated as though it were a rating a user could have given.",
+   "reproduction": "POST feedback with a rating of 0, or a negative number, through the API. Read the feedback back and observe the out-of-range value stored and returned rather than rejected.",
    "playbook_ref": "input-validation-design"
   },
   {
@@ -183,8 +183,8 @@
     }
    ],
    "class": "Cryptographic Failures / Weak Encoding",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The handler sends a file from the application's private asset directory unconditionally. There is no authentication, no authorization, and no check of any kind on the caller before the file is written to the response, so content the directory name marks as non-public is served to anyone who requests the route.",
+   "reproduction": "Request the route with no session token and no prior interaction with the application, and observe the private asset returned with a 200 response.",
    "playbook_ref": "crypto-and-encoding"
   },
   {
@@ -201,8 +201,8 @@
     }
    ],
    "class": "Security Misconfiguration / Directory Listing Enabled",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The extension allow-list on the file-serving route is evaluated against the raw request parameter, while the value opened from disk is the same parameter after truncation at an encoded null byte. A file in the served directory whose own extension is not permitted is therefore reachable by appending an encoded null byte and a permitted extension to its name.",
+   "reproduction": "Request the non-permitted file in the served directory by name, followed by an encoded null byte and a permitted extension. Observe its contents returned instead of the 403 the extension rule would otherwise produce.",
    "playbook_ref": "directory-listing"
   },
   {
@@ -219,8 +219,8 @@
     }
    ],
    "class": "Security Misconfiguration / Sensitive File Exposure",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The served directory contains a backup copy of an application data file whose extension is not on the allow-list. Because the allow-list is checked against the raw parameter and the value is only afterwards truncated at an encoded null byte, the extension rule can be satisfied by a suffix that is discarded before the file is opened, and the backup is served.",
+   "reproduction": "Request the backup file in the served directory by its real name, followed by an encoded null byte and a permitted extension, and observe its contents returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -237,8 +237,8 @@
     }
    ],
    "class": "Security Misconfiguration / Sensitive File Exposure",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "A backup of the project manifest sits in the served directory with an extension the allow-list does not permit. The allow-list is applied to the parameter as received while the file opened is that parameter truncated at an encoded null byte, so the manifest backup -- which discloses the dependency set and internal scripts -- is retrievable despite the rule.",
+   "reproduction": "Request the manifest backup by its real name followed by an encoded null byte and a permitted extension, and observe the file returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -255,8 +255,8 @@
     }
    ],
    "class": "Security Misconfiguration / Sensitive File Exposure",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "A file that does not belong in a publicly served directory sits alongside the documents that do, carrying an extension the allow-list excludes. The allow-list decision is made on the raw parameter and the read is done on the value after truncation at an encoded null byte, so the exclusion can be satisfied by a suffix that never reaches the filesystem call.",
+   "reproduction": "Request the misplaced file by its real name followed by an encoded null byte and a permitted extension, and observe its contents returned rather than a 403.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -273,8 +273,8 @@
     }
    ],
    "class": "Security Misconfiguration / Path Filter Bypass",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The served filename is tested against an allowed-extension list, and only afterwards passed through a routine that truncates it at an encoded null byte. The string that satisfies the check and the string that is opened are therefore not the same string: a name that ends in a permitted extension passes, is then cut back to a shorter name that would not have passed, and that shorter file is the one read from disk and returned.",
+   "reproduction": "Request a file under the served directory whose name is the file you actually want, followed by an encoded null byte, followed by a permitted extension. Observe the response contain the contents of the file before the null byte -- a file whose real extension is not on the allowed list.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -291,8 +291,8 @@
     }
    ],
    "class": "Security Misconfiguration / Information Exposure",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The metrics handler serialises the entire telemetry register into the response body and is mounted without any authentication or authorization in front of it. Operational internals -- process and runtime counters, per-endpoint request volumes, the deployed version, and application-specific gauges -- are readable by any anonymous caller.",
+   "reproduction": "GET the metrics endpoint with no session token and observe a 200 carrying the full metrics exposition, including the version gauge and per-endpoint counters.",
    "playbook_ref": "information-exposure"
   },
   {
@@ -309,8 +309,8 @@
     }
    ],
    "class": "Broken Access Control / Business Logic Flaw",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The handler that serves the paid asset writes the file to the response unconditionally. Nothing establishes who the caller is, whether they hold an entitlement, or whether a purchase occurred, so content the product sells is delivered to any caller that knows the route.",
+   "reproduction": "Request the premium-content route with no session token and no purchase on the account, and observe the asset returned with a 200.",
    "playbook_ref": "authorization-and-business-logic"
   },
   {
@@ -345,8 +345,8 @@
     }
    ],
    "class": "Security Misconfiguration / Improper Input Handling",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The uploads directory is mounted for static serving with only a challenge-observation middleware in front of it, which inspects requests and performs no authorization. Every file the directory holds is therefore retrievable by anyone who can name its path, including files whose names contain characters that must be percent-encoded to be requested and which are consequently absent from any listing the application links to.",
+   "reproduction": "Request a file directly under the uploads path with no session token, percent-encoding the characters in its name that require it, and observe the file returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -363,8 +363,8 @@
     }
    ],
    "class": "Security Misconfiguration / Sensitive File Exposure",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The translation asset directory is mounted for static serving with no authorization in front of it, so every file it contains is retrievable by path. That includes translation files for languages the application does not offer in its language selector, which are shipped in the directory but never linked from the interface.",
+   "reproduction": "Request a translation file under the i18n asset path whose language the application's selector does not offer, with no session token, and observe the file returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -381,8 +381,8 @@
     }
    ],
    "class": "Security Misconfiguration / Directory Listing Enabled",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The served file directory is mounted behind an index-rendering middleware that generates a browsable listing of its contents for unauthenticated callers. Retrieving a known file and enumerating every file present are separate capabilities, and the second one is enabled here: a caller who knows no filenames can obtain the complete set, including files that are only protected by not being advertised.",
+   "reproduction": "GET the directory path itself, with no session token and no filename, and observe an index page enumerating the files it contains.",
    "playbook_ref": "directory-listing"
   },
   {
@@ -404,8 +404,8 @@
     }
    ],
    "class": "Broken Access Control / Broken Function Level Authorization",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The generated CRUD surface for products registers authorization middleware for creation and deletion but leaves the update verb on the per-product route without any. The route stays mounted and functional, so an unauthenticated caller can modify a product record -- its description, and any other persisted field -- while the neighbouring verbs correctly refuse.",
+   "reproduction": "Send a PUT to the per-product endpoint with a changed field in the body and no session token, then GET the product and observe the modification persisted.",
    "playbook_ref": "authorization-and-business-logic"
   },
   {
@@ -427,8 +427,8 @@
     }
    ],
    "class": "Broken Object Property Level Authorization / Mass Assignment",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "Access to the administration area is decided by the role recorded on the account, and that role is client-writable: the generated user endpoint excludes only the credential fields from client input, leaving the role column bound from the request body. The guard on the administration area is therefore consulting a value the caller controls.",
+   "reproduction": "Set the role field on an account to the administrative role through the generated user endpoint, then request the administration area with that account's session token and observe it served rather than refused.",
    "playbook_ref": "mass-assignment"
   },
   {
@@ -450,8 +450,8 @@
     }
    ],
    "class": "Broken Object Property Level Authorization / Mass Assignment",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The generated CRUD endpoint for users withholds only the credential fields from client input. Every other column on the model, including the one that carries the account's role, is bound straight from the request body, so a caller creating an account can choose the privilege level it is created with.",
+   "reproduction": "POST a new user to the generated user endpoint with the role field set to the administrative role in the request body, then read the created user back and observe the elevated role persisted.",
    "playbook_ref": "mass-assignment"
   },
   {
@@ -473,8 +473,8 @@
     }
    ],
    "class": "Broken Object Property Level Authorization / Mass Assignment",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The generated CRUD endpoint for feedback withholds no fields from client input. The column recording which user authored a piece of feedback is bound from the request body rather than taken from the authenticated session, so a caller can submit feedback attributed to an account that is not theirs.",
+   "reproduction": "POST feedback through the generated feedback endpoint including a user-id field naming an account other than the authenticated one, then read the feedback back and observe it recorded against that other account.",
    "playbook_ref": "mass-assignment"
   },
   {
@@ -491,8 +491,8 @@
     }
    ],
    "class": "Security Misconfiguration / Verbose Error Messages",
-   "vulnerability": null,
-   "reproduction": null,
+   "vulnerability": "The final error middleware in the chain is a development-time handler that renders the caught exception into the response: the message, the full stack frames, and the surrounding source lines. It is registered unconditionally, so any unhandled server-side error discloses internal file paths, framework versions and application source to the caller who triggered it.",
+   "reproduction": "Trigger an unhandled server-side error -- for example by calling an endpoint with a path parameter of a type it cannot process -- and observe the response body containing a stack trace with absolute file paths and source excerpts rather than a generic error.",
    "playbook_ref": "information-exposure"
   }
  ]
