@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "patch-submission.schema.json",
+  "title": "Patch Submission",
+  "description": "What the PATCHER emits, one object per attempted fix. Contains no answer-key material - this schema is SAFE TO MIRROR into the harness repo as the agent-facing contract.",
+  "type": "object",
+  "required": ["submission_id", "generated_at", "target_sha", "patches"],
+  "additionalProperties": false,
+  "properties": {
+    "submission_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "target_sha": { "type": "string", "description": "Commit of the working copy the patches apply to." },
+    "model": { "type": "string" },
+
+    "patches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["patch_id", "source_finding_id", "file", "diff", "vulnerability_class", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "patch_id": { "type": "string" },
+          "source_finding_id": {
+            "type": "string",
+            "description": "The scanner candidate finding this patch responds to. The scorer joins on file+line via this, NOT on any challenge identifier - the patcher never sees challenge keys."
+          },
+          "file": { "type": "string", "description": "Repo-relative path in the working copy." },
+          "line_start": { "type": "integer", "minimum": 1 },
+          "line_end": { "type": "integer", "minimum": 1 },
+
+          "vulnerability_class": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^(A(0[1-9]|10)|API([1-9]|10)|LLM(0[1-9]|10))$" },
+            "minItems": 1,
+            "description": "Codes the patcher believes it is fixing. Must be asserted by the patcher, never inherited from a lane list."
+          },
+
+          "diff": {
+            "type": "string",
+            "description": "Unified diff, applies cleanly to target_sha with `git apply`. The patch itself is the deliverable; the working copy is not mutated in place."
+          },
+
+          "rationale": { "type": "string", "description": "Why this change removes the vulnerability." },
+          "functional_risk": {
+            "type": "string",
+            "description": "What the patcher believes could break, and why it thinks it will not."
+          },
+
+          "self_test": {
+            "type": "object",
+            "description": "Optional patcher-authored proof. Recorded as evidence, weighted low - the party that produced the fix is not a trusted verifier of it.",
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "enum": ["unit", "integration", "manual_repro", "none"] },
+              "code": { "type": "string" },
+              "observed_result": { "type": "string" }
+            }
+          },
+
+          "rounds": { "type": "integer", "minimum": 1, "description": "Refix iterations consumed before submission." },
+          "tokens_used": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

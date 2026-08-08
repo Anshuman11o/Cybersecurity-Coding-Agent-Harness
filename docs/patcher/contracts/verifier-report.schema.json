@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verifier-report.schema.json",
+  "title": "Verifier Report",
+  "description": "What the VERIFIER emits after in-sandbox checks. Its self-asserted verdict is scored against scorer truth to produce the False Confidence Rate. Contains no answer-key material - SAFE TO MIRROR into the harness repo.",
+  "type": "object",
+  "required": ["report_id", "submission_id", "generated_at", "results"],
+  "additionalProperties": false,
+  "properties": {
+    "report_id": { "type": "string" },
+    "submission_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "model": { "type": "string" },
+
+    "build": {
+      "type": "object",
+      "description": "Whole-submission gate. If this fails, every per-patch verdict is meaningless.",
+      "required": ["passed"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "command": { "type": "string" },
+        "stderr_tail": { "type": "string" }
+      }
+    },
+
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["patch_id", "verdict", "confidence", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "patch_id": { "type": "string" },
+
+          "verdict": {
+            "type": "string",
+            "enum": ["pass", "fail", "uncertain"],
+            "description": "The verifier's claim that the vulnerability is fixed AND workflow intact. Scored against scorer truth. 'uncertain' is a legitimate answer and is scored separately from a wrong 'pass'."
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+
+          "evidence": {
+            "type": "object",
+            "description": "In-sandbox checks only. The exploit oracle is NOT available here - it was stripped from the working copy. Any claim of 'vulnerability confirmed fixed' is inference, not measurement.",
+            "additionalProperties": false,
+            "properties": {
+              "lint": { "type": "string", "enum": ["pass", "fail", "skipped"] },
+              "suites_run": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["suite", "passed", "failed"],
+                  "properties": {
+                    "suite": { "type": "string", "enum": ["api", "server", "frontend", "cypress"] },
+                    "passed": { "type": "integer" },
+                    "failed": { "type": "integer" },
+                    "failing_titles": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              },
+              "self_test_result": { "type": "string", "enum": ["pass", "fail", "not_run"] },
+              "reasoning": { "type": "string" }
+            }
+          },
+
+          "regression_suspected": {
+            "type": "boolean",
+            "description": "Verifier's own belief that it broke something. Compared against measured FRR to score regression-detection sensitivity."
+          },
+          "rounds_requested": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
