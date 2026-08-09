@@ -23,6 +23,7 @@ import json
 import os
 import time
 
+import antioracle
 import blind_guard
 import prompts
 import testmap
@@ -247,6 +248,16 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
         related = testmap.select(tree, [bug_file],
                                  (characterisation or {}).get('related_test_files') or [])
     ch['related_test_files'] = related
+    # Derived from the net's own files, before any fix. A test that requires the
+    # attack to succeed cannot be satisfied by a correct change, and charging it
+    # reverts correct work -- measured on wave 1, one unit, 5 rounds, $10.79.
+    antioracles = antioracle.detect(tree, related)
+    ch['antioracle_tests'] = sorted(
+        t for titles in (antioracles.get('tests') or {}).values() for t in titles)
+    ch['antioracle_detector_available'] = antioracles.get('available', False)
+    if ch['antioracle_tests']:
+        ctx.log(f"  {len(ch['antioracle_tests'])} attack-dependent test(s) in the net "
+                'will not be charged as regressions')
     baseline_outcomes = verify.collect_outcomes(cfg, tree, related) if related else {}
     ch['baseline_failures'] = sorted(
         f'{rel}: {title}'
@@ -296,11 +307,13 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
 
         vr = verify.verify(cfg, tree, workflow_rel=workflow_rel, probe_rel=probe_rel,
                            probe_expected=probe_expected, related_files=related,
-                           baseline_outcomes=baseline_outcomes)
+                           baseline_outcomes=baseline_outcomes,
+                           antioracles=antioracles)
 
         rec['measured']['rounds'].append({
             'round': round_no, 'green': vr.green, 'gates': dict(vr.gates),
             'gate_seconds': dict(vr.durations),
+            'excused': list(vr.excused),
             'failures': vr.failures, 'agent': inv.as_record(),
         })
 

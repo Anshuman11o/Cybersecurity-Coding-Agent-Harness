@@ -173,7 +173,10 @@ INCIDENTAL_OUTSIDE = (
     # the application's OWN dependency tree, deliberately shared by symlink so a
     # 427MB node_modules is not copied per unit tree. Reading a dependency's
     # package.json resolves through that symlink and lands outside the tree.
-    r'/node_modules/',
+    # `($|/)` because the first version required a trailing slash and therefore
+    # missed `./node_modules` -- the directory itself -- which flagged a completed
+    # wave on one `ls`.
+    r'/node_modules($|/)',
     # the scratchpad this harness itself hands the agent
     r'^/tmp/claude-',
 )

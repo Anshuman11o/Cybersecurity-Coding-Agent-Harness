@@ -20,6 +20,8 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
+import antioracle
+
 PROVEN = 'PROVEN'
 NOT_PROVEN = 'NOT_PROVEN'
 
@@ -45,6 +47,9 @@ class VerifyResult:
     green: bool = False
     gates: dict = field(default_factory=dict)
     failures: list = field(default_factory=list)
+    # Rows V4 declined to charge, and why. Recorded rather than dropped: an exclusion
+    # nobody can see is indistinguishable from a gate that was never run.
+    excused: list = field(default_factory=list)
     # Seconds per gate. Every gate was already timed and the number thrown away,
     # so a run could report its total wall clock but never say how much of it was
     # gates rather than agent -- exactly the question asked when sizing a bigger
@@ -205,8 +210,14 @@ def collect_outcomes(cfg: dict, tree: str, test_files) -> dict:
 # ----------------------------------------------------------------------------
 
 def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | None,
-           probe_expected: bool, related_files, baseline_outcomes: dict) -> VerifyResult:
-    """V1..V4, in order, short-circuiting on a broken build."""
+           probe_expected: bool, related_files, baseline_outcomes: dict,
+           antioracles: dict | None = None) -> VerifyResult:
+    """V1..V4, in order, short-circuiting on a broken build.
+
+    `antioracles` is antioracle.detect() output for the regression net. Rows it
+    excuses are recorded in `vr.excused` rather than dropped, so a run can always be
+    asked what it chose not to charge.
+    """
     vr = VerifyResult(green=True)
 
     # -- V1 typecheck ------------------------------------------------------
@@ -264,7 +275,14 @@ def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | N
                 vr.fail('V4', 'regression', test_file=rel, was='ran', now='did not run',
                         output_tail=cur['tail'])
                 continue
-            for reg in compare_outcomes(base, cur['outcomes']):
+            regs = compare_outcomes(base, cur['outcomes'])
+            if antioracles:
+                regs, excused = antioracle.filter_regressions(rel, regs, antioracles)
+                for e in excused:
+                    vr.excused.append({'test_file': rel, 'test_title': e['title'],
+                                       'why': 'asserts attack-dependent behaviour; a '
+                                              'correct fix cannot satisfy it'})
+            for reg in regs:
                 any_regression = True
                 vr.fail('V4', 'regression', test_file=rel, test_title=reg['title'],
                         was=reg['was'], now=reg['now'], output_tail=cur['tail'])
