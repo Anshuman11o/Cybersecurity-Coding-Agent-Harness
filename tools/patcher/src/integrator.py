@@ -38,6 +38,7 @@ inherit a build failure attributed to nobody.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import shutil
 import subprocess
@@ -142,8 +143,17 @@ def _copy_in(seed: str, src_tree: str, rel: str) -> str:
 # ----------------------------------------------------------------------------
 
 def changed_by_unit(units, base_snap: str) -> dict:
-    """unit_id -> the source files it changed against the wave base."""
-    return {u.unit_id: workspace.changed_files(u.tree, base_snap) for u in units}
+    """unit_id -> the source files it changed against the wave base.
+
+    The base snapshot is read ONCE and reused across every unit. It is the same
+    archive for all of them and it cannot change while the wave is being merged,
+    so reading it per unit re-derived an identical answer -- 31 times on the widest
+    wave of the full-set plan, on the serial merge path with every worker idle.
+    """
+    if not os.path.exists(base_snap):
+        return {u.unit_id: [] for u in units}
+    recorded = workspace.base_hashes(base_snap)
+    return {u.unit_id: workspace.changed_files_against(u.tree, recorded) for u in units}
 
 
 def claims(changed: dict) -> dict:
@@ -274,6 +284,70 @@ def place_scratch(seed: str, unit: Unit) -> bool:
 # The post-wave gate
 # ----------------------------------------------------------------------------
 
+def gate_concurrency(cfg: dict) -> int:
+    """How many unit gates may run at once.
+
+    Defaults to `loop.task_concurrency` -- a box that ran N agents can run N test
+    files -- but is separately settable, because agent time is spent blocked on a
+    subprocess while gate time is spent burning CPU, and the right number for one
+    is not necessarily the right number for the other. Absent config means 1, so
+    every existing caller keeps today's serial behaviour exactly.
+    """
+    loop = cfg.get('loop') or {}
+    n = loop.get('gate_concurrency')
+    if n is None:                       # absent, or explicitly "follow the workers"
+        n = loop.get('task_concurrency', 1)
+    try:
+        return max(1, int(n))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _unit_gate(cfg: dict, seed: str, unit) -> dict:
+    """One unit's share of the post-wave gate: its own workflow test and probe.
+
+    Pure measurement against a tree nobody is writing to, which is what makes it
+    safe to run several of these at once.
+    """
+    rel = workspace.scratch_rel(unit.unit_id)
+    wf = f'{rel}/workflow.test.ts'
+    pr = f'{rel}/exploit.probe.ts'
+    out: dict = {'seconds': {}}
+
+    if os.path.isfile(os.path.join(seed, wf)):
+        r = verify.run_test_file(cfg, seed, wf)
+        out['seconds'][f'workflow:{unit.unit_id}'] = round(r.duration_s, 1)
+        outcomes = verify.parse_test_output(r.stdout + '\n' + r.stderr)
+        failed = sorted(t for t, s in outcomes.items() if s == 'fail')
+        ok = r.ok and not failed
+        out['workflow'] = {'ok': ok, 'failed': failed,
+                           'harness_error': (not outcomes) and not r.ok,
+                           'tail': '' if ok else r.tail}
+    else:
+        out['workflow'] = {'ok': None, 'missing': True}
+
+    if os.path.isfile(os.path.join(seed, pr)):
+        verdict, pres = verify.run_probe(cfg, seed, pr)
+        out['seconds'][f'probe:{unit.unit_id}'] = round(pres.duration_s, 1)
+        out['probe'] = verdict
+    else:
+        out['probe'] = 'MISSING'
+    return out
+
+
+def _gate_crash(ex: Exception) -> dict:
+    """A unit whose gate could not be evaluated at all.
+
+    Recorded as a red workflow rather than dropped: a gate that did not run is not
+    a gate that passed, and one unhandled exception must not take the wave's
+    measurement down with it.
+    """
+    return {'seconds': {},
+            'workflow': {'ok': False, 'failed': [], 'harness_error': True,
+                         'tail': f'post-wave gate crashed: {type(ex).__name__}: {ex}'},
+            'probe': 'ERROR'}
+
+
 def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
     """Measure the merged tree.
 
@@ -303,36 +377,44 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
         log('  post-wave gate: BUILD FAILED')
         return out
 
+    # Every unit's gate is independent and read-only with respect to the merged
+    # tree, so these run concurrently. Run serially they are a queue of 2N test
+    # processes at the end of a wave with every worker idle -- and the queue gets
+    # LONGER as the wave gets wider, which is the one part of the design that got
+    # worse when concurrency went up.
+    workers = max(1, min(gate_concurrency(cfg), len(units)))
+    results: dict = {}
+    if workers > 1:
+        log(f'  post-wave gate: {len(units)} unit gate(s) on {workers} worker(s)')
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_unit_gate, cfg, seed, u): u for u in units}
+            for fut in concurrent.futures.as_completed(futures):
+                unit = futures[fut]
+                try:
+                    results[unit.unit_id] = fut.result()
+                except Exception as ex:                          # noqa: BLE001
+                    results[unit.unit_id] = _gate_crash(ex)
+    else:
+        for u in units:
+            try:
+                results[u.unit_id] = _unit_gate(cfg, seed, u)
+            except Exception as ex:                              # noqa: BLE001
+                results[u.unit_id] = _gate_crash(ex)
+
+    # Assembled in `units` order, never completion order. This report is diffed
+    # across runs, and a dict whose key order depends on which thread finished
+    # first is not comparable to anything.
     for u in units:
-        rel = workspace.scratch_rel(u.unit_id)
-        wf = f'{rel}/workflow.test.ts'
-        pr = f'{rel}/exploit.probe.ts'
-
-        if os.path.isfile(os.path.join(seed, wf)):
-            r = verify.run_test_file(cfg, seed, wf)
-            out['gate_seconds'][f'workflow:{u.unit_id}'] = round(r.duration_s, 1)
-            outcomes = verify.parse_test_output(r.stdout + '\n' + r.stderr)
-            failed = sorted(t for t, s in outcomes.items() if s == 'fail')
-            ok = r.ok and not failed
-            out['workflow'][u.unit_id] = {
-                'ok': ok, 'failed': failed,
-                'harness_error': (not outcomes) and not r.ok,
-                'tail': '' if ok else r.tail}
-            if not ok:
-                out['green'] = False
-        else:
-            out['workflow'][u.unit_id] = {'ok': None, 'missing': True}
-
-        if os.path.isfile(os.path.join(seed, pr)):
-            verdict, pres = verify.run_probe(cfg, seed, pr)
-            out['gate_seconds'][f'probe:{u.unit_id}'] = round(pres.duration_s, 1)
-            out['probe'][u.unit_id] = verdict
-            if verdict == verify.PROVEN:
-                # The unit's fix survived its own task and stopped working once a
-                # sibling's change landed. Nothing else in the run detects this.
-                out['green'] = False
-        else:
-            out['probe'][u.unit_id] = 'MISSING'
+        r = results[u.unit_id]
+        out['gate_seconds'].update(r['seconds'])
+        out['workflow'][u.unit_id] = r['workflow']
+        out['probe'][u.unit_id] = r['probe']
+        if r['workflow'].get('ok') is False:
+            out['green'] = False
+        if r['probe'] == verify.PROVEN:
+            # The unit's fix survived its own task and stopped working once a
+            # sibling's change landed. Nothing else in the run detects this.
+            out['green'] = False
 
     bad_wf = [u for u, v in out['workflow'].items() if v.get('ok') is False]
     reopened = [u for u, v in out['probe'].items() if v == verify.PROVEN]

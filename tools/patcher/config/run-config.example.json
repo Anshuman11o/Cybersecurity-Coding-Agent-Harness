@@ -52,11 +52,18 @@
     "characterise_rounds": 2,
     "reconcile_rounds": 4,
     "task_concurrency": 1,
+    "gate_concurrency": null,
     "max_task_wall_s": 5400,
     "_comment": [
       "task_concurrency 1 means one cumulative tree, tasks in order. That is what makes",
       "'one fixed codebase' meaningful and lets a later task detect damage an earlier one",
       "caused. Raising it splits the tree and trades that guarantee for wall-clock.",
+      "gate_concurrency is how many units the POST-WAVE gate measures at once; null means",
+      "  follow task_concurrency. Separate knob because agent time is spent blocked on a",
+      "  subprocess while gate time burns CPU, so the right number differs. It matters most",
+      "  on a wide wave: the gate is 2 test processes per unit and running them in a queue",
+      "  makes the barrier grow as the wave grows, handing back part of what more workers",
+      "  bought. Turn it down if concurrent test runs contend for a port or thrash the box.",
       "reconcile_rounds 4 is a starting guess. The right number is whatever the",
       "rounds_to_green distribution turns out to be, which needs a run."
     ]

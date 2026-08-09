@@ -448,6 +448,39 @@ credit parallelism with the granularity win.
 
 ~$95 per arm.
 
+## Two costs the orchestrator was paying at the barrier
+
+Both are pure orchestrator work — no model is involved, nothing is spent — and both
+sat on the serial merge path with every worker idle. Neither changes a verdict.
+
+**The post-wave gate was a queue.** It is one typecheck, then each unit's own
+workflow test and each unit's own probe. Those per-unit runs are independent
+measurements against a merged tree nobody is writing to, and they were executed one
+after another on the main thread. That makes the barrier **grow with the width of
+the wave**: 8 units on Subset 2 is 17 runs, but the full-set plan's widest wave is 31
+units and 63 runs. It is the one part of the design that got *worse* as concurrency
+went up — raise the worker count and part of the gain is handed straight back here.
+
+They now run through a pool sized by `loop.gate_concurrency`, which defaults to
+`loop.task_concurrency`. It is a separate knob because agent time is spent blocked in
+`subprocess` while gate time burns CPU, so the right number is not automatically the
+same; turn it down if concurrent test processes contend. Results are assembled in
+`units` order rather than completion order — this report is diffed across runs, and
+key order settled by a race is not comparable to anything. A unit whose gate raises
+is recorded as a red workflow with the exception text, not skipped: a gate that did
+not run is not a gate that passed.
+
+**The wave base was read once per unit.** `changed_files` read and hashed the whole
+snapshot archive on every call, and the merge calls it once per unit against one
+immutable base — 31 identical reads on the widest wave. `workspace.base_hashes()`
+now reads it once and `changed_files_against()` takes the result;
+`changed_files()` is unchanged for every single-tree caller. Worth roughly a minute,
+not an hour: it is landed because it is ten lines and permanent, not because it is
+the lever.
+
+Neither of these touches the thing that actually dominates. Reconcile rounds do, and
+they are agent time.
+
 ## Known limits
 
 - **Import edges are static.** A runtime coupling with no import — shared config

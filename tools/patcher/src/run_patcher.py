@@ -31,6 +31,7 @@ import blind_guard                 # noqa: E402
 import report as report_mod        # noqa: E402
 import state as state_mod          # noqa: E402
 import grouping                    # noqa: E402
+import integrator                  # noqa: E402
 import task_loop                   # noqa: E402
 import verify                      # noqa: E402
 import wave_plan                   # noqa: E402
@@ -268,6 +269,12 @@ def preflight(cfg: dict, runner_kind: str) -> list:
                 'comes from grouping by file; per-bug units would put two agents in one '
                 'file inside a single wave.')
         notes.append(f'execution: waves, up to {conc} chain(s) at a time')
+        notes.append(f'post-wave gate: up to {integrator.gate_concurrency(cfg)} '
+                     'unit gate(s) at a time')
+
+    gconc = loop.get('gate_concurrency')
+    if gconc is not None and (not isinstance(gconc, int) or gconc < 1):
+        problems.append(f'loop.gate_concurrency must be an integer >= 1 (got {gconc!r})')
 
     if cfg.get('policy', {}).get('on_exhausted') not in (
             'revert', 'keep_best', 'keep_if_workflow_intact'):

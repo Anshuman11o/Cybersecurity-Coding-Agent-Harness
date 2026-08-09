@@ -213,17 +213,32 @@ def tree_digest(work_tree: str) -> str:
     return h.hexdigest()
 
 
-def changed_files(work_tree: str, snapshot_path: str) -> list:
-    """Source files that differ from a snapshot, tree-relative."""
-    if not os.path.exists(snapshot_path):
-        return []
-    changed = []
+def base_hashes(snapshot_path: str) -> dict:
+    """Everything a snapshot records: tree-relative path -> content hash.
+
+    Split out of `changed_files` because a wave compares MANY unit trees against
+    ONE base snapshot, and that snapshot is immutable for the whole wave. Reading
+    and hashing the entire archive once per unit re-derives an identical answer --
+    31 times on the widest wave of the full-set plan, on the single-threaded merge
+    path where nothing else is running.
+    """
+    recorded: dict = {}
     with tarfile.open(snapshot_path, 'r') as tf:
-        recorded = {}
         for m in tf.getmembers():
-            if m.isfile():
-                fh = tf.extractfile(m)
-                recorded[m.name] = hashlib.sha256(fh.read()).digest() if fh else b''
+            if not m.isfile():
+                continue
+            fh = tf.extractfile(m)
+            recorded[m.name] = hashlib.sha256(fh.read()).digest() if fh else b''
+    return recorded
+
+
+def changed_files_against(work_tree: str, recorded: dict) -> list:
+    """Source files differing from an already-read snapshot, tree-relative.
+
+    `recorded` is `base_hashes()` output. Callers holding several trees against one
+    base should read it once and pass it here.
+    """
+    changed = []
     for rel in iter_source_files(work_tree):
         try:
             with open(os.path.join(work_tree, rel), 'rb') as fh:
@@ -236,6 +251,17 @@ def changed_files(work_tree: str, snapshot_path: str) -> list:
         if not os.path.exists(os.path.join(work_tree, rel)):
             changed.append(rel)
     return sorted(set(changed))
+
+
+def changed_files(work_tree: str, snapshot_path: str) -> list:
+    """Source files that differ from a snapshot, tree-relative.
+
+    The one-tree form. Reads the snapshot itself, so a caller comparing a single
+    tree needs nothing else.
+    """
+    if not os.path.exists(snapshot_path):
+        return []
+    return changed_files_against(work_tree, base_hashes(snapshot_path))
 
 
 def diff_against_snapshot(work_tree: str, snapshot_path: str, *, max_bytes=400_000) -> str:

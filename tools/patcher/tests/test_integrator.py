@@ -277,3 +277,125 @@ def test_a_missing_gate_artefact_is_recorded_not_treated_as_a_pass(tmp_path, mon
     out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
     assert out['probe']['A'] == 'MISSING'
     assert out['workflow']['A']['ok'] is True
+
+
+# ---- the base snapshot is read once ----------------------------------------
+
+def test_the_wave_base_is_read_once_however_many_units(tmp_path, monkeypatch):
+    """Not a micro-optimisation: this runs on the serial merge path, once per
+    unit, against an archive that cannot change while the wave is being merged."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'b.ts': 'b\n', 'c.ts': 'c\n'})
+    units = [_unit(tmp_path, seed, uid, f'{uid}.ts', {f'{uid}.ts': f'{uid} edited\n'})
+             for uid in ('a', 'b', 'c')]
+
+    reads = []
+    real = workspace.base_hashes
+    monkeypatch.setattr(workspace, 'base_hashes',
+                        lambda p: reads.append(p) or real(p))
+
+    changed = integrator.changed_by_unit(units, snap)
+    assert len(reads) == 1
+    assert changed == {'a': ['a.ts'], 'b': ['b.ts'], 'c': ['c.ts']}
+
+
+def test_changed_by_unit_survives_a_missing_base_snapshot(tmp_path):
+    units = [integrator.Unit('a', str(tmp_path), 'a.ts')]
+    assert integrator.changed_by_unit(units, str(tmp_path / 'gone.tar')) == {'a': []}
+
+
+# ---- the post-wave gate runs its units concurrently ------------------------
+
+def _gate_stubs(monkeypatch, *, red=(), reopened=(), slow=()):
+    """Deterministic per-unit gate outcomes, keyed by the unit id in the path."""
+    import time
+
+    def _uid(rel):
+        return rel.split('/')[1]
+
+    def _test_file(cfg, tree, rel, *a, **k):
+        if _uid(rel) in slow:
+            time.sleep(0.05)
+        return _R(ok=_uid(rel) not in red, out='x')
+
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'run_test_file', _test_file)
+    monkeypatch.setattr(integrator.verify, 'parse_test_output',
+                        lambda text: {'t': 'pass'})
+    monkeypatch.setattr(
+        integrator.verify, 'run_probe',
+        lambda cfg, tree, rel: ((integrator.verify.PROVEN, _R())
+                                if _uid(rel) in reopened
+                                else (integrator.verify.NOT_PROVEN, _R())))
+
+
+def _verdict(out):
+    """Everything except the timings, which are the one field that must differ."""
+    return {k: v for k, v in out.items() if k != 'gate_seconds'}
+
+
+def test_running_the_gate_concurrently_does_not_change_its_verdict(tmp_path, monkeypatch):
+    ids = ['A', 'B', 'C', 'D']
+    seed, units = _gate_tree(tmp_path, ids)
+    _gate_stubs(monkeypatch, red=('B',), reopened=('C',))
+
+    serial = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    parallel = integrator.post_wave_gate({'loop': {'gate_concurrency': 4}}, seed, units,
+                                         log=lambda *_: None)
+
+    assert _verdict(serial) == _verdict(parallel)
+    assert parallel['workflow_red'] == ['B']
+    assert parallel['reopened'] == ['C']
+    assert parallel['green'] is False
+
+
+def test_results_are_ordered_by_unit_not_by_which_thread_finished_first(
+        tmp_path, monkeypatch):
+    """The report is diffed across runs. Key order settled by a race is not
+    comparable to anything."""
+    ids = ['A', 'B', 'C', 'D']
+    seed, units = _gate_tree(tmp_path, ids)
+    _gate_stubs(monkeypatch, slow=('A',))     # A is submitted first and finishes last
+
+    out = integrator.post_wave_gate({'loop': {'gate_concurrency': 4}}, seed, units,
+                                    log=lambda *_: None)
+    assert list(out['workflow']) == ids
+    assert list(out['probe']) == ids
+
+
+def test_a_unit_whose_gate_crashes_is_recorded_red_rather_than_skipped(
+        tmp_path, monkeypatch):
+    """A gate that did not run is not a gate that passed, and one exception must
+    not take the whole wave's measurement with it."""
+    seed, units = _gate_tree(tmp_path, ['A', 'B'])
+    _gate_stubs(monkeypatch)
+
+    def _boom(cfg, tree, rel, *a, **k):
+        if '/A/' in rel:
+            raise RuntimeError('node is missing')
+        return _R(ok=True, out='x')
+
+    monkeypatch.setattr(integrator.verify, 'run_test_file', _boom)
+    out = integrator.post_wave_gate({'loop': {'gate_concurrency': 2}}, seed, units,
+                                    log=lambda *_: None)
+
+    assert out['green'] is False
+    assert out['workflow']['A']['harness_error'] is True
+    assert 'node is missing' in out['workflow']['A']['tail']
+    assert out['workflow']['B']['ok'] is True      # the sibling still got measured
+
+
+def test_gate_concurrency_falls_back_to_serial_when_unconfigured():
+    """Every existing caller passes a config without these keys and must keep
+    today's behaviour exactly."""
+    assert integrator.gate_concurrency({}) == 1
+    assert integrator.gate_concurrency({'loop': {}}) == 1
+    assert integrator.gate_concurrency({'loop': {'task_concurrency': 5}}) == 5
+    assert integrator.gate_concurrency(
+        {'loop': {'task_concurrency': 5, 'gate_concurrency': 2}}) == 2
+    assert integrator.gate_concurrency({'loop': {'gate_concurrency': 'nonsense'}}) == 1
+    assert integrator.gate_concurrency({'loop': {'gate_concurrency': 0}}) == 1
+    # The example config ships an explicit null, which means "follow the workers"
+    # -- not "run serially". Reading it as 1 would make the knob quietly undo the
+    # thing it exists to enable.
+    assert integrator.gate_concurrency(
+        {'loop': {'task_concurrency': 5, 'gate_concurrency': None}}) == 5
