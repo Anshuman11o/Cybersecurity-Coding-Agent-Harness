@@ -381,6 +381,45 @@ CONTAMINATING_KINDS = {'answer_key_pattern', 'network_egress', 'out_of_tree'}
 _AUDIT_COUNTER_KEYS = ('out_of_tree', 'out_of_tree_incidental', 'test_dir_write',
                        'gate_artefact_edit', 'network_egress', 'answer_key_pattern')
 
+_RESOLVED_RE = re.compile(r'resolves to (\S+?),')
+
+
+def _incidental_helper():
+    """The hook's own classifier, so there is one definition of `incidental`.
+
+    The hook has to stay a standalone script -- it is spawned per tool call with no
+    package context -- so it is loaded by path rather than imported.
+    """
+    import importlib.util
+    hook = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        '..', 'hooks', 'sandbox_guard.py')
+    try:
+        spec = importlib.util.spec_from_file_location('_sandbox_guard', hook)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod._incidental_outside
+    except Exception:                                            # noqa: BLE001
+        return None
+
+
+def _reclassify(rec: dict, is_incidental) -> str:
+    """Kind for one denial, correcting logs written before the incidental split.
+
+    A guard log is evidence and is never rewritten, so the correction happens on
+    read. Fails CLOSED: if the resolved path cannot be recovered from the reason, the
+    denial keeps the kind that voids a run.
+    """
+    kind = rec.get('kind') or 'other'
+    if kind != 'out_of_tree' or is_incidental is None:
+        return kind
+    m = _RESOLVED_RE.search(rec.get('reason') or '')
+    if not m:
+        return kind
+    try:
+        return 'out_of_tree_incidental' if is_incidental(m.group(1)) else kind
+    except Exception:                                            # noqa: BLE001
+        return kind
+
 
 def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
               runtime_enforced: bool = True) -> dict:
@@ -398,6 +437,7 @@ def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
     """
     counters = {k: 0 for k in _AUDIT_COUNTER_KEYS}
     counters['total'] = 0
+    is_incidental = _incidental_helper()
     notes = list(extra_notes)
     contaminated = False
 
@@ -420,7 +460,7 @@ def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
                     continue
                 if rec.get('allowed'):
                     continue
-                kind = rec.get('kind') or 'other'
+                kind = _reclassify(rec, is_incidental)
                 counters['total'] += 1
                 if kind in counters:
                     counters[kind] += 1

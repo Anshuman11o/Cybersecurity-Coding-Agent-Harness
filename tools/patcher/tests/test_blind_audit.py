@@ -144,3 +144,20 @@ def test_an_existing_outside_file_still_voids_the_run(tmp_path):
     real.write_text('{}')
     decision, kind = _hook(str(real), tree, str(tmp_path / 'g3.jsonl'))
     assert (decision, kind) == ('deny', 'out_of_tree')
+
+
+def test_a_log_written_before_the_split_is_corrected_on_read(tmp_path):
+    """A guard log is evidence and is never rewritten. CP1 of a checkpointed run was
+    recorded by the older hook, and its stale `out_of_tree` labels would otherwise
+    void the final report of every later checkpoint too."""
+    a = _audit(_log(tmp_path, _denial(
+        'out_of_tree',
+        '/dev/null resolves to /dev/null, outside the work tree /w. The work tree is')))
+    assert a['contaminated'] is False
+    assert a['runtime_denials']['out_of_tree_incidental'] == 1
+
+
+def test_reclassification_fails_closed_when_the_path_cannot_be_recovered(tmp_path):
+    """An unparseable reason must keep the kind that voids a run, not lose it."""
+    a = _audit(_log(tmp_path, _denial('out_of_tree', 'reason in some other shape')))
+    assert a['contaminated'] is True
