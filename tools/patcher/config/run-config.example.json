@@ -1,0 +1,128 @@
+{
+  "_comment": [
+    "Every knob the patcher run has, with its default and the reason for it.",
+    "Copy this, edit, pass with --config. `run_patcher.py --check` validates it",
+    "and the tree and the toolchain without spending a token; run that first.",
+    "Paths may be absolute or relative to the repository root."
+  ],
+
+  "run_id": "patch-run-01",
+
+  "inputs": {
+    "bug_report": "tools/patcher/inputs/bug-report.json",
+    "playbook": "tools/patcher/inputs/playbook.json",
+    "_comment": "Both are validated and scrubbed by blind_guard before any prompt is built. A forbidden value pattern fails the run here, before a token is spent."
+  },
+
+  "target": {
+    "base_tree": "target-apps/juice-shop-blind",
+    "work_tree": "/home/user/patcher-work/tree",
+    "node_modules": "/home/user/patcher-work/node_modules",
+    "_comment": [
+      "base_tree is copied to work_tree once, at run start, and never patched in place.",
+      "node_modules is a shared install symlinked into work_tree: it is ~1GB and copying",
+      "it per run is wasteful, but it must NOT be inside the diff or the tree hash.",
+      "The copy is a real copy, not hardlinks - an in-place write through a hardlink",
+      "would corrupt the base tree every later run is copied from."
+    ]
+  },
+
+  "agent": {
+    "runner": "claude-cli",
+    "model": "opus",
+    "role_models": {},
+    "max_turns": 120,
+    "timeout_s": 2400,
+    "permission_mode": "acceptEdits",
+    "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep"],
+    "rate_limit_probe_s": 600,
+    "rate_limit_max_wait_s": 21600,
+    "_comment": [
+      "runner is an adapter name, not an architecture choice: claude-cli is implemented,",
+      "gpt-subagents is the planned GPT phase-subagent adapter.",
+      "role_models may override model per phase when an adapter supports it.",
+      "allowed_tools deliberately omits WebFetch and WebSearch. Upstream Juice Shop is",
+      "the answer key; a single fetch of it would end the run's validity.",
+      "A 429 is 'not yet', not 'could not': the runner blocks and re-probes rather than",
+      "recording a $0 one-turn failure that would later read as a reasoning result."
+    ]
+  },
+
+  "loop": {
+    "characterise_rounds": 2,
+    "reconcile_rounds": 4,
+    "task_concurrency": 1,
+    "max_task_wall_s": 5400,
+    "_comment": [
+      "task_concurrency 1 means one cumulative tree, tasks in order. That is what makes",
+      "'one fixed codebase' meaningful and lets a later task detect damage an earlier one",
+      "caused. Raising it splits the tree and trades that guarantee for wall-clock.",
+      "reconcile_rounds 4 is a starting guess. The right number is whatever the",
+      "rounds_to_green distribution turns out to be, which needs a run."
+    ]
+  },
+
+  "policy": {
+    "on_exhausted": "revert",
+    "require_probe": false,
+    "regression_net": "related",
+    "final_full_suite": true,
+    "final_repair_rounds": 2,
+    "_comment": [
+      "on_exhausted: revert | keep_best | keep_if_workflow_intact.",
+      "  revert                  - roll the task back, record `abandoned`. Trades a possible",
+      "                            remediation credit for a guaranteed non-regression, and",
+      "                            keeps damage out of the tasks that follow. Default.",
+      "  keep_best               - bank the best round, record `partial`. Maximises axis A.",
+      "  keep_if_workflow_intact - keep when the workflow is green even if the probe never",
+      "                            flipped; revert when the workflow is red. Never ships",
+      "                            known damage, still banks uncertain fixes.",
+      "require_probe false: an unprovable probe is a limit of the agent, not evidence of a",
+      "  non-bug - the report is stipulated accurate. Flip once probe_coverage is known.",
+      "regression_net: related | own_only | full_suite_per_task.",
+      "final_full_suite: one whole-suite gate after all tasks, with a bounded repair loop.",
+      "  Collateral damage shows up where nobody predicted it, so the last net is global."
+    ]
+  },
+
+  "commands": {
+    "typecheck": "npx tsc --noEmit -p tsconfig.json",
+    "run_test_file": "node --import ./test/api/helpers/test-env.mjs --import tsx --test --test-force-exit {file}",
+    "run_server_test_file": "node --import ./test/server/helpers/test-env.mjs --import tsx --test --test-force-exit {file}",
+    "run_probe": "npx tsx {file}",
+    "full_suite": ["npm run test:server", "npm run test:api"],
+    "timeout_s": {
+      "typecheck": 600,
+      "test_file": 900,
+      "probe": 300,
+      "full_suite": 3600
+    },
+    "_comment": [
+      "{file} is substituted. The runner executes these itself - the agent's claim that it",
+      "ran them is collected as an attestation and never used as a gate.",
+      "test/server/**/*.unit.test.ts uses the server env; test/api/**/*.test.ts uses the api",
+      "env. testmap.py picks the right one per file."
+    ]
+  },
+
+  "outputs": {
+    "run_dir": "/home/user/patcher-work/runs/{run_id}",
+    "keep_transcripts": true,
+    "_comment": [
+      "run_dir holds state.json, per-task artefacts, transcripts, diffs and the final",
+      "patcher-report.json. It lives OUTSIDE the repository: transcripts and per-task",
+      "records pair a bug id with a file and a line, which the publishing rule does not",
+      "allow in a committed artefact."
+    ]
+  },
+
+  "sandbox": {
+    "extra_denied_path_patterns": [],
+    "extra_denied_command_patterns": [],
+    "_comment": [
+      "Appended to the built-in deny sets in hooks/sandbox_guard.py. The built-ins already",
+      "cover out-of-tree access, writes under test/ and cypress/, network egress, and the",
+      "answer-key pattern set. Add here; do not weaken there."
+    ]
+  }
+}

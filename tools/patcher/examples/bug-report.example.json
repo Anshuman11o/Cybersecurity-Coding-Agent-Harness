@@ -1,0 +1,53 @@
+{
+  "_comment": [
+    "Shape reference for the bug report the patcher consumes. Synthetic content:",
+    "the locations and prose below are placeholders, not findings. Replace the whole",
+    "`bugs` array with the real report when it lands.",
+    "",
+    "Validate before dispatching:",
+    "  python3 tools/patcher/src/run_patcher.py --config <cfg> --check"
+  ],
+
+  "report_id": "example-bug-report",
+  "kind": "bug-report-agent",
+  "visibility": "BLIND -- safe to place in a worktree and a prompt",
+  "target_dir": "target-apps/juice-shop-blind",
+  "target_sha": null,
+  "provenance": "Every entry is a confirmed defect. This report contains no false positives: the agent must not spend effort deciding whether an entry is real.",
+  "bug_count": 2,
+
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "location": {
+        "file": "routes/exampleRoute.ts",
+        "line": 19,
+        "symbol": "handleRequest"
+      },
+      "owasp": [
+        { "code": "A03", "framework": "OWASP Top 10:2021", "title": "Injection" }
+      ],
+      "class": "Injection / SQL",
+      "vulnerability": "A request parameter is concatenated directly into a SQL statement, so a caller controls the structure of the query rather than only its values.",
+      "reproduction": "Issue a request to this endpoint with a parameter value containing SQL syntax and observe that it alters the executed statement.",
+      "playbook_ref": "a03-injection",
+      "severity_estimate": "critical"
+    },
+    {
+      "bug_id": "BUG-002",
+      "location": {
+        "file": "lib/exampleUtil.ts",
+        "line": 41
+      },
+      "owasp": [
+        { "code": "A02", "framework": "OWASP Top 10:2021", "title": "Cryptographic Failures" },
+        { "code": "A07", "framework": "OWASP Top 10:2021", "title": "Identification and Authentication Failures" }
+      ],
+      "class": "Cryptographic Failures / Weak Password Hashing",
+      "vulnerability": "Credentials are stored using a fast, unsalted hash, so an attacker holding the store can recover passwords at scale.",
+      "reproduction": "Hash a known password with the same routine and confirm the stored value matches, with no per-record salt.",
+      "playbook_ref": "a02-crypto-storage",
+      "severity_estimate": "high"
+    }
+  ]
+}

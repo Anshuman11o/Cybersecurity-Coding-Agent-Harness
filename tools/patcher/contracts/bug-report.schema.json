@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness/tools/patcher/contracts/bug-report.schema.json",
+  "title": "Patcher input — bug report",
+  "description": "The finding set handed to the remediation agent. Stipulated 100% accurate: every entry is a real defect and there are no false positives, so the agent spends no effort on triage. BLIND-SAFE BY CONSTRUCTION: the forbidden-key list below is enforced by tools/patcher/src/blind_guard.py before any prompt is built, and a report carrying any of those keys fails the run rather than being dispatched.",
+
+  "type": "object",
+  "required": ["report_id", "target_dir", "bugs"],
+  "additionalProperties": false,
+
+  "properties": {
+    "report_id": {
+      "type": "string",
+      "description": "Stable identifier for this report. Recorded in the patcher report so a result can be traced to its input."
+    },
+    "kind": {
+      "const": "bug-report-agent",
+      "description": "Discriminator. Present so a sighted variant of the same file can never be loaded here by accident."
+    },
+    "visibility": {
+      "type": "string",
+      "description": "Free text. blind_guard requires the token BLIND to appear if the field is present at all."
+    },
+    "target_dir": {
+      "type": "string",
+      "description": "Repo-relative path of the application the agent patches. Every bug location is relative to THIS directory, with no prefix."
+    },
+    "target_sha": {
+      "type": "string",
+      "description": "Commit of the target tree the report was generated against. The runner refuses to start on a different tree."
+    },
+    "provenance": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "scoped_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Every distinct file named by a bug. Advisory; the runner derives its own copy and warns on mismatch."
+    },
+    "bug_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Must equal bugs.length. Checked, not trusted — a silent count drift has cost this project a run before."
+    },
+
+    "bugs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/bug" }
+    }
+  },
+
+  "definitions": {
+    "bug": {
+      "type": "object",
+      "required": ["bug_id", "location", "owasp", "class"],
+      "additionalProperties": false,
+      "properties": {
+        "bug_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "Unique within the report. Becomes the task id, the scratch directory name and the task record key."
+        },
+        "location": {
+          "type": "object",
+          "required": ["file", "line"],
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "Target-relative. Must not start with the target_dir prefix, must not escape it, must not be absolute.",
+              "pattern": "^(?!/)(?!.*\\.\\.)[^\\0]+$"
+            },
+            "line": { "type": "integer", "minimum": 1 },
+            "end_line": { "type": "integer", "minimum": 1 },
+            "symbol": {
+              "type": "string",
+              "description": "Enclosing function or export, when known. Helps the agent anchor after line numbers shift."
+            }
+          }
+        },
+        "owasp": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "The vulnerability class. Capped at 3: a finding tagged with every category tells the agent nothing, and a hard cap turns a blanket-category defect upstream into a loud schema failure instead of a silent one.",
+          "items": {
+            "type": "object",
+            "required": ["code"],
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "pattern": "^(A(0[1-9]|10)|API(0?[1-9]|10))$",
+                "description": "OWASP Top 10:2021 (A01..A10) or OWASP API Security Top 10:2023 (API1..API10)."
+              },
+              "framework": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          }
+        },
+        "class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable vulnerability class, e.g. 'Injection / SQL'. Used to select the playbook section."
+        },
+        "vulnerability": {
+          "type": ["string", "null"],
+          "description": "What is wrong, in prose. MUST NOT contain the correct fix, a patch, a diff, or an oracle test title — blind_guard scans this field."
+        },
+        "reproduction": {
+          "type": ["string", "null"],
+          "description": "How the defect is exercised, in prose. Seeds phase 1's exploit probe. A request shape is fine; an oracle assertion is not."
+        },
+        "playbook_ref": {
+          "type": ["string", "null"],
+          "description": "Key or URL joining this bug to a playbook entry. Resolved against the playbook input at load time; an unresolvable ref is a warning, not a failure."
+        },
+        "severity_estimate": {
+          "type": ["string", "null"],
+          "enum": ["critical", "high", "medium", "low", "info", null]
+        },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  },
+
+  "x-forbidden-keys": {
+    "description": "Keys that must not appear anywhere in the document at any depth. Enforced by blind_guard.scrub_bug_report(); presence is a blind-boundary violation, not a schema nicety. additionalProperties:false already rejects them at the two levels above; this list is what the recursive scanner uses so a nested or renamed carrier cannot slip through.",
+    "keys": [
+      "challenge_key", "challengeKey", "challenge", "challenges",
+      "reference_correct_fix", "referenceCorrectFix", "correct_fix", "codefix", "codefixes",
+      "solve_condition", "solveCondition", "solve_conditions", "solveIf", "notSolved",
+      "it_title", "it_titles", "exploit_test", "exploit_tests", "exploitTest",
+      "oracle", "oracle_class", "oracles", "ground_truth", "groundTruth",
+      "benchmark_ground_truth", "answer_key", "answerKey", "expected_diff", "patch", "diff"
+    ]
+  },
+
+  "x-forbidden-value-patterns": {
+    "description": "Case-insensitive regexes scanned across every string value. A hit cannot be auto-repaired the way a stray key can, so it fails the run.",
+    "patterns": [
+      "juice-shop-answer-key",
+      "patcher-ground-truth",
+      "harness-private",
+      "benchmark_ground_truth",
+      "answer[ _-]?key",
+      "ground[ _-]?truth",
+      "SOLUTIONS\\.md",
+      "codefixes?/",
+      "_correct\\.ts",
+      "expectChallengeSolved"
+    ]
+  }
+}
