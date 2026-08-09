@@ -151,8 +151,14 @@ def _crash_record(unit, index, ex) -> dict:
 
 def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
               concurrency: int, log=print, on_record=lambda r: None,
+              on_wave_done=lambda wave, digest: None,
               keep_trees: bool = False) -> dict:
-    """Run every wave in order. Returns the parallel-run report."""
+    """Run every wave in `plan['waves']`, in order. Returns the parallel-run report.
+
+    `on_wave_done` is the checkpoint hook, called once a wave is integrated and
+    gated. A long run is paced one wave per session, so the caller has to be able
+    to record progress durably between waves rather than only at the end.
+    """
     units_by_id = {u['bug_id']: u for u in units}
     trees_root = os.path.join(os.path.dirname(os.path.abspath(seed)), 'wave-trees')
     os.makedirs(trees_root, exist_ok=True)
@@ -166,6 +172,7 @@ def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
 
     waves_out: list = []
     touched: dict = {}
+    spend, calls, gate_s = 0.0, 0, 0.0
     t_run = time.time()
 
     for w in plan['waves']:
@@ -227,6 +234,21 @@ def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
                 loc = rec.get('location') or {}
                 touched[f"{loc.get('file')}:{loc.get('line')}"] = rec['bug_id']
 
+        # Usage stored PER WAVE, not as a running total. A checkpointed run merges
+        # the reports of several processes, and a running total would then be
+        # whatever the last process happened to reach -- understating the run in
+        # exactly the way the characterise phases used to. Totals are summed from
+        # these. Costs come from the per-task roll-up, which counts every phase.
+        w_spend = sum((r.get('measured') or {}).get('cost_usd') or 0
+                      for r in wave_records)
+        w_calls = sum(len((r.get('measured') or {}).get('invocations') or [])
+                      for r in wave_records)
+        w_gate = sum((gate.get('gate_seconds') or {}).values())
+        spend += w_spend
+        calls += w_calls
+        gate_s += w_gate
+        digest = workspace.tree_digest(seed)
+
         waves_out.append({
             'wave': wave_no,
             'chains': [chain_id(ch) for ch in chs],
@@ -235,9 +257,15 @@ def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
             'wall_s': round(time.time() - t0, 1),
             'integration': integ,
             'gate': gate,
-            'tree_digest': workspace.tree_digest(seed),
+            'tree_digest': digest,
+            'usage': {'spend_usd': round(w_spend, 4), 'invocations': w_calls,
+                      'gate_seconds': round(w_gate, 1)},
         })
-        log(f'wave {wave_no} complete in {(time.time() - t0) / 60:.1f} min')
+        log(f'wave {wave_no} complete in {(time.time() - t0) / 60:.1f} min  '
+            f'| running total ${spend:.2f} over {calls} invocation(s), '
+            f'{(time.time() - t_run) / 3600:.2f}h this session, '
+            f'{gate_s / 60:.1f} min of it gates')
+        on_wave_done(wave_no, digest)
 
     return {
         'mode': 'waves',
@@ -246,6 +274,10 @@ def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
         'max_parallelism': plan.get('max_parallelism'),
         'concurrency_cap': concurrency,
         'wall_s': round(time.time() - t_run, 1),
+        'checkpoints': 1,
+        'spend_usd': round(spend, 4),
+        'invocations': calls,
+        'gate_seconds': round(gate_s, 1),
         'waves': waves_out,
         'conflicts_total': sum(len(w['integration']['conflicts']) for w in waves_out),
         'waves_gate_red': [w['wave'] for w in waves_out if not w['gate'].get('green')],

@@ -106,11 +106,21 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
                      if (r.get('attested') or {}).get('status') == 'not_fixed'
                      and r.get('disposition') in green_set)
 
+    # Aggregate over `measured.invocations` -- every agent call, characterise
+    # included. Falling back to `rounds` keeps older reports readable, but a run
+    # recorded that way is SHORT by its characterise phases and is flagged as a
+    # floor rather than presented as a total.
     total_cost, invocations, by_model = 0.0, 0, {}
     saw_cost = False
+    partial_cost = False
     for r in records:
-        for rd in (r.get('measured') or {}).get('rounds') or []:
-            a = rd.get('agent') or {}
+        m = r.get('measured') or {}
+        invs = m.get('invocations')
+        if invs is None:
+            invs = [rd.get('agent') or {} for rd in (m.get('rounds') or [])]
+            if invs:
+                partial_cost = True
+        for a in invs:
             invocations += 1
             if a.get('cost_usd') is not None:
                 total_cost += a['cost_usd']
@@ -141,6 +151,10 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
                 'total_usd': round(total_cost, 4) if saw_cost else None,
                 'invocations': invocations,
                 'by_model': by_model,
+                # True means the records predate per-invocation accounting, so this
+                # total omits the characterise phases and is a floor, not a total.
+                # Named in the report rather than left to be discovered.
+                'excludes_characterise_phases': partial_cost,
             },
             'infrastructure_failures': list(infrastructure_failures),
         },
@@ -237,7 +251,9 @@ def render_summary(report: dict) -> str:
         f"  measured spend                : "
         + (f"${run['cost']['total_usd']:.2f}" if run['cost']['total_usd'] is not None
            else 'not reported by the runtime')
-        + f" over {run['cost']['invocations']} invocation(s)",
+        + f" over {run['cost']['invocations']} invocation(s)"
+        + ('  [FLOOR - excludes characterise phases]'
+           if run['cost'].get('excludes_characterise_phases') else ''),
         '',
         'BLAST RADIUS',
         f"  files touched                 : {br['files_touched_total']}",

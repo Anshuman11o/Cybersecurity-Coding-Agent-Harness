@@ -39,6 +39,64 @@ import workspace                   # noqa: E402
 
 EXECUTION_MODES = ('sequential', 'waves')
 
+
+def _parse_waves(spec, every: list) -> set:
+    """"0" | "0,2" | "0-1" -> a set of wave numbers. None means all of them."""
+    if not spec:
+        return set(every)
+    out = set()
+    for part in str(spec).split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            if '-' in part:
+                lo, hi = (int(x) for x in part.split('-', 1))
+                out.update(range(lo, hi + 1))
+            else:
+                out.add(int(part))
+        except ValueError:
+            raise ValueError(f'--waves {spec!r}: {part!r} is not a wave number or range')
+    unknown = sorted(out - set(every))
+    if unknown:
+        raise ValueError(f'--waves {spec!r}: this plan has no wave(s) {unknown}. '
+                         f'It has {every}.')
+    return out
+
+
+def _merge_wave_runs(path: str, fresh: dict) -> dict:
+    """Fold this checkpoint's waves into whatever earlier checkpoints recorded.
+
+    Overwriting instead would leave the final report describing only the last
+    wave -- a 24-bug run reading as an 8-bug one, with the earlier waves' conflicts
+    and red gates silently gone.
+    """
+    if not os.path.exists(path):
+        return fresh
+    try:
+        with open(path) as fh:
+            prior = json.load(fh)
+    except (OSError, ValueError):
+        return fresh
+    by_wave = {w['wave']: w for w in (prior.get('waves') or [])}
+    by_wave.update({w['wave']: w for w in (fresh.get('waves') or [])})
+    waves = [by_wave[n] for n in sorted(by_wave)]
+    merged = {**prior, **fresh, 'waves': waves}
+    merged['wall_s'] = round((prior.get('wall_s') or 0) + (fresh.get('wall_s') or 0), 1)
+    merged['checkpoints'] = (prior.get('checkpoints') or 1) + 1
+    merged['conflicts_total'] = sum(len(w['integration']['conflicts']) for w in waves)
+    merged['waves_gate_red'] = [w['wave'] for w in waves if not w['gate'].get('green')]
+    # Summed from the per-wave figures, never carried over from either side: a plain
+    # dict merge would take the LAST checkpoint's totals and report one wave's spend
+    # as the whole run's.
+    merged['spend_usd'] = round(sum((w.get('usage') or {}).get('spend_usd') or 0
+                                    for w in waves), 4)
+    merged['invocations'] = sum((w.get('usage') or {}).get('invocations') or 0
+                                for w in waves)
+    merged['gate_seconds'] = round(sum((w.get('usage') or {}).get('gate_seconds') or 0
+                                       for w in waves), 1)
+    return merged
+
 # .../<repo>/tools/patcher/src/run_patcher.py  ->  <repo>
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                          '..', '..', '..'))
@@ -234,6 +292,10 @@ def main() -> int:
                     help='rebuild the work tree even if one exists')
     ap.add_argument('--limit', type=int, default=0,
                     help='stop after N tasks (smoke-testing a real run)')
+    ap.add_argument('--waves', metavar='SPEC',
+                    help='waves mode only: run just these waves and stop, e.g. "0", '
+                         '"0,1" or "0-1". Omitted means every wave. Use with --resume '
+                         'to spend one session per wave instead of one per run.')
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -262,7 +324,13 @@ def main() -> int:
             log(f'no state at {state_path}; cannot resume {args.resume}')
             return 2
         st = state_mod.RunState.load(state_path)
-        st.assert_tree_matches(workspace.tree_digest(tree))
+        try:
+            st.assert_tree_matches(workspace.tree_digest(tree))
+        except RuntimeError as ex:
+            # A checkpointed run is resumed by hand, possibly days later. A
+            # traceback here reads like a crash in the patcher; this is a refusal.
+            log(str(ex))
+            return 2
         log(f'resuming {args.resume}: {len(st.records)} task(s) already complete')
     else:
         workspace.prepare(cfg['target']['base_tree'], tree,
@@ -305,36 +373,91 @@ def main() -> int:
     # -- THE OUTER LOOP -----------------------------------------------------
     execution = cfg['loop'].get('execution', 'sequential')
     wave_run = None
+    all_waves_done = True
     if execution == 'waves':
-        plan = wave_plan.plan(
-            bug_report['bugs'], tree,
-            isolate_hubs=cfg['loop'].get('isolate_hubs', True),
-            hub_threshold=int(cfg['loop'].get('hub_threshold', 8)))
-        log(wave_plan.render(plan))
-        with open(os.path.join(run_dir, 'wave-plan.json'), 'w') as fh:
-            json.dump(plan, fh, indent=1)
+        plan_path = os.path.join(run_dir, 'wave-plan.json')
 
-        # The plan is derived from the whole report, so a resumed run would re-run
-        # units it already finished. Refusing beats silently redoing paid work.
-        if st.records:
-            log(f'{len(st.records)} unit(s) already recorded. Resuming a wave run is '
-                'not implemented: the plan covers the whole report and would re-run '
-                'them. Start a fresh run_id, or finish this one sequentially.')
+        # The plan is computed ONCE, from the tree as it was before any wave ran,
+        # then reused. Recomputing it per checkpoint would read the import graph of
+        # an already-patched tree, so a fix that added or removed an import could
+        # silently reshape the remaining waves -- and the run would have executed
+        # two different plans while reporting one.
+        if os.path.exists(plan_path):
+            with open(plan_path) as fh:
+                plan = json.load(fh)
+            if plan.get('bug_report_id') not in (None, bug_report.get('report_id')):
+                log(f'{plan_path} was built for bug report {plan["bug_report_id"]!r}, '
+                    f'but this config supplies {bug_report.get("report_id")!r}. '
+                    'Refusing to continue a plan that describes different bugs.')
+                return 2
+            log(f'reusing the plan recorded at wave 0 '
+                f'({plan["wave_count"]} wave(s), {plan["unit_count"]} unit(s))')
+        else:
+            plan = wave_plan.plan(
+                bug_report['bugs'], tree,
+                isolate_hubs=cfg['loop'].get('isolate_hubs', True),
+                hub_threshold=int(cfg['loop'].get('hub_threshold', 8)))
+            plan['bug_report_id'] = bug_report.get('report_id')
+            with open(plan_path, 'w') as fh:
+                json.dump(plan, fh, indent=1)
+        log(wave_plan.render(plan))
+
+        every = [w['wave'] for w in plan['waves']]
+        done = list(st.meta.get('waves_done') or [])
+        try:
+            selected = _parse_waves(args.waves, every)
+        except ValueError as ex:
+            log(str(ex))
             return 2
+
+        todo = [w for w in plan['waves']
+                if w['wave'] in selected and w['wave'] not in done]
+
+        # Waves are an ordering. Running one before the wave it depends on would
+        # characterise against a base that has not been established yet, which is
+        # the whole thing the plan exists to prevent.
+        for w in todo:
+            missing = [n for n in every
+                       if n < w['wave'] and n not in done and n not in selected]
+            if missing:
+                log(f'refusing to run wave {w["wave"]}: wave(s) {missing} have not run. '
+                    'A later wave patches on top of an earlier one; running it first '
+                    'would characterise against a base that does not exist yet.')
+                return 2
+
+        if done:
+            log(f'resuming: wave(s) {done} already complete, '
+                f'{len(st.records)} unit record(s) on file')
+        if not todo:
+            log(f'nothing to do: wave(s) {sorted(selected)} already complete')
 
         def _append(rec):
             st.append(rec, st.tree_digest or digest_start)
             st.flush()
 
+        def _wave_done(wave_no, digest):
+            """Checkpoint. Written before the next wave starts, so an interruption
+            costs the wave that was running and never one already paid for."""
+            st.meta.setdefault('waves_done', []).append(wave_no)
+            st.tree_digest = digest
+            st.flush()
+
         wave_run = wave_runner.run_waves(
-            plan, cfg=cfg, units=units, runner=runner, playbook=playbook,
-            run_dir=run_dir, seed=tree,
+            {**plan, 'waves': todo}, cfg=cfg, units=units, runner=runner,
+            playbook=playbook, run_dir=run_dir, seed=tree,
             concurrency=int(cfg['loop'].get('task_concurrency', 1)),
-            log=log, on_record=_append)
+            log=log, on_record=_append, on_wave_done=_wave_done)
+
         st.tree_digest = workspace.tree_digest(tree)
         st.flush()
+        wave_run = _merge_wave_runs(os.path.join(run_dir, 'wave-run.json'), wave_run)
         with open(os.path.join(run_dir, 'wave-run.json'), 'w') as fh:
             json.dump(wave_run, fh, indent=1)
+        remaining = [n for n in every if n not in (st.meta.get('waves_done') or [])]
+        all_waves_done = not remaining
+        if remaining:
+            log(f'CHECKPOINT: wave(s) {remaining} still to run. Continue with '
+                f'--resume {cfg["run_id"]} --waves {remaining[0]}')
 
         # Fold the per-chain audit logs into the one path the blind audit reads.
         # Without this the audit would open an untouched guard.jsonl, find nothing,
@@ -403,7 +526,10 @@ def main() -> int:
 
     # -- end-of-run global net ---------------------------------------------
     full_suite = None
-    if cfg['policy'].get('final_full_suite') and runner_kind != 'fake':
+    if not all_waves_done:
+        log('skipping the full suite: waves remain, so this is not the final tree. '
+            'Running it now would publish a partial run as a finished one.')
+    elif cfg['policy'].get('final_full_suite') and runner_kind != 'fake':
         log('running the full suite once, as the global net')
         full_suite = verify.run_full_suite(cfg, tree)
         for s in full_suite:

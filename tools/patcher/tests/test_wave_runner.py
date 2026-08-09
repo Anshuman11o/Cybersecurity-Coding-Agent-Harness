@@ -272,3 +272,51 @@ def test_the_report_names_conflicts_and_red_gates(tmp_path, monkeypatch):
     assert out['conflicts_total'] == 0
     assert out['mode'] == 'waves' and out['concurrency_cap'] == 4
     assert out['waves'][0]['tree_digest']
+
+
+# ---- checkpointing ---------------------------------------------------------
+
+def test_a_checkpoint_is_recorded_after_every_wave(tmp_path, monkeypatch):
+    """Written between waves, so an interruption costs the wave that was running
+    and never one already paid for."""
+    h = Harness()
+    monkeypatch.setattr(task_loop, 'run_task', h)
+    monkeypatch.setattr(wave_runner.integrator, 'post_wave_gate',
+                        lambda *a, **k: {'green': True})
+    seed = _seed(tmp_path)
+    seen = []
+    wave_runner.run_waves(
+        _plan([[_entry('A')], [_entry('B')]]), cfg=_cfg(tmp_path),
+        units=[_unit('A'), _unit('B')], runner=None, playbook={},
+        run_dir=str(tmp_path / 'run'), seed=seed, concurrency=2,
+        log=lambda *_: None, on_wave_done=lambda w, d: seen.append((w, d)))
+    assert [w for w, _ in seen] == [0, 1]
+    assert seen[0][1] != seen[1][1], 'the tree digest did not move between waves'
+
+
+def test_usage_is_recorded_per_wave_and_totalled(tmp_path, monkeypatch):
+    class Costed(Harness):
+        def __call__(self, unit, index, ctx):
+            rec = super().__call__(unit, index, ctx)
+            rec['measured']['cost_usd'] = 2.5
+            rec['measured']['invocations'] = [{'phase': 'characterise'}, {'phase': 'fix'}]
+            return rec
+
+    out, _, _ = _run(tmp_path, monkeypatch, _plan([[_entry('A')], [_entry('B')]]),
+                     [_unit('A'), _unit('B')], Costed())
+    # Per wave, NOT a running total: a checkpointed run merges several processes'
+    # reports, and a running total would collapse to whatever the last one reached.
+    assert [w['usage']['spend_usd'] for w in out['waves']] == [2.5, 2.5]
+    assert [w['usage']['invocations'] for w in out['waves']] == [2, 2]
+    assert out['spend_usd'] == 5.0 and out['invocations'] == 4
+
+
+def test_running_a_subset_of_waves_leaves_the_rest_alone(tmp_path, monkeypatch):
+    """One checkpoint runs one wave. Passing only that wave must not touch others."""
+    h = Harness()
+    plan = _plan([[_entry('A')], [_entry('B')]])
+    plan['waves'] = [plan['waves'][0]]
+    _, recs, seed = _run(tmp_path, monkeypatch, plan, [_unit('A'), _unit('B')], h)
+    assert [r['bug_id'] for r in recs] == ['A']
+    with open(os.path.join(seed, 'b.ts')) as fh:
+        assert fh.read() == 'orig\n'

@@ -203,11 +203,13 @@ def test_seeding_leaves_the_seeds_own_scratch_and_snapshots_behind(tmp_path):
 # ---- the post-wave gate ----------------------------------------------------
 
 class _R:
-    """Stand-in for verify.CommandResult."""
+    """Stand-in for verify.CommandResult. Carries duration_s because the gate records
+    how long it took -- a stub missing a real field lets the code drift past it."""
 
-    def __init__(self, ok=True, out='', tail=''):
+    def __init__(self, ok=True, out='', tail='', duration_s=1.0):
         self.ok, self.stdout, self.stderr, self.tail = ok, out, '', tail
         self.timed_out = False
+        self.duration_s = duration_s
 
 
 def _gate_tree(tmp_path, uids, *, probe=True):

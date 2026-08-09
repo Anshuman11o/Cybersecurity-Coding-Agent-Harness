@@ -45,6 +45,11 @@ class VerifyResult:
     green: bool = False
     gates: dict = field(default_factory=dict)
     failures: list = field(default_factory=list)
+    # Seconds per gate. Every gate was already timed and the number thrown away,
+    # so a run could report its total wall clock but never say how much of it was
+    # gates rather than agent -- exactly the question asked when sizing a bigger
+    # dataset, and one this project could not answer for the pilot.
+    durations: dict = field(default_factory=dict)
 
     def fail(self, gate: str, kind: str, **kw):
         self.gates[gate] = 'fail'
@@ -206,6 +211,7 @@ def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | N
 
     # -- V1 typecheck ------------------------------------------------------
     tc = typecheck(cfg, tree)
+    vr.durations['V1_typecheck'] = round(tc.duration_s, 1)
     vr.gates['V1_typecheck'] = 'pass' if tc.ok else 'fail'
     if not tc.ok:
         vr.fail('V1', 'typecheck', output_tail=tc.tail)
@@ -217,6 +223,7 @@ def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | N
     if workflow_rel:
         wr = run_test_file(cfg, tree, workflow_rel,
                            'server' if 'server' in (workflow_rel or '') else 'api')
+        vr.durations['V2_workflow'] = round(wr.duration_s, 1)
         if wr.ok:
             vr.gates['V2_workflow'] = 'pass'
         else:
@@ -229,6 +236,7 @@ def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | N
     # -- V3 probe ----------------------------------------------------------
     if probe_rel and probe_expected:
         verdict, pr = run_probe(cfg, tree, probe_rel)
+        vr.durations['V3_probe_blocked'] = round(pr.duration_s, 1)
         if verdict == NOT_PROVEN:
             vr.gates['V3_probe_blocked'] = 'pass'
         elif verdict == PROVEN:
@@ -244,7 +252,9 @@ def verify(cfg: dict, tree: str, *, workflow_rel: str | None, probe_rel: str | N
 
     # -- V4 regression -----------------------------------------------------
     if related_files:
+        _t0 = time.time()
         current = collect_outcomes(cfg, tree, related_files)
+        vr.durations['V4_no_regression'] = round(time.time() - _t0, 1)
         any_regression = False
         for rel, cur in current.items():
             base = (baseline_outcomes.get(rel) or {}).get('outcomes', {})

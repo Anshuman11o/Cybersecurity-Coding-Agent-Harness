@@ -288,9 +288,11 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
     units are seeded from a tree that later moves. Waves make it unnecessary by
     construction, so it is deliberately not run here.)
     """
-    out: dict = {'typecheck': None, 'workflow': {}, 'probe': {}, 'green': True}
+    out: dict = {'typecheck': None, 'workflow': {}, 'probe': {}, 'green': True,
+                 'gate_seconds': {}}
 
     tc = verify.typecheck(cfg, seed)
+    out['gate_seconds']['typecheck'] = round(tc.duration_s, 1)
     out['typecheck'] = {'ok': tc.ok, 'timed_out': tc.timed_out,
                         'tail': '' if tc.ok else tc.tail}
     if not tc.ok:
@@ -308,6 +310,7 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
 
         if os.path.isfile(os.path.join(seed, wf)):
             r = verify.run_test_file(cfg, seed, wf)
+            out['gate_seconds'][f'workflow:{u.unit_id}'] = round(r.duration_s, 1)
             outcomes = verify.parse_test_output(r.stdout + '\n' + r.stderr)
             failed = sorted(t for t, s in outcomes.items() if s == 'fail')
             ok = r.ok and not failed
@@ -321,7 +324,8 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
             out['workflow'][u.unit_id] = {'ok': None, 'missing': True}
 
         if os.path.isfile(os.path.join(seed, pr)):
-            verdict, _ = verify.run_probe(cfg, seed, pr)
+            verdict, pres = verify.run_probe(cfg, seed, pr)
+            out['gate_seconds'][f'probe:{u.unit_id}'] = round(pres.duration_s, 1)
             out['probe'][u.unit_id] = verdict
             if verdict == verify.PROVEN:
                 # The unit's fix survived its own task and stopped working once a
