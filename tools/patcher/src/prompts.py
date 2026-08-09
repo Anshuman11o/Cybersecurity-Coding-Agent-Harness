@@ -307,7 +307,25 @@ The commands, from the tree root:
    both the security requirement and that behaviour. Do not weaken the fix to
    make the test pass, and do not conclude the test was wrong — you wrote it,
    from working code, before you changed anything.
-5. Run the related test files you named. They must not regress.
+5. **Run the regression net yourself, and do not finish until it is clean.** These
+   are the exact files the orchestrator will run against you, with the exact
+   commands:
+
+```
+{net_cmds}
+```
+
+   Every test in them passes right now, before your change. Any that fails after
+   it is damage you caused, and finding it here costs you a few minutes — finding
+   it after you finish costs a whole round: a fresh process, the full gate suite,
+   and the same problem handed back to you with less context than you have now.
+   Iterate here until they are green.
+
+   Two exceptions, and they are the only two. A test that was ALREADY failing
+   before your change is not yours to fix. And a test that requires the attack to
+   succeed cannot be satisfied by a correct fix — if you find one, leave your fix
+   correct, say so in `residual_risk`, and do not weaken the fix to turn that test
+   green.
 
 {house_rules}
 
@@ -473,9 +491,25 @@ def build_characterise(*, tree, bug, scratch_rel, workflow_cmd, probe_cmd) -> st
         workflow_cmd=workflow_cmd, probe_cmd=probe_cmd, house_rules=HOUSE_RULES)
 
 
+def fmt_net_cmds(net_cmds) -> str:
+    """The regression net as runnable commands.
+
+    Handed to the agent so it can clear the net before it finishes. Measured on
+    subset 2: three of eight units spent 2-3 extra orchestrator rounds on
+    regressions, and a round is a fresh process plus the whole gate suite -- the
+    same check inside the fix phase costs a few turns. Naming the files is not
+    enough; an agent given a list runs its own guess at the command and misses the
+    test environment, so the exact command goes in.
+    """
+    if not net_cmds:
+        return '(the regression net is empty for this task — nothing to pre-check)'
+    return '\n'.join(net_cmds)
+
+
 def build_fix(*, tree, bug, characterisation, playbook_entry, playbook_how,
               general_guidance, workflow_rel, probe_rel, probe_proven,
-              workflow_cmd, probe_cmd, typecheck_cmd, attestation_path, round_no) -> str:
+              workflow_cmd, probe_cmd, typecheck_cmd, attestation_path, round_no,
+              net_cmds=()) -> str:
     if probe_proven:
         probe_line = (f'- `{probe_rel}` — prints `PROVEN` right now. Must print '
                       '`NOT_PROVEN` when you finish. That flip is the evidence the '
@@ -493,7 +527,8 @@ def build_fix(*, tree, bug, characterisation, playbook_entry, playbook_how,
         file=bug['location']['file'], line=bug['location']['line'],
         workflow_cmd=workflow_cmd, probe_cmd=probe_cmd, typecheck_cmd=typecheck_cmd,
         house_rules=HOUSE_RULES, attestation_path=attestation_path,
-        bug_id=bug['bug_id'], round=round_no)
+        bug_id=bug['bug_id'], round=round_no,
+        net_cmds=fmt_net_cmds(net_cmds))
 
 
 def build_reconcile(*, tree, bug, characterisation, diff, failures, round_no,

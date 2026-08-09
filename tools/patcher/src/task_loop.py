@@ -251,6 +251,8 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
     # Derived from the net's own files, before any fix. A test that requires the
     # attack to succeed cannot be satisfied by a correct change, and charging it
     # reverts correct work -- measured on wave 1, one unit, 5 rounds, $10.79.
+    net_cmds = [_cmd(cfg, 'run_server_test_file' if rel.replace(chr(92), '/').startswith(
+        'test/server') else 'run_test_file', rel) for rel in related]
     antioracles = antioracle.detect(tree, related)
     ch['antioracle_tests'] = sorted(
         t for titles in (antioracles.get('tests') or {}).values() for t in titles)
@@ -286,7 +288,8 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
                 workflow_cmd=_cmd(cfg, 'run_test_file', workflow_rel),
                 probe_cmd=_cmd(cfg, 'run_probe', probe_rel),
                 typecheck_cmd=cfg['commands']['typecheck'],
-                attestation_path=attestation_rel, round_no=0)
+                attestation_path=attestation_rel, round_no=0,
+                net_cmds=net_cmds)
             phase = 'fix'
         else:
             prompt = prompts.build_reconcile(
