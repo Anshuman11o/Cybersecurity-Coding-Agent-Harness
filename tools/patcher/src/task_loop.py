@@ -46,9 +46,13 @@ class TaskContext:
         self.policy = cfg.get('policy', {})
         # file:line -> bug_id, for tasks whose defect an earlier task already closed
         self.touched_locations: dict = {}
+        # A parallel run gives every chain its own audit log: concurrent appends to
+        # one file can interleave, and an audit trail that might be interleaved is
+        # not an audit trail. Left unset, the whole run shares one.
+        self.guard_log_path: str | None = None
 
     def guard_log(self) -> str:
-        return os.path.join(self.run_dir, 'guard.jsonl')
+        return self.guard_log_path or os.path.join(self.run_dir, 'guard.jsonl')
 
     def task_dir(self, task_id: str) -> str:
         d = os.path.join(self.run_dir, 'tasks', task_id)

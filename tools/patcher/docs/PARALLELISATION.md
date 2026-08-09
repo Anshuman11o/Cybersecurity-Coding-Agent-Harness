@@ -22,7 +22,7 @@ second.
 |---|---|---|---:|---|
 | Per-bug, sequential | 24 | ~10.4 h | ~$190 | shipped (default) |
 | **Per-file, sequential** | **8** | **~4–5 h** | **~$95** | **shipped** |
-| **Per-file, 3 waves, parallel** | **8** | **~2 h** | ~$95–110 | planner shipped, executor designed |
+| **Per-file, 3 waves, parallel** | **8** | **~2 h** | ~$95–110 | **shipped** |
 
 ---
 
@@ -319,8 +319,12 @@ patch cannot poison the units after it.
 | `tools/patcher/src/run_patcher.py` | `loop.task_granularity`; preflight validation | **shipped** |
 | `tools/patcher/tests/test_grouping.py` | no bug lost, none duplicated; playbook merge | **shipped** |
 | `tools/patcher/tests/test_wave_plan.py` | the four plan invariants; determinism | **shipped** |
-| `tools/patcher/src/wave_runner.py` | executes waves, forks per-unit trees, drives the barrier | **designed, not built** |
-| `tools/patcher/src/integrator.py` | serial apply + gates + rebase requests + ledger | **designed, not built** |
+| `tools/patcher/src/wave_runner.py` | executes waves: chains, per-unit trees, the barrier | **shipped** |
+| `tools/patcher/src/integrator.py` | exact file-level apply, 3-way merge, post-wave gate | **shipped** |
+| `tools/patcher/src/workspace.py` | `prepare(exclude=…)` so a unit tree carries no sibling's scratch | **shipped** |
+| `tools/patcher/src/report.py` | a `parallel` block: conflicts, contested files, red gates | **shipped** |
+| `tools/patcher/tests/test_integrator.py` | merge, conflict, determinism, gate attribution | **shipped** |
+| `tools/patcher/tests/test_wave_runner.py` | chaining, overlap, isolation, crash containment | **shipped** |
 | `tools/patcher/hooks/sandbox_guard.py` | would gain declared-extension recording | **change designed** |
 
 ## What is shipped in this PR
@@ -330,9 +334,33 @@ layering, hub isolation, and a real plan for Subset 2. It runs in under a second
 spends nothing, and is a pure function of its inputs — a determinism test asserts
 the plan is byte-identical under reordered input.
 
-The **executor is not built.** The planner is the part that has to be right first:
-if the division is wrong, a correct executor faithfully runs a wrong schedule.
-Shipping and reviewing it separately keeps that failure mode out.
+The **executor**: `wave_runner.py` runs each wave's chains concurrently in
+separate trees, `integrator.py` folds them back, and a post-wave gate measures the
+result. Driven end to end against the real Subset 2 input with `--agent fake`:
+3 waves, 8 units, 5 workers in wave 1, integration clean, typecheck green after
+every wave. 161 tests pass.
+
+Two deliberate omissions, both loud rather than silent:
+
+- **Resuming a wave run is refused.** The plan covers the whole report, so a
+  resume would re-run units already paid for. `run_patcher.py` exits 2 and says so.
+- **`sandbox_guard.py` still does not restrict app-file writes.** Out-of-assignment
+  writes are *recorded* per unit, not denied — the 4-file CSRF fix is why. See
+  "The one collision a file partition cannot prevent".
+
+### Two bugs the tests found while building this
+
+**`git merge-file` writes conflict markers even when it reports failure.** The
+first version copied the merged file into the tree on the strength of the return
+code alone, so a *rejected* side still reached the tree. `<<<<<<<` in a `.ts` file
+fails the next wave's typecheck, and that failure is attributed to nobody.
+`_merge3` now rolls the file back byte for byte on conflict.
+
+**The blind audit would have read an empty log.** Each chain writes its own
+`guard/*.jsonl` so concurrent appends cannot interleave — but `blind_audit` reads
+one path. Left as it was, a parallel run would have reported a clean boundary for
+a log it never looked at. The per-chain logs are now merged before the audit, and
+if none were written the run records an infrastructure failure rather than a pass.
 
 ## How the result gets checked
 

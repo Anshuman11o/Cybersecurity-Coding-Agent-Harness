@@ -32,9 +32,44 @@ def _pct(num, den):
     return round(num / den, 4) if den else None
 
 
+def _parallel_summary(p) -> dict | None:
+    """The publishable shape of a wave run.
+
+    Conflicts, out-of-assignment writes and red post-wave gates are the three
+    things a parallel run can do that a sequential one cannot, so they are
+    surfaced as totals rather than left in the per-wave detail. A parallel run
+    reporting the same fields as a sequential one would hide its own failure mode.
+    """
+    if not p:
+        return None
+    waves = p.get('waves') or []
+    outside = {uid: rels
+               for w in waves
+               for uid, rels in (w['integration'].get('out_of_assignment') or {}).items()
+               if rels}
+    return {
+        'mode': p.get('mode'),
+        'plan_id': p.get('plan_id'),
+        'wave_count': p.get('wave_count'),
+        'max_parallelism': p.get('max_parallelism'),
+        'concurrency_cap': p.get('concurrency_cap'),
+        'wall_s': p.get('wall_s'),
+        'per_wave_wall_s': [w.get('wall_s') for w in waves],
+        'conflicts_total': p.get('conflicts_total'),
+        'contested_files_total': sum(len(w['integration'].get('contested_files') or [])
+                                     for w in waves),
+        'units_writing_outside_assignment': len(outside),
+        'waves_gate_red': p.get('waves_gate_red') or [],
+        'units_workflow_red_after_merge': sorted(
+            {u for w in waves for u in (w['gate'].get('workflow_red') or [])}),
+        'units_reopened_after_merge': sorted(
+            {u for w in waves for u in (w['gate'].get('reopened') or [])}),
+    }
+
+
 def aggregate(records, *, run_meta, blind_audit, agent_desc,
               tree_digest_start=None, tree_digest_end=None,
-              infrastructure_failures=(), started_at=None) -> dict:
+              infrastructure_failures=(), started_at=None, parallel=None) -> dict:
     n = len(records)
     counts = {d: 0 for d in DISPOSITIONS}
     for r in records:
@@ -110,6 +145,9 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
             'infrastructure_failures': list(infrastructure_failures),
         },
         'blind_audit': blind_audit,
+        # Present only for a parallel run. Absent means the run was sequential --
+        # never that it was parallel and clean.
+        'parallel': _parallel_summary(parallel),
         'totals': {
             'tasks': n,
             'dispositions': counts,

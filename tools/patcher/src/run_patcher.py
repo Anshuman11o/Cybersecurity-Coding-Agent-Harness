@@ -33,7 +33,11 @@ import state as state_mod          # noqa: E402
 import grouping                    # noqa: E402
 import task_loop                   # noqa: E402
 import verify                      # noqa: E402
+import wave_plan                   # noqa: E402
+import wave_runner                 # noqa: E402
 import workspace                   # noqa: E402
+
+EXECUTION_MODES = ('sequential', 'waves')
 
 # .../<repo>/tools/patcher/src/run_patcher.py  ->  <repo>
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -181,6 +185,32 @@ def preflight(cfg: dict, runner_kind: str) -> list:
         problems.append(f'loop.task_granularity must be one of '
                         f'{", ".join(grouping.GRANULARITIES)} (got {gran!r})')
 
+    # Execution mode and concurrency. These are checked together and loudly on
+    # purpose: task_concurrency shipped in the example config for a release while
+    # nothing read it, so a run asking for five agents got one and reported
+    # success. A knob that silently does nothing is worse than a missing knob.
+    loop = cfg.get('loop', {})
+    mode = loop.get('execution', 'sequential')
+    conc = loop.get('task_concurrency', 1)
+    if mode not in EXECUTION_MODES:
+        problems.append(f'loop.execution must be one of {" | ".join(EXECUTION_MODES)} '
+                        f'(got {mode!r})')
+    if not isinstance(conc, int) or conc < 1:
+        problems.append(f'loop.task_concurrency must be an integer >= 1 (got {conc!r})')
+    elif mode == 'sequential' and conc > 1:
+        problems.append(
+            f'loop.task_concurrency is {conc} but loop.execution is "sequential", which '
+            'runs one task at a time. Set execution to "waves" to actually run in '
+            'parallel. Refusing to accept a setting that would be ignored.')
+    elif mode == 'waves':
+        if gran != 'file':
+            problems.append(
+                'loop.execution "waves" requires loop.task_granularity "file". Waves '
+                'guarantee that no two agents hold the same file, and that guarantee '
+                'comes from grouping by file; per-bug units would put two agents in one '
+                'file inside a single wave.')
+        notes.append(f'execution: waves, up to {conc} chain(s) at a time')
+
     if cfg.get('policy', {}).get('on_exhausted') not in (
             'revert', 'keep_best', 'keep_if_workflow_intact'):
         problems.append("policy.on_exhausted must be revert | keep_best | "
@@ -273,6 +303,57 @@ def main() -> int:
         f"on_exhausted={cfg['policy'].get('on_exhausted')})")
 
     # -- THE OUTER LOOP -----------------------------------------------------
+    execution = cfg['loop'].get('execution', 'sequential')
+    wave_run = None
+    if execution == 'waves':
+        plan = wave_plan.plan(
+            bug_report['bugs'], tree,
+            isolate_hubs=cfg['loop'].get('isolate_hubs', True),
+            hub_threshold=int(cfg['loop'].get('hub_threshold', 8)))
+        log(wave_plan.render(plan))
+        with open(os.path.join(run_dir, 'wave-plan.json'), 'w') as fh:
+            json.dump(plan, fh, indent=1)
+
+        # The plan is derived from the whole report, so a resumed run would re-run
+        # units it already finished. Refusing beats silently redoing paid work.
+        if st.records:
+            log(f'{len(st.records)} unit(s) already recorded. Resuming a wave run is '
+                'not implemented: the plan covers the whole report and would re-run '
+                'them. Start a fresh run_id, or finish this one sequentially.')
+            return 2
+
+        def _append(rec):
+            st.append(rec, st.tree_digest or digest_start)
+            st.flush()
+
+        wave_run = wave_runner.run_waves(
+            plan, cfg=cfg, units=units, runner=runner, playbook=playbook,
+            run_dir=run_dir, seed=tree,
+            concurrency=int(cfg['loop'].get('task_concurrency', 1)),
+            log=log, on_record=_append)
+        st.tree_digest = workspace.tree_digest(tree)
+        st.flush()
+        with open(os.path.join(run_dir, 'wave-run.json'), 'w') as fh:
+            json.dump(wave_run, fh, indent=1)
+
+        # Fold the per-chain audit logs into the one path the blind audit reads.
+        # Without this the audit would open an untouched guard.jsonl, find nothing,
+        # and report a clean boundary for a run it never actually looked at.
+        merged = sorted(glob.glob(os.path.join(run_dir, 'guard', '*.jsonl')))
+        with open(ctx.guard_log(), 'a') as out:
+            for src in merged:
+                with open(src) as fh:
+                    shutil.copyfileobj(fh, out)
+        log(f'merged {len(merged)} per-chain guard log(s) into {ctx.guard_log()}')
+        if not merged:
+            st.note_infrastructure_failure(
+                'guard_log_missing', detail='no per-chain guard logs were written; '
+                'the contamination audit for this run has no input')
+        log(f"waves complete in {wave_run['wall_s'] / 60:.1f} min  "
+            f"conflicts={wave_run['conflicts_total']}  "
+            f"gate_red_waves={wave_run['waves_gate_red'] or 'none'}")
+        pending = []
+
     index = len(st.records)
     for bug in pending:
         n_in_unit = len(bug.get('members') or [])
@@ -357,7 +438,7 @@ def main() -> int:
                     'require_probe': cfg['policy'].get('require_probe')},
         tree_digest_start=digest_start, tree_digest_end=digest_end,
         infrastructure_failures=st.infrastructure_failures,
-        started_at=st.started_at)
+        started_at=st.started_at, parallel=wave_run)
 
     path = report_mod.write(rep, run_dir)
     st.flush()

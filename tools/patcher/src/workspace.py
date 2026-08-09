@@ -67,12 +67,18 @@ class WorkspaceError(RuntimeError):
 # ----------------------------------------------------------------------------
 
 def prepare(base_tree: str, work_tree: str, node_modules: str | None = None,
-            *, force: bool = False) -> None:
+            *, force: bool = False, exclude: tuple = ()) -> None:
     """Materialise the work tree from the pristine base.
 
     A real copy, not hardlinks. An in-place write through a hardlink would
     corrupt the base tree that every future run is copied from, and the symptom
     would not show up until a later run produced quietly wrong numbers.
+
+    `exclude` adds tar excludes on top of node_modules and .git. A parallel run
+    seeds unit trees from a tree the run itself has been working in, so it must
+    leave that tree's own snapshots and scratch behind: the tars are tens of
+    megabytes per copy, and one unit inheriting another's frozen gate artefacts
+    would put a second unit's oracle inside its sandbox.
     """
     base_tree = os.path.abspath(base_tree)
     work_tree = os.path.abspath(work_tree)
@@ -91,8 +97,9 @@ def prepare(base_tree: str, work_tree: str, node_modules: str | None = None,
         shutil.rmtree(work_tree)
     os.makedirs(work_tree, exist_ok=True)
 
+    excludes = ' '.join(f'--exclude={e}' for e in ('node_modules', '.git') + tuple(exclude))
     r = subprocess.run(
-        f'tar -C {base_tree!r} -cf - --exclude=node_modules --exclude=.git . '
+        f'tar -C {base_tree!r} -cf - {excludes} . '
         f'| tar -C {work_tree!r} -xf -',
         shell=True, capture_output=True, text=True)
     if r.returncode != 0:
