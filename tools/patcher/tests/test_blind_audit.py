@@ -1,0 +1,146 @@
+"""What may and may not void a run.
+
+The flag carries one claim: this run may have learned an answer. It has to fire on
+that and nothing else. A real 67-minute, $21 wave was stamped
+"BLIND BOUNDARY VIOLATED" whose only out-of-tree denials were /dev/null, the
+application's own shared node_modules, and the harness's own scratchpad -- so the
+flag stopped meaning anything, in the direction that costs a run.
+"""
+import json
+import os
+import subprocess
+import sys
+
+HERE = os.path.dirname(__file__)
+sys.path.insert(0, os.path.join(HERE, '..', 'src'))
+import blind_guard  # noqa: E402
+
+HOOK = os.path.join(HERE, '..', 'hooks', 'sandbox_guard.py')
+
+
+def _log(tmp_path, *records) -> str:
+    p = str(tmp_path / 'guard.jsonl')
+    with open(p, 'w') as fh:
+        for r in records:
+            fh.write(json.dumps(r) + '\n')
+    return p
+
+
+def _denial(kind, reason='r', task='U', phase='fix'):
+    return {'allowed': False, 'kind': kind, 'reason': reason, 'task': task,
+            'phase': phase}
+
+
+def _audit(path):
+    return blind_guard.audit_run(path, [], runtime_enforced=True)
+
+
+# ---- what must NOT void a run ---------------------------------------------
+
+def test_incidental_out_of_tree_does_not_void_a_run(tmp_path):
+    a = _audit(_log(tmp_path,
+                    _denial('out_of_tree_incidental', '/dev/null resolves to /dev/null'),
+                    _denial('out_of_tree_incidental', 'node_modules/jws/package.json')))
+    assert a['contaminated'] is False
+    assert a['runtime_denials']['out_of_tree_incidental'] == 2
+    assert a['runtime_denials']['out_of_tree'] == 0
+
+
+def test_honest_patching_rules_do_not_void_a_run(tmp_path):
+    """A denied write under test/ means the guard worked, not that the run is void."""
+    a = _audit(_log(tmp_path, _denial('test_dir_write'), _denial('gate_artefact_edit'),
+                    _denial('source_edited_in_characterise')))
+    assert a['contaminated'] is False
+
+
+# ---- what MUST void a run -------------------------------------------------
+
+def test_an_answer_key_path_voids_the_run(tmp_path):
+    a = _audit(_log(tmp_path, _denial('answer_key_pattern', 'juice-shop-answer-key')))
+    assert a['contaminated'] is True
+
+
+def test_network_egress_voids_the_run(tmp_path):
+    """Upstream Juice Shop IS the answer key. This kind was absent from the
+    contaminating set, so a fetch would not have voided a run."""
+    a = _audit(_log(tmp_path, _denial('network_egress', 'curl https://github.com/...')))
+    assert a['contaminated'] is True
+
+
+def test_a_non_incidental_out_of_tree_path_still_voids_the_run(tmp_path):
+    """Narrowing must not disarm the flag for a reach that could hold an answer."""
+    a = _audit(_log(tmp_path, _denial('out_of_tree', '/home/user/somewhere-else/x.json')))
+    assert a['contaminated'] is True
+
+
+# ---- the hook's own classification ---------------------------------------
+
+def _hook(path, tree, log, writing=False):
+    """Returns (decision, kind). `kind` is read from the audit log, not the hook
+    response -- the log is what audit_run replays, so it is the channel that
+    decides whether a run is voided."""
+    tool = 'Write' if writing else 'Read'
+    r = subprocess.run(
+        ['python3', HOOK, '--tree', tree, '--log', log, '--phase', 'fix'],
+        input=json.dumps({'tool_name': tool, 'cwd': tree,
+                          'tool_input': {'file_path': path}}),
+        capture_output=True, text=True)
+    decision = json.loads(r.stdout)['hookSpecificOutput']['permissionDecision']
+    kind = ''
+    with open(log) as fh:
+        for line in fh:
+            rec = json.loads(line)
+            if not rec.get('allowed'):
+                kind = rec.get('kind') or ''
+    return decision, kind
+
+
+def test_the_hook_marks_dev_null_and_node_modules_incidental(tmp_path):
+    tree = str(tmp_path / 'app')
+    os.makedirs(tree, exist_ok=True)
+    for i, p in enumerate(('/dev/null',
+                           '/elsewhere/node_modules/jws/package.json',
+                           '/tmp/claude-0/scratchpad/probe.cjs')):
+        decision, kind = _hook(p, tree, str(tmp_path / f'g{i}.jsonl'))
+        assert decision == 'deny', f'{p} should still be denied'
+        assert kind == 'out_of_tree_incidental', f'{p} classified {kind!r}'
+
+
+def test_the_hook_denies_an_ordinary_outside_path(tmp_path):
+    tree = str(tmp_path / 'app')
+    os.makedirs(tree, exist_ok=True)
+    decision, _ = _hook('/home/user/elsewhere/notes.json', tree,
+                        str(tmp_path / 'g.jsonl'))
+    assert decision == 'deny'   # classification is asserted below, on a real file
+
+
+def test_a_path_that_does_not_exist_is_incidental(tmp_path):
+    """Nothing can be learned from a file that is not there. An agent miscounted
+    `../` while trying to run a test in its own tree, and that alone voided a wave."""
+    tree = str(tmp_path / 'app')
+    os.makedirs(tree, exist_ok=True)
+    decision, kind = _hook(str(tmp_path / 'nowhere' / 'ghost.ts'), tree,
+                           str(tmp_path / 'g.jsonl'))
+    assert (decision, kind) == ('deny', 'out_of_tree_incidental')
+
+
+def test_an_answer_key_path_is_caught_even_when_it_does_not_exist(tmp_path):
+    """The existence rule must not open a hole: the pattern is matched on the path
+    string, before existence is consulted."""
+    tree = str(tmp_path / 'app')
+    os.makedirs(tree, exist_ok=True)
+    decision, kind = _hook(str(tmp_path / 'juice-shop-answer-key' / 'answer-key.json'),
+                           tree, str(tmp_path / 'g2.jsonl'))
+    assert (decision, kind) == ('deny', 'answer_key_pattern')
+
+
+def test_an_existing_outside_file_still_voids_the_run(tmp_path):
+    """The case the flag exists for: a real file, outside the tree, that could hold
+    something."""
+    tree = str(tmp_path / 'app')
+    os.makedirs(tree, exist_ok=True)
+    real = tmp_path / 'elsewhere' / 'results.json'
+    real.parent.mkdir(parents=True, exist_ok=True)
+    real.write_text('{}')
+    decision, kind = _hook(str(real), tree, str(tmp_path / 'g3.jsonl'))
+    assert (decision, kind) == ('deny', 'out_of_tree')

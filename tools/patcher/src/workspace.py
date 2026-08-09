@@ -239,11 +239,36 @@ def changed_files(work_tree: str, snapshot_path: str) -> list:
 
 
 def diff_against_snapshot(work_tree: str, snapshot_path: str, *, max_bytes=400_000) -> str:
-    """Unified diff of the tree against a snapshot, for the reconcile prompt."""
+    """Unified diff of the tree against a snapshot.
+
+    Both sides are reduced to the SAME file set before diffing, and that symmetry
+    is the whole point. A snapshot holds source files only (SOURCE_EXTS), so
+    diffing it directly against the full work tree reports every other file in the
+    tree as newly added -- `.ai/skills/*.md`, `.well-known/*`, dotfiles, `*.sol`,
+    `.tsbuildinfo`. Measured on a real run: a 2-file change reported as 76 files
+    and +3092 lines, in the number quoted as the patch's blast radius.
+
+    An exclude list was the first attempt and was the wrong shape -- every new file
+    type in the target would have to be discovered and added, one polluted run at a
+    time. Comparing like with like has no such tail.
+    """
     with tempfile.TemporaryDirectory() as tmp:
+        base = os.path.join(tmp, 'base')
+        cur = os.path.join(tmp, 'cur')
+        os.makedirs(base, exist_ok=True)
         with tarfile.open(snapshot_path, 'r') as tf:
-            tf.extractall(tmp)
-        return _diff_dirs(tmp, work_tree, max_bytes=max_bytes)
+            tf.extractall(base)
+        for rel in iter_source_files(work_tree):
+            dst = os.path.join(cur, rel)
+            os.makedirs(os.path.dirname(dst) or cur, exist_ok=True)
+            try:
+                shutil.copyfile(os.path.join(work_tree, rel), dst)
+            except OSError:
+                continue
+        text = _diff_dirs(base, cur, max_bytes=max_bytes)
+        # Paths tree-relative, not temp-dir-absolute: they are read by a human and
+        # counted by diff_stats.
+        return text.replace(base + '/', '').replace(cur + '/', '')
 
 
 def diff_against_base(work_tree: str, base_tree: str, *, max_bytes=4_000_000) -> str:

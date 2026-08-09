@@ -158,6 +158,41 @@ def deny(kind: str, reason: str) -> Decision:
     return Decision(False, reason, kind)
 
 
+# Paths outside the work tree that no agent could be reaching for in order to find
+# an answer. They are still DENIED -- the tree is the world -- but they are recorded
+# as incidental so they cannot void a run on their own.
+#
+# This distinction is not cosmetic. A run whose only out-of-tree denials were
+# /dev/null and its own dependency tree was reported "BLIND BOUNDARY VIOLATED", and
+# a real 67-minute, $21 wave was stamped void by it. Conflating "the agent went
+# looking for the answers" with "the agent wrote to /dev/null" destroys the one
+# signal the flag exists to carry.
+INCIDENTAL_OUTSIDE = (
+    # character devices: a shell redirect target, never a source of answers
+    r'^/dev/(null|zero|urandom|random|stdout|stderr|fd/)',
+    # the application's OWN dependency tree, deliberately shared by symlink so a
+    # 427MB node_modules is not copied per unit tree. Reading a dependency's
+    # package.json resolves through that symlink and lands outside the tree.
+    r'/node_modules/',
+    # the scratchpad this harness itself hands the agent
+    r'^/tmp/claude-',
+)
+
+
+def _incidental_outside(resolved: str) -> bool:
+    if any(re.search(p, resolved) for p in INCIDENTAL_OUTSIDE):
+        return True
+    # Nothing can be learned from a file that is not there. Measured: an agent
+    # trying to run a test file in its OWN tree miscounted `../` and landed on a
+    # path that does not exist -- denied, harmless, and on its own enough to stamp a
+    # completed wave void.
+    #
+    # This does not weaken the answer-key defence. PATH_DENY_PATTERNS is matched
+    # against the path STRING, before this, and does not care whether the target
+    # exists -- so a reach for the answer key is caught either way.
+    return not os.path.exists(resolved)
+
+
 def _matches(patterns, text: str):
     for p in patterns:
         if re.search(p, text, re.IGNORECASE):
@@ -201,7 +236,9 @@ def check_path(raw: str, cwd: str, tree: str, *, writing: bool,
     resolved = _resolve(raw, cwd)
 
     if not _inside(resolved, tree):
-        return deny('out_of_tree',
+        kind = ('out_of_tree_incidental' if _incidental_outside(resolved)
+                else 'out_of_tree')
+        return deny(kind,
                     f'{raw} resolves to {resolved}, outside the work tree {tree}. '
                     'The work tree is the entire world for this run.')
 

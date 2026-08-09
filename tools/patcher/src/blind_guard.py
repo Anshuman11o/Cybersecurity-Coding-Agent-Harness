@@ -370,10 +370,16 @@ def select_entry(playbook: dict, bug: dict):
 # Post-run audit
 # ----------------------------------------------------------------------------
 
-CONTAMINATING_KINDS = {'answer_key_pattern', 'out_of_tree'}
+# What actually means the run learned something it must not have. `network_egress`
+# belongs here and was missing: upstream Juice Shop IS the answer key, so one
+# successful fetch would end a run's validity -- and the audit would not have said
+# so. `out_of_tree` stays, but only the non-incidental kind reaches this set;
+# sandbox_guard now separates a reach for /dev/null or the shared node_modules from
+# a reach for something that could hold an answer.
+CONTAMINATING_KINDS = {'answer_key_pattern', 'network_egress', 'out_of_tree'}
 
-_AUDIT_COUNTER_KEYS = ('out_of_tree', 'test_dir_write', 'gate_artefact_edit',
-                       'network_egress', 'answer_key_pattern')
+_AUDIT_COUNTER_KEYS = ('out_of_tree', 'out_of_tree_incidental', 'test_dir_write',
+                       'gate_artefact_edit', 'network_egress', 'answer_key_pattern')
 
 
 def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,

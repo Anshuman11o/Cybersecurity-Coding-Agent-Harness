@@ -42,7 +42,20 @@ def test_absolute_path_outside_tree_denied(tree):
 
 
 def test_dotdot_escape_denied(tree):
+    """Denied is the property that matters. The kind is an audit classification:
+    under a tmp tree this `../` lands on a path that does not exist, and a target
+    that is not there cannot have leaked anything -- see test_blind_audit.py."""
     d = ev('Read', {'file_path': '../../etc/passwd'}, tree)
+    assert not d.allow
+    assert d.kind in ('out_of_tree', 'out_of_tree_incidental')
+
+
+def test_dotdot_escape_onto_a_real_file_is_contaminating(tree, tmp_path):
+    """The same escape, landing on something that exists, must keep the kind that
+    voids a run."""
+    real = tmp_path / 'notes.json'
+    real.write_text('{}')
+    d = ev('Read', {'file_path': os.path.join('..', real.name)}, tree)
     assert not d.allow and d.kind == 'out_of_tree'
 
 
