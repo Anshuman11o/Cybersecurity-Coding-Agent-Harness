@@ -127,7 +127,11 @@ def _run_chain(chain, *, seed, cfg, units_by_id, runner, playbook, run_dir,
             on_record(rec)
         log(f"  [w{wave_no}] done  {unit['bug_id']} -> {rec['disposition']}")
 
-    return integrator.Unit(cid, tree, files)
+    # `members` are the TASK ids in this chain. The post-wave gate re-runs each
+    # task's own frozen workflow test and probe, and those are filed under the
+    # task id -- a cycle's combined chain id never named a scratch directory.
+    return integrator.Unit(cid, tree, files,
+                           members=[e['unit_id'] for e in chain])
 
 
 def _crash_record(unit, index, ex) -> dict:
@@ -211,7 +215,7 @@ def run_waves(plan: dict, *, cfg, units, runner, playbook, run_dir, seed,
             # the same way on a re-run, and as_completed() ordering is a race.
             done.sort(key=lambda u: u.unit_id)
             integ = integrator.integrate(seed=seed, base_snap=base_snap,
-                                         units=done, log=log)
+                                         units=done, log=log, run_dir=run_dir)
             gate = integrator.post_wave_gate(cfg, seed, done, log=log)
         finally:
             workspace.discard_snapshot(base_snap)

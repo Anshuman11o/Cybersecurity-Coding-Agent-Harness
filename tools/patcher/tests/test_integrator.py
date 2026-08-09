@@ -399,3 +399,116 @@ def test_gate_concurrency_falls_back_to_serial_when_unconfigured():
     # thing it exists to enable.
     assert integrator.gate_concurrency(
         {'loop': {'task_concurrency': 5, 'gate_concurrency': None}}) == 5
+
+
+# ---- the gate has to find artefacts the task already harvested -------------
+
+def _harvested_chain(tmp_path, seed, cid, task_ids, files):
+    """A chain tree that ran its tasks and then harvested scratch, exactly as
+    task_loop._finish leaves it."""
+    tree = str(tmp_path / cid)
+    workspace.prepare(seed, tree, None, force=True,
+                      exclude=('.patcher-snapshots', workspace.SCRATCH_DIRNAME))
+    run_dir = str(tmp_path / 'run')
+    for tid in task_ids:
+        s = workspace.ensure_scratch(tree, tid)
+        with open(os.path.join(s, 'workflow.test.ts'), 'w') as fh:
+            fh.write('// gate\n')
+        with open(os.path.join(s, 'exploit.probe.ts'), 'w') as fh:
+            fh.write('// probe\n')
+        # what _finish does: copy out, then DELETE from the tree
+        workspace.harvest_scratch(tree, tid, os.path.join(run_dir, 'tasks', tid))
+        assert not os.path.isdir(workspace.scratch_abs(tree, tid))
+    return integrator.Unit(cid, tree, files, members=task_ids), run_dir
+
+
+def test_the_gate_finds_artefacts_the_task_already_harvested(tmp_path):
+    """The regression this whole path existed to have.
+
+    task_loop._finish harvests scratch -- copy out, then delete -- so by merge
+    time the chain tree has none. Sourcing from the tree therefore always failed,
+    every unit recorded ok=None/MISSING, and neither is False, so the wave stayed
+    GREEN. A gate that ran nothing and reported a pass.
+    """
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    unit, run_dir = _harvested_chain(tmp_path, seed, 'UNIT-a', ['UNIT-a'], 'a.ts')
+
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lambda *_: None, run_dir=run_dir)
+    assert rep['gate_artefacts_placed'] == rep['gate_artefacts_expected'] == 1
+    assert os.path.isfile(os.path.join(
+        seed, workspace.scratch_rel('UNIT-a'), 'workflow.test.ts'))
+
+
+def test_a_cycle_gates_every_member_rather_than_the_combined_chain_id(tmp_path):
+    """A cycle integrates as one contribution, but each member ran as its own
+    task and froze its own artefacts. 'A+B' never named a scratch directory."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'b.ts': 'b\n'})
+    unit, run_dir = _harvested_chain(tmp_path, seed, 'A+B', ['A', 'B'], ['a.ts', 'b.ts'])
+
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lambda *_: None, run_dir=run_dir)
+    assert rep['gate_artefacts_placed'] == 2
+
+    calls = []
+
+    class _Fake:
+        PROVEN, NOT_PROVEN = 'PROVEN', 'NOT_PROVEN'
+
+        @staticmethod
+        def typecheck(*a, **k):
+            return _R()
+
+        @staticmethod
+        def run_test_file(cfg, tree, rel, *a, **k):
+            calls.append(rel)
+            return _R(out='x')
+
+        @staticmethod
+        def parse_test_output(text):
+            return {'t': 'pass'}
+
+        @staticmethod
+        def run_probe(cfg, tree, rel):
+            return ('NOT_PROVEN', _R())
+
+    real, integrator.verify = integrator.verify, _Fake
+    try:
+        out = integrator.post_wave_gate({}, seed, [unit], log=lambda *_: None)
+    finally:
+        integrator.verify = real
+
+    assert list(out['workflow']) == ['A', 'B']       # members, not 'A+B'
+    assert len(calls) == 2
+    assert out['unmeasured'] == []
+
+
+def test_a_unit_with_no_artefacts_is_reported_unmeasured_not_silently_green(
+        tmp_path, monkeypatch):
+    """`ok: None` is not `False`, so a missing gate never turned the wave red.
+    That is correct -- absence is not damage -- but it must be visible."""
+    seed, units = _gate_tree(tmp_path, ['A'], probe=False)
+    os.remove(os.path.join(seed, workspace.scratch_rel('A'), 'workflow.test.ts'))
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['unmeasured'] == ['A']
+    assert out['workflow']['A']['missing'] is True
+    assert out['workflow_red'] == []
+
+
+def test_integrate_counts_the_artefacts_it_could_not_place(tmp_path):
+    """The count is the alarm: expected 2, placed 0 is a gate about to measure
+    nothing, and it now says so instead of returning a clean report."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    tree = str(tmp_path / 'bare')
+    workspace.prepare(seed, tree, None, force=True,
+                      exclude=('.patcher-snapshots', workspace.SCRATCH_DIRNAME))
+    unit = integrator.Unit('A+B', tree, ['a.ts'], members=['A', 'B'])
+
+    lines = []
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lines.append, run_dir=str(tmp_path / 'empty-run'))
+    assert rep['gate_artefacts_placed'] == 0
+    assert rep['gate_artefacts_expected'] == 2
+    assert any('no frozen gate artefacts' in ln for ln in lines)

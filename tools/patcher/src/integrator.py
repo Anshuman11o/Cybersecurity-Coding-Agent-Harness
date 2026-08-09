@@ -58,12 +58,19 @@ class Unit:
     either -- so the unit owns the union of their files.
     """
 
-    def __init__(self, unit_id: str, tree: str, assigned_file, record: dict | None = None):
+    def __init__(self, unit_id: str, tree: str, assigned_file, record: dict | None = None,
+                 members=None):
         self.unit_id = unit_id
         self.tree = tree
         self.assigned_files = ({assigned_file} if isinstance(assigned_file, str)
                                else set(assigned_file or ()))
         self.record = record or {}
+        # The TASK ids this contribution covers. For a chain of one that is the
+        # unit id itself; for a cycle it is every member, because each member ran
+        # as its own task and froze its own gate artefacts under its own id. The
+        # gate has to look them up by task id -- a cycle's combined id
+        # ('A+B') never named a scratch directory.
+        self.members = list(members) if members else [unit_id]
 
     @property
     def assigned_file(self):
@@ -180,7 +187,7 @@ def out_of_assignment(units, changed: dict) -> dict:
 # Integration
 # ----------------------------------------------------------------------------
 
-def integrate(*, seed: str, base_snap: str, units, log=print) -> dict:
+def integrate(*, seed: str, base_snap: str, units, log=print, run_dir=None) -> dict:
     """Fold every unit's changes into `seed`. Returns the integration report."""
     changed = changed_by_unit(units, base_snap)
     claim = claims(changed)
@@ -240,10 +247,12 @@ def integrate(*, seed: str, base_snap: str, units, log=print) -> dict:
             applied.append({'file': rel, 'unit': '+'.join(merged) or None,
                             'how': f'merged {len(merged)}/{len(uids)}'})
 
-    for u in units:
-        place_scratch(seed, u)
+    placed = sum(place_scratch(seed, u, run_dir) for u in units)
+    expected = sum(len(u.members) for u in units)
 
     report = {
+        'gate_artefacts_placed': placed,
+        'gate_artefacts_expected': expected,
         'units': [u.unit_id for u in units],
         'files_changed_by_unit': changed,
         'contested_files': contested,
@@ -256,28 +265,55 @@ def integrate(*, seed: str, base_snap: str, units, log=print) -> dict:
     n_files = len(claim)
     log(f'  integrated {len(units)} unit(s): {n_files} file(s), '
         f'{len(contested)} contested, {len(conflicts)} conflict(s)')
+    if placed < expected:
+        log(f'  WARNING: {expected - placed} of {expected} unit(s) have no frozen gate '
+            'artefacts to re-run; the post-wave gate cannot measure them')
     for c in conflicts:
         log(f"    CONFLICT {c['file']}: {c['reason']}")
     return report
 
 
-def place_scratch(seed: str, unit: Unit) -> bool:
-    """Copy a unit's frozen gate artefacts into the seed.
-
-    The post-wave gate re-runs each unit's own workflow test and probe, and both
-    live in that unit's scratch directory rather than in the tree it patched.
-    Scratch is excluded from the digest and from every diff, so this cannot
-    change what the run is measured on.
-    """
-    src = workspace.scratch_abs(unit.tree, unit.unit_id)
+def _place_one(seed: str, src: str, task_id: str) -> bool:
     if not os.path.isdir(src):
         return False
-    dst = workspace.scratch_abs(seed, unit.unit_id)
+    dst = workspace.scratch_abs(seed, task_id)
     if os.path.isdir(dst):
         shutil.rmtree(dst)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copytree(src, dst)
     return True
+
+
+def place_scratch(seed: str, unit: Unit, run_dir: str | None = None) -> int:
+    """Put a unit's frozen gate artefacts where the post-wave gate can run them.
+
+    Returns how many task's worth were placed.
+
+    THE ARTEFACTS ARE NOT IN THE UNIT TREE ANY MORE. `task_loop._finish` harvests
+    scratch at the end of every task -- copy out, then delete -- so by the time a
+    wave is integrated the chain tree has none left. Copying from the tree
+    therefore always failed, `post_wave_gate` found nothing for every unit, and
+    recorded `ok: None` / `MISSING`. Neither is `False`, so the wave stayed GREEN:
+    a gate that ran nothing and reported a pass. `reopened` -- the only thing in
+    the run that detects a sibling's change defeating another unit's fix -- could
+    never fire.
+
+    So the harvested copy under `<run_dir>/tasks/<task_id>/artefacts` is the
+    source of truth. The unit tree is still tried as a fallback, for a caller that
+    has not harvested yet.
+
+    Scratch is excluded from the digest and from every diff, so placing it cannot
+    change what the run is measured on.
+    """
+    placed = 0
+    for task_id in unit.members:
+        harvested = (os.path.join(run_dir, 'tasks', task_id, 'artefacts')
+                     if run_dir else None)
+        if harvested and _place_one(seed, harvested, task_id):
+            placed += 1
+        elif _place_one(seed, workspace.scratch_abs(unit.tree, task_id), task_id):
+            placed += 1
+    return placed
 
 
 # ----------------------------------------------------------------------------
@@ -303,20 +339,24 @@ def gate_concurrency(cfg: dict) -> int:
         return 1
 
 
-def _unit_gate(cfg: dict, seed: str, unit) -> dict:
-    """One unit's share of the post-wave gate: its own workflow test and probe.
+def _unit_gate(cfg: dict, seed: str, task_id: str) -> dict:
+    """One task's share of the post-wave gate: its workflow test and its probe.
+
+    Keyed by TASK id, not by chain id. A cycle integrates as one contribution but
+    its members each ran as their own task and froze their own artefacts, so a
+    chain-level lookup would miss all of them.
 
     Pure measurement against a tree nobody is writing to, which is what makes it
     safe to run several of these at once.
     """
-    rel = workspace.scratch_rel(unit.unit_id)
+    rel = workspace.scratch_rel(task_id)
     wf = f'{rel}/workflow.test.ts'
     pr = f'{rel}/exploit.probe.ts'
     out: dict = {'seconds': {}}
 
     if os.path.isfile(os.path.join(seed, wf)):
         r = verify.run_test_file(cfg, seed, wf)
-        out['seconds'][f'workflow:{unit.unit_id}'] = round(r.duration_s, 1)
+        out['seconds'][f'workflow:{task_id}'] = round(r.duration_s, 1)
         outcomes = verify.parse_test_output(r.stdout + '\n' + r.stderr)
         failed = sorted(t for t, s in outcomes.items() if s == 'fail')
         ok = r.ok and not failed
@@ -328,7 +368,7 @@ def _unit_gate(cfg: dict, seed: str, unit) -> dict:
 
     if os.path.isfile(os.path.join(seed, pr)):
         verdict, pres = verify.run_probe(cfg, seed, pr)
-        out['seconds'][f'probe:{unit.unit_id}'] = round(pres.duration_s, 1)
+        out['seconds'][f'probe:{task_id}'] = round(pres.duration_s, 1)
         out['probe'] = verdict
     else:
         out['probe'] = 'MISSING'
@@ -382,33 +422,34 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
     # processes at the end of a wave with every worker idle -- and the queue gets
     # LONGER as the wave gets wider, which is the one part of the design that got
     # worse when concurrency went up.
-    workers = max(1, min(gate_concurrency(cfg), len(units)))
+    task_ids = [tid for u in units for tid in u.members]
+    workers = max(1, min(gate_concurrency(cfg), len(task_ids)))
     results: dict = {}
     if workers > 1:
-        log(f'  post-wave gate: {len(units)} unit gate(s) on {workers} worker(s)')
+        log(f'  post-wave gate: {len(task_ids)} unit gate(s) on {workers} worker(s)')
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(_unit_gate, cfg, seed, u): u for u in units}
+            futures = {pool.submit(_unit_gate, cfg, seed, tid): tid for tid in task_ids}
             for fut in concurrent.futures.as_completed(futures):
-                unit = futures[fut]
+                tid = futures[fut]
                 try:
-                    results[unit.unit_id] = fut.result()
+                    results[tid] = fut.result()
                 except Exception as ex:                          # noqa: BLE001
-                    results[unit.unit_id] = _gate_crash(ex)
+                    results[tid] = _gate_crash(ex)
     else:
-        for u in units:
+        for tid in task_ids:
             try:
-                results[u.unit_id] = _unit_gate(cfg, seed, u)
+                results[tid] = _unit_gate(cfg, seed, tid)
             except Exception as ex:                              # noqa: BLE001
-                results[u.unit_id] = _gate_crash(ex)
+                results[tid] = _gate_crash(ex)
 
     # Assembled in `units` order, never completion order. This report is diffed
     # across runs, and a dict whose key order depends on which thread finished
     # first is not comparable to anything.
-    for u in units:
-        r = results[u.unit_id]
+    for tid in task_ids:
+        r = results[tid]
         out['gate_seconds'].update(r['seconds'])
-        out['workflow'][u.unit_id] = r['workflow']
-        out['probe'][u.unit_id] = r['probe']
+        out['workflow'][tid] = r['workflow']
+        out['probe'][tid] = r['probe']
         if r['workflow'].get('ok') is False:
             out['green'] = False
         if r['probe'] == verify.PROVEN:
@@ -418,10 +459,18 @@ def post_wave_gate(cfg: dict, seed: str, units, *, log=print) -> dict:
 
     bad_wf = [u for u, v in out['workflow'].items() if v.get('ok') is False]
     reopened = [u for u, v in out['probe'].items() if v == verify.PROVEN]
+    # A gate with nothing to run is not a gate that passed. It stays out of
+    # `green` -- a missing artefact is not evidence of damage -- but it is counted
+    # and logged, because this gate silently measured NOTHING for every unit of
+    # every wave until the artefacts were sourced from the harvested copy.
+    unmeasured = sorted(u for u, v in out['workflow'].items() if v.get('missing'))
+    out['unmeasured'] = unmeasured
     log(f"  post-wave gate: typecheck ok, "
-        f"{len(out['workflow']) - len(bad_wf)}/{len(out['workflow'])} workflow green"
+        f"{len(out['workflow']) - len(bad_wf) - len(unmeasured)}/{len(out['workflow'])} "
+        'workflow green'
         + (f", workflow red: {', '.join(bad_wf)}" if bad_wf else '')
-        + (f", REOPENED: {', '.join(reopened)}" if reopened else ''))
+        + (f", REOPENED: {', '.join(reopened)}" if reopened else '')
+        + (f", NOT MEASURED (no artefacts): {', '.join(unmeasured)}" if unmeasured else ''))
     out['workflow_red'] = bad_wf
     out['reopened'] = reopened
     return out
