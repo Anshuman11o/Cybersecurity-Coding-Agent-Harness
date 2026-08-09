@@ -320,6 +320,7 @@ patch cannot poison the units after it.
 | `tools/patcher/tests/test_grouping.py` | no bug lost, none duplicated; playbook merge | **shipped** |
 | `tools/patcher/tests/test_wave_plan.py` | the four plan invariants; determinism | **shipped** |
 | `tools/patcher/src/wave_runner.py` | executes waves: chains, per-unit trees, the barrier | **shipped** |
+| `tools/patcher/src/verify.py` | per-gate durations, so gate time is attributable | **shipped** |
 | `tools/patcher/src/integrator.py` | exact file-level apply, 3-way merge, post-wave gate | **shipped** |
 | `tools/patcher/src/workspace.py` | `prepare(exclude=…)` so a unit tree carries no sibling's scratch | **shipped** |
 | `tools/patcher/src/report.py` | a `parallel` block: conflicts, contested files, red gates | **shipped** |
@@ -361,6 +362,67 @@ fails the next wave's typecheck, and that failure is attributed to nobody.
 one path. Left as it was, a parallel run would have reported a clean boundary for
 a log it never looked at. The per-chain logs are now merged before the audit, and
 if none were written the run records an infrastructure failure rather than a pass.
+
+## Running it across sessions
+
+A 24-bug wave run does not fit one session. The per-task cap is 90 min, so wave 0
+— a serial cycle of two units — can reach 3 h on its own and the whole run 6 h. So
+it is paced **one wave per session**:
+
+```
+run_patcher.py --config <cfg>                        --force  --waves 0
+run_patcher.py --config <cfg> --resume <run_id>               --waves 1
+run_patcher.py --config <cfg> --resume <run_id>               --waves 2
+```
+
+| Checkpoint | Wave | Units | Bugs | Expected | Worst case |
+|---|---|---|---|---|---|
+| 1 | 0 | 2, serial | 7 | 55–90 min | 180 min |
+| 2 | 1 | 5, parallel | 9 | 35–63 min | 90 min |
+| 3 | 2 + full suite + report | 1 | 8 | 50–95 min | 95 min |
+
+`waves_done` and the integrated tree digest are flushed after each wave, so an
+interruption costs the wave that was running and never one already paid for.
+
+**What it refuses to do**, each before spending anything:
+
+- run a wave whose predecessors have not run — it would characterise against a
+  base that does not exist yet
+- accept an unknown wave number or an unparseable `--waves` spec
+- continue a plan built for a different bug report
+- resume against a tree that drifted since the last checkpoint
+
+**The plan is computed once**, before any wave runs, and reused from
+`wave-plan.json`. Recomputing it per checkpoint would read the import graph of an
+already-patched tree, so a fix that added or removed an import could silently
+reshape the remaining waves — and the run would have executed two plans while
+reporting one.
+
+`wave-run.json` **merges** across checkpoints. Overwriting would leave the final
+report describing only the last wave: a 24-bug run reading as an 8-bug one, with
+earlier conflicts and red gates gone. The full suite is withheld until every wave
+is done, so a partial tree is never published as finished.
+
+## Usage tracking, and a number that was short
+
+The run-level cost roll-up aggregated `measured.rounds`, and the characterise phase
+has no round entry — so **every run under-reported its own spend by that whole
+phase**. Verified against the pilot: a true **$16.03 over 6 invocations** was
+reported as **$11.18 over 4**, a 30% understatement in the one number used to size
+the next dataset.
+
+Records now carry every invocation and the roll-up reads those. Records written
+before the field existed are still readable, but they are flagged
+`excludes_characterise_phases` and rendered as a **FLOOR**, not a total.
+
+Usage is stored **per wave**, not as a running total, because a checkpointed run
+merges several processes' reports and a running total collapses to whatever the last
+process reached — the same understatement in a new place. Run totals are summed from
+the per-wave figures.
+
+`verify.py` timed every gate and threw the number away, so a run could report total
+wall clock but never say how much of it was gates rather than agent. Durations are
+now kept per gate, per round and per wave.
 
 ## How the result gets checked
 
