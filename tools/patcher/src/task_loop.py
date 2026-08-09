@@ -46,9 +46,13 @@ class TaskContext:
         self.policy = cfg.get('policy', {})
         # file:line -> bug_id, for tasks whose defect an earlier task already closed
         self.touched_locations: dict = {}
+        # A parallel run gives every chain its own audit log: concurrent appends to
+        # one file can interleave, and an audit trail that might be interleaved is
+        # not an audit trail. Left unset, the whole run shares one.
+        self.guard_log_path: str | None = None
 
     def guard_log(self) -> str:
-        return os.path.join(self.run_dir, 'guard.jsonl')
+        return self.guard_log_path or os.path.join(self.run_dir, 'guard.jsonl')
 
     def task_dir(self, task_id: str) -> str:
         d = os.path.join(self.run_dir, 'tasks', task_id)
@@ -296,6 +300,7 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
 
         rec['measured']['rounds'].append({
             'round': round_no, 'green': vr.green, 'gates': dict(vr.gates),
+            'gate_seconds': dict(vr.durations),
             'failures': vr.failures, 'agent': inv.as_record(),
         })
 
@@ -422,6 +427,14 @@ def _finish(rec, ctx, bug, snap_path, t0, task_dir):
     rec['measured']['wall_s'] = round(time.time() - t0, 1)
     costs = [i.cost_usd for i in invs if i.cost_usd is not None]
     rec['measured']['cost_usd'] = round(sum(costs), 4) if costs else None
+
+    # EVERY invocation, characterise included. The per-task cost above always
+    # counted them, but the run-level roll-up in report.py aggregated
+    # `measured.rounds`, and characterise has no round entry -- so the run
+    # under-reported its own spend by the whole characterise phase. Measured on
+    # the pilot: a true $16.03 over 6 invocations was reported as $11.18 over 4.
+    # The number that sizes the next dataset must not be the one that is short.
+    rec['measured']['invocations'] = [i.as_record() for i in invs]
 
     # The agent's claim against the orchestrator's own measurement. Recorded,
     # never used to alter the disposition.

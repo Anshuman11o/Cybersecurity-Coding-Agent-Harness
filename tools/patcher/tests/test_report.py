@@ -334,3 +334,43 @@ def test_resume_refuses_a_drifted_tree(tmp_path):
         raise AssertionError('expected a refusal')
     except RuntimeError as ex:
         assert 'refusing to resume' in str(ex)
+
+
+# ---- cost roll-up ----------------------------------------------------------
+
+def _costed(bug_id, phase_costs, *, in_rounds=True):
+    rounds = [{'round': i, 'green': True, 'gates': {},
+               'agent': {'cost_usd': c, 'model_usage': {'m': {'outputTokens': 10}}}}
+              for i, c in enumerate(phase_costs[1:])] if in_rounds else []
+    m = {'characterisation': {}, 'rounds': rounds, 'rounds_to_green': 0,
+         'cost_usd': sum(phase_costs), 'wall_s': 1.0}
+    if in_rounds:
+        m['invocations'] = [{'phase': 'x', 'cost_usd': c,
+                             'model_usage': {'m': {'outputTokens': 10}}}
+                            for c in phase_costs]
+    return {'bug_id': bug_id, 'disposition': 'fixed', 'location': {}, 'measured': m,
+            'diff_stats': {}, 'violations': []}
+
+
+def _agg(records):
+    return report_mod.aggregate(records, run_meta={}, blind_audit={'contaminated': False},
+                            agent_desc={})['run']['cost']
+
+
+def test_characterise_phases_are_counted_in_the_run_total():
+    """The pilot's true $16.03 over 6 invocations was reported as $11.18 over 4,
+    because characterise has no round entry to be found under `rounds`."""
+    c = _agg([_costed('A', [2.38, 2.33, 3.20, 3.91]), _costed('B', [2.47, 1.73])])
+    assert c['invocations'] == 6
+    assert round(c['total_usd'], 2) == 16.02
+    assert c['excludes_characterise_phases'] is False
+
+
+def test_a_record_without_per_invocation_data_is_flagged_as_a_floor():
+    """Older records can still be read, but the number is short and says so rather
+    than presenting itself as the total."""
+    r = _costed('A', [2.38, 2.33])
+    r['measured'].pop('invocations')
+    c = _agg([r])
+    assert c['excludes_characterise_phases'] is True
+    assert c['invocations'] == 1

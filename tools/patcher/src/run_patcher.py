@@ -33,7 +33,69 @@ import state as state_mod          # noqa: E402
 import grouping                    # noqa: E402
 import task_loop                   # noqa: E402
 import verify                      # noqa: E402
+import wave_plan                   # noqa: E402
+import wave_runner                 # noqa: E402
 import workspace                   # noqa: E402
+
+EXECUTION_MODES = ('sequential', 'waves')
+
+
+def _parse_waves(spec, every: list) -> set:
+    """"0" | "0,2" | "0-1" -> a set of wave numbers. None means all of them."""
+    if not spec:
+        return set(every)
+    out = set()
+    for part in str(spec).split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            if '-' in part:
+                lo, hi = (int(x) for x in part.split('-', 1))
+                out.update(range(lo, hi + 1))
+            else:
+                out.add(int(part))
+        except ValueError:
+            raise ValueError(f'--waves {spec!r}: {part!r} is not a wave number or range')
+    unknown = sorted(out - set(every))
+    if unknown:
+        raise ValueError(f'--waves {spec!r}: this plan has no wave(s) {unknown}. '
+                         f'It has {every}.')
+    return out
+
+
+def _merge_wave_runs(path: str, fresh: dict) -> dict:
+    """Fold this checkpoint's waves into whatever earlier checkpoints recorded.
+
+    Overwriting instead would leave the final report describing only the last
+    wave -- a 24-bug run reading as an 8-bug one, with the earlier waves' conflicts
+    and red gates silently gone.
+    """
+    if not os.path.exists(path):
+        return fresh
+    try:
+        with open(path) as fh:
+            prior = json.load(fh)
+    except (OSError, ValueError):
+        return fresh
+    by_wave = {w['wave']: w for w in (prior.get('waves') or [])}
+    by_wave.update({w['wave']: w for w in (fresh.get('waves') or [])})
+    waves = [by_wave[n] for n in sorted(by_wave)]
+    merged = {**prior, **fresh, 'waves': waves}
+    merged['wall_s'] = round((prior.get('wall_s') or 0) + (fresh.get('wall_s') or 0), 1)
+    merged['checkpoints'] = (prior.get('checkpoints') or 1) + 1
+    merged['conflicts_total'] = sum(len(w['integration']['conflicts']) for w in waves)
+    merged['waves_gate_red'] = [w['wave'] for w in waves if not w['gate'].get('green')]
+    # Summed from the per-wave figures, never carried over from either side: a plain
+    # dict merge would take the LAST checkpoint's totals and report one wave's spend
+    # as the whole run's.
+    merged['spend_usd'] = round(sum((w.get('usage') or {}).get('spend_usd') or 0
+                                    for w in waves), 4)
+    merged['invocations'] = sum((w.get('usage') or {}).get('invocations') or 0
+                                for w in waves)
+    merged['gate_seconds'] = round(sum((w.get('usage') or {}).get('gate_seconds') or 0
+                                       for w in waves), 1)
+    return merged
 
 # .../<repo>/tools/patcher/src/run_patcher.py  ->  <repo>
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -181,6 +243,32 @@ def preflight(cfg: dict, runner_kind: str) -> list:
         problems.append(f'loop.task_granularity must be one of '
                         f'{", ".join(grouping.GRANULARITIES)} (got {gran!r})')
 
+    # Execution mode and concurrency. These are checked together and loudly on
+    # purpose: task_concurrency shipped in the example config for a release while
+    # nothing read it, so a run asking for five agents got one and reported
+    # success. A knob that silently does nothing is worse than a missing knob.
+    loop = cfg.get('loop', {})
+    mode = loop.get('execution', 'sequential')
+    conc = loop.get('task_concurrency', 1)
+    if mode not in EXECUTION_MODES:
+        problems.append(f'loop.execution must be one of {" | ".join(EXECUTION_MODES)} '
+                        f'(got {mode!r})')
+    if not isinstance(conc, int) or conc < 1:
+        problems.append(f'loop.task_concurrency must be an integer >= 1 (got {conc!r})')
+    elif mode == 'sequential' and conc > 1:
+        problems.append(
+            f'loop.task_concurrency is {conc} but loop.execution is "sequential", which '
+            'runs one task at a time. Set execution to "waves" to actually run in '
+            'parallel. Refusing to accept a setting that would be ignored.')
+    elif mode == 'waves':
+        if gran != 'file':
+            problems.append(
+                'loop.execution "waves" requires loop.task_granularity "file". Waves '
+                'guarantee that no two agents hold the same file, and that guarantee '
+                'comes from grouping by file; per-bug units would put two agents in one '
+                'file inside a single wave.')
+        notes.append(f'execution: waves, up to {conc} chain(s) at a time')
+
     if cfg.get('policy', {}).get('on_exhausted') not in (
             'revert', 'keep_best', 'keep_if_workflow_intact'):
         problems.append("policy.on_exhausted must be revert | keep_best | "
@@ -204,6 +292,10 @@ def main() -> int:
                     help='rebuild the work tree even if one exists')
     ap.add_argument('--limit', type=int, default=0,
                     help='stop after N tasks (smoke-testing a real run)')
+    ap.add_argument('--waves', metavar='SPEC',
+                    help='waves mode only: run just these waves and stop, e.g. "0", '
+                         '"0,1" or "0-1". Omitted means every wave. Use with --resume '
+                         'to spend one session per wave instead of one per run.')
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -232,7 +324,13 @@ def main() -> int:
             log(f'no state at {state_path}; cannot resume {args.resume}')
             return 2
         st = state_mod.RunState.load(state_path)
-        st.assert_tree_matches(workspace.tree_digest(tree))
+        try:
+            st.assert_tree_matches(workspace.tree_digest(tree))
+        except RuntimeError as ex:
+            # A checkpointed run is resumed by hand, possibly days later. A
+            # traceback here reads like a crash in the patcher; this is a refusal.
+            log(str(ex))
+            return 2
         log(f'resuming {args.resume}: {len(st.records)} task(s) already complete')
     else:
         workspace.prepare(cfg['target']['base_tree'], tree,
@@ -273,6 +371,112 @@ def main() -> int:
         f"on_exhausted={cfg['policy'].get('on_exhausted')})")
 
     # -- THE OUTER LOOP -----------------------------------------------------
+    execution = cfg['loop'].get('execution', 'sequential')
+    wave_run = None
+    all_waves_done = True
+    if execution == 'waves':
+        plan_path = os.path.join(run_dir, 'wave-plan.json')
+
+        # The plan is computed ONCE, from the tree as it was before any wave ran,
+        # then reused. Recomputing it per checkpoint would read the import graph of
+        # an already-patched tree, so a fix that added or removed an import could
+        # silently reshape the remaining waves -- and the run would have executed
+        # two different plans while reporting one.
+        if os.path.exists(plan_path):
+            with open(plan_path) as fh:
+                plan = json.load(fh)
+            if plan.get('bug_report_id') not in (None, bug_report.get('report_id')):
+                log(f'{plan_path} was built for bug report {plan["bug_report_id"]!r}, '
+                    f'but this config supplies {bug_report.get("report_id")!r}. '
+                    'Refusing to continue a plan that describes different bugs.')
+                return 2
+            log(f'reusing the plan recorded at wave 0 '
+                f'({plan["wave_count"]} wave(s), {plan["unit_count"]} unit(s))')
+        else:
+            plan = wave_plan.plan(
+                bug_report['bugs'], tree,
+                isolate_hubs=cfg['loop'].get('isolate_hubs', True),
+                hub_threshold=int(cfg['loop'].get('hub_threshold', 8)))
+            plan['bug_report_id'] = bug_report.get('report_id')
+            with open(plan_path, 'w') as fh:
+                json.dump(plan, fh, indent=1)
+        log(wave_plan.render(plan))
+
+        every = [w['wave'] for w in plan['waves']]
+        done = list(st.meta.get('waves_done') or [])
+        try:
+            selected = _parse_waves(args.waves, every)
+        except ValueError as ex:
+            log(str(ex))
+            return 2
+
+        todo = [w for w in plan['waves']
+                if w['wave'] in selected and w['wave'] not in done]
+
+        # Waves are an ordering. Running one before the wave it depends on would
+        # characterise against a base that has not been established yet, which is
+        # the whole thing the plan exists to prevent.
+        for w in todo:
+            missing = [n for n in every
+                       if n < w['wave'] and n not in done and n not in selected]
+            if missing:
+                log(f'refusing to run wave {w["wave"]}: wave(s) {missing} have not run. '
+                    'A later wave patches on top of an earlier one; running it first '
+                    'would characterise against a base that does not exist yet.')
+                return 2
+
+        if done:
+            log(f'resuming: wave(s) {done} already complete, '
+                f'{len(st.records)} unit record(s) on file')
+        if not todo:
+            log(f'nothing to do: wave(s) {sorted(selected)} already complete')
+
+        def _append(rec):
+            st.append(rec, st.tree_digest or digest_start)
+            st.flush()
+
+        def _wave_done(wave_no, digest):
+            """Checkpoint. Written before the next wave starts, so an interruption
+            costs the wave that was running and never one already paid for."""
+            st.meta.setdefault('waves_done', []).append(wave_no)
+            st.tree_digest = digest
+            st.flush()
+
+        wave_run = wave_runner.run_waves(
+            {**plan, 'waves': todo}, cfg=cfg, units=units, runner=runner,
+            playbook=playbook, run_dir=run_dir, seed=tree,
+            concurrency=int(cfg['loop'].get('task_concurrency', 1)),
+            log=log, on_record=_append, on_wave_done=_wave_done)
+
+        st.tree_digest = workspace.tree_digest(tree)
+        st.flush()
+        wave_run = _merge_wave_runs(os.path.join(run_dir, 'wave-run.json'), wave_run)
+        with open(os.path.join(run_dir, 'wave-run.json'), 'w') as fh:
+            json.dump(wave_run, fh, indent=1)
+        remaining = [n for n in every if n not in (st.meta.get('waves_done') or [])]
+        all_waves_done = not remaining
+        if remaining:
+            log(f'CHECKPOINT: wave(s) {remaining} still to run. Continue with '
+                f'--resume {cfg["run_id"]} --waves {remaining[0]}')
+
+        # Fold the per-chain audit logs into the one path the blind audit reads.
+        # Without this the audit would open an untouched guard.jsonl, find nothing,
+        # and report a clean boundary for a run it never actually looked at.
+        merged = sorted(glob.glob(os.path.join(run_dir, 'guard', '*.jsonl')))
+        with open(ctx.guard_log(), 'a') as out:
+            for src in merged:
+                with open(src) as fh:
+                    shutil.copyfileobj(fh, out)
+        log(f'merged {len(merged)} per-chain guard log(s) into {ctx.guard_log()}')
+        if not merged:
+            st.note_infrastructure_failure(
+                'guard_log_missing', detail='no per-chain guard logs were written; '
+                'the contamination audit for this run has no input')
+        log(f"waves complete in {wave_run['wall_s'] / 60:.1f} min  "
+            f"conflicts={wave_run['conflicts_total']}  "
+            f"gate_red_waves={wave_run['waves_gate_red'] or 'none'}")
+        pending = []
+
     index = len(st.records)
     for bug in pending:
         n_in_unit = len(bug.get('members') or [])
@@ -322,7 +526,10 @@ def main() -> int:
 
     # -- end-of-run global net ---------------------------------------------
     full_suite = None
-    if cfg['policy'].get('final_full_suite') and runner_kind != 'fake':
+    if not all_waves_done:
+        log('skipping the full suite: waves remain, so this is not the final tree. '
+            'Running it now would publish a partial run as a finished one.')
+    elif cfg['policy'].get('final_full_suite') and runner_kind != 'fake':
         log('running the full suite once, as the global net')
         full_suite = verify.run_full_suite(cfg, tree)
         for s in full_suite:
@@ -357,7 +564,7 @@ def main() -> int:
                     'require_probe': cfg['policy'].get('require_probe')},
         tree_digest_start=digest_start, tree_digest_end=digest_end,
         infrastructure_failures=st.infrastructure_failures,
-        started_at=st.started_at)
+        started_at=st.started_at, parallel=wave_run)
 
     path = report_mod.write(rep, run_dir)
     st.flush()

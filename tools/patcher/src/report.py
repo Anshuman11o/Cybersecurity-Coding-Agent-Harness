@@ -32,9 +32,44 @@ def _pct(num, den):
     return round(num / den, 4) if den else None
 
 
+def _parallel_summary(p) -> dict | None:
+    """The publishable shape of a wave run.
+
+    Conflicts, out-of-assignment writes and red post-wave gates are the three
+    things a parallel run can do that a sequential one cannot, so they are
+    surfaced as totals rather than left in the per-wave detail. A parallel run
+    reporting the same fields as a sequential one would hide its own failure mode.
+    """
+    if not p:
+        return None
+    waves = p.get('waves') or []
+    outside = {uid: rels
+               for w in waves
+               for uid, rels in (w['integration'].get('out_of_assignment') or {}).items()
+               if rels}
+    return {
+        'mode': p.get('mode'),
+        'plan_id': p.get('plan_id'),
+        'wave_count': p.get('wave_count'),
+        'max_parallelism': p.get('max_parallelism'),
+        'concurrency_cap': p.get('concurrency_cap'),
+        'wall_s': p.get('wall_s'),
+        'per_wave_wall_s': [w.get('wall_s') for w in waves],
+        'conflicts_total': p.get('conflicts_total'),
+        'contested_files_total': sum(len(w['integration'].get('contested_files') or [])
+                                     for w in waves),
+        'units_writing_outside_assignment': len(outside),
+        'waves_gate_red': p.get('waves_gate_red') or [],
+        'units_workflow_red_after_merge': sorted(
+            {u for w in waves for u in (w['gate'].get('workflow_red') or [])}),
+        'units_reopened_after_merge': sorted(
+            {u for w in waves for u in (w['gate'].get('reopened') or [])}),
+    }
+
+
 def aggregate(records, *, run_meta, blind_audit, agent_desc,
               tree_digest_start=None, tree_digest_end=None,
-              infrastructure_failures=(), started_at=None) -> dict:
+              infrastructure_failures=(), started_at=None, parallel=None) -> dict:
     n = len(records)
     counts = {d: 0 for d in DISPOSITIONS}
     for r in records:
@@ -71,11 +106,21 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
                      if (r.get('attested') or {}).get('status') == 'not_fixed'
                      and r.get('disposition') in green_set)
 
+    # Aggregate over `measured.invocations` -- every agent call, characterise
+    # included. Falling back to `rounds` keeps older reports readable, but a run
+    # recorded that way is SHORT by its characterise phases and is flagged as a
+    # floor rather than presented as a total.
     total_cost, invocations, by_model = 0.0, 0, {}
     saw_cost = False
+    partial_cost = False
     for r in records:
-        for rd in (r.get('measured') or {}).get('rounds') or []:
-            a = rd.get('agent') or {}
+        m = r.get('measured') or {}
+        invs = m.get('invocations')
+        if invs is None:
+            invs = [rd.get('agent') or {} for rd in (m.get('rounds') or [])]
+            if invs:
+                partial_cost = True
+        for a in invs:
             invocations += 1
             if a.get('cost_usd') is not None:
                 total_cost += a['cost_usd']
@@ -106,10 +151,17 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
                 'total_usd': round(total_cost, 4) if saw_cost else None,
                 'invocations': invocations,
                 'by_model': by_model,
+                # True means the records predate per-invocation accounting, so this
+                # total omits the characterise phases and is a floor, not a total.
+                # Named in the report rather than left to be discovered.
+                'excludes_characterise_phases': partial_cost,
             },
             'infrastructure_failures': list(infrastructure_failures),
         },
         'blind_audit': blind_audit,
+        # Present only for a parallel run. Absent means the run was sequential --
+        # never that it was parallel and clean.
+        'parallel': _parallel_summary(parallel),
         'totals': {
             'tasks': n,
             'dispositions': counts,
@@ -199,7 +251,9 @@ def render_summary(report: dict) -> str:
         f"  measured spend                : "
         + (f"${run['cost']['total_usd']:.2f}" if run['cost']['total_usd'] is not None
            else 'not reported by the runtime')
-        + f" over {run['cost']['invocations']} invocation(s)",
+        + f" over {run['cost']['invocations']} invocation(s)"
+        + ('  [FLOOR - excludes characterise phases]'
+           if run['cost'].get('excludes_characterise_phases') else ''),
         '',
         'BLAST RADIUS',
         f"  files touched                 : {br['files_touched_total']}",
