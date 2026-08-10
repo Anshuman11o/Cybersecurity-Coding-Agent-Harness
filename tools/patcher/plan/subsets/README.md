@@ -90,8 +90,45 @@ the planner's waves disagree, one of them is wrong.
 
 ## What is here
 
-| File | Bugs | Files | Chunks | Peak concurrency |
-|---|---|---|---|---|
-| `subset-04.chunk-map.json` | 10 | 5 | 4 (`A01`, `C09`, `C11`, `D01`) | 2 |
+| File | Bugs | Files | Chunks | Peak concurrency | Intended runner |
+|---|---|---|---|---|---|
+| `subset-02.chunk-map.json` | 24 | 8 | 4 (`A01`, `C01`, `C02`, `D01`) | 2 | v3 dispatcher |
+| `subset-04.chunk-map.json` | 10 | 5 | 4 (`A01`, `C09`, `C11`, `D01`) | 2 | `run_patcher.py`, waves |
 
 The runbook for subset 4 is `docs/patcher/SUBSET-04-RUN.md`.
+
+`subset-02.chunk-map.json` is a **mechanical subset form of the generated map**:
+`plan/chunk-map.json` is produced by `build_chunk_map.py` from subset 2's own bug
+report, and `test_chunk_map.py` pins it byte-for-byte to a fresh generation. The
+subset file applies only steps 3 and 4 above — bracket B holds no chunk in this
+report and is dropped, phases renumber densely, and the `depends_on` edges naming
+B go with it. Every chunk id, file, task, line, class and reason is the
+generator's, and `test_subset02_map.py` asserts each surviving chunk is equal to
+its counterpart in the generated map. It also loads the file through
+`src/v3/chunk_map.py`, which is the code that will actually read it: a map that
+satisfies this README and is then refused at load time is a map nobody can run.
+
+## Chunk-id provenance — the two files here do not share a numbering
+
+Rule 1 says ids come from the full map. There is **no full-map artefact on
+disk**: `plan/chunk-map.json` is generated from subset 2's report, not from the
+whole bug list, so it is a subset-2 map that this directory's rule-1 wording
+calls "the full map". The consequence is concrete and worth stating rather than
+discovering during a comparison:
+
+| File | Subset 2 calls it | Subset 4 calls it |
+|---|---|---|
+| `routes/metrics.ts` | `C02`, packed with three other route files | `C09`, alone |
+| `routes/updateUserProfile.ts` | `C02`, same chunk as above | `C11`, alone |
+
+Subset 4's `C09`/`C11` come from a full map that was described in prose and never
+generated; subset 2's `C01`/`C02` come from the committed generator, against the
+committed report. They are not the same chunks in any case — the subset-2 chunk
+holds four files and four bugs — so inheriting the id would not have made them
+comparable, only made them look it. **Do not compare the two subsets at chunk
+granularity.** Bracket and phase granularity is sound in both; `A01` and `D01`
+denote the same files in both.
+
+Fixing this properly means generating a real full map from the full bug report
+and re-deriving both subsets from it. That is a change to the plan artefacts and
+their tests, not to either subset in isolation.
