@@ -68,6 +68,7 @@ from dataclasses import dataclass, field
 
 import blind_guard
 import prompts
+import testmap
 import verify
 import workspace
 
@@ -162,7 +163,12 @@ The orchestrator does not check your work between steps. You do:
 
 1. fix the defect, inside your owned files where possible
 2. self-verify: `{typecheck_cmd}`, then `{workflow_cmd}`, then `{probe_cmd}`,
-   then the existing tests the characterisation named
+   then **the regression net, which you run yourself and must leave clean**:
+{net_block}
+   Two exceptions, and they are the only two. A test that was ALREADY failing
+   before your change is not yours to fix. And a test that requires the attack to
+   succeed cannot be satisfied by a correct fix — if you find one, leave your fix
+   correct, say so in `residual_risk`, and do not weaken the fix to turn it green.
 3. if any of those is red, reconcile and go back to 2 — up to {max_rounds}
    rounds. The workflow test is the record of what correct behaviour looks like;
    use it to find a change that satisfies both axes. Do not edit the test to
@@ -284,9 +290,39 @@ def build_characterise_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap,
         probe_cmd=_cmd(cfg, 'run_probe', f'{scratch_rel}/exploit.probe.ts'))
 
 
+def net_commands(cfg: dict, related_files) -> list:
+    """The regression net as commands the agent can actually run.
+
+    Naming the files is not enough. An agent handed a list of paths invents its
+    own command and picks the wrong test environment, so the command goes in --
+    the same conclusion v2 reached in `prompts.build_fix`. It matters more here:
+    v3 runs no per-task regression net of its own, so this in-prompt run is the
+    ONLY per-task check that damage did not happen.
+    """
+    out = []
+    for rel in related_files or ():
+        rel = str(rel).strip().lstrip('./')
+        if not rel:
+            continue
+        key = ('run_server_test_file' if testmap.env_for(rel) == 'server'
+               else 'run_test_file')
+        cmd = _cmd(cfg, key, rel)
+        if cmd:
+            out.append(cmd)
+    return out
+
+
+def _net_block(cmds) -> str:
+    if not cmds:
+        return ('\n   (the characterisation named no existing test files, so there is no\n'
+                '   net to run — say so in `residual_risk`, because a task with no\n'
+                '   regression net is a task nothing checked for collateral damage)\n')
+    return '\n```\n' + '\n'.join(cmds) + '\n```\n'
+
+
 def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
                        scratch_rel: str, reused_from: str | None,
-                       max_rounds: int) -> str:
+                       max_rounds: int, related_files=()) -> str:
     entry, how = (blind_guard.select_entry(playbook, bug) if playbook else (None, 'none'))
     return _header(a, tree, cmap) + '\n' + PATCH_BODY.format(
         bug_id=bug['bug_id'], file=bug['location']['file'],
@@ -300,6 +336,7 @@ def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
         workflow_cmd=_cmd(cfg, 'run_test_file', f'{scratch_rel}/workflow.test.ts'),
         probe_cmd=_cmd(cfg, 'run_probe', f'{scratch_rel}/exploit.probe.ts'),
         max_rounds=max_rounds,
+        net_block=_net_block(net_commands(cfg, related_files)),
         attestation_path=f'{scratch_rel}/attestation.json')
 
 
@@ -461,10 +498,21 @@ class Dispatcher:
             self.log(f'  [{a.chunk_id}] {bug_id}: reusing characterisation from '
                      f'{reused_from} ({rel_file})')
 
+        # The regression net, resolved before the patch prompt is built. v3 runs
+        # no per-task net of its own, so what goes into this prompt is the only
+        # per-task check for collateral damage that exists. Agent-named files are
+        # unioned with a static scan for the same reason v2 does it: the agent
+        # misses tests it did not think to look for, the scan misses tests that
+        # reach the code through indirection.
+        char = _read_json(os.path.join(tree, scratch_rel, 'characterisation.json')) or {}
+        related = testmap.select(tree, [rel_file], char.get('related_test_files') or [])
+        rec['related_test_files'] = related
+
         inv = self.runner.run(
             build_patch_prompt(a, bug, tree=tree, cfg=self.cfg, cmap=self.cmap,
                                playbook=self.playbook, scratch_rel=scratch_rel,
-                               reused_from=reused_from, max_rounds=self.max_rounds),
+                               reused_from=reused_from, max_rounds=self.max_rounds,
+                               related_files=related),
             cwd=tree, phase=PATCH_PHASE, task_id=task_id,
             log_path=os.path.join(self.run_dir, 'logs', f'{task_id}-patch.json'),
             guard_log=guard)
