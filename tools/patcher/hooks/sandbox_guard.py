@@ -514,6 +514,19 @@ def check_bash(command: str, cwd: str, tree: str, *, phase: str, task: str,
                     return deny('answer_key_pattern',
                                 f'search term {tok!r} matches a withheld-material '
                                 f'pattern ({hit!r}). Work from the code and the report.')
+            # A shell glob names no denylisted path but can expand onto one:
+            # `cat data/*.ts`, `cp data/* scratch/`. The guard expands it the way
+            # the shell would and checks what it would actually reach.
+            if any(ch in probe for ch in '*?[') and _looks_like_path(probe):
+                import glob as _glob
+                base = probe if os.path.isabs(probe) else os.path.join(cwd, probe)
+                for match in _glob.glob(base)[:2000]:
+                    seed = seed_denylist_hit_path(_rel(os.path.realpath(match), tree))
+                    if seed:
+                        return deny('seed_denylist',
+                                    f'{tok} expands onto {seed}, which '
+                                    f'{_SEED_DENY_MSG}{_seed_source_note()}')
+
             if not _looks_like_path(probe):
                 continue
             d = check_path(probe, cwd, tree, writing=mutating, phase=phase,

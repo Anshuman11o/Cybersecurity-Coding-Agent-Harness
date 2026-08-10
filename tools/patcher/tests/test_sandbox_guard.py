@@ -187,6 +187,21 @@ def test_bash_read_of_denylisted_file_denied(tree, cmd):
     assert not d.allow and d.kind == 'seed_denylist', cmd
 
 
+@pytest.mark.parametrize('cmd', [
+    'cat data/*.ts',
+    'cp data/* .patcher-scratch/BUG-001/',
+    'head -5 models/*',
+])
+def test_glob_that_expands_onto_a_denylisted_file_denied(tree, cmd):
+    """The token names no denylisted path; the shell would still open one."""
+    d = ev('Bash', {'command': cmd}, tree)
+    assert not d.allow and d.kind == 'seed_denylist', cmd
+
+
+def test_glob_over_ordinary_files_still_allowed(tree):
+    assert ev('Bash', {'command': 'ls routes/*.ts'}, tree).allow
+
+
 def test_denial_is_logged_in_the_existing_record_shape(tree, tmp_path):
     """blind_audit replays this log; a denial it cannot see did not happen."""
     import json
