@@ -35,6 +35,64 @@ CONTRACTS = os.path.join(os.path.dirname(HERE), 'contracts')
 OWASP_CODE = re.compile(r'^(A(0[1-9]|10)|API(0?[1-9]|10))$')
 
 
+# ----------------------------------------------------------------------------
+# Seed denylist
+# ----------------------------------------------------------------------------
+
+def _hook_module():
+    """Load `hooks/sandbox_guard.py` by path.
+
+    The hook has to stay a standalone script -- it is spawned per tool call with
+    no package context -- so it is loaded by path rather than imported. Used for
+    both the incidental classifier and the seed denylist, so there is one
+    definition of each rather than a second copy here.
+    """
+    import importlib.util
+    hook = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        '..', 'hooks', 'sandbox_guard.py')
+    spec = importlib.util.spec_from_file_location('_sandbox_guard', hook)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# Fail-closed floor, identical in role to the hook's: if the hook cannot be
+# loaded at all, a bug report placing work in one of these files must still be
+# refused rather than dispatched.
+_SEED_FLOOR = ('models/challenge.ts', 'lib/antiCheat.ts', 'data/datacreator.ts')
+
+
+def _seed_denylist():
+    """(tree-relative denylisted paths, note|None). Never raises."""
+    try:
+        mod = _hook_module()
+        rel = tuple(mod.SEED_DENYLIST_RELPATHS)
+        if mod.SEED_DENYLIST_PARSE_ERROR:
+            return rel, (f'seed denylist could not be parsed from '
+                         f'{mod.SEED_DENYLIST_SOURCE} '
+                         f'({mod.SEED_DENYLIST_PARSE_ERROR}); the guard ran on its '
+                         'fail-closed floor. Fix the source before quoting this run.')
+        return rel, None
+    except Exception as ex:                                      # noqa: BLE001
+        return _SEED_FLOOR, (f'sandbox_guard could not be loaded to read the seed '
+                             f'denylist ({type(ex).__name__}: {ex}); using the '
+                             'fail-closed floor')
+
+
+SEED_DENYLIST, SEED_DENYLIST_NOTE = _seed_denylist()
+
+
+def seed_denylisted(file_path: str) -> str | None:
+    """The denylisted entry a target-relative file path names, or None."""
+    if not isinstance(file_path, str) or not file_path:
+        return None
+    probe = file_path.replace('\\', '/').lstrip('./')
+    for rel in SEED_DENYLIST:
+        if probe == rel or probe.endswith('/' + rel):
+            return rel
+    return None
+
+
 class BlindBoundaryError(RuntimeError):
     """Raised for a violation that cannot be repaired by dropping a key.
 
@@ -169,6 +227,19 @@ def validate_bug_report(doc: dict) -> list:
             elif f.startswith(str(doc.get('target_dir', '\0'))):
                 e.append(f'{at}.location.file: {f!r} still carries the target_dir '
                          'prefix; strip it once, here, not in every consumer')
+            elif seed_denylisted(f):
+                # Loud, and before anything is spent. Dropping the bug silently
+                # would leave a run whose denominator nobody can reconstruct;
+                # dispatching it would put a file that lists every challenge in
+                # front of the agent, which is the whole thing the run is blind to.
+                e.append(
+                    f'{at}.location.file: {f!r} is on the corpus seed denylist '
+                    f'({seed_denylisted(f)}). That file enumerates the challenges '
+                    'this run is scored against, and the sandbox hook denies every '
+                    'read of it, so the task could not be worked even if dispatched. '
+                    'Exclude this bug from the report at the generator and record '
+                    'the exclusion in the denominator. Source of the list: '
+                    'tools/scanner/shared/read-guard.ts SEED_DENYLIST.')
             if not isinstance(loc.get('line'), int) or loc.get('line', 0) < 1:
                 e.append(f'{at}.location.line: missing or not a positive integer')
 
@@ -189,6 +260,12 @@ def validate_bug_report(doc: dict) -> list:
 
         if not isinstance(b.get('class'), str) or not b.get('class'):
             e.append(f'{at}.class: missing')
+
+    for i, f in enumerate(doc.get('scoped_files') or []):
+        if isinstance(f, str) and seed_denylisted(f):
+            e.append(f'scoped_files[{i}]: {f!r} is on the corpus seed denylist '
+                     f'({seed_denylisted(f)}); it must not be put in scope for any '
+                     'task. Source: tools/scanner/shared/read-guard.ts SEED_DENYLIST.')
 
     return e
 
@@ -379,25 +456,16 @@ def select_entry(playbook: dict, bug: dict):
 CONTAMINATING_KINDS = {'answer_key_pattern', 'network_egress', 'out_of_tree'}
 
 _AUDIT_COUNTER_KEYS = ('out_of_tree', 'out_of_tree_incidental', 'test_dir_write',
-                       'gate_artefact_edit', 'network_egress', 'answer_key_pattern')
+                       'gate_artefact_edit', 'network_egress', 'answer_key_pattern',
+                       'seed_denylist')
 
 _RESOLVED_RE = re.compile(r'resolves to (\S+?),')
 
 
 def _incidental_helper():
-    """The hook's own classifier, so there is one definition of `incidental`.
-
-    The hook has to stay a standalone script -- it is spawned per tool call with no
-    package context -- so it is loaded by path rather than imported.
-    """
-    import importlib.util
-    hook = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        '..', 'hooks', 'sandbox_guard.py')
+    """The hook's own classifier, so there is one definition of `incidental`."""
     try:
-        spec = importlib.util.spec_from_file_location('_sandbox_guard', hook)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod._incidental_outside
+        return _hook_module()._incidental_outside
     except Exception:                                            # noqa: BLE001
         return None
 
@@ -473,6 +541,19 @@ def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
         notes.append(f'guard log {guard_log} is missing. The runtime boundary cannot '
                      'be shown to have held, so it is treated as though it did not.')
         contaminated = True
+
+    if SEED_DENYLIST_NOTE:
+        notes.append(SEED_DENYLIST_NOTE)
+
+    if counters['seed_denylist']:
+        # Denied, so nothing was learned -- but an agent reaching for the seed
+        # files is worth seeing, and a run with many such attempts is a run whose
+        # prompts are pointing it somewhere it must not go.
+        notes.append(
+            f"{counters['seed_denylist']} attempt(s) to open a corpus seed-denylisted "
+            'file (the challenge model, anti-cheat, or the seed-data creator) were '
+            'denied by the hook. The reads did not happen, so the run stands; if the '
+            'count is large, the inputs are pointing the agent at those files.')
 
     scrub_block = {
         'bug_report_clean': True,

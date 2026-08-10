@@ -55,6 +55,126 @@ PATH_DENY_PATTERNS = [
     r'(^|/)rsn(/|$)',
 ]
 
+# ----------------------------------------------------------------------------
+# Seed denylist -- files inside the target app that enumerate the answers
+# ----------------------------------------------------------------------------
+#
+# A handful of files in the corpus reference every challenge by name for
+# legitimate structural reasons: the challenge model, the anti-cheat bookkeeping
+# and the seed-data creator. Reading any of them hands over the list of things
+# the run is being scored on, so the scanner has refused them since
+# 2026-07-28 (CLAUDE.md, third instance).
+#
+# The patcher never picked that up. This is the same failure mode the third
+# instance records -- a guard that existed and was correct, and a component
+# built later that silently never imported it -- so the list is NOT copied here.
+# It is parsed at load time from the scanner's own module, which stays the one
+# source of truth. `tests/test_sandbox_guard.py` asserts the parse matches what
+# that file actually contains, so the two cannot drift apart unnoticed.
+
+READ_GUARD_TS = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    '..', '..', 'scanner', 'shared', 'read-guard.ts'))
+
+# SEED_DENYLIST entries are repo-relative (`target-apps/<app>/lib/antiCheat.ts`).
+# A patcher work tree is a copy of one target app, so the corpus root is stripped
+# to leave the tree-relative path the agent would actually type.
+_CORPUS_ROOT_RE = re.compile(r'^target-apps/[^/]+/')
+
+# A FLOOR, not a copy of the list: these are unioned in so that a read-guard.ts
+# that cannot be read, cannot be parsed, or has been emptied still leaves the
+# known-bad names denied. Failing open here would be worse than having no guard,
+# because the log would claim the boundary held. A test asserts this floor is a
+# subset of what read-guard.ts declares, so it can never quietly become the only
+# thing in force.
+SEED_DENYLIST_FLOOR = ('models/challenge.ts', 'lib/antiCheat.ts',
+                       'data/datacreator.ts')
+
+
+def parse_seed_denylist(path: str = READ_GUARD_TS):
+    """Parse SEED_DENYLIST out of the scanner's read-guard.
+
+    Returns (tree_relative_paths, source_description, parse_error_or_None).
+    Never raises: on any failure it returns the fail-closed floor and the reason,
+    which the caller surfaces in the denial text and the audit.
+    """
+    try:
+        with open(path) as fh:
+            src = fh.read()
+        # `[^=]*` spans the type annotation (`: readonly string[]`) without
+        # crossing the assignment.
+        m = re.search(r'\bSEED_DENYLIST\b[^=]*=\s*\[(.*?)\]', src, re.S)
+        if not m:
+            raise ValueError('no SEED_DENYLIST array found')
+        entries = re.findall(r"""['"]([^'"]+)['"]""", m.group(1))
+        if not entries:
+            raise ValueError('SEED_DENYLIST is empty')
+        rel = []
+        for raw in entries:
+            r = _CORPUS_ROOT_RE.sub('', raw.strip()).strip('/')
+            if r and r not in rel:
+                rel.append(r)
+        return tuple(rel), path, None
+    except Exception as ex:                                      # noqa: BLE001
+        return (), path, f'{type(ex).__name__}: {ex}'
+
+
+_parsed, SEED_DENYLIST_SOURCE, SEED_DENYLIST_PARSE_ERROR = parse_seed_denylist()
+
+SEED_DENYLIST_PARSED = _parsed
+SEED_DENYLIST_RELPATHS = tuple(
+    list(_parsed) + [p for p in SEED_DENYLIST_FLOOR if p not in _parsed])
+SEED_DENYLIST_BASENAMES = frozenset(
+    os.path.basename(p) for p in SEED_DENYLIST_RELPATHS)
+
+# Anchored at a path boundary, for a value that is already a path.
+_SEED_PATH_RE = [re.compile(r'(^|/)' + re.escape(p) + r'$', re.IGNORECASE)
+                 for p in SEED_DENYLIST_RELPATHS]
+# Unanchored, for a whole Bash command line. A denylisted name appearing
+# anywhere in a command is denied: `python3 -c "open('data/datacreator.ts')"`
+# and a heredoc are reads too, and no token-level rule sees them. The lookarounds
+# keep `challenge.model.ts` and `antiCheat.unit.test.ts` out of it.
+_SEED_TEXT_RE = [re.compile(r'(?<![\w.\-])' + re.escape(b) + r'(?![\w.\-])',
+                            re.IGNORECASE)
+                 for b in sorted(SEED_DENYLIST_BASENAMES)]
+
+_SEED_DENY_MSG = (
+    'is on the corpus seed denylist. It enumerates the challenges this run is '
+    'scored against, so reading it would end the run\'s blindness. It is denied '
+    'for reads and writes alike, in every phase; no task is ever assigned to it. '
+    'Work from the bug report and the code around it.')
+
+
+def _seed_source_note() -> str:
+    if SEED_DENYLIST_PARSE_ERROR:
+        return (f' [denylist source {SEED_DENYLIST_SOURCE} could not be parsed '
+                f'({SEED_DENYLIST_PARSE_ERROR}); running on the fail-closed floor]')
+    return ''
+
+
+def seed_denylist_hit_path(value: str):
+    """The denylisted relative path a path-shaped value names, or None."""
+    if not value or not isinstance(value, str):
+        return None
+    probe = value.replace('\\', '/').rstrip('/')
+    for rel, rx in zip(SEED_DENYLIST_RELPATHS, _SEED_PATH_RE):
+        if rx.search(probe):
+            return rel
+    if os.path.basename(probe) in SEED_DENYLIST_BASENAMES:
+        return os.path.basename(probe)
+    return None
+
+
+def seed_denylist_hit_text(text: str):
+    """The denylisted name a free-form command line mentions, or None."""
+    if not text or not isinstance(text, str):
+        return None
+    for b, rx in zip(sorted(SEED_DENYLIST_BASENAMES), _SEED_TEXT_RE):
+        if rx.search(text):
+            return b
+    return None
+
+
 # Applied to SEARCH intent -- Grep/Glob patterns, and the arguments of grep,
 # rg, find, ag, ack, fd in a Bash command. Looser than the path set on purpose:
 # looking for these is itself the behaviour being prevented, and a false
@@ -236,6 +356,11 @@ def check_path(raw: str, cwd: str, tree: str, *, writing: bool,
         return deny('answer_key_pattern',
                     f'path matches a withheld-material pattern ({hit!r}): {raw}')
 
+    seed = seed_denylist_hit_path(raw)
+    if seed:
+        named = raw if raw == seed else f'{raw} ({seed})'
+        return deny('seed_denylist', f'{named} {_SEED_DENY_MSG}{_seed_source_note()}')
+
     resolved = _resolve(raw, cwd)
 
     if not _inside(resolved, tree):
@@ -250,10 +375,18 @@ def check_path(raw: str, cwd: str, tree: str, *, writing: bool,
         return deny('answer_key_pattern',
                     f'resolved path matches a withheld-material pattern ({hit!r})')
 
+    rel = _rel(resolved, tree)
+
+    # After resolution, so `data/../data/datacreator.ts` and a symlink planted
+    # inside the tree are the same thing to the guard as the plain name.
+    seed = seed_denylist_hit_path(rel)
+    if seed:
+        return deny('seed_denylist',
+                    f'{raw} resolves to {rel}, which {_SEED_DENY_MSG}'
+                    f'{_seed_source_note()}')
+
     if not writing:
         return ALLOW
-
-    rel = _rel(resolved, tree)
 
     if rel.startswith(PROTECTED_WRITE_PREFIXES) or rel in PROTECTED_WRITE_EXACT:
         return deny('test_dir_write',
@@ -314,6 +447,16 @@ def check_bash(command: str, cwd: str, tree: str, *, phase: str, task: str,
         if re.search(pat, command, re.IGNORECASE):
             return deny('answer_key_pattern',
                         f'command matches a configured deny pattern ({pat!r})')
+
+    # Whole-line, before tokenising. A denylisted file can be read by a command
+    # whose path never appears as its own token -- `python3 -c "...open(...)"`,
+    # a heredoc, `node -e`, a quoted argument to an interpreter -- and none of
+    # those reach the per-token path check below.
+    seed = seed_denylist_hit_text(command)
+    if seed:
+        return deny('seed_denylist',
+                    f'command names {seed}, which {_SEED_DENY_MSG}'
+                    f'{_seed_source_note()}')
 
     for segment in _split_commands(command):
         try:

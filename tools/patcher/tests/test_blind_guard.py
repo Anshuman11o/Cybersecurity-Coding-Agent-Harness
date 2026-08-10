@@ -157,6 +157,45 @@ def test_blanket_category_tagging_rejected(tmp_path):
         blind_guard.load_bug_report(write(tmp_path, 'b.json', br))
 
 
+# -- seed denylist ----------------------------------------------------------
+#
+# The sandbox hook denies these files at read time. Catching them here as well
+# means the run stops before a dollar is spent, and says which file and why,
+# instead of dispatching a task the agent cannot possibly do.
+
+def test_seed_denylist_comes_from_the_scanner_read_guard():
+    """One source of truth, reached through the hook rather than re-copied."""
+    assert set(blind_guard.SEED_DENYLIST) >= {
+        'models/challenge.ts', 'lib/antiCheat.ts', 'data/datacreator.ts'}
+    assert blind_guard.SEED_DENYLIST_NOTE is None
+
+
+@pytest.mark.parametrize('rel', [
+    'models/challenge.ts', 'lib/antiCheat.ts', 'data/datacreator.ts'])
+def test_bug_in_denylisted_file_is_rejected(tmp_path, rel):
+    br = _bug_report()
+    br['bugs'][0]['location']['file'] = rel
+    with pytest.raises(ValueError) as ex:
+        blind_guard.load_bug_report(write(tmp_path, 'b.json', br))
+    msg = str(ex.value)
+    assert rel in msg and 'seed denylist' in msg
+    assert 'read-guard.ts' in msg
+
+
+def test_denylisted_file_in_scoped_files_is_rejected(tmp_path):
+    br = _bug_report()
+    br['scoped_files'] = ['routes/search.ts', 'data/datacreator.ts']
+    with pytest.raises(ValueError, match='seed denylist'):
+        blind_guard.load_bug_report(write(tmp_path, 'b.json', br))
+
+
+def test_ordinary_file_is_not_mistaken_for_a_denylisted_one(tmp_path):
+    br = _bug_report()
+    br['bugs'][0]['location']['file'] = 'frontend/src/app/Models/challenge.model.ts'
+    doc, rep = blind_guard.load_bug_report(write(tmp_path, 'b.json', br))
+    assert doc['bugs'][0]['location']['file'].endswith('challenge.model.ts')
+
+
 def test_playbook_entry_without_guidance_rejected(tmp_path):
     pb = _playbook()
     pb['entries'][0]['guidance'] = '   '
@@ -214,6 +253,20 @@ def test_answer_key_denial_contaminates(tmp_path):
     audit = blind_guard.audit_run(str(log))
     assert audit['contaminated']
     assert audit['runtime_denials']['answer_key_pattern'] == 1
+
+
+def test_seed_denylist_denial_is_counted_and_noted(tmp_path):
+    """The read was denied, so nothing leaked and the run stands -- but an agent
+    reaching for the seed files is a fact the report has to carry."""
+    log = tmp_path / 'guard.jsonl'
+    log.write_text(json.dumps({'allowed': False, 'kind': 'seed_denylist',
+                               'reason': 'data/datacreator.ts is on the corpus '
+                                         'seed denylist',
+                               'task': 'BUG-001', 'phase': 'fix'}) + '\n')
+    audit = blind_guard.audit_run(str(log))
+    assert not audit['contaminated']
+    assert audit['runtime_denials']['seed_denylist'] == 1
+    assert any('seed-denylisted' in n for n in audit['notes'])
 
 
 def test_test_dir_denial_does_not_contaminate(tmp_path):
