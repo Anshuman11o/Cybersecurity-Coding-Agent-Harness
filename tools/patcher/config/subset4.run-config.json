@@ -18,7 +18,7 @@
   },
 
   "target": {
-    "base_tree": "target-apps/juice-shop-blind",
+    "base_tree": "/home/user/patcher-work/base/juice-shop-blind",
     "work_tree": "/home/user/patcher-work/subset4/tree",
     "node_modules": "/home/user/patcher-work/node_modules",
     "_comment": [
@@ -33,6 +33,8 @@
     "runner": "claude-cli",
     "model": "opus",
     "role_models": {},
+    "effort": "high",
+    "reasoning": true,
     "max_turns": 120,
     "timeout_s": 2400,
     "permission_mode": "acceptEdits",
@@ -42,7 +44,13 @@
     "_comment": [
       "Unchanged from the example. allowed_tools deliberately omits WebFetch and",
       "WebSearch: upstream Juice Shop is the answer key, and one fetch of it would",
-      "end this run's validity."
+      "end this run's validity.",
+      "effort and reasoning are stated here rather than inherited, even though these",
+      "are exactly the defaults: this subset's numbers get compared across runs, and a",
+      "config that leans on a default records what the default WAS, not what this run",
+      "ran at. If the default ever moves, this file still says high.",
+      "Read the example config for what they cost - roughly 2-3x the output (thinking)",
+      "tokens of low effort, on every invocation of every task."
     ]
   },
 

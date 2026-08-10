@@ -56,6 +56,32 @@ The three conditions are all load-bearing and the tests pin each:
                  without it, rather than assumed. It is a real trade: the reused
                  workflow test was written to characterise a different bug in
                  that file, so it is a weaker oracle for this one.
+
+WHAT THIS STILL RECORDS PER TASK, AND WHY
+
+v3 moved the fix/verify/reconcile loop inside the agent's turn. It did NOT move
+the task record. `ARCHITECTURE.md` §2 defines seven terminal dispositions and is
+explicit that `fixed` and `fixed_workflow_only` are never summed; §5.1 says the
+report carries one record per bug. Both are what the eval reads, and neither is a
+consequence of WHO ran the gates -- so v3 emits a record per bug with a
+disposition from exactly that seven-value set, and the denominator stays whole
+even for a task the run never reached.
+
+What v3 cannot do is claim those dispositions are MEASURED. So every record
+carries `disposition_basis`:
+
+    measured   the dispatcher observed it itself, without running a patcher gate:
+               the invocation returned or did not, the gate artefacts are on disk
+               or are not, the task changed source files or did not, the chunk's
+               submission merged or was rolled back byte for byte.
+    attested   it rests on the agent's own report in `characterisation.json` or
+               `attestation.json`.
+
+A v3 `fixed` is an ATTESTED fixed. It is not comparable with a v1 or v2 `fixed`
+and must never be pooled with one -- which is why the basis is a field rather
+than a footnote. `measured.rounds` is empty and `measured.rounds_to_green` is
+null for every v3 task, because no orchestrator-side round exists to record.
+Those are nulls meaning "not measured", never zeros meaning "measured and clean".
 """
 from __future__ import annotations
 
@@ -68,6 +94,7 @@ from dataclasses import dataclass, field
 
 import blind_guard
 import prompts
+import task_loop
 import testmap
 import verify
 import workspace
@@ -77,8 +104,43 @@ from . import merge_queue as mq
 
 SEED_EXCLUDES = ('.patcher-snapshots', workspace.SCRATCH_DIRNAME)
 
-CHARACTERISE_PHASE = 'v3-characterise'
-PATCH_PHASE = 'v3-patch'
+# The phase name is not a label. It is the argument the sandbox hook is launched
+# with (`agent.ClaudeCliRunner._settings_path` -> `sandbox_guard.py --phase`), and
+# the hook's whole phase-dependent behaviour keys off these two exact strings:
+#
+#   'characterise'  source is read-only, so the baseline cannot be captured from
+#                   code the agent has already edited
+#   'fix'           workflow.test.ts and exploit.probe.ts are frozen, so an agent
+#                   that cannot pass its own gate cannot edit the gate instead
+#
+# v3 originally sent 'v3-characterise' and 'v3-patch'. `sandbox_guard.main()`
+# declares `--phase` with `choices=[characterise, fix, reconcile, other]`, so
+# argparse rejected them, the guard exited 2 having written no decision, and every
+# tool call in the run took the fail-path of a PreToolUse hook that never
+# answered. Even had it parsed, neither string matches `phase == 'characterise'`
+# or `phase in ('fix', 'reconcile')`, so characterisation would have been free to
+# edit source and the fix phase free to rewrite its own oracle.
+#
+# This is the v2 denylist failure repeated: a guard that existed, was correct, and
+# was never wired into the fork. The names below are the hook's vocabulary and
+# must stay that way; the per-phase log FILENAMES below still say 'characterise'
+# and 'patch', which is where the v3-specific naming belongs.
+CHARACTERISE_PHASE = 'characterise'
+PATCH_PHASE = 'fix'
+
+# ARCHITECTURE.md §2. Nothing else is permitted, in v1 or here.
+DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'already_remediated', 'abandoned',
+                'partial', 'agent_failed', 'blocked')
+GREEN_DISPOSITIONS = ('fixed', 'fixed_workflow_only')
+
+# v1 also reverts `abandoned`, because there it means "the orchestrator's gates
+# were still red when the budget ran out". v3 has no such gate, so `abandoned`
+# here only ever means "this task changed nothing" or "its chunk was rolled back
+# at the merge queue" -- in both cases there is nothing left to revert.
+REVERT_DISPOSITIONS = frozenset({'agent_failed', 'blocked'})
+
+MEASURED = 'measured'
+ATTESTED = 'attested'
 
 
 # ----------------------------------------------------------------------------
@@ -134,14 +196,49 @@ Produce exactly three files in `{scratch}`:
   whether your fix broke the product.
 - `exploit.probe.ts` — a standalone script that exercises the vulnerable path and
   prints exactly `PROVEN` or `NOT_PROVEN` as its last line. It should print
-  `PROVEN` now.
-- `characterisation.json` — what correct behaviour is, what the defect is, which
-  existing test files cover this path, what you expect to change.
+  `PROVEN` now. If you cannot make it print `PROVEN`, say so honestly below: the
+  defect is still real, you have just not found the way to trigger it, and that
+  gets recorded rather than papered over. Do not fake a `PROVEN`.
+- `characterisation.json` — **exactly these keys**:
+
+```json
+{{"bug_id": "{bug_id}",
+  "correct_behaviour": "what a legitimate user of this code path is entitled to",
+  "defect_mechanism": "why the current code is exploitable, in your own words",
+  "workflow_test_written": true,
+  "workflow_test_passes_now": true,
+  "probe_written": true,
+  "probe_result_now": "PROVEN" | "NOT_PROVEN",
+  "probe_notes": "if NOT_PROVEN, what you tried and where it stopped; else null",
+  "related_test_files": ["existing test files under test/ that exercise this path"],
+  "intended_change": "the shape of the fix you expect to make",
+  "risk_to_workflow": "which legitimate behaviour your change could plausibly break"}}
+```
+
+Three of those keys are read by the orchestrator and none of them can be
+recovered later, so spell them exactly. `related_test_files` becomes the
+regression net you are handed in the next step — name the files that genuinely
+exercise this code, because nothing else will find them for you.
+`workflow_test_passes_now` and `probe_result_now` are the only record of whether
+this task had a working oracle at all; they are recorded as YOUR report, and a
+run that reports what it intended to observe rather than what it observed is
+worse than a run that reports a failure.
 
 Run them yourself and confirm before you finish:
 
     {workflow_cmd}
     {probe_cmd}
+"""
+
+CHARACTERISE_RETRY = """\
+
+---
+
+## Your previous attempt did not satisfy this step
+
+{problems}
+
+Fix these and finish the step. Do not modify application source.
 """
 
 PATCH_BODY = """\
@@ -341,6 +438,129 @@ def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
 
 
 # ----------------------------------------------------------------------------
+# The task record
+# ----------------------------------------------------------------------------
+
+def _record_skeleton(chunk_id: str, bug: dict, task_id: str) -> dict:
+    """One record per bug, in the shape `ARCHITECTURE.md` §5.1 names.
+
+    `measured` holds only what the dispatcher observed by looking; `attested`
+    holds what the agent said. The two are never merged, and the null defaults
+    below mean NOT MEASURED rather than measured-and-false. A consumer that
+    treats `probe_proven_pre_fix: null` as falsey under-reports probe coverage,
+    which is the safe direction; one that treated it as zero rounds to green
+    would over-report, so `rounds` is an empty list and `rounds_to_green` a null
+    with `gates_run: 0` beside them saying why.
+    """
+    loc = bug.get('location') or {}
+    return {
+        'bug_id': bug.get('bug_id'),
+        'chunk_id': chunk_id,
+        'file': loc.get('file'),
+        'task_id': task_id,
+        'location': {'file': loc.get('file'), 'line': loc.get('line')},
+        'class': bug.get('class'),
+        'characterised': False,
+        'reused_from': None,
+        'attempted': False,
+        'related_test_files': [],
+        'disposition': 'blocked',
+        'disposition_basis': MEASURED,
+        'disposition_reason': 'the task record was never completed',
+        'merge_verdict': None,
+        'measured': {
+            'characterisation': {
+                # Gates G1 and G2 need the artefacts RUN, and v3's orchestrator
+                # runs no patcher gate. What it can see is whether they exist.
+                'workflow_green_pre_fix': None,
+                'probe_proven_pre_fix': None,
+                'workflow_test_written': False,
+                'probe_written': False,
+                'characterisation_parsed': False,
+                'attempts': 0,
+                'workflow_test_path': None,
+                'exploit_probe_path': None,
+                'related_test_files': [],
+            },
+            'rounds': [],
+            'final_gates': {},
+            'rounds_to_green': None,
+            'gates_run': 0,
+            'gates_not_run_reason':
+                'v3 runs the fix/verify/reconcile loop inside one agent '
+                'invocation, so no orchestrator-side round or gate result exists '
+                'for this task. See docs/patcher/ARCHITECTURE-V3.md §7.',
+            'wall_s': 0.0,
+            'cost_usd': 0.0,
+            'invocations': [],
+        },
+        'attested_characterisation': None,
+        'attested': None,
+        'attestation_delta': None,
+        'diff_stats': {'files_touched': [], 'lines_added': 0, 'lines_removed': 0,
+                       'touched_outside_bug_file': False, 'net_deletion': False},
+        'violations': [],
+    }
+
+
+def _unreached_record(chunk_id: str, bug: dict, why: str) -> dict:
+    """A bug the chunk never got to.
+
+    It gets a record anyway. `chunk_map` refuses a map whose bugs do not add up
+    precisely because a denominator that quietly shrinks makes a run read as a
+    BETTER result than it is, and a chunk that stopped on its cost ceiling would
+    do exactly that if its remaining bugs simply vanished from `tasks[]`.
+    """
+    rec = _record_skeleton(chunk_id, bug, task_id_for(chunk_id, bug.get('bug_id')))
+    rec['disposition'] = 'blocked'
+    rec['disposition_basis'] = MEASURED
+    rec['disposition_reason'] = (
+        f'the chunk stopped ({why}) before this task was reached. Nothing was '
+        'attempted and nothing was measured; it is recorded so the denominator '
+        'still matches the map.')
+    return rec
+
+
+def attested_characterisation(char: dict | None) -> dict | None:
+    """The agent's own account of whether it had a working oracle.
+
+    v1 measures this: it runs `workflow.test.ts` and `exploit.probe.ts` against
+    the untouched tree itself. v3 cannot, so it reads what the agent reported --
+    and the ONLY reason it is worth reading is that `fixed` versus
+    `fixed_workflow_only` turns on it. Dropping it would collapse the two into a
+    single "fixed" count, which is the exact false-confidence failure
+    `docs/patcher/EVAL-METRICS.md` exists to catch.
+    """
+    if not isinstance(char, dict):
+        return None
+    probe = str(char.get('probe_result_now') or '').strip().upper()
+    return {
+        'basis': ATTESTED,
+        'workflow_green_pre_fix': bool(char.get('workflow_test_passes_now')),
+        'probe_proven_pre_fix': probe == verify.PROVEN,
+        'probe_result_now': probe or None,
+        'probe_notes': char.get('probe_notes'),
+    }
+
+
+def _dispose(rec: dict, disposition: str, basis: str, reason: str | None) -> dict:
+    assert disposition in DISPOSITIONS, disposition
+    rec['disposition'] = disposition
+    rec['disposition_basis'] = basis
+    rec['disposition_reason'] = reason
+    return rec
+
+
+def disposition_counts(records) -> dict:
+    counts = {d: 0 for d in DISPOSITIONS}
+    for r in records:
+        d = r.get('disposition')
+        if d in counts:
+            counts[d] += 1
+    return counts
+
+
+# ----------------------------------------------------------------------------
 # Results
 # ----------------------------------------------------------------------------
 
@@ -351,6 +571,7 @@ class ChunkResult:
     phase: int
     tree: str
     tasks: list = field(default_factory=list)
+    dispositions: dict = field(default_factory=dict)
     stopped: str | None = None
     cost_usd: float = 0.0
     invocations: int = 0
@@ -450,21 +671,34 @@ class Dispatcher:
         guard = os.path.join(self.run_dir, 'guard', f'{a.chunk_id}.jsonl')
         os.makedirs(os.path.dirname(guard), exist_ok=True)
 
-        for bug in a.tasks:
+        # file:line -> the bug whose fix already changed that location in THIS
+        # chunk's tree. ARCHITECTURE.md §③ G2: a probe that will not fire at a
+        # location an earlier task already edited means the defect was closed
+        # upstream, not that this task fixed it. Bug-wise tasks make that the
+        # common case rather than the exotic one -- a chunk IS a file and its
+        # bugs -- so v3 needs it more than v1 did.
+        remediated: dict = {}
+
+        for i, bug in enumerate(a.tasks):
+            stop = None
             if self._over_ceiling():
-                res.stopped = 'cost_ceiling'
+                stop = 'cost_ceiling'
                 self.log(f'  [{a.chunk_id}] stopping: cost ceiling '
                          f'${self.cost_ceiling_usd} reached at ${self.spend_usd}')
-                break
-            if self.chunk_timeout_s and (time.time() - t0) > self.chunk_timeout_s:
-                res.stopped = 'timeout'
+            elif self.chunk_timeout_s and (time.time() - t0) > self.chunk_timeout_s:
+                stop = 'timeout'
                 self.log(f'  [{a.chunk_id}] stopping: chunk timeout '
                          f'{self.chunk_timeout_s}s exceeded')
+            if stop:
+                res.stopped = stop
+                res.tasks.extend(_unreached_record(a.chunk_id, b, stop)
+                                 for b in a.tasks[i:])
                 break
 
-            rec = self._run_task(a, bug, tree, characterised, guard, res)
+            rec = self._run_task(a, bug, tree, characterised, remediated, guard, res)
             res.tasks.append(rec)
 
+        res.dispositions = disposition_counts(res.tasks)
         res.declared = read_declarations(tree, a.chunk_id)
         res.changed_files = self._changed(tree)
         res.boundary_review = a.boundary.review(
@@ -472,63 +706,290 @@ class Dispatcher:
         res.wall_s = time.time() - t0
         return res
 
-    def _run_task(self, a, bug, tree, characterised, guard, res) -> dict:
+    def _run_task(self, a, bug, tree, characterised, remediated, guard, res) -> dict:
+        """One bug, start to finish, in this chunk's tree.
+
+        The steps and their order are `ARCHITECTURE.md`'s, unchanged: record what
+        correct behaviour is before touching anything, then fix, then verify
+        against that record, then reconcile, then attest. What v3 changed is that
+        the middle three happen inside one invocation instead of three. What it
+        did NOT change is that the task ends with a disposition.
+        """
+        t0 = time.time()
         bug_id = bug['bug_id']
         rel_file = bug['location']['file']
+        loc_key = f"{rel_file}:{bug['location'].get('line')}"
         reused_from = characterised.get(rel_file) if self.reuse_characterisation else None
         task_id = task_id_for(a.chunk_id, reused_from or bug_id)
         scratch_rel = workspace.scratch_rel(task_id)
-        rec = {'bug_id': bug_id, 'file': rel_file, 'task_id': task_id,
-               'characterised': False, 'reused_from': reused_from,
-               'invocations': [], 'cost_usd': 0.0}
+        rec = _record_skeleton(a.chunk_id, bug, task_id)
+        rec['reused_from'] = reused_from
+        rec['attempted'] = True
+        ch = rec['measured']['characterisation']
 
-        if reused_from is None:
-            workspace.ensure_scratch(tree, task_id)
+        # The task's own baseline, so `diff_stats` describes THIS bug rather than
+        # everything the chunk has done so far, and so a failed invocation's
+        # half-edit can be taken back out of a tree the next task inherits.
+        snap = workspace.snapshot(tree, f'task-{a.chunk_id}-{bug_id}')
+        try:
+            char = self._characterise(a, bug, tree, task_id, scratch_rel, guard,
+                                      rec, res, snap) if reused_from is None else None
+            if reused_from is not None:
+                self.log(f'  [{a.chunk_id}] {bug_id}: reusing characterisation from '
+                         f'{reused_from} ({rel_file})')
+                char = _read_json(
+                    os.path.join(tree, scratch_rel, 'characterisation.json'))
+                # The artefacts are the earlier task's, but they ARE on disk and
+                # they ARE what this task is measured against. Recording them as
+                # absent would read as a blocked characterisation.
+                wf_rel = f'{scratch_rel}/workflow.test.ts'
+                probe_rel = f'{scratch_rel}/exploit.probe.ts'
+                wf_here = os.path.isfile(os.path.join(tree, wf_rel))
+                probe_here = os.path.isfile(os.path.join(tree, probe_rel))
+                ch.update({'workflow_test_written': wf_here,
+                           'probe_written': probe_here,
+                           'characterisation_parsed': isinstance(char, dict),
+                           'workflow_test_path': wf_rel if wf_here else None,
+                           'exploit_probe_path': probe_rel if probe_here else None})
+            else:
+                characterised[rel_file] = bug_id
+
+            attested_ch = attested_characterisation(char)
+            # A reused oracle was authored for a different defect in this file, so
+            # its PROVEN says nothing about THIS one. Recorded as the other bug's
+            # evidence rather than borrowed as this bug's.
+            if reused_from is not None and attested_ch:
+                attested_ch = dict(attested_ch, reused_from=reused_from,
+                                   probe_proven_pre_fix=False,
+                                   probe_notes='probe was authored for '
+                                               f'{reused_from}, not for this bug')
+            rec['attested_characterisation'] = attested_ch
+
+            # The regression net, resolved before the patch prompt is built. v3
+            # runs no per-task net of its own, so what goes into this prompt is
+            # the only per-task check for collateral damage that exists.
+            # Agent-named files are unioned with a static scan for the same reason
+            # v2 does it: the agent misses tests it did not think to look for, the
+            # scan misses tests that reach the code through indirection.
+            related = testmap.select(tree, [rel_file],
+                                     (char or {}).get('related_test_files') or [])
+            rec['related_test_files'] = related
+            ch['related_test_files'] = related
+
+            skip = self._pre_fix_disposition(rec, ch, attested_ch, loc_key,
+                                             remediated, reused_from)
+            if not skip:
+                inv = self.runner.run(
+                    build_patch_prompt(a, bug, tree=tree, cfg=self.cfg, cmap=self.cmap,
+                                       playbook=self.playbook, scratch_rel=scratch_rel,
+                                       reused_from=reused_from,
+                                       max_rounds=self.max_rounds,
+                                       related_files=related),
+                    cwd=tree, phase=PATCH_PHASE, task_id=task_id,
+                    log_path=os.path.join(self.run_dir, 'logs',
+                                          f'{task_id}-patch.json'),
+                    guard_log=guard)
+                self._note(rec, res, inv)
+                att_raw = _read_json(
+                    os.path.join(tree, scratch_rel, 'attestation.json'))
+                rec['attested'] = task_loop._normalise_attestation(att_raw)
+                changed = workspace.changed_files(tree, snap)
+                self._post_fix_disposition(rec, inv, attested_ch, changed,
+                                           reused_from)
+                if rec['disposition'] in GREEN_DISPOSITIONS or \
+                        rec['disposition'] == 'partial':
+                    remediated[loc_key] = bug_id
+
+            self._close_out(rec, tree, snap, bug)
+        finally:
+            workspace.discard_snapshot(snap)
+        rec['measured']['wall_s'] = round(time.time() - t0, 1)
+        return rec
+
+    # -- the phases of one task -------------------------------------------
+
+    def _characterise(self, a, bug, tree, task_id, scratch_rel, guard, rec, res, snap):
+        """Phase ①, with the half of its gate set the dispatcher can evaluate.
+
+        `G3` -- the three artefacts exist and `characterisation.json` parses -- is
+        a file-system fact and is checked and retried here, up to
+        `loop.characterise_rounds`, exactly as ARCHITECTURE.md specifies. `G1` and
+        `G2` need the artefacts RUN against the untouched tree, which is a patcher
+        gate, so in v3 they are the agent's report and are recorded as attested.
+
+        The source-read-only rule is enforced twice for the same reason v1
+        enforces it twice: the hook denies the write, and anything that got past
+        it is reverted here, because a baseline captured from code the agent had
+        already edited is not a baseline.
+        """
+        ch = rec['measured']['characterisation']
+        workspace.ensure_scratch(tree, task_id)
+        max_attempts = max(1, int(self.cfg.get('loop', {}).get('characterise_rounds', 2)))
+        base = build_characterise_prompt(a, bug, tree=tree, cfg=self.cfg,
+                                         cmap=self.cmap, scratch_rel=scratch_rel)
+        feedback, char = '', None
+
+        for attempt in range(1, max_attempts + 1):
+            ch['attempts'] = attempt
+            suffix = '' if attempt == 1 else f'-{attempt}'
             inv = self.runner.run(
-                build_characterise_prompt(a, bug, tree=tree, cfg=self.cfg,
-                                          cmap=self.cmap, scratch_rel=scratch_rel),
-                cwd=tree, phase=CHARACTERISE_PHASE, task_id=task_id,
+                base + feedback, cwd=tree, phase=CHARACTERISE_PHASE, task_id=task_id,
                 log_path=os.path.join(self.run_dir, 'logs',
-                                      f'{task_id}-characterise.json'),
+                                      f'{task_id}-characterise{suffix}.json'),
                 guard_log=guard)
             self._note(rec, res, inv)
             rec['characterised'] = True
-            characterised[rel_file] = bug_id
+
+            stray = workspace.changed_files(tree, snap)
+            if stray:
+                workspace.restore(tree, snap)
+                rec['violations'].append({
+                    'kind': 'source_edited_in_characterise',
+                    'detail': f'{len(stray)} source file(s) modified during '
+                              f'characterisation: {", ".join(stray[:6])}',
+                    'phase': CHARACTERISE_PHASE, 'auto_reverted': True})
+
+            char = _read_json(os.path.join(tree, scratch_rel, 'characterisation.json'))
+            wf_rel = f'{scratch_rel}/workflow.test.ts'
+            probe_rel = f'{scratch_rel}/exploit.probe.ts'
+            wf_here = os.path.isfile(os.path.join(tree, wf_rel))
+            probe_here = os.path.isfile(os.path.join(tree, probe_rel))
+            ch.update({'workflow_test_written': wf_here, 'probe_written': probe_here,
+                       'characterisation_parsed': isinstance(char, dict),
+                       'workflow_test_path': wf_rel if wf_here else None,
+                       'exploit_probe_path': probe_rel if probe_here else None})
+
+            problems = []
+            if not wf_here:
+                problems.append(f'`{wf_rel}` was not written. Without it nothing can '
+                                'tell a fixed defect from a broken feature.')
+            if not probe_here:
+                problems.append(f'`{probe_rel}` was not written.')
+            if not isinstance(char, dict):
+                problems.append(f'`{scratch_rel}/characterisation.json` is missing or '
+                                'is not valid JSON.')
+            if not problems:
+                break
+            if attempt < max_attempts:
+                feedback = CHARACTERISE_RETRY.format(
+                    problems='\n'.join(f'- {p}' for p in problems))
+                self.log(f'  [{a.chunk_id}] {bug["bug_id"]}: characterisation attempt '
+                         f'{attempt} incomplete ({len(problems)} problem(s)); retrying')
+        return char
+
+    def _pre_fix_disposition(self, rec, ch, attested_ch, loc_key, remediated,
+                             reused_from) -> bool:
+        """Decide, before spending the fix phase, whether it is worth spending.
+
+        Returns True when the task closes here. Both cases are ARCHITECTURE.md's:
+        no workflow record at all is `blocked` before a fix is attempted, and a
+        probe that will not fire at a location an earlier task already changed is
+        `already_remediated` and closes with no fix phase.
+        """
+        if not (ch['workflow_test_written'] and ch['characterisation_parsed']) \
+                and reused_from is None:
+            return bool(_dispose(
+                rec, 'blocked', MEASURED,
+                f"no workflow record on disk after {ch['attempts']} attempt(s): "
+                f"workflow_test_written={ch['workflow_test_written']}, "
+                f"characterisation_parsed={ch['characterisation_parsed']}. Without one "
+                'there is nothing to tell a fixed defect from a broken feature, so no '
+                'fix was attempted.'))
+
+        if (attested_ch and not attested_ch['probe_proven_pre_fix']
+                and reused_from is None and loc_key in remediated):
+            return bool(_dispose(
+                rec, 'already_remediated', ATTESTED,
+                f'the agent reported the probe never reached PROVEN, and '
+                f'{remediated[loc_key]} already changed {loc_key} earlier in this '
+                'chunk. Recorded as closed upstream rather than as a fix by this '
+                'task. Attested: the probe verdict is the agent\'s, not a '
+                'measurement.'))
+        return False
+
+    def _post_fix_disposition(self, rec, inv, attested_ch, changed, reused_from) -> None:
+        """The disposition, once the fix phase has returned.
+
+        Liveness and the diff are measured; everything green is attested, and
+        says so. The one thing that is never inferred is a bare `fixed` for a task
+        whose probe never demonstrated the defect -- that is
+        `fixed_workflow_only`, and the two are not summed.
+        """
+        att = rec['attested']
+        if not inv.ok:
+            _dispose(rec, 'agent_failed', MEASURED,
+                     f'the fix invocation did not return successfully: '
+                     f'{inv.reason or "no reason reported"}. Its edits, if any, were '
+                     'reverted rather than submitted unattested.')
+        elif att is None:
+            _dispose(rec, 'agent_failed', MEASURED,
+                     'the fix invocation returned but wrote no parseable '
+                     'attestation.json, which is the only durable output its contract '
+                     'names. Nothing about this task can be reported, so its edits '
+                     'were reverted rather than merged.')
+        elif att['status'] == 'fixed' and not changed:
+            _dispose(rec, 'abandoned', MEASURED,
+                     'the agent attested a fix and changed no source file. The '
+                     'measurement wins: nothing was patched.')
+        elif att['status'] == 'fixed':
+            proven = bool(attested_ch and attested_ch['probe_proven_pre_fix'])
+            if proven:
+                _dispose(rec, 'fixed', ATTESTED,
+                         'the agent reported both axes green in its own sandbox. '
+                         'Attested, not measured: v3 runs no orchestrator-side gate.')
+            else:
+                why = ('the probe was reused from ' + str(reused_from) +
+                       ' and does not exercise this defect' if reused_from
+                       else 'the probe never demonstrated the defect before the fix')
+                _dispose(rec, 'fixed_workflow_only', ATTESTED,
+                         f'the agent reported the workflow intact, but {why}, so the '
+                         'remediation axis is unverified even in-sandbox. Never summed '
+                         'with `fixed`.')
+        elif changed:
+            _dispose(rec, 'partial', ATTESTED,
+                     'the agent reported it did not close the defect within its own '
+                     'budget, and its work is retained: v3 submits a chunk whole, so '
+                     'there is no per-task revert that would not also drop the tasks '
+                     'around it.')
         else:
-            self.log(f'  [{a.chunk_id}] {bug_id}: reusing characterisation from '
-                     f'{reused_from} ({rel_file})')
+            _dispose(rec, 'abandoned', ATTESTED,
+                     'the agent reported it did not close the defect and left the tree '
+                     'unchanged.')
 
-        # The regression net, resolved before the patch prompt is built. v3 runs
-        # no per-task net of its own, so what goes into this prompt is the only
-        # per-task check for collateral damage that exists. Agent-named files are
-        # unioned with a static scan for the same reason v2 does it: the agent
-        # misses tests it did not think to look for, the scan misses tests that
-        # reach the code through indirection.
-        char = _read_json(os.path.join(tree, scratch_rel, 'characterisation.json')) or {}
-        related = testmap.select(tree, [rel_file], char.get('related_test_files') or [])
-        rec['related_test_files'] = related
+        # The agent's claim against what the dispatcher could see. Recorded,
+        # never used to alter the disposition.
+        if att:
+            green = rec['disposition'] in GREEN_DISPOSITIONS
+            if att['status'] == 'fixed' and not green:
+                rec['attestation_delta'] = {'agent_said': 'fixed',
+                                            'measurement_said': rec['disposition'],
+                                            'kind': 'overclaim'}
+            elif att['status'] == 'not_fixed' and green:
+                rec['attestation_delta'] = {'agent_said': 'not_fixed',
+                                            'measurement_said': rec['disposition'],
+                                            'kind': 'underclaim'}
 
-        inv = self.runner.run(
-            build_patch_prompt(a, bug, tree=tree, cfg=self.cfg, cmap=self.cmap,
-                               playbook=self.playbook, scratch_rel=scratch_rel,
-                               reused_from=reused_from, max_rounds=self.max_rounds,
-                               related_files=related),
-            cwd=tree, phase=PATCH_PHASE, task_id=task_id,
-            log_path=os.path.join(self.run_dir, 'logs', f'{task_id}-patch.json'),
-            guard_log=guard)
-        self._note(rec, res, inv)
-        rec['attestation'] = _read_json(
-            os.path.join(tree, scratch_rel, 'attestation.json'))
-        return rec
+    def _close_out(self, rec, tree, snap, bug) -> None:
+        """Revert if the disposition says so, then record what is actually left."""
+        if rec['disposition'] in REVERT_DISPOSITIONS:
+            try:
+                workspace.restore(tree, snap)
+            except workspace.WorkspaceError as ex:
+                rec['violations'].append({'kind': 'scratch_missing',
+                                          'detail': f'revert failed: {ex}',
+                                          'phase': PATCH_PHASE,
+                                          'auto_reverted': False})
+        diff = workspace.diff_against_snapshot(tree, snap)
+        rec['diff_stats'] = workspace.diff_stats(diff, bug['location']['file'])
 
     def _note(self, rec, res, inv) -> None:
         """Record an invocation. Liveness is exactly this: did it come back, and
         what did it cost. Nothing about WHAT it produced is looked at here."""
-        rec['invocations'].append({'phase': inv.phase, 'ok': inv.ok,
-                                   'reason': inv.reason,
-                                   'wall_s': round(inv.wall_s, 1),
-                                   'cost_usd': inv.cost_usd})
-        rec['cost_usd'] += float(inv.cost_usd or 0.0)
+        rec['measured']['invocations'].append(
+            {'phase': inv.phase, 'ok': inv.ok, 'reason': inv.reason,
+             'wall_s': round(inv.wall_s, 1), 'cost_usd': inv.cost_usd})
+        rec['measured']['cost_usd'] = round(
+            rec['measured']['cost_usd'] + float(inv.cost_usd or 0.0), 4)
         res.invocations += 1
         res.cost_usd += float(inv.cost_usd or 0.0)
         self._charge(inv.cost_usd)
@@ -573,10 +1034,15 @@ class Dispatcher:
                         # must not vanish from the denominator either.
                         self.log(f'  [{c.chunk_id}] !! crashed: '
                                  f'{type(ex).__name__}: {ex}')
+                        why = f'crash: {type(ex).__name__}: {ex}'
+                        unreached = [_unreached_record(c.chunk_id, b, why)
+                                     for b in self.assignments[c.chunk_id].tasks]
                         results.append(ChunkResult(
                             chunk_id=c.chunk_id, bracket=c.bracket, phase=phase_no,
                             tree=self.chunk_tree(c.chunk_id),
-                            stopped=f'crash: {type(ex).__name__}: {ex}'))
+                            tasks=unreached,
+                            dispositions=disposition_counts(unreached),
+                            stopped=why))
 
             results.sort(key=lambda r: r.chunk_id)
             queue = mq.MergeQueue(trunk=self.trunk, base_snap=base_snap,
@@ -593,6 +1059,7 @@ class Dispatcher:
                     boundary_review=r.boundary_review,
                     attestation=None))
             merged = queue.drain()
+            self._apply_merge_verdicts(results, merged)
         finally:
             workspace.discard_snapshot(base_snap)
             self._phase_base = None
@@ -603,10 +1070,42 @@ class Dispatcher:
             'workers': workers,
             'chunks': [r.as_record() for r in results],
             'merge': merged,
+            'dispositions': disposition_counts(
+                [t for r in results for t in r.tasks]),
             'wall_s': round(time.time() - t0, 1),
             'spend_usd': round(sum(r.cost_usd for r in results), 4),
             'tree_digest': workspace.tree_digest(self.trunk),
         }
+
+    @staticmethod
+    def _apply_merge_verdicts(results, merged) -> None:
+        """A rejected submission is rolled back byte for byte, so none of its
+        tasks reached the trunk.
+
+        Leaving them recorded as `fixed` would put work nobody shipped into the
+        run's headline count -- the flattering direction, and the one the
+        reporting rule exists to stop. `abandoned` is the disposition that already
+        means "this task's change is not in the tree", and it is a MEASURED fact
+        here: the queue observed the rollback. The pre-merge disposition is kept
+        alongside so the agent's own outcome is not erased by an integration
+        failure it did not cause.
+        """
+        rejected = {e['chunk_id'] for e in (merged.get('rejected') or [])}
+        accepted = {e['chunk_id'] for e in (merged.get('accepted') or [])}
+        for r in results:
+            verdict = ('rejected' if r.chunk_id in rejected
+                       else 'accepted' if r.chunk_id in accepted else None)
+            for rec in r.tasks:
+                rec['merge_verdict'] = verdict
+                if verdict != 'rejected' or not rec.get('attempted'):
+                    continue
+                if rec['disposition'] in REVERT_DISPOSITIONS:
+                    continue        # already reverted; the merge changes nothing
+                rec['disposition_before_merge'] = rec['disposition']
+                _dispose(rec, 'abandoned', MEASURED,
+                         "this chunk's submission was rejected at the merge queue and "
+                         'rolled back byte for byte, so no part of this task reached '
+                         f"the trunk (pre-merge disposition: {rec['disposition']}).")
 
     # -- the run -----------------------------------------------------------
 
@@ -623,11 +1122,34 @@ class Dispatcher:
         if phases is None or set(order) == set(self.cmap.phase_order()):
             suite = self._run_final_suite()
 
+        records = [t for p in out for c in p['chunks'] for t in c['tasks']]
         return {
             'mode': 'v3-dispatch',
             'map_id': self.cmap.map_id,
             'phases': out,
             'phase_order': order,
+            'tasks_total': len(records),
+            # Counted, never summed. `fixed` and `fixed_workflow_only` stay in
+            # separate buckets here for the same reason report.py keeps them
+            # apart: the second means the remediation axis was never demonstrated
+            # even in the agent's own sandbox.
+            'dispositions': disposition_counts(records),
+            # Every green disposition in a v3 run is the agent's own report. The
+            # split is emitted so a reader cannot mistake one for a measurement,
+            # and so a v3 row is never pooled with a v1 or v2 row.
+            'disposition_basis': {
+                MEASURED: sum(1 for r in records
+                              if r.get('disposition_basis') == MEASURED),
+                ATTESTED: sum(1 for r in records
+                              if r.get('disposition_basis') == ATTESTED),
+            },
+            'rounds_to_green': None,
+            'per_task_gates_run': 0,
+            'tasks_merge_rejected': sum(1 for r in records
+                                        if r.get('merge_verdict') == 'rejected'),
+            'attestation_overclaims': sum(
+                1 for r in records
+                if (r.get('attestation_delta') or {}).get('kind') == 'overclaim'),
             'reuse_characterisation': self.reuse_characterisation,
             'characterisations_reused': sum(
                 1 for p in out for c in p['chunks'] for t in c['tasks']

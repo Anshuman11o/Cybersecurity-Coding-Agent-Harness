@@ -28,6 +28,91 @@ from dataclasses import dataclass, field, asdict
 HOOK = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     'hooks', 'sandbox_guard.py')
 
+# ----------------------------------------------------------------------------
+# Effort and reasoning
+# ----------------------------------------------------------------------------
+# Both are passed as explicit CLI flags, which is the only channel that can be
+# shown to have been honoured. Verified against the installed binary, Claude Code
+# 2.1.226:
+#
+#   --effort <level>    documented in `claude --help`; the accepted set is the
+#                       binary's own constant ["low","medium","high","xhigh","max"].
+#   --thinking <mode>   registered with commander `.choices(["enabled","adaptive",
+#                       "disabled"])`. Hidden from --help, but validated: an
+#                       unknown value exits 1. "enabled" is documented in the
+#                       option's own help text as "equivalent to adaptive", and
+#                       adaptive is the mode that lets thinking scale with effort.
+#
+# The two flags fail differently, and that asymmetry is the reason for the
+# validation below. `--thinking bogus` exits 1 and nothing runs. `--effort bogus`
+# prints a warning to stderr and RUNS ANYWAY at the default effort, exit 0. The
+# runner captures stdout and parses the last line as JSON, so that warning would
+# be discarded and the run would complete, look clean, and be reported as a
+# high-effort run. A typo'd effort must therefore be caught before the run
+# starts, not diagnosed from a transcript afterwards.
+#
+# Settings-file and environment channels were both considered and rejected:
+#   - The `--settings` file (see `_settings_path`) does accept unknown keys
+#     silently, so a thinking key placed there is indistinguishable from a no-op.
+#     It is also the channel carrying the sandbox hook, and in `-p` mode a
+#     settings file that fails validation is ignored in full -- so an unproven key
+#     there risks silently disarming the guard.
+#   - MAX_THINKING_TOKENS does control thinking, but a positive value pins a FIXED
+#     budget (`{type:"enabled",budget_tokens:N}`) in place of adaptive, which is
+#     exactly what effort is supposed to be scaling. Setting it would defeat the
+#     thing we are turning up. CLAUDE_CODE_DISABLE_THINKING was measured to have
+#     no effect on this model path at all.
+EFFORT_LEVELS = ('low', 'medium', 'high', 'xhigh', 'max')
+REASONING_MODES = ('enabled', 'adaptive', 'disabled')
+
+DEFAULT_EFFORT = 'high'
+DEFAULT_REASONING = 'enabled'
+
+_REASONING_ALIASES = {'true': 'enabled', 'on': 'enabled', 'yes': 'enabled',
+                      'false': 'disabled', 'off': 'disabled', 'no': 'disabled'}
+
+
+def normalise_effort(value) -> str:
+    """Config value -> a level the CLI accepts. Absent means the default."""
+    if value is None:
+        return DEFAULT_EFFORT
+    level = str(value).strip().lower()
+    if level not in EFFORT_LEVELS:
+        raise ValueError(
+            f'agent.effort {value!r} is not a level this CLI accepts. Valid: '
+            f'{", ".join(EFFORT_LEVELS)}. Note that the CLI does NOT fail on an '
+            'unknown --effort value: it warns on stderr and runs at the default '
+            'effort anyway, so a typo here would produce a full run that reports '
+            'itself as high effort while having been anything but.')
+    return level
+
+
+def normalise_reasoning(value) -> str:
+    """Config value -> a `--thinking` mode. Absent means reasoning on."""
+    if value is None:
+        return DEFAULT_REASONING
+    if isinstance(value, bool):                  # before str(): bool is an int
+        return 'enabled' if value else 'disabled'
+    mode = str(value).strip().lower()
+    mode = _REASONING_ALIASES.get(mode, mode)
+    if mode not in REASONING_MODES:
+        raise ValueError(
+            f'agent.reasoning {value!r} is not a mode this CLI accepts. Valid: '
+            f'true/false, or one of {", ".join(REASONING_MODES)}.')
+    return mode
+
+
+def validate_agent_settings(cfg: dict) -> dict:
+    """Fail on a bad effort/reasoning value at config load, before any spend.
+
+    Called from `build_runner`, so it fires for every runner kind -- including
+    `fake`, where a typo would otherwise survive a rehearsal and only bite on the
+    paid run it was rehearsing for.
+    """
+    a = cfg.get('agent', {}) or {}
+    return {'effort': normalise_effort(a.get('effort')),
+            'reasoning': normalise_reasoning(a.get('reasoning'))}
+
 
 @dataclass
 class Invocation:
@@ -76,6 +161,10 @@ class ClaudeCliRunner(AgentRunner):
         self.max_turns = int(a.get('max_turns', 120))
         self.timeout_s = int(a.get('timeout_s', 2400))
         self.permission_mode = a.get('permission_mode', 'acceptEdits')
+        # Absent means high / on, so an existing config gets the intended
+        # settings without being edited.
+        self.effort = normalise_effort(a.get('effort'))
+        self.reasoning = normalise_reasoning(a.get('reasoning'))
         self.allowed_tools = list(a.get('allowed_tools',
                                         ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep']))
         self.rate_limit_probe_s = int(a.get('rate_limit_probe_s', 600))
@@ -128,6 +217,8 @@ class ClaudeCliRunner(AgentRunner):
     def _argv(self, settings_path: str, cwd: str) -> list:
         return (['claude', '-p', '--output-format', 'json',
                  '--model', self.model,
+                 '--effort', self.effort,
+                 '--thinking', self.reasoning,
                  '--permission-mode', self.permission_mode,
                  '--settings', settings_path,
                  '--max-turns', str(self.max_turns),
@@ -192,7 +283,13 @@ class ClaudeCliRunner(AgentRunner):
         return inv
 
     def describe(self) -> dict:
-        return {'runner': self.name, 'model': self.model, 'max_turns': self.max_turns}
+        # effort and reasoning travel in the report's agent_desc because the
+        # runtime does not echo them back: the result JSON carries no effort
+        # field, so the invocation record cannot be used to reconstruct what a
+        # run was set to. A run that cannot say what effort it used cannot be
+        # compared to one that can.
+        return {'runner': self.name, 'model': self.model, 'max_turns': self.max_turns,
+                'effort': self.effort, 'reasoning': self.reasoning}
 
 
 def _write(path: str, text: str):
@@ -249,6 +346,7 @@ def build_runner(cfg: dict, sandbox_dir: str, kind: str | None = None) -> AgentR
     orchestration loop.
     """
     kind = kind or cfg.get('agent', {}).get('runner', 'claude-cli')
+    validate_agent_settings(cfg)      # loudly, here, rather than 120 turns in
     if kind == 'fake':
         return FakeRunner()
     if kind == 'claude-cli':

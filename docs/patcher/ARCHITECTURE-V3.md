@@ -15,6 +15,97 @@ a v3 measurement behind it, because v3 has not been run.
 
 ---
 
+## 0. The inner loop is inherited, not redesigned
+
+**v3 changes only the outside of a task.** How work is parallelised, what the
+orchestrator does, what the inputs are, and how tasks are divided — bug-wise,
+constrained to an owned-file set, grouped into chunks one agent works through in
+order. That is the whole of the change.
+
+**The loop inside a task is the one specified in
+[`tools/patcher/ARCHITECTURE.md`](../../tools/patcher/ARCHITECTURE.md):** get the
+task, write the workflow test that records correct behaviour, write the exploit
+probe, fix the vulnerability, run the workflow test to confirm the feature is
+preserved, reconcile against the failures, repeat until the work is submitted or
+the agent gives up. Same steps, same order, same reasons. That document is the
+specification; this one does not restate it and does not override it. Where the
+two disagree about the loop, `ARCHITECTURE.md` is right.
+
+One thing genuinely moved, and everything in §0.3 follows from it: **in v1 and v2
+the orchestrator ran the gates between rounds and re-invoked the agent; in v3 the
+agent runs those same steps itself, inside one invocation.** The steps did not
+change. Who measures them did.
+
+### 0.1 Phase by phase
+
+| `ARCHITECTURE.md` §3 | v3 | What differs |
+|---|---|---|
+| **① CHARACTERISE** — one invocation, source read-only, writes `workflow.test.ts`, `exploit.probe.ts`, `characterisation.json` | identical, one invocation, source read-only (sandbox phase `characterise`) | it can be **skipped** when an earlier task in the same chunk already characterised this file (§6.1). Nothing else. |
+| **② FIX** — one invocation; source writable, gate artefacts and `test/` frozen | the first part of a single `fix` invocation; same frozen set, same house rules | folded together with ③ and ④ |
+| **③ VERIFY** — the orchestrator runs V1–V4, agent absent | the **agent** runs the same four commands, handed to it in its prompt | the change. No orchestrator-side gate result exists |
+| **④ RECONCILE** — orchestrator re-invokes with the structured failure list, loop while not green and rounds remain | the agent loops inside its own turn budget, up to `loop.reconcile_rounds`, on the same instruction (*the workflow test is the record of correct behaviour; do not edit the test to match the code*) | no per-round record, and the exit condition is the agent's judgement rather than a Python `while` |
+| **⑤ ATTEST** — the last `attestation.json` is read, not re-requested | identical | — |
+| **§4 between tasks** — snapshot, revert on the revert dispositions, harvest scratch, flush | per-task snapshot and revert on `agent_failed` / `blocked`; scratch stays in the chunk tree | a chunk is submitted **whole**, so there is no per-task revert that would not also drop the tasks around it |
+
+### 0.2 Gate by gate
+
+| Gate | v1/v2 | v3 | Basis in v3 |
+|---|---|---|---|
+| **G1** workflow test passes on the untouched tree | orchestrator runs it | the agent runs it and reports | *attested* |
+| **G2** probe prints `PROVEN` on the untouched tree | orchestrator runs it | the agent runs it and reports | *attested* — and this is the **only** thing separating `fixed` from `fixed_workflow_only`, which is why `characterisation.json` is required to carry `probe_result_now` |
+| **G3** the three artefacts exist and the JSON parses | orchestrator checks, retries up to `loop.characterise_rounds`, else `blocked` | **identical** — this is a filesystem fact and needs no gate run | *measured* |
+| **V1** typecheck · **V2** workflow · **V3** probe `NOT_PROVEN` · **V4** related tests vs baseline | orchestrator, every round, structured failures fed back | the agent, from commands in its prompt, on its own loop | *attested*, and not recorded per round |
+| **V5** blast radius (advisory) | orchestrator, per task | orchestrator, per task, from a per-task snapshot of the chunk tree | *measured* |
+| build (does the trunk still compile) | — | merge queue, once per submission | *measured* |
+| whole suite | — | once, after the last bracket | *measured* |
+
+### 0.3 Disposition by disposition
+
+All seven of `ARCHITECTURE.md` §2 are produced, and **nothing else is
+permitted**. Every record carries `disposition_basis`, because a v3 `fixed` is
+the agent's word and a v1 `fixed` was a measurement, and pooling the two would
+put a self-report into a column that reads as evidence.
+
+| Disposition | How v3 reaches it | Basis |
+|---|---|---|
+| `fixed` | the agent attested a fix, its probe demonstrated the defect before the change, and the task changed at least one source file | **attested** |
+| `fixed_workflow_only` | the agent attested a fix but the probe never reached `PROVEN`, **or** the oracle was reused from another bug in the file and so does not exercise this defect | **attested** |
+| `already_remediated` | the probe would not fire and an earlier task in the same chunk already changed that `file:line`. Closes with no fix phase, exactly as §③ G2 says | **attested** |
+| `partial` | the agent reported `not_fixed` and its work is retained | **attested** |
+| `abandoned` | the agent reported `not_fixed` and changed nothing; **or** attested a fix and changed nothing; **or** its chunk's submission was rejected at the merge queue and rolled back, so no part of it reached the trunk | **measured** in the second and third cases |
+| `agent_failed` | the fix invocation did not return, or returned and wrote no parseable `attestation.json` — its contract's only durable output. Edits reverted | **measured** |
+| `blocked` | no workflow record on disk after the characterise retries; or the chunk stopped (cost ceiling, timeout, crash) before this task was reached | **measured** |
+
+`fixed` and `fixed_workflow_only` are counted in separate buckets at task, chunk,
+phase and run level and are never summed — the same rule `report.py` encodes, for
+the same reason.
+
+**Bug-wise tasks make `already_remediated` common rather than exotic.** A chunk
+*is* a set of files and their bugs, so a later bug at a location an earlier fix
+already changed is the ordinary case. v1 could afford to treat it as a corner.
+v3 cannot.
+
+### 0.4 What the eval loses, stated as a list
+
+Not "degrades": loses. These fields exist in a v1 record and do not exist in a
+v3 one.
+
+| Field | v3 value | Consequence |
+|---|---|---|
+| `measured.rounds[]` | `[]` | no per-round gate table. Which gate was red in round 2 is unrecoverable |
+| `measured.rounds_to_green` | `null` | the rounds-to-green distribution — §8's "main cost lever", and the histogram in `render_summary` — is empty for a v3 run |
+| `measured.final_gates` | `{}` | no end-state gate verdict |
+| `measured.characterisation.workflow_green_pre_fix` / `probe_proven_pre_fix` | `null` | the *measured* forms are gone. The attested forms are in `attested_characterisation` |
+
+Every one of those is a **null meaning "not measured"**, never a zero meaning
+"measured and clean", and `measured.gates_run: 0` sits beside them saying so. A
+consumer that reads `probe_proven_pre_fix: null` as falsey under-reports probe
+coverage — the safe direction. One that read `rounds_to_green` as `0` would
+report a v3 run as going green on the first try every time, which is why it is
+null and not absent.
+
+---
+
 ## 1. What actually changes
 
 One sentence: **planning moves offline, and the orchestrator stops being a
@@ -370,11 +461,21 @@ reinstatement if the final suite comes back red.
 that an agent asked to decide when it has iterated enough will decide that it
 has — so iteration was a Python loop with a machine-checked exit condition. v3
 moves that loop inside the agent. The attestation is recorded and the final suite
-is the backstop, but between the two there is no per-task measured gate, and the
-`fixed` / `fixed_workflow_only` distinction that `EVAL-METRICS.md` exists to
-protect has no orchestrator-side measurement behind it. **A v3 run's in-sandbox
-numbers are self-reports.** They must be labelled as such wherever they appear,
-and they are not comparable to v1's or v2's measured dispositions.
+is the backstop, but between the two there is no per-task measured gate. **A v3
+run's in-sandbox numbers are self-reports.** They are labelled as such in the
+record itself — `disposition_basis: attested` — rather than in a footnote, and
+they are not comparable to v1's or v2's measured dispositions.
+
+The `fixed` / `fixed_workflow_only` distinction **survives**, because it turns on
+one fact — did the probe demonstrate the defect before the change — and the agent
+can report that fact even though the orchestrator no longer measures it. So the
+distinction is attested rather than measured, which is a weaker claim than v1's
+but is not the same thing as losing it. Collapsing the two into a single `fixed`
+count would have been the false-confidence failure `EVAL-METRICS.md` exists to
+catch, and it is the one thing here that was not allowed to degrade.
+
+What is genuinely gone is the *per-round* record: `rounds[]`, `final_gates` and
+`rounds_to_green`. §0.4 lists them.
 
 **3. Bug-wise granularity.** §6.
 
@@ -392,7 +493,7 @@ declared-extension model that makes out-of-boundary writes a measurement.
 | `tools/patcher/plan/` | the offline generator and the checked-in map | **another work stream** |
 | `tools/patcher/src/v3/chunk_map.py` | load, validate, resolve write boundaries | **implemented** |
 | `tools/patcher/src/v3/boundary.py` | owned / shared-extension / never-writable / read-denylist | **implemented** |
-| `tools/patcher/src/v3/dispatcher.py` | spawn, monitor, merge, advance; the generic prompt | **implemented** |
+| `tools/patcher/src/v3/dispatcher.py` | spawn, monitor, merge, advance; the generic prompt; the per-bug task record and its disposition | **implemented** |
 | `tools/patcher/src/v3/merge_queue.py` | serial queue: apply, build, conflict-check, accept or reject | **implemented** |
 | `tools/patcher/tests/test_v3_*.py` | 68 tests, `FakeRunner`-driven, no network and no model | **implemented** |
 | a `run_patcher.py` entry point for v3 | not written | **deliberately not done** |
@@ -410,3 +511,144 @@ are all present and all enforced in code, not only in prose.
 run it against. The modules are importable and tested; the entry point should be
 added in the same change series that lands the first real map, so that the first
 thing it can do is validate that map against the bug report.
+
+---
+
+## 9. Drift found on review, 2026-08-10
+
+The move to v3 was supposed to change only a task's surroundings. Five things
+had changed inside it. Four are fixed in `dispatcher.py`; one is a stated trade;
+two follow-ups are handed off because they need files this change is not allowed
+to touch.
+
+### 9.1 The sandbox hook was not wired into v3 at all — **fixed**
+
+`ClaudeCliRunner` passes the phase name straight through to
+`hooks/sandbox_guard.py --phase`, which declares it with
+`choices=[characterise, fix, reconcile, other]`. v3 sent `v3-characterise` and
+`v3-patch`. argparse rejected both: exit code 2, no decision written, on a
+`PreToolUse` hook. Every tool call in a real v3 run would have taken the
+no-answer path of a guard that never ran.
+
+Worse than the crash is what it was hiding. Even had the strings parsed, the
+hook's two phase-dependent rules key off the exact names:
+
+- `phase == 'characterise'` is what makes the source tree read-only, so the
+  baseline is captured from code the agent has not already edited;
+- `phase in ('fix', 'reconcile')` is what freezes `workflow.test.ts` and
+  `exploit.probe.ts`, so an agent that cannot pass its own gate cannot edit the
+  gate instead.
+
+Neither would have applied. The frozen-oracle property that makes the whole loop
+mean anything was absent from v3, in prose only. §8 above claimed the
+security-relevant imports had been diffed against v1's; the *phase vocabulary*
+had not been, and that is the same shape as the v2 denylist incident recorded in
+the root `CLAUDE.md` — a guard that existed, was correct, and was never picked up
+by the fork.
+
+**Fixed:** `CHARACTERISE_PHASE = 'characterise'`, `PATCH_PHASE = 'fix'`. The
+v3-specific naming stays where it belongs, in the log filenames. Two tests pin
+it: one runs the real hook as a subprocess with each name and requires exit 0
+with a decision, one asserts the two rules actually fire.
+
+This also restores the seed read-denylist at runtime. `chunk_map` refuses to
+*assign* a denylisted file; the hook is what refuses to *read* one, in every
+phase — and it was not running.
+
+### 9.2 v3 produced no dispositions at all — **fixed**
+
+The task record was `{bug_id, file, task_id, characterised, reused_from,
+invocations, cost_usd, related_test_files, attestation}`. No disposition, no
+diff stats, no violations. Every disposition-derived number in
+`ARCHITECTURE.md` §5.1 and everything `report.py` aggregates was unavailable,
+and `fixed` versus `fixed_workflow_only` did not exist to be summed or not
+summed.
+
+**Fixed.** §0.3 is the derivation, §0.4 is what genuinely could not be
+recovered. Three parts are worth naming separately:
+
+- **`fixed` is never inferred from an attestation alone.** It requires the
+  agent's own probe to have demonstrated the defect before the change.
+  Everything else attested green is `fixed_workflow_only`.
+- **A reused oracle can never produce a bare `fixed`.** The reuse note (§6.1)
+  told the agent the artefacts were written for another bug; nothing acted on
+  that. Now the record does: reuse degrades the axis-A claim, which gives the
+  `reuse_characterisation` flag a cost that shows up in the numbers rather than
+  only in a prompt.
+- **`characterisation.json`'s keys are now named in the prompt.** v3's
+  characterise prompt asked for "which existing test files cover this path" in
+  prose while the dispatcher read `char['related_test_files']`. The agent had no
+  way to know the key. Since the regression net in the fix prompt is the *only*
+  per-task collateral-damage check v3 has, a mis-named key silently emptied it.
+  The prompt now specifies the same object v1's contract does, including
+  `probe_result_now`, without which §0.3 has nothing to work from.
+
+### 9.3 Bugs vanished from the denominator — **fixed**
+
+A chunk that stopped on its cost ceiling or timeout simply stopped appending
+task records, and a chunk that crashed while seeding contributed none at all.
+Those bugs disappeared from `tasks[]` entirely — so a run that ran out of money
+reported a *higher* fixed-rate over a *smaller* denominator, with nothing in the
+output saying so.
+
+This is the failure §2.2 refuses a chunk map for ("the denominator quietly
+shrinks and the run reads as a **better** result than it is"), reappearing at
+runtime after the map had been validated.
+
+**Fixed:** every unreached bug gets a record with `disposition: blocked`,
+`attempted: false` and a reason naming the stop. `tasks_total` equals the map's
+task count whatever happens.
+
+### 9.4 A rejected merge still counted as fixed work — **fixed**
+
+The merge queue rolls a rejected submission back byte for byte, so none of its
+tasks reached the trunk — but their records still said `fixed`. The run's
+headline count would have included work nobody shipped.
+
+**Fixed:** every task in a rejected submission becomes `abandoned` with
+`disposition_basis: measured`, keeping its pre-merge outcome in
+`disposition_before_merge` so an integration failure does not erase what the
+agent actually achieved. `merge_verdict` is recorded on every task either way.
+
+### 9.5 Two per-task duties of §4 were missing — **one fixed, one a stated trade**
+
+- **Source edits during characterisation** were neither reverted nor recorded.
+  v1 hashes the tree around phase ① and reverts anything that got past the hook,
+  because a baseline captured from already-edited code is not a baseline.
+  **Fixed**, with the `source_edited_in_characterise` violation recorded exactly
+  as v1 records it. This is belt-and-braces on top of 9.1, and deliberately so:
+  9.1 is why it mattered that this was missing.
+- **Scratch is not harvested.** v1 copies each task's artefacts out of the tree
+  and deletes them. v3 leaves them in the chunk tree. **This is a trade, not a
+  bug, and its cost is that the artefacts die with the tree.** Nothing leaks
+  into the deliverable — `iter_source_files` skips the scratch directory, so the
+  submission's changed-file set cannot contain it and the merge queue never sees
+  it — but the workflow tests and probes, which are evidence about how well the
+  agent characterised, are not preserved anywhere a report can cite. Harvesting
+  needs a destination convention under `run_dir`, which belongs with the entry
+  point.
+
+### 9.6 Handed off, because this change may not touch those files
+
+- **`contracts/task-record.schema.json` sets `additionalProperties: false`** and
+  knows none of `disposition_basis`, `attested_characterisation`,
+  `merge_verdict`, `disposition_before_merge`, `attempted`, `gates_run`,
+  `gates_not_run_reason`, `chunk_id`. A v3 record is a valid v1 record plus
+  those fields, so it fails the contract as written. Nothing validates against
+  the schema today, which is precisely why this must be landed deliberately
+  rather than discovered later: the contract has to learn the *basis* field, or
+  the whole point of emitting it is lost the first time someone validates.
+- **`report.py` would under-report a v3 run.** `aggregate()` reads
+  `measured.characterisation.probe_proven_pre_fix`, which is `null` in v3 and
+  falsey, so `probe_coverage` reads 0. That is the safe direction and no number
+  comes out flattering, but the v3 entry point needs either its own reporter or
+  a `report.py` that distinguishes `null` (not measured) from `false` (measured
+  red) and reads `attested_characterisation` when the basis is attested.
+
+### 9.7 Not changed, and deliberately
+
+The settled design was not re-opened: bug-wise tasks, the owned-file boundary,
+the checked-in chunk map, one agent per chunk, and the orchestrator running no
+per-task gates all stand. Everything in §9 restores a *record* the loop already
+produced, or wires up a guard that already existed. None of it puts the
+orchestrator back into the verification path.

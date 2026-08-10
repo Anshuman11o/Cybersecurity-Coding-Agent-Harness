@@ -8,6 +8,13 @@ the code is wrong.
 Blind-safe. No challenge identifier, file, line, reference fix or oracle title
 appears here.
 
+**This document specifies the loop for v3 as well.** v3 changes only a task's
+surroundings — parallelisation, the orchestrator, a checked-in chunk map,
+bug-wise tasks inside an owned-file set. The phases below, their order, the gates
+and the seven dispositions of §2 are inherited unchanged.
+`docs/patcher/ARCHITECTURE-V3.md` §0 maps this document onto what v3 does, phase
+by phase, and §0.4 lists the per-round facts a v3 run does not record.
+
 ---
 
 ## 1. Vocabulary
