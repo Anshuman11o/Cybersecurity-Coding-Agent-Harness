@@ -86,10 +86,12 @@ def _fmt_bug(bug: dict) -> str:
     ]
     if bug.get('severity_estimate'):
         lines.append(f"  severity    : {bug['severity_estimate']}")
-    if bug.get('vulnerability'):
-        lines.append(f"\n  what is wrong:\n    {bug['vulnerability']}")
-    if bug.get('reproduction'):
-        lines.append(f"\n  how it is exercised:\n    {bug['reproduction']}")
+    # Location and class, and nothing more. The report used to carry prose saying
+    # what was wrong and how to trigger it, and it was rendered here; both were
+    # removed from the contract on 2026-08-10. The agent is required by its own
+    # task loop to characterise the code path and build a probe from the source,
+    # so handing it that prose did part of the task for it. Nothing replaces
+    # them -- working from file, line and class alone is the point.
     if bug.get('notes'):
         lines.append(f"\n  notes:\n    {bug['notes']}")
     return '\n'.join(lines)

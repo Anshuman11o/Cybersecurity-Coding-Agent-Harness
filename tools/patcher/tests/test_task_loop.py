@@ -68,8 +68,6 @@ BUG = {
     'location': {'file': SRC, 'line': 19},
     'owasp': [{'code': 'A03', 'title': 'Injection'}],
     'class': 'Injection / SQL',
-    'vulnerability': 'User input is concatenated into a SQL string.',
-    'reproduction': 'Send a crafted q parameter.',
 }
 
 PLAYBOOK = {'playbook_id': 'pb', 'entries': [

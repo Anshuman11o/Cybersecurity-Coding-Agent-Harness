@@ -177,8 +177,7 @@ def _build_fixture(tmp_path, n_bugs=3):
 
     bugs = [{'bug_id': f'BUG-{i:03d}',
              'location': {'file': 'routes/app.ts', 'line': i + 1},
-             'owasp': [{'code': 'A03'}], 'class': 'Injection / SQL',
-             'vulnerability': 'concatenated input', 'reproduction': 'send q'}
+             'owasp': [{'code': 'A03'}], 'class': 'Injection / SQL'}
             for i in range(n_bugs)]
     br = {'report_id': 'br', 'kind': 'bug-report-agent',
           'visibility': 'BLIND', 'target_dir': 'target-apps/x',
@@ -220,7 +219,7 @@ def test_preflight_spends_nothing_and_reports_cleanly(tmp_path):
 def test_preflight_refuses_a_contaminated_bug_report(tmp_path):
     cfg_path = _build_fixture(tmp_path)
     bugs = json.loads((tmp_path / 'bugs.json').read_text())
-    bugs['bugs'][0]['vulnerability'] = 'see the ground truth for the fix'
+    bugs['bugs'][0]['notes'] = 'see the ground truth for the fix'
     (tmp_path / 'bugs.json').write_text(json.dumps(bugs))
     r = subprocess.run([sys.executable, ENTRYPOINT, '--config', cfg_path, '--check'],
                        capture_output=True, text=True)
