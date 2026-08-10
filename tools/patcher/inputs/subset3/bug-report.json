@@ -1,0 +1,52 @@
+{
+ "report_id": "bug-report-subset3-pilot",
+ "kind": "bug-report-agent",
+ "visibility": "BLIND -- safe to place in a worktree and a prompt",
+ "target_dir": "target-apps/juice-shop-blind",
+ "target_sha": "3c6544a39085f7fb0315f6749add2395943c504d",
+ "provenance": "Every entry is a confirmed defect at a verified file and line. This report contains no false positives: spend no effort deciding whether an entry is real. Locations were checked against the target tree.",
+ "generated_at": "2026-08-06T22:07:43+00:00",
+ "scoped_files": [
+  "models/feedback.ts",
+  "routes/updateUserProfile.ts"
+ ],
+ "bug_count": 2,
+ "bugs": [
+  {
+   "bug_id": "BUG-017",
+   "location": {
+    "file": "models/feedback.ts",
+    "line": 44
+   },
+   "owasp": [
+    {
+     "code": "A03",
+     "framework": "OWASP Top 10:2021",
+     "title": "Injection"
+    }
+   ],
+   "class": "Cross-Site Scripting - Persisted",
+   "vulnerability": "A feedback comment supplied by a user is persisted after a sanitisation step that does not remove all executable HTML, and the stored value is later rendered into the page as trusted markup rather than as text. Script embedded in the comment therefore survives storage and executes in the browser of every user who views the feedback.",
+   "reproduction": "POST a feedback comment whose body contains HTML carrying an executable payload -- for example an element with an inline event-handler attribute, or an iframe whose src is a javascript: URL -- then read the feedback back through the API and observe the payload returned intact rather than neutralised or encoded.",
+   "playbook_ref": "persisted-xss"
+  },
+  {
+   "bug_id": "BUG-087",
+   "location": {
+    "file": "routes/updateUserProfile.ts",
+    "line": 32
+   },
+   "owasp": [
+    {
+     "code": "A01",
+     "framework": "OWASP Top 10:2021",
+     "title": "Broken Access Control"
+    }
+   ],
+   "class": "Broken Access Control / CSRF",
+   "vulnerability": "The profile-update handler identifies the caller solely from the session token cookie and then performs a state change on that account, with no anti-CSRF token and no check on the request's origin. Any third-party page loaded in a logged-in user's browser can submit the request cross-site and have it accepted on the victim's ambient credentials.",
+   "reproduction": "From an origin unrelated to the application, submit a form POST to the profile-update endpoint carrying a username field while the victim's session cookie is present, and observe the change applied to the victim's account.",
+   "playbook_ref": "csrf"
+  }
+ ]
+}

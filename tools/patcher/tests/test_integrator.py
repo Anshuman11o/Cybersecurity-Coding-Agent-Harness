@@ -1,0 +1,514 @@
+"""Integration: folding a wave's unit trees back into one tree.
+
+The properties that matter are not "the merge succeeded" but that nothing is
+applied silently and nothing is guessed:
+  - a file only one unit changed lands exactly, byte for byte
+  - a file two units changed is merged against the wave base, not overwritten
+  - a conflict drops one side, names it, and never writes conflict markers
+  - out-of-assignment writes are reported even though they are allowed
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+import integrator  # noqa: E402
+import workspace  # noqa: E402
+
+
+def _tree(root, files: dict) -> str:
+    for rel, src in files.items():
+        p = os.path.join(root, rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, 'w') as fh:
+            fh.write(src)
+    return root
+
+
+def _seed(tmp_path, files):
+    """A seed tree plus its wave-base snapshot."""
+    seed = _tree(str(tmp_path / 'seed'), files)
+    snap = workspace.snapshot(seed, 'wave-0-base')
+    return seed, snap
+
+
+def _unit(tmp_path, seed, uid, assigned, edits: dict):
+    """A unit tree seeded from `seed`, with `edits` applied."""
+    tree = str(tmp_path / uid)
+    workspace.prepare(seed, tree, None, force=True,
+                      exclude=('.patcher-snapshots', workspace.SCRATCH_DIRNAME))
+    for rel, src in edits.items():
+        p = os.path.join(tree, rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        if src is None:
+            os.remove(p)
+        else:
+            with open(p, 'w') as fh:
+                fh.write(src)
+    return integrator.Unit(uid, tree, assigned)
+
+
+def _read(tree, rel):
+    with open(os.path.join(tree, rel)) as fh:
+        return fh.read()
+
+
+NUMBERED = ''.join(f'line{i}\n' for i in range(1, 21))
+
+
+# ---- claims ----------------------------------------------------------------
+
+def test_claims_inverts_and_sorts():
+    changed = {'B': ['b.ts', 'shared.ts'], 'A': ['a.ts', 'shared.ts']}
+    assert integrator.claims(changed) == {
+        'a.ts': ['A'], 'b.ts': ['B'], 'shared.ts': ['A', 'B']}
+
+
+def test_out_of_assignment_lists_only_the_extras():
+    u = integrator.Unit('A', '/nowhere', 'a.ts')
+    assert integrator.out_of_assignment(
+        [u], {'A': ['a.ts', 'lib/other.ts']}) == {'A': ['lib/other.ts']}
+
+
+def test_a_cycle_unit_owns_every_member_file():
+    """Its members ran serially in one tree, so their edits cannot be separated."""
+    u = integrator.Unit('A+B', '/nowhere', ['a.ts', 'b.ts'])
+    assert u.assigned_files == {'a.ts', 'b.ts'}
+    assert u.assigned_file is None
+    assert integrator.out_of_assignment([u], {'A+B': ['a.ts', 'b.ts', 'c.ts']}) == {
+        'A+B': ['c.ts']}
+
+
+# ---- sole claims -----------------------------------------------------------
+
+def test_sole_claim_lands_exactly(tmp_path):
+    seed, snap = _seed(tmp_path, {'a.ts': 'old\n', 'b.ts': 'keep\n'})
+    ua = _unit(tmp_path, seed, 'A', 'a.ts', {'a.ts': 'new\n'})
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[ua], log=lambda *_: None)
+    assert _read(seed, 'a.ts') == 'new\n'
+    assert _read(seed, 'b.ts') == 'keep\n'
+    assert rep['clean'] is True
+    assert rep['applied'] == [{'file': 'a.ts', 'unit': 'A', 'how': 'copied'}]
+
+
+def test_two_units_touching_different_files_both_land(tmp_path):
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'b.ts': 'b\n'})
+    units = [_unit(tmp_path, seed, 'A', 'a.ts', {'a.ts': 'A!\n'}),
+             _unit(tmp_path, seed, 'B', 'b.ts', {'b.ts': 'B!\n'})]
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=units, log=lambda *_: None)
+    assert (_read(seed, 'a.ts'), _read(seed, 'b.ts')) == ('A!\n', 'B!\n')
+    assert rep['contested_files'] == []
+
+
+def test_a_deletion_by_its_sole_owner_is_honoured(tmp_path):
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'gone.ts': 'x\n'})
+    ua = _unit(tmp_path, seed, 'A', 'a.ts', {'gone.ts': None})
+    integrator.integrate(seed=seed, base_snap=snap, units=[ua], log=lambda *_: None)
+    assert not os.path.exists(os.path.join(seed, 'gone.ts'))
+
+
+# ---- contested files -------------------------------------------------------
+
+def test_contested_file_is_merged_not_overwritten(tmp_path):
+    """Both edits must survive. Copying either whole file would lose the other."""
+    seed, snap = _seed(tmp_path, {'shared.ts': NUMBERED, 'a.ts': '', 'b.ts': ''})
+    top = NUMBERED.replace('line1\n', 'line1-A\n')
+    bottom = NUMBERED.replace('line20\n', 'line20-B\n')
+    units = [_unit(tmp_path, seed, 'A', 'a.ts', {'shared.ts': top}),
+             _unit(tmp_path, seed, 'B', 'b.ts', {'shared.ts': bottom})]
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=units, log=lambda *_: None)
+
+    merged = _read(seed, 'shared.ts')
+    assert 'line1-A' in merged and 'line20-B' in merged
+    assert '<<<<<<<' not in merged
+    assert rep['clean'] is True
+    assert rep['contested_files'] == [{'file': 'shared.ts', 'units': ['A', 'B']}]
+    assert rep['out_of_assignment'] == {'A': ['shared.ts'], 'B': ['shared.ts']}
+
+
+def test_overlapping_edits_conflict_and_one_side_is_dropped(tmp_path):
+    seed, snap = _seed(tmp_path, {'shared.ts': NUMBERED, 'a.ts': '', 'b.ts': ''})
+    units = [_unit(tmp_path, seed, 'A', 'a.ts',
+                   {'shared.ts': NUMBERED.replace('line10\n', 'line10-A\n')}),
+             _unit(tmp_path, seed, 'B', 'b.ts',
+                   {'shared.ts': NUMBERED.replace('line10\n', 'line10-B\n')})]
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=units, log=lambda *_: None)
+
+    assert rep['clean'] is False
+    assert len(rep['conflicts']) == 1
+    c = rep['conflicts'][0]
+    assert c['file'] == 'shared.ts' and c['dropped'] == 'B' and c['kept'] == ['A']
+    assert [d['unit'] for d in rep['dropped']] == ['B']
+    # The tree must stay buildable: a conflict marker would fail the next wave's
+    # typecheck and the failure would be attributed to nobody.
+    assert '<<<<<<<' not in _read(seed, 'shared.ts')
+    assert 'line10-A' in _read(seed, 'shared.ts')
+
+
+def test_a_conflict_resolves_the_same_way_on_a_rerun(tmp_path):
+    """Merge order is unit_id, not completion order, or a re-run would differ."""
+    outcomes = []
+    for attempt in ('one', 'two'):
+        sub = tmp_path / attempt
+        sub.mkdir()
+        seed, snap = _seed(sub, {'shared.ts': NUMBERED, 'a.ts': '', 'b.ts': ''})
+        units = [_unit(sub, seed, 'B', 'b.ts',
+                       {'shared.ts': NUMBERED.replace('line10\n', 'B\n')}),
+                 _unit(sub, seed, 'A', 'a.ts',
+                       {'shared.ts': NUMBERED.replace('line10\n', 'A\n')})]
+        if attempt == 'two':
+            units.reverse()
+        rep = integrator.integrate(seed=seed, base_snap=snap, units=units,
+                                   log=lambda *_: None)
+        outcomes.append((_read(seed, 'shared.ts'),
+                         [c['dropped'] for c in rep['conflicts']]))
+    assert outcomes[0] == outcomes[1]
+
+
+def test_a_file_two_units_created_has_no_ancestor_and_is_not_applied(tmp_path):
+    seed, snap = _seed(tmp_path, {'a.ts': '', 'b.ts': ''})
+    units = [_unit(tmp_path, seed, 'A', 'a.ts', {'new.ts': 'from A\n'}),
+             _unit(tmp_path, seed, 'B', 'b.ts', {'new.ts': 'from B\n'})]
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=units, log=lambda *_: None)
+    assert rep['clean'] is False
+    assert 'no common ancestor' in rep['conflicts'][0]['reason']
+    assert not os.path.exists(os.path.join(seed, 'new.ts'))
+
+
+# ---- scratch ---------------------------------------------------------------
+
+def test_gate_artefacts_are_carried_into_the_seed(tmp_path):
+    """The post-wave gate re-runs each unit's own test, which lives in its tree."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    ua = _unit(tmp_path, seed, 'A', 'a.ts', {'a.ts': 'A\n'})
+    scratch = workspace.ensure_scratch(ua.tree, 'A')
+    with open(os.path.join(scratch, 'workflow.test.ts'), 'w') as fh:
+        fh.write('// gate\n')
+    integrator.integrate(seed=seed, base_snap=snap, units=[ua], log=lambda *_: None)
+    assert os.path.isfile(os.path.join(workspace.scratch_abs(seed, 'A'),
+                                       'workflow.test.ts'))
+
+
+def test_seeding_leaves_the_seeds_own_scratch_and_snapshots_behind(tmp_path):
+    """Otherwise a unit inherits another unit's frozen oracle inside its sandbox."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    other = workspace.ensure_scratch(seed, 'SOMEONE-ELSE')
+    with open(os.path.join(other, 'exploit.probe.ts'), 'w') as fh:
+        fh.write('// not yours\n')
+    ua = _unit(tmp_path, seed, 'A', 'a.ts', {})
+    assert not os.path.exists(workspace.scratch_abs(ua.tree, 'SOMEONE-ELSE'))
+    assert not os.path.exists(os.path.join(ua.tree, '.patcher-snapshots'))
+    assert os.path.exists(snap)
+
+
+# ---- the post-wave gate ----------------------------------------------------
+
+class _R:
+    """Stand-in for verify.CommandResult. Carries duration_s because the gate records
+    how long it took -- a stub missing a real field lets the code drift past it."""
+
+    def __init__(self, ok=True, out='', tail='', duration_s=1.0):
+        self.ok, self.stdout, self.stderr, self.tail = ok, out, '', tail
+        self.timed_out = False
+        self.duration_s = duration_s
+
+
+def _gate_tree(tmp_path, uids, *, probe=True):
+    seed = str(tmp_path / 'seed')
+    os.makedirs(seed, exist_ok=True)
+    units = []
+    for uid in uids:
+        s = workspace.ensure_scratch(seed, uid)
+        with open(os.path.join(s, 'workflow.test.ts'), 'w') as fh:
+            fh.write('// gate\n')
+        if probe:
+            with open(os.path.join(s, 'exploit.probe.ts'), 'w') as fh:
+                fh.write('// probe\n')
+        units.append(integrator.Unit(uid, seed, f'{uid}.ts'))
+    return seed, units
+
+
+def test_a_broken_build_stops_the_gate_rather_than_inventing_per_unit_results(
+        tmp_path, monkeypatch):
+    seed, units = _gate_tree(tmp_path, ['A', 'B'])
+    monkeypatch.setattr(integrator.verify, 'typecheck',
+                        lambda *a, **k: _R(ok=False, tail='TS2345'))
+    called = []
+    monkeypatch.setattr(integrator.verify, 'run_test_file',
+                        lambda *a, **k: called.append(1) or _R())
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['green'] is False
+    assert out['workflow'] == {} and not called
+    assert 'typecheck failed' in out['skipped']
+
+
+def test_a_red_workflow_test_names_the_unit(tmp_path, monkeypatch):
+    seed, units = _gate_tree(tmp_path, ['A', 'B'])
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+    monkeypatch.setattr(
+        integrator.verify, 'run_test_file',
+        lambda cfg, tree, rel, *a, **k: _R(ok='/B/' not in rel, out='x'))
+    monkeypatch.setattr(integrator.verify, 'parse_test_output',
+                        lambda text: {'t': 'fail'} if text.strip() == 'x' else {})
+    monkeypatch.setattr(integrator.verify, 'run_probe',
+                        lambda *a, **k: (integrator.verify.NOT_PROVEN, _R()))
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['workflow_red'] == ['A', 'B'] and out['green'] is False
+
+
+def test_a_probe_that_goes_proven_again_after_merging_is_reopened(tmp_path, monkeypatch):
+    """A sibling's change defeated this unit's fix. Nothing else detects it."""
+    seed, units = _gate_tree(tmp_path, ['A', 'B'])
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'run_test_file', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'parse_test_output', lambda text: {'t': 'pass'})
+    monkeypatch.setattr(
+        integrator.verify, 'run_probe',
+        lambda cfg, tree, rel: ((integrator.verify.PROVEN, _R()) if '/B/' in rel
+                                else (integrator.verify.NOT_PROVEN, _R())))
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['reopened'] == ['B'] and out['workflow_red'] == [] and out['green'] is False
+
+
+def test_a_missing_gate_artefact_is_recorded_not_treated_as_a_pass(tmp_path, monkeypatch):
+    seed, units = _gate_tree(tmp_path, ['A'], probe=False)
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'run_test_file', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'parse_test_output', lambda text: {'t': 'pass'})
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['probe']['A'] == 'MISSING'
+    assert out['workflow']['A']['ok'] is True
+
+
+# ---- the base snapshot is read once ----------------------------------------
+
+def test_the_wave_base_is_read_once_however_many_units(tmp_path, monkeypatch):
+    """Not a micro-optimisation: this runs on the serial merge path, once per
+    unit, against an archive that cannot change while the wave is being merged."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'b.ts': 'b\n', 'c.ts': 'c\n'})
+    units = [_unit(tmp_path, seed, uid, f'{uid}.ts', {f'{uid}.ts': f'{uid} edited\n'})
+             for uid in ('a', 'b', 'c')]
+
+    reads = []
+    real = workspace.base_hashes
+    monkeypatch.setattr(workspace, 'base_hashes',
+                        lambda p: reads.append(p) or real(p))
+
+    changed = integrator.changed_by_unit(units, snap)
+    assert len(reads) == 1
+    assert changed == {'a': ['a.ts'], 'b': ['b.ts'], 'c': ['c.ts']}
+
+
+def test_changed_by_unit_survives_a_missing_base_snapshot(tmp_path):
+    units = [integrator.Unit('a', str(tmp_path), 'a.ts')]
+    assert integrator.changed_by_unit(units, str(tmp_path / 'gone.tar')) == {'a': []}
+
+
+# ---- the post-wave gate runs its units concurrently ------------------------
+
+def _gate_stubs(monkeypatch, *, red=(), reopened=(), slow=()):
+    """Deterministic per-unit gate outcomes, keyed by the unit id in the path."""
+    import time
+
+    def _uid(rel):
+        return rel.split('/')[1]
+
+    def _test_file(cfg, tree, rel, *a, **k):
+        if _uid(rel) in slow:
+            time.sleep(0.05)
+        return _R(ok=_uid(rel) not in red, out='x')
+
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+    monkeypatch.setattr(integrator.verify, 'run_test_file', _test_file)
+    monkeypatch.setattr(integrator.verify, 'parse_test_output',
+                        lambda text: {'t': 'pass'})
+    monkeypatch.setattr(
+        integrator.verify, 'run_probe',
+        lambda cfg, tree, rel: ((integrator.verify.PROVEN, _R())
+                                if _uid(rel) in reopened
+                                else (integrator.verify.NOT_PROVEN, _R())))
+
+
+def _verdict(out):
+    """Everything except the timings, which are the one field that must differ."""
+    return {k: v for k, v in out.items() if k != 'gate_seconds'}
+
+
+def test_running_the_gate_concurrently_does_not_change_its_verdict(tmp_path, monkeypatch):
+    ids = ['A', 'B', 'C', 'D']
+    seed, units = _gate_tree(tmp_path, ids)
+    _gate_stubs(monkeypatch, red=('B',), reopened=('C',))
+
+    serial = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    parallel = integrator.post_wave_gate({'loop': {'gate_concurrency': 4}}, seed, units,
+                                         log=lambda *_: None)
+
+    assert _verdict(serial) == _verdict(parallel)
+    assert parallel['workflow_red'] == ['B']
+    assert parallel['reopened'] == ['C']
+    assert parallel['green'] is False
+
+
+def test_results_are_ordered_by_unit_not_by_which_thread_finished_first(
+        tmp_path, monkeypatch):
+    """The report is diffed across runs. Key order settled by a race is not
+    comparable to anything."""
+    ids = ['A', 'B', 'C', 'D']
+    seed, units = _gate_tree(tmp_path, ids)
+    _gate_stubs(monkeypatch, slow=('A',))     # A is submitted first and finishes last
+
+    out = integrator.post_wave_gate({'loop': {'gate_concurrency': 4}}, seed, units,
+                                    log=lambda *_: None)
+    assert list(out['workflow']) == ids
+    assert list(out['probe']) == ids
+
+
+def test_a_unit_whose_gate_crashes_is_recorded_red_rather_than_skipped(
+        tmp_path, monkeypatch):
+    """A gate that did not run is not a gate that passed, and one exception must
+    not take the whole wave's measurement with it."""
+    seed, units = _gate_tree(tmp_path, ['A', 'B'])
+    _gate_stubs(monkeypatch)
+
+    def _boom(cfg, tree, rel, *a, **k):
+        if '/A/' in rel:
+            raise RuntimeError('node is missing')
+        return _R(ok=True, out='x')
+
+    monkeypatch.setattr(integrator.verify, 'run_test_file', _boom)
+    out = integrator.post_wave_gate({'loop': {'gate_concurrency': 2}}, seed, units,
+                                    log=lambda *_: None)
+
+    assert out['green'] is False
+    assert out['workflow']['A']['harness_error'] is True
+    assert 'node is missing' in out['workflow']['A']['tail']
+    assert out['workflow']['B']['ok'] is True      # the sibling still got measured
+
+
+def test_gate_concurrency_falls_back_to_serial_when_unconfigured():
+    """Every existing caller passes a config without these keys and must keep
+    today's behaviour exactly."""
+    assert integrator.gate_concurrency({}) == 1
+    assert integrator.gate_concurrency({'loop': {}}) == 1
+    assert integrator.gate_concurrency({'loop': {'task_concurrency': 5}}) == 5
+    assert integrator.gate_concurrency(
+        {'loop': {'task_concurrency': 5, 'gate_concurrency': 2}}) == 2
+    assert integrator.gate_concurrency({'loop': {'gate_concurrency': 'nonsense'}}) == 1
+    assert integrator.gate_concurrency({'loop': {'gate_concurrency': 0}}) == 1
+    # The example config ships an explicit null, which means "follow the workers"
+    # -- not "run serially". Reading it as 1 would make the knob quietly undo the
+    # thing it exists to enable.
+    assert integrator.gate_concurrency(
+        {'loop': {'task_concurrency': 5, 'gate_concurrency': None}}) == 5
+
+
+# ---- the gate has to find artefacts the task already harvested -------------
+
+def _harvested_chain(tmp_path, seed, cid, task_ids, files):
+    """A chain tree that ran its tasks and then harvested scratch, exactly as
+    task_loop._finish leaves it."""
+    tree = str(tmp_path / cid)
+    workspace.prepare(seed, tree, None, force=True,
+                      exclude=('.patcher-snapshots', workspace.SCRATCH_DIRNAME))
+    run_dir = str(tmp_path / 'run')
+    for tid in task_ids:
+        s = workspace.ensure_scratch(tree, tid)
+        with open(os.path.join(s, 'workflow.test.ts'), 'w') as fh:
+            fh.write('// gate\n')
+        with open(os.path.join(s, 'exploit.probe.ts'), 'w') as fh:
+            fh.write('// probe\n')
+        # what _finish does: copy out, then DELETE from the tree
+        workspace.harvest_scratch(tree, tid, os.path.join(run_dir, 'tasks', tid))
+        assert not os.path.isdir(workspace.scratch_abs(tree, tid))
+    return integrator.Unit(cid, tree, files, members=task_ids), run_dir
+
+
+def test_the_gate_finds_artefacts_the_task_already_harvested(tmp_path):
+    """The regression this whole path existed to have.
+
+    task_loop._finish harvests scratch -- copy out, then delete -- so by merge
+    time the chain tree has none. Sourcing from the tree therefore always failed,
+    every unit recorded ok=None/MISSING, and neither is False, so the wave stayed
+    GREEN. A gate that ran nothing and reported a pass.
+    """
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    unit, run_dir = _harvested_chain(tmp_path, seed, 'UNIT-a', ['UNIT-a'], 'a.ts')
+
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lambda *_: None, run_dir=run_dir)
+    assert rep['gate_artefacts_placed'] == rep['gate_artefacts_expected'] == 1
+    assert os.path.isfile(os.path.join(
+        seed, workspace.scratch_rel('UNIT-a'), 'workflow.test.ts'))
+
+
+def test_a_cycle_gates_every_member_rather_than_the_combined_chain_id(tmp_path):
+    """A cycle integrates as one contribution, but each member ran as its own
+    task and froze its own artefacts. 'A+B' never named a scratch directory."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n', 'b.ts': 'b\n'})
+    unit, run_dir = _harvested_chain(tmp_path, seed, 'A+B', ['A', 'B'], ['a.ts', 'b.ts'])
+
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lambda *_: None, run_dir=run_dir)
+    assert rep['gate_artefacts_placed'] == 2
+
+    calls = []
+
+    class _Fake:
+        PROVEN, NOT_PROVEN = 'PROVEN', 'NOT_PROVEN'
+
+        @staticmethod
+        def typecheck(*a, **k):
+            return _R()
+
+        @staticmethod
+        def run_test_file(cfg, tree, rel, *a, **k):
+            calls.append(rel)
+            return _R(out='x')
+
+        @staticmethod
+        def parse_test_output(text):
+            return {'t': 'pass'}
+
+        @staticmethod
+        def run_probe(cfg, tree, rel):
+            return ('NOT_PROVEN', _R())
+
+    real, integrator.verify = integrator.verify, _Fake
+    try:
+        out = integrator.post_wave_gate({}, seed, [unit], log=lambda *_: None)
+    finally:
+        integrator.verify = real
+
+    assert list(out['workflow']) == ['A', 'B']       # members, not 'A+B'
+    assert len(calls) == 2
+    assert out['unmeasured'] == []
+
+
+def test_a_unit_with_no_artefacts_is_reported_unmeasured_not_silently_green(
+        tmp_path, monkeypatch):
+    """`ok: None` is not `False`, so a missing gate never turned the wave red.
+    That is correct -- absence is not damage -- but it must be visible."""
+    seed, units = _gate_tree(tmp_path, ['A'], probe=False)
+    os.remove(os.path.join(seed, workspace.scratch_rel('A'), 'workflow.test.ts'))
+    monkeypatch.setattr(integrator.verify, 'typecheck', lambda *a, **k: _R())
+
+    out = integrator.post_wave_gate({}, seed, units, log=lambda *_: None)
+    assert out['unmeasured'] == ['A']
+    assert out['workflow']['A']['missing'] is True
+    assert out['workflow_red'] == []
+
+
+def test_integrate_counts_the_artefacts_it_could_not_place(tmp_path):
+    """The count is the alarm: expected 2, placed 0 is a gate about to measure
+    nothing, and it now says so instead of returning a clean report."""
+    seed, snap = _seed(tmp_path, {'a.ts': 'a\n'})
+    tree = str(tmp_path / 'bare')
+    workspace.prepare(seed, tree, None, force=True,
+                      exclude=('.patcher-snapshots', workspace.SCRATCH_DIRNAME))
+    unit = integrator.Unit('A+B', tree, ['a.ts'], members=['A', 'B'])
+
+    lines = []
+    rep = integrator.integrate(seed=seed, base_snap=snap, units=[unit],
+                               log=lines.append, run_dir=str(tmp_path / 'empty-run'))
+    assert rep['gate_artefacts_placed'] == 0
+    assert rep['gate_artefacts_expected'] == 2
+    assert any('no frozen gate artefacts' in ln for ln in lines)

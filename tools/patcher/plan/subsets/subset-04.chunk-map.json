@@ -1,0 +1,180 @@
+{
+ "map_id": "chunk-map/v1",
+ "subset_id": "subset-04",
+ "generated_from": {
+  "bug_report": "tools/patcher/inputs/subset4/bug-report.json",
+  "bug_report_id": "bug-report-subset-04",
+  "tree": "target-apps/juice-shop-blind"
+ },
+ "bug_count": 10,
+ "chunk_count": 4,
+ "excluded_bugs": [],
+ "shared_extension_zone": [
+  "views/**",
+  "config/**",
+  "swagger.yml"
+ ],
+ "never_writable": [
+  "test/**",
+  "**/*.spec.ts"
+ ],
+ "read_denylist": [
+  "models/challenge.ts",
+  "lib/antiCheat.ts",
+  "data/datacreator.ts"
+ ],
+ "phases": [
+  {
+   "phase": 0,
+   "brackets": [
+    "A"
+   ],
+   "concurrency": 1
+  },
+  {
+   "phase": 1,
+   "brackets": [
+    "C"
+   ],
+   "concurrency": 2
+  },
+  {
+   "phase": 2,
+   "brackets": [
+    "D"
+   ],
+   "concurrency": 1
+  }
+ ],
+ "brackets": [
+  {
+   "bracket": "A",
+   "name": "core",
+   "phase": 0,
+   "depends_on": [],
+   "concurrency": 1,
+   "chunks": [
+    {
+     "chunk_id": "A01",
+     "reason": "lib/insecurity.ts and models/feedback.ts are mutually reachable in the import graph: models/feedback.ts imports lib/insecurity.ts, and lib/insecurity.ts reaches models/feedback.ts back through models/user.ts. A cycle cannot be ordered, so both files must be owned by one agent and patched in sequence. models/user.ts is part of that cycle in the full map but carries no subset-4 bug, so it is not listed here: this map lists only files that carry a confirmed vulnerability.",
+     "files": [
+      "lib/insecurity.ts",
+      "models/feedback.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-010",
+       "file": "lib/insecurity.ts",
+       "line": 41,
+       "class": "Broken Authentication / Cryptographic Failure"
+      },
+      {
+       "bug_id": "BUG-011",
+       "file": "lib/insecurity.ts",
+       "line": 55,
+       "class": "Identification and Authentication Failures / JWT Algorithm Confusion"
+      },
+      {
+       "bug_id": "BUG-012",
+       "file": "lib/insecurity.ts",
+       "line": 55,
+       "class": "Identification and Authentication Failures / JWT Algorithm Confusion"
+      },
+      {
+       "bug_id": "BUG-013",
+       "file": "lib/insecurity.ts",
+       "line": 135,
+       "class": "Server-Side Request Forgery / Open Redirect"
+      },
+      {
+       "bug_id": "BUG-018",
+       "file": "models/feedback.ts",
+       "line": 51,
+       "class": "Insecure Design / Missing Input Validation"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "bracket": "C",
+   "name": "handlers",
+   "phase": 1,
+   "depends_on": [
+    "A"
+   ],
+   "concurrency": 2,
+   "chunks": [
+    {
+     "chunk_id": "C09",
+     "reason": "Leaf request handler. Imports lib/insecurity.ts, so it is patched after bracket A; nothing in this subset imports it, so it shares its phase with C11 without either agent seeing the other's files.",
+     "files": [
+      "routes/metrics.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-062",
+       "file": "routes/metrics.ts",
+       "line": 86,
+       "class": "Security Misconfiguration / Information Exposure"
+      }
+     ]
+    },
+    {
+     "chunk_id": "C11",
+     "reason": "Leaf request handler. Imports lib/insecurity.ts, so it is patched after bracket A; disjoint from C09, so the two run concurrently.",
+     "files": [
+      "routes/updateUserProfile.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-087",
+       "file": "routes/updateUserProfile.ts",
+       "line": 32,
+       "class": "Broken Access Control / CSRF"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "bracket": "D",
+   "name": "wiring",
+   "phase": 2,
+   "depends_on": [
+    "A",
+    "C"
+   ],
+   "concurrency": 1,
+   "chunks": [
+    {
+     "chunk_id": "D01",
+     "reason": "Application wiring. Imports everything above it, so it is patched last and alone: a change here is measured against a tree in which every earlier bracket has already landed.",
+     "files": [
+      "server.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-091",
+       "file": "server.ts",
+       "line": 234,
+       "class": "Security Misconfiguration / Improper Input Handling"
+      },
+      {
+       "bug_id": "BUG-092",
+       "file": "server.ts",
+       "line": 235,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-098",
+       "file": "server.ts",
+       "line": 674,
+       "class": "Security Misconfiguration / Verbose Error Messages"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

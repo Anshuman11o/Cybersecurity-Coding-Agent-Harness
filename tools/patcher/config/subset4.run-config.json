@@ -1,0 +1,122 @@
+{
+  "_comment": [
+    "Subset 4: 10 bugs across 5 files, planned by",
+    "tools/patcher/plan/subsets/subset-04.chunk-map.json.",
+    "Derived from run-config.example.json; only the inputs, the run id and the",
+    "loop knobs differ. Read that file for what every other knob means.",
+    "Validate before spending anything:",
+    "  python3 tools/patcher/src/run_patcher.py --config tools/patcher/config/subset4.run-config.json --check",
+    "Paths may be absolute or relative to the repository root."
+  ],
+
+  "run_id": "patch-run-subset-04",
+
+  "inputs": {
+    "bug_report": "tools/patcher/inputs/subset4/bug-report.json",
+    "playbook": "tools/patcher/inputs/subset4/playbook.json",
+    "_comment": "10 bugs, 7 playbook entries covering the 9 classes the bugs carry. Both are validated and scrubbed by blind_guard before any prompt is built."
+  },
+
+  "target": {
+    "base_tree": "/home/user/patcher-work/base/juice-shop-blind",
+    "work_tree": "/home/user/patcher-work/subset4/tree",
+    "node_modules": "/home/user/patcher-work/node_modules",
+    "_comment": [
+      "work_tree is subset-scoped so a subset run and a full run can exist side by",
+      "side without one overwriting the other's tree.",
+      "node_modules is the shared install, symlinked in: it must not appear in the",
+      "diff or the tree hash."
+    ]
+  },
+
+  "agent": {
+    "runner": "claude-cli",
+    "model": "opus",
+    "role_models": {},
+    "effort": "high",
+    "reasoning": true,
+    "max_turns": 120,
+    "timeout_s": 2400,
+    "permission_mode": "acceptEdits",
+    "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep"],
+    "rate_limit_probe_s": 600,
+    "rate_limit_max_wait_s": 21600,
+    "_comment": [
+      "Unchanged from the example. allowed_tools deliberately omits WebFetch and",
+      "WebSearch: upstream Juice Shop is the answer key, and one fetch of it would",
+      "end this run's validity.",
+      "effort and reasoning are stated here rather than inherited, even though these",
+      "are exactly the defaults: this subset's numbers get compared across runs, and a",
+      "config that leans on a default records what the default WAS, not what this run",
+      "ran at. If the default ever moves, this file still says high.",
+      "Read the example config for what they cost - roughly 2-3x the output (thinking)",
+      "tokens of low effort, on every invocation of every task."
+    ]
+  },
+
+  "loop": {
+    "characterise_rounds": 2,
+    "reconcile_rounds": 4,
+    "execution": "waves",
+    "task_granularity": "file",
+    "task_concurrency": 2,
+    "gate_concurrency": null,
+    "max_task_wall_s": 5400,
+    "isolate_hubs": true,
+    "hub_threshold": 8,
+    "_comment": [
+      "execution 'waves' + task_granularity 'file' is the only combination that lets",
+      "task_concurrency exceed 1: waves guarantee no two agents hold the same file,",
+      "and that guarantee comes from grouping by file. Preflight refuses the pair",
+      "'sequential' + concurrency>1 rather than silently running one agent.",
+      "task_concurrency 2 is the PEAK this subset needs, not a general setting: the",
+      "only phase with two independent chunks is phase 1 (C09, C11). Phases 0 and 2",
+      "hold a single chunk each and run one agent regardless.",
+      "granularity 'file' batches the bugs that share a file into one task, which is",
+      "what makes the critical path 4 tasks rather than 9 bug-sized ones.",
+      "gate_concurrency null means the post-wave gate follows task_concurrency. Left",
+      "null deliberately: the widest wave here is 2 units, so there is no barrier",
+      "worth widening and no reason to risk two concurrent test runs contending."
+    ]
+  },
+
+  "policy": {
+    "on_exhausted": "revert",
+    "require_probe": false,
+    "regression_net": "related",
+    "final_full_suite": true,
+    "final_repair_rounds": 2,
+    "_comment": [
+      "Unchanged from the example. final_full_suite runs once, after the last wave;",
+      "run_patcher skips it when waves remain, so a checkpointed subset run does not",
+      "publish a partial tree as a finished one."
+    ]
+  },
+
+  "commands": {
+    "typecheck": "npx tsc --noEmit -p tsconfig.json",
+    "run_test_file": "node --import ./test/api/helpers/test-env.mjs --import tsx --test --test-force-exit {file}",
+    "run_server_test_file": "node --import ./test/server/helpers/test-env.mjs --import tsx --test --test-force-exit {file}",
+    "run_probe": "npx tsx {file}",
+    "full_suite": ["npm run test:server", "npm run test:api"],
+    "timeout_s": {
+      "typecheck": 600,
+      "test_file": 900,
+      "probe": 300,
+      "full_suite": 3600
+    },
+    "_comment": "Unchanged from the example. The runner executes these itself; the agent's claim that it ran them is an attestation, never a gate."
+  },
+
+  "outputs": {
+    "run_dir": "/home/user/patcher-work/runs/{run_id}",
+    "keep_transcripts": true,
+    "_comment": "Outside the repository: transcripts and per-task records pair a bug id with a file and a line, which the publishing rule does not allow in a committed artefact."
+  },
+
+  "sandbox": {
+    "extra_denied_path_patterns": [],
+    "extra_denied_command_patterns": [],
+    "_comment": "Appended to the built-in deny sets in hooks/sandbox_guard.py. Add here; do not weaken there."
+  }
+}

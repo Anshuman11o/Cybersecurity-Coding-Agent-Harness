@@ -440,6 +440,71 @@ PAYLOAD_BODY_RE = re.compile(
     r"challenges\.\w+Challenge\.solved\b)"
 )
 
+# The three signals above all key on a block ANNOUNCING itself: a solved-challenge
+# call, an attack word in the title, or a payload string on the known list. A block
+# can encode attack-dependent behaviour as an expectation while matching none of
+# them, and such a block must not stay in the functional half -- it would require
+# the very behaviour a correct change removes.
+#
+# The rule below is a conjunction of two questions:
+#
+#   1. Does the block send a payload of a known attack SHAPE as request data?
+#   2. Does its assertion require that payload to have been acted upon?
+#
+# Both halves matter. Sending such a payload and asserting it is REJECTED is a
+# legitimate functional expectation and must stay in the working copy. And a
+# payload-shaped string outside request data is usually innocent: "../" in
+# path.resolve(__dirname, '../files/x') is a test locating its own fixture.
+
+# Unambiguous in any position.
+ATTACK_PAYLOAD_RE = re.compile(r"(?i)(%2500|%00|%252e|\.\./\.\./|%2e%2e)")
+
+# Document-store operators in a body literal are never ordinary request data.
+# PAYLOAD_BODY_RE covered $where only.
+NOSQL_OPERATOR_RE = re.compile(r"[\"']?\$(?:ne|gt|gte|lt|lte|regex|where|in|nin)[\"']?\s*:")
+
+# Single-level traversal counts only when it is sent TO the application.
+REQUEST_DATA_CALL_RE = re.compile(r"\.(?:send|query)\s*\(")
+TRAVERSAL_RE = re.compile(r"\.\./")
+
+# Evidence the payload was acted upon: a success status, or an error that only a
+# component downstream of the payload could have produced.
+ASSERTS_SUCCESS_RE = re.compile(
+    r"assert\.(?:equal|strictEqual)\(\s*res\.status\s*,\s*2\d\d\s*\)"
+    r"|\.expect\(\s*2\d\d\s*\)"
+)
+ASSERTS_SINK_REACHED_RE = re.compile(
+    r"(?i)no such file or directory|ENOENT|EISDIR"
+)
+
+
+def request_data_spans(body: str):
+    """Yield the argument text of each .send(...) / .query(...) call."""
+    for m in REQUEST_DATA_CALL_RE.finditer(body):
+        open_idx = m.end() - 1
+        try:
+            close_idx = find_matching(body, open_idx)
+        except Exception:
+            continue
+        yield body[open_idx + 1:close_idx]
+
+
+def attack_payloads_in(body: str) -> set:
+    """Attack payloads this block sends. Empty set means nothing to worry about."""
+    found = {m.group(0) for m in ATTACK_PAYLOAD_RE.finditer(body)}
+    found |= {m.group(0) for m in NOSQL_OPERATOR_RE.finditer(body)}
+    for span in request_data_spans(body):
+        found |= {m.group(0) for m in TRAVERSAL_RE.finditer(span)}
+    return found
+
+
+def asserts_attack_dependent_behaviour(body: str) -> bool:
+    """True when a block sends an attack-shaped payload and requires it to work."""
+    if not attack_payloads_in(body):
+        return False
+    return bool(ASSERTS_SUCCESS_RE.search(body) or ASSERTS_SINK_REACHED_RE.search(body))
+
+
 TEST_FILE_GLOBS = ["test/api/*.test.ts", "test/cypress/e2e/*.spec.ts", "test/server/*.unit.test.ts"]
 
 
@@ -484,6 +549,8 @@ def classify_exploit(title, body):
     if title and ATTACK_TITLE_RE.search(title):
         return True
     if PAYLOAD_BODY_RE.search(body):
+        return True
+    if asserts_attack_dependent_behaviour(body):
         return True
     return False
 
