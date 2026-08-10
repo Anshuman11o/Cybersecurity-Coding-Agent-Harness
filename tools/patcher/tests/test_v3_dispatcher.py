@@ -105,7 +105,7 @@ class Runner(agent.FakeRunner):
 class Script:
     """Records every step, and performs the filesystem effects a real agent would."""
 
-    def __init__(self, *, edit=True, extra=None, declare=None, prompts_seen=None):
+    def __init__(self, *, edit=True, extra=None, declare=None):
         self.calls = []            # (step, bug_id, file, chunk_tree)
         self.prompts = []
         self.edit = edit
