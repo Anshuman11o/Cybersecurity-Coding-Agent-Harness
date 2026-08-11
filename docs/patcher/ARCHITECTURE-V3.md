@@ -495,8 +495,10 @@ declared-extension model that makes out-of-boundary writes a measurement.
 | `tools/patcher/src/v3/boundary.py` | owned / shared-extension / never-writable / read-denylist | **implemented** |
 | `tools/patcher/src/v3/dispatcher.py` | spawn, monitor, merge, advance; the generic prompt; the per-bug task record and its disposition | **implemented** |
 | `tools/patcher/src/v3/merge_queue.py` | serial queue: apply, build, conflict-check, accept or reject | **implemented** |
+| `tools/patcher/src/v3/run_store.py` | durable per-chunk run store: records survive losing the session | **implemented** |
 | `tools/patcher/tests/test_v3_*.py` | 68 tests, `FakeRunner`-driven, no network and no model | **implemented** |
-| a `run_patcher.py` entry point for v3 | not written | **deliberately not done** |
+| `tools/patcher/src/run_patcher_v3.py` | **the v3 entry point** — load, validate, dispatch, checkpoint, audit, report | **implemented** — see below |
+| a v3 mode inside `run_patcher.py` | not written, and still deliberately not | **not done** |
 
 v1 and v2 are untouched: `wave_plan.py`, `wave_runner.py`, `task_loop.py`,
 `integrator.py`, `verify.py`, `workspace.py` and `run_patcher.py` are byte-identical
@@ -506,11 +508,18 @@ security-relevant imports were diffed against v1's rather than only its
 behaviour: the read denylist, the never-writable set and the standing constraint
 are all present and all enforced in code, not only in prose.
 
-**No v3 entry point exists yet, and that is deliberate.** Wiring v3 into
-`run_patcher.py` would edit a v1/v2 file, and there is no chunk map on disk to
-run it against. The modules are importable and tested; the entry point should be
-added in the same change series that lands the first real map, so that the first
-thing it can do is validate that map against the bug report.
+**The v3 entry point is `src/run_patcher_v3.py`, a separate script.** It landed
+alongside the first real map, exactly as planned: `--check` validates that map
+against the bug report before anything is dispatched. It reuses
+`run_patcher.load_config`, `preflight` and `config_digest` rather than
+duplicating them, so the two tracks cannot drift on how a config is read.
+
+Wiring v3 into `run_patcher.py` instead is still not done, and still
+deliberately — it would mean editing the file that runs v1 and v2. One
+consequence of that choice is unguarded today: `run_patcher.py` never reads
+`chunk_map` and defaults `loop.execution` to `sequential`, so a v3 config passed
+to it runs as a v1 run with the plan ignored rather than being refused. See
+`tools/patcher/STRUCTURE.md` §9.
 
 ---
 
