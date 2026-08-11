@@ -37,7 +37,11 @@
     "Directory traversal attempts that are already refused must keep being refused with the same error the application already returns."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "The name authorised and the name opened are the same string, compared after every decode, truncation and normalisation the request will undergo.",
+    "The resolved absolute path is inside the intended directory; membership is decided by comparing resolved paths, not string prefixes."
+   ]
   },
   {
    "entry_id": "directory-listing",
@@ -64,7 +68,10 @@
     "The 404 and 403 behaviour for missing or disallowed files must not change."
    ],
    "reference_url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "No response enumerates a served directory's contents to a caller who supplied no filename."
+   ]
   },
   {
    "entry_id": "information-exposure",
@@ -94,7 +101,13 @@
     "Health and readiness behaviour other components depend on must be retained."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "Operational and diagnostic surfaces require authentication, or are bound where the public cannot reach them.",
+    "No response body carries a stack trace, framework version, filesystem path or query text.",
+    "The control is the access decision itself; recording, counting or labelling the access does not satisfy it."
+   ]
   }
- ]
+ ],
+ "must_hold_provenance": "must_hold is the remediation criterion for each entry's classes, authored from the OWASP sources named above and from the class definition alone. It is deliberately independent of any run: nothing in it is derived from an observed failure, a scored result or a target-specific finding, so a run measured against it is measuring the property and not the harness's memory of the last attempt. It is NOT rendered into any agent prompt -- prompts.py selects guidance, principles, preserve and common_mistakes by name. The agent optimises against the principle; the gate decides whether the criterion holds."
 }
