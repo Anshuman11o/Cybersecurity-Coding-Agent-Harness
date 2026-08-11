@@ -1,0 +1,166 @@
+{
+ "map_id": "chunk-map/v1",
+ "subset_id": "subset-05",
+ "generated_from": {
+  "bug_report": "tools/patcher/inputs/subset5/bug-report.json",
+  "bug_report_id": "bug-report-subset-05",
+  "tree": "target-apps/juice-shop-blind"
+ },
+ "derived_from": {
+  "full_map": "tools/patcher/plan/chunk-map.json",
+  "generator": "tools/patcher/plan/build_chunk_map.py",
+  "transform": "Subset form of the generated map, per tools/patcher/plan/subsets/README.md: every task whose bug id is not in the subset-5 report is dropped, chunks left with no task are dropped, brackets left with no chunk are dropped and recorded, phases renumber densely in bracket order, dependency edges on a dropped bracket are removed, and files[] keeps only the files that still carry a bug. Chunk ids, file paths, task order, lines and classes are the generated map's, unchanged -- an id names a set of files and its place in the merge order, so renumbering would make this read as its own plan. A chunk whose files[] shrank says so in its reason.",
+  "dropped_brackets": [
+   {
+    "bracket": "A",
+    "reason": "every chunk in this bracket lost all its tasks to the subset filter: no subset-5 bug lands in lib/** or models/**, so the bracket holds no chunk and is dropped (subsets/README rule 3)"
+   },
+   {
+    "bracket": "B",
+    "reason": "no bug in this report lands in this bracket; it already holds no chunk in the generated map"
+   }
+  ]
+ },
+ "bug_count": 10,
+ "chunk_count": 3,
+ "excluded_bugs": [],
+ "shared_extension_zone": [
+  "views/**",
+  "config/**",
+  "swagger.yml"
+ ],
+ "never_writable": [
+  "test/**",
+  "**/*.spec.ts"
+ ],
+ "read_denylist": [
+  "models/challenge.ts",
+  "lib/antiCheat.ts",
+  "data/datacreator.ts"
+ ],
+ "phases": [
+  {
+   "phase": 0,
+   "brackets": [
+    "C"
+   ],
+   "concurrency": 2
+  },
+  {
+   "phase": 1,
+   "brackets": [
+    "D"
+   ],
+   "concurrency": 1
+  }
+ ],
+ "brackets": [
+  {
+   "bracket": "C",
+   "name": "handlers+seed",
+   "phase": 0,
+   "depends_on": [],
+   "concurrency": 2,
+   "chunks": [
+    {
+     "chunk_id": "C01",
+     "reason": "routes/fileServer.ts carries 5 bugs, at or above the per-chunk cap of 4, so it is a chunk on its own",
+     "files": [
+      "routes/fileServer.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-039",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Directory Listing Enabled"
+      },
+      {
+       "bug_id": "BUG-040",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-041",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-042",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-043",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Path Filter Bypass"
+      }
+     ]
+    },
+    {
+     "chunk_id": "C02",
+     "reason": "first-fit packing: routes/easterEgg.ts, routes/metrics.ts, routes/premiumReward.ts, routes/updateUserProfile.ts import nothing of each other, and 4 bugs total stays within the cap of 4. In this subset only routes/metrics.ts carries a confirmed vulnerability, so routes/easterEgg.ts, routes/premiumReward.ts, routes/updateUserProfile.ts are named in this reason and not in files[] (subsets/README rule 4). The chunk id is the full map's and is not renumbered (rule 1).",
+     "files": [
+      "routes/metrics.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-062",
+       "file": "routes/metrics.ts",
+       "line": 86,
+       "class": "Security Misconfiguration / Information Exposure"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "bracket": "D",
+   "name": "wiring",
+   "phase": 1,
+   "depends_on": [
+    "C"
+   ],
+   "concurrency": 1,
+   "chunks": [
+    {
+     "chunk_id": "D01",
+     "reason": "bracket D is uncapped: the wiring files are one editing surface and land together in the final phase",
+     "files": [
+      "server.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-091",
+       "file": "server.ts",
+       "line": 234,
+       "class": "Security Misconfiguration / Improper Input Handling"
+      },
+      {
+       "bug_id": "BUG-092",
+       "file": "server.ts",
+       "line": 235,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-093",
+       "file": "server.ts",
+       "line": 267,
+       "class": "Security Misconfiguration / Directory Listing Enabled"
+      },
+      {
+       "bug_id": "BUG-098",
+       "file": "server.ts",
+       "line": 674,
+       "class": "Security Misconfiguration / Verbose Error Messages"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

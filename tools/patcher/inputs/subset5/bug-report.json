@@ -1,0 +1,177 @@
+{
+ "report_id": "bug-report-subset-05",
+ "kind": "bug-report-agent",
+ "visibility": "BLIND -- safe to place in a worktree and a prompt",
+ "target_dir": "target-apps/juice-shop-blind",
+ "target_sha": "f01512b24d512af4dc8677abc22354add8f0d3bb",
+ "provenance": "Every entry is a confirmed defect at a verified file and line. This report contains no false positives: spend no effort deciding whether an entry is real. Locations were checked against the target tree.",
+ "generated_at": "2026-08-11T02:54:53+00:00",
+ "scoped_files": [
+  "routes/fileServer.ts",
+  "routes/metrics.ts",
+  "server.ts"
+ ],
+ "bug_count": 10,
+ "bugs": [
+  {
+   "bug_id": "BUG-039",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Directory Listing Enabled",
+   "playbook_ref": "directory-listing"
+  },
+  {
+   "bug_id": "BUG-040",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-041",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-042",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-043",
+   "location": {
+    "file": "routes/fileServer.ts",
+    "line": 27
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Path Filter Bypass",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-062",
+   "location": {
+    "file": "routes/metrics.ts",
+    "line": 86
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Information Exposure",
+   "playbook_ref": "information-exposure"
+  },
+  {
+   "bug_id": "BUG-091",
+   "location": {
+    "file": "server.ts",
+    "line": 234
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Improper Input Handling",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-092",
+   "location": {
+    "file": "server.ts",
+    "line": 235
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Sensitive File Exposure",
+   "playbook_ref": "path-and-filename-validation"
+  },
+  {
+   "bug_id": "BUG-093",
+   "location": {
+    "file": "server.ts",
+    "line": 267
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Directory Listing Enabled",
+   "playbook_ref": "directory-listing"
+  },
+  {
+   "bug_id": "BUG-098",
+   "location": {
+    "file": "server.ts",
+    "line": 674
+   },
+   "owasp": [
+    {
+     "code": "A05",
+     "framework": "OWASP Top 10:2021",
+     "title": "Security Misconfiguration"
+    }
+   ],
+   "class": "Security Misconfiguration / Verbose Error Messages",
+   "playbook_ref": "information-exposure"
+  }
+ ]
+}
