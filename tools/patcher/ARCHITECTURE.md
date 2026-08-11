@@ -5,6 +5,9 @@ This one is the specification the code implements: every phase, every gate,
 every transition, every recorded fact. If the code and this document disagree,
 the code is wrong.
 
+For *which file to open* rather than *what the loop does*, see
+[`STRUCTURE.md`](STRUCTURE.md) — the module-by-module map of this directory.
+
 Blind-safe. No challenge identifier, file, line, reference fix or oracle title
 appears here.
 
@@ -30,6 +33,25 @@ workflow test, the probe and the net itself, inside its turn. What the runner
 owns is the boundary between rounds and the measurement taken there. What is
 still attested in v3 is ① — the pre-fix probe and workflow verdicts in
 `characterisation.json`.
+
+Two divergences are called out inline below rather than left to that document:
+the revert set in §2, and the run's outputs in §5.
+
+---
+
+## 0. Where each part of this lives
+
+| This document | Implemented in | Note |
+|---|---|---|
+| §2 state machine, dispositions | `src/task_loop.py` — `run_task`, `REVERT_DISPOSITIONS` | v3: `src/v3/dispatcher.py` |
+| §3 ① CHARACTERISE, ② FIX, ④ RECONCILE prompts | `src/prompts.py` — `build_characterise`, `build_fix`, `build_reconcile` | one file, all tracks |
+| §3 ① source-read-only enforcement | `src/workspace.py` — `base_hashes`, `changed_files_against` | plus `hooks/sandbox_guard.py` |
+| §3 ③ V1–V5 | `src/verify.py` — `verify`, `typecheck`, `run_probe`, `compare_outcomes` | V4's net: `src/testmap.py`, filtered by `src/antioracle.py` |
+| §3 ⑤ attestation | `src/task_loop.py` — `_normalise_attestation` | reused verbatim by v3 |
+| §4 between tasks | `src/task_loop.py` — `_finish`; outer loop in `src/run_patcher.py` — `main` | see the correction in §4 |
+| §5.1 `patcher-report.json` | `src/report.py` — `aggregate`, `write` | schema: `contracts/patcher-report.schema.json` |
+| §6 resume | `src/state.py` — `RunState.flush` / `RunState.load` | v3: `src/v3/run_store.py` |
+| §7 failure handling | `src/agent.py` — `ClaudeCliRunner` | rate limit, timeout, unparseable output |
 
 ---
 
@@ -126,6 +148,14 @@ The bucket still may not be summed with `fixed`: a correct fix over an
 attack-dependent assertion and a fix that broke the feature both land here, and
 the record still cannot tell them apart. It can now say which gate was red, in
 which round, and what the agent claimed about it.
+
+**The revert set differs between tracks, and the difference is not a policy
+choice.** v1 and v2 revert `{abandoned, agent_failed, blocked}`
+(`task_loop.REVERT_DISPOSITIONS`). v3 reverts `{agent_failed, blocked}` only
+(`v3/dispatcher.REVERT_DISPOSITIONS`), because v3's orchestrator runs no gate:
+there, `abandoned` can only mean the task changed nothing, or its chunk was
+rolled back whole at the merge queue. In both cases there is nothing left to
+revert. The seven dispositions themselves are identical.
 
 ---
 
@@ -257,15 +287,30 @@ delta is the input to the verifier-calibration metric on the sighted side.
 
 ## 4. Between tasks
 
+The close-out belongs to the task, not to the caller. `task_loop.run_task`
+returns only after the tree is already in its final state for that task:
+
 ```python
-record = task_loop.run(task, ...)
-if record.disposition in REVERT_DISPOSITIONS:
-    workspace.restore(tree, snapshot)      # tree is exactly as task N-1 left it
-workspace.harvest_scratch(tree, task_id, run_dir)   # copy out, then delete
-state.append(record)
+# inside task_loop.run_task -> _finish(), for every disposition
+if record['disposition'] in REVERT_DISPOSITIONS:
+    workspace.restore(tree, snapshot)        # tree is exactly as task N-1 left it
+diff = workspace.diff_against_snapshot(tree, snapshot)
+record['diff_stats'] = workspace.diff_stats(diff, bug_file)   # V5, advisory
+workspace.harvest_scratch(tree, task_id, task_dir)   # copy out, then delete
+workspace.discard_snapshot(snapshot)
+# task-record.json is written here, before the record is handed back
+
+# the outer loop in run_patcher.main() then does only this
+record = task_loop.run_task(bug, index, ctx)
+state.records.append(record)
 state.flush()                              # fsync; crash costs this task only
 # no context to compact: the next phase is a new process
 ```
+
+The ordering is what resume depends on. The revert, the harvest and
+`task-record.json` all complete inside `_finish` before the record is handed
+back, so a record that reached `state.json` is a record whose tree state is
+already final. A crash mid-close-out costs the task and leaves no record of it.
 
 Scratch is harvested and removed, not left in the tree, so the submitted diff
 never contains agent-authored test files. `workspace.tree_diff()` also excludes
@@ -297,6 +342,15 @@ score — scoring happens later, sighted, from the tree.
 ### 5.2 The patched tree
 
 One directory. All retained tasks applied. No scratch. No test edits.
+
+### 5.3 What v3 adds beside them
+
+The two outputs above are the deliverable in every track. A v3 run also keeps a
+durable run store (`src/v3/run_store.py`), written per chunk as work completes,
+because a v3 run is longer than a v2 one and outlives the session that launched
+it. It is an operational record, not a third output: nothing downstream scores
+from it. It exists because a run was scored and then lost when its results lived
+only in a returned dict — see the root `CLAUDE.md`, "After a patcher run".
 
 ---
 
@@ -342,3 +396,9 @@ commands which cost nothing. Verification is free; only reasoning is paid for.
 Reconciles dominate. `rounds_to_green` in the report is therefore both a quality
 signal and the main cost lever, which is why it is recorded per task rather than
 averaged.
+
+This shape is v1's, and it does not transfer. v3 folds ②③④ into a single
+invocation in which the agent runs the gate commands itself, so the invocation
+count stops being the cost lever and `rounds_to_green` is `null` rather than
+measured — `docs/patcher/ARCHITECTURE-V3.md` §0.4 lists what that costs the eval
+and §6 states the cost regression.
