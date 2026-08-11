@@ -346,7 +346,34 @@ def test_the_committed_history_records_the_subset_two_run():
     assert 'patcher-subset-02-waves-backfill' in archive_run.existing_run_ids(HISTORY)
 
 
-def test_no_committed_row_id_appears_twice():
-    ids = archive_run.existing_run_ids(HISTORY)
-    dupes = sorted({i for i in ids if ids.count(i) > 1})
-    assert not dupes, f'append-only history has duplicate run_id(s): {dupes}'
+def test_no_committed_row_id_appears_twice_except_as_a_rescore():
+    """A repeated run_id is a duplicate only when the second row is not a rescore.
+
+    This asserted a flat "no id appears twice", which contradicted the one
+    mechanism the history has for fixing anything. `patcher.jsonl` is
+    append-only, so a wrong field is corrected by appending a new row for the
+    same run carrying `rescore_of` -- `append_row` takes `--rescore-of` for
+    exactly that, and `run_records.check_rows` already scores a repeat as a
+    duplicate only when `rescore_of` is absent. The flat assertion meant that
+    following the documented correction procedure turned this test red, which
+    would have pushed the next person towards editing a committed row instead.
+
+    The check the test was actually for survives intact: a second row that does
+    NOT declare itself a correction is still a duplicate and still fails.
+    """
+    unannounced = []
+    seen = set()
+    with open(HISTORY) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            rid = row.get('run_id')
+            if rid in seen and not row.get('rescore_of'):
+                unannounced.append(rid)
+            seen.add(rid)
+    assert not unannounced, (
+        'append-only history has a second row for run_id(s) '
+        f'{sorted(set(unannounced))} that does not carry rescore_of. A correction '
+        'is a new row naming the row it supersedes; a silent second row is '
+        'indistinguishable from a second run.')
