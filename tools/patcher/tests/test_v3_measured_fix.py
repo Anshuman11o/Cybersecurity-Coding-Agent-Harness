@@ -268,7 +268,8 @@ def test_every_fix_phase_disposition_is_measured(tmp_path):
 # The round budget: a total, not a reconcile count
 # ---------------------------------------------------------------------------
 
-def test_the_loop_is_given_one_more_round_than_the_reconcile_budget(tmp_path, monkeypatch):
+def test_the_loop_is_given_one_more_round_than_the_reconcile_budget(
+        tmp_path, monkeypatch):
     """`loop.reconcile_rounds` counts RECONCILES; `run_fix_loop`'s `max_rounds`
     counts every round including round 0, the fix itself. Passing the config
     value raw would give the agent one fewer attempt than the run was configured
@@ -520,7 +521,8 @@ def test_the_per_round_gate_detail_stays_out_of_a_published_row():
     try:
         archive_run.assert_publishable(
             {'run_id': 'r',
-             'in_sandbox': {'rounds': [{'failures': [{'test_file': 'test/api/b.test.ts'}]}]}})
+             'in_sandbox': {'rounds': [{'failures': [
+                 {'test_file': 'test/api/b.test.ts'}]}]}})
     except archive_run.ArchiveError:
         pass
     else:

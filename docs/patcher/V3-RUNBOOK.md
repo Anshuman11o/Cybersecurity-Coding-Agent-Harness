@@ -21,16 +21,28 @@ Until it exists, no v3 run can start; once it does, nothing else is missing.
      |                                                        involved, reviewable
      v
   DISPATCHER       src/v3/dispatcher.py                      spawn, monitor, merge,
-     |                                                        advance. Judges nothing.
+     |                                                        advance; drive the fix
+     |                                                        loop's round boundary
+     |                                                        and measure V1-V4 there.
+     |                                                        Decides no fix.
      v
-  CHUNK AGENT      one invocation per task, in its own tree  characterise, fix,
-                                                              verify, reconcile, attest
+  CHUNK AGENT      characterise, then 1..N fix/reconcile     writes the oracle, writes
+                   invocations in its own tree                the patch, self-checks,
+                                                              attests
 ```
 
-The split is the whole of v3. v1 and v2 computed the plan at runtime and the
-orchestrator ran the gates; v3 reads a checked-in plan and the *agent* runs the
-gates inside its own turn budget. Everything in §7 that v3 cannot report follows
-from that second move.
+The split is the whole of v3: v1 and v2 computed the plan at runtime, v3 reads a
+checked-in one. The gates did not move with it — since 2026-08 the fix phase runs
+through `task_loop.run_fix_loop`, so the orchestrator invokes the agent, measures
+V1–V4 against the tree it left, hands the failure back, and stops on green, the
+round budget or the wall clock. The agent also runs those commands inside its own
+turn; that is its self-check, not this gate.
+
+**Runs before that date did not have the loop wired up** — it was prompt text
+with nothing driving it, so `rounds_used` was the agent's own number and every
+fix-phase disposition was recorded `attested`. That was an under-implementation
+of v3's architecture, not a different architecture. Do not read a pre-2026-08 v3
+row and a later one as one trend.
 
 ## 2. Vocabulary
 
@@ -121,10 +133,12 @@ The task snapshot does two jobs: `diff_stats` describes *this* bug rather than
 everything the chunk has done, and a failed invocation's half-edit can be taken
 back out of the tree the next task inherits.
 
-## 6. The agent loop inside one task — `_run_task`, `dispatcher.py:709`
+## 6. The loop inside one task — `_run_task`
 
-Same steps as `ARCHITECTURE.md`, same order. What changed is that the middle
-three happen inside **one** invocation instead of three.
+Same steps as `ARCHITECTURE.md`, same order, same driver: characterise, then
+`task_loop.run_fix_loop` for fix / verify / reconcile, then the disposition. What
+is v3-specific is the surroundings — the chunk's tree, its write boundary, and
+characterisation reuse.
 
 ### 6.1 Characterise
 
@@ -150,52 +164,87 @@ Two consequences follow, both deliberate:
   reused characterisation lands as **`fixed_workflow_only`**, never `fixed`.
 
 **And a third that is not deliberate:** reused tasks share a `task_id`, hence a
-scratch directory (necessary — that is where the reused artefacts live) *and* a
-patch-log path `logs/{task_id}-patch.json` (not necessary). Later transcripts
-overwrite earlier ones, and `attestation.json` is read from that shared
-directory — so a fix invocation that returns without writing one can be graded
-against the **previous** task's attestation. See §10.
+scratch directory — necessary, that is where the reused artefacts live. The fix
+loop's transcripts no longer collide with it (they go to
+`logs/{chunk_id}-{bug_id}/{fix,reconcile}-N.json`, one directory per bug), but
+`attestation.json` still lives in that shared scratch, so a fix invocation that
+returns without writing one can be read against the **previous** task's
+attestation. See §10.
 
 ### 6.2 The regression net
 
 Resolved *before* the patch prompt is built, by `testmap.select(tree, [rel_file],
 char.related_test_files)` — the agent's named files unioned with a static scan.
 
-> *v3 runs no per-task net of its own, so what goes into this prompt is the only
-> per-task check for collateral damage that exists.*
+These files are used twice: they go into the fix prompt as commands the agent can
+run itself, and they are **V4** at every round boundary against the baseline
+`_baseline` captured before the fix. Handing them to the agent as well is not
+redundant — a round it pre-checks itself is a round it does not have to spend,
+and a reconcile round costs a whole fresh invocation.
 
 This is the mechanism `RUN-HISTORY.md` names as the common cause of both subset-4
 failure modes, and its open item 1 ("vet the patcher's regression net") is still
-open.
+open: a net that selects the wrong files is now wrong in the gate as well as in
+the prompt.
 
-### 6.3 Fix
+### 6.3 Fix — the measured loop
 
-One invocation, source writable within the boundary, gate artefacts and `test/`
-frozen. The agent runs V1–V4 itself and loops internally up to
-`loop.reconcile_rounds` (default 4). The orchestrator watches liveness and the
-diff, nothing else.
+`task_loop.run_fix_loop`, the same function v1 uses. Source writable within the
+boundary, gate artefacts and `test/` frozen (sandbox phase `fix` on round 0,
+`reconcile` after — both freeze the oracle).
 
-### 6.4 Disposition — `_post_fix_disposition`, `dispatcher.py:910`
+Per round: invoke the agent, run V1–V4 against the tree it left, record the
+gates, and either stop or hand the structured failure back in the next prompt.
+Three exits and only three: **measured green**, the **round budget**
+(`loop.reconcile_rounds` reconciles = `reconcile_rounds + 1` total rounds), the
+**wall clock** (`loop.max_task_wall_s`, default 5400). An anti-oracle claim in
+the attestation is not an exit; it is recorded and acted on by nothing.
+
+Before the loop, the orchestrator runs a **baseline sweep** over the task's
+regression net and its workflow test, against the untouched tree. Without it
+every already-red row in the net is charged to this task. The workflow verdict
+lands in `measured.characterisation.workflow_green_pre_fix`; the failing rows in
+`baseline_failures`.
+
+After the loop, the **best round's tree is restored** (`_score`: preservation
+outranks remediation) and its snapshot discarded. `measured.final_gates`
+describes that round, because it is the tree that will be submitted.
+
+**Cost.** One gate suite per round per task, where v3 previously ran none. A task
+that spends its whole budget pays for `reconcile_rounds + 1` of them on top of
+its agent time. Re-check `loop.chunk_timeout_s` before a run: a timeout sized for
+an ungated fix phase will now stop chunks between tasks.
+
+### 6.4 Disposition — `_post_fix_disposition`
+
+Read off `run_fix_loop`'s label, which is read off the gates on the round whose
+tree was kept. Checked first, in this order: `agent_failed`, then "changed
+nothing", then the label.
 
 | Disposition | Reached when | Basis |
 |---|---|---|
-| `agent_failed` | invocation didn't return, or wrote no parseable attestation | **measured** |
-| `abandoned` | attested `fixed` but changed nothing; or reported `not_fixed` and changed nothing; or its chunk was rejected at the merge queue | **measured** |
-| `fixed` | attested fixed **and** its own probe demonstrated the defect pre-fix | attested |
-| `fixed_workflow_only` | attested fixed but the probe never proved the defect — including every reused-oracle task | attested |
-| `fixed_workflow_red` | as `fixed`, but `attestation.json → workflow_red` lists workflow assertions the agent left failing. Reporting only: no gate, no revert, no adjudication of its anti-oracle claims | attested |
-| `partial` | reported `not_fixed`, work retained | attested |
-| `already_remediated` | probe won't fire **and** an earlier task in this chunk already changed this `file:line` **and** `reused_from is None` | attested |
+| `agent_failed` | no invocation returned successfully, or none wrote a parseable attestation. Outranks the gates — a green measurement with no attestation is still `agent_failed`, and the reason records the gates being discarded | **measured** |
+| `abandoned` | the task changed no source file, whatever the label said; or its chunk was rejected at the merge queue | **measured** |
+| `fixed` | label `green`: probe blocked, build + workflow + net clean | **measured** |
+| `fixed_workflow_only` | label `workflow_only`: everything clean, but V3 was skipped because the probe never proved the defect pre-fix — including every reused-oracle task | **measured** (over one attested input: the pre-fix probe verdict) |
+| `fixed_workflow_red` | label `vuln_only`: probe blocked, workflow or net still red when the budget ran out. Reporting only: no revert, no adjudication of the agent's anti-oracle claims | **measured** |
+| `partial` | label `neither`: both axes red after every round, work on disk. Kept — a chunk is submitted whole | **measured** |
+| `already_remediated` | probe won't fire **and** an earlier task in this chunk already changed this `file:line` **and** `reused_from is None`. No fix phase is spent | attested |
 | `blocked` | no characterisation after retries, or the chunk stopped before this task | measured |
 
 `fixed`, `fixed_workflow_only` and `fixed_workflow_red` are **counted in separate
 buckets and never summed**, at task, chunk, phase and run level.
 
-`attestation_delta` records the agent's claim against what the dispatcher could
-see — `overclaim` when it said fixed and the disposition disagrees — and is
-**recorded, never used to alter the disposition**. `fixed_workflow_red` is not an
-overclaim: it is derived from the agent's own report, so nothing contradicted the
-claim and no delta is written.
+`attestation_delta` records the agent's claim against the measurement —
+`overclaim` when it said fixed and the disposition disagrees, `underclaim` when
+it said `not_fixed` over green gates — and is **recorded, never used to alter the
+disposition**. `fixed_workflow_red` is not counted an overclaim: the measurement
+agrees the path is closed, and the disagreement is about a gate the disposition
+already names.
+
+`attested.rounds_used` is kept beside `measured.rounds_used`. The first is what
+the agent typed; the second is what this process ran. A gap between them is a
+finding about the agent, not about the patch.
 
 **Note the interaction that decides subset 5's numbers:** `already_remediated`
 requires `reused_from is None`. With reuse on, the second and later bugs in a
@@ -378,8 +427,10 @@ v2 cannot measure. Real cost of the v3 shape.
 **Cannot:** produce a number comparable with subset 4's NEFR 0.50. Four
 independent reasons, any one sufficient — the bug report contract changed under
 `28695a4` and `RUN-HISTORY.md` says no later run is comparable; different subset
-and ground truth; v2 dispositions were measured while v3's are attested; and
-dependencies are unpinned. It also cannot say much about parallelism: peak
+and ground truth; and dependencies are unpinned. (The fourth reason used to be
+that v3's dispositions were attested and v2's measured. Since the fix loop is
+wired up that one is gone — but it applies in full to the three v3 runs made
+before it, whose rows must not be read across this line.) It also cannot say much about parallelism: peak
 concurrency 2 is what subset 4 already achieved.
 
 **And note the resolution limit.** Five of the ten bugs close or fail together,
@@ -391,25 +442,35 @@ so NEFR moves in steps of 0.5. The metric has resolution 2 on this subset, not
 1. **`build_gate` defaults to `always_ok`.** Pass `typecheck_gate(cfg)` or every
    chunk merges uncompiled.
 2. **No persistence in `Dispatcher`.** The driver must checkpoint per chunk.
-3. **Shared `task_id` on reused characterisations** — one patch-log path for all
-   reused tasks (later overwrite earlier) and one `attestation.json` path, so a
-   fix invocation that writes none can be graded against the previous task's.
-   Avoided entirely by `reuse_characterisation=False`.
+3. **Shared `task_id` on reused characterisations** — one `attestation.json`
+   path for every task that reuses one oracle, so a fix invocation that writes
+   none can be read against the previous task's. (The log collision is gone: the
+   fix loop writes to `logs/{chunk_id}-{bug_id}/`.) Avoided entirely by
+   `reuse_characterisation=False`.
 4. **No antioracle handling in v3** — `grep antioracle src/v3/` is empty.
-   `src/antioracle.py` is v1/v2 only. The measured precedent is an
-   attack-dependent test reverting a correct fix.
-5. **No per-task regression net.** Damage surfaces at the final suite, where
-   attribution costs a bisect.
-6. **`task-record.schema.json` rejects v3 records** — `additionalProperties:
-   false`, and it knows none of `disposition_basis`, `chunk_id`,
-   `merge_verdict`. Nothing validates at runtime today, so this bites at
-   archive time rather than run time.
-7. **`report.py` cannot see `disposition_basis`.** It would print v3's attested
-   greens in the same column as subset 4's measured ones, read
-   `probe_proven_pre_fix: null` as falsey and report `probe_coverage 0.0`, and
-   emit `rounds_to_green {never: N}`. Fix the reporter before archiving, or the
-   row reads as a catastrophic regression on metrics that simply do not exist
-   for v3.
+   `src/antioracle.py` is v1/v2 only, and the fix loop is passed
+   `antioracles=None` deliberately: `verify` excuses a net row from the tests'
+   own text or not at all, and a second excusal path decided elsewhere is the
+   thing this design refuses. Consequence, now that V4 is measured per round: a
+   net row a correct fix cannot satisfy goes red, the label is `vuln_only`, and
+   the task is `fixed_workflow_red` rather than `fixed`. The measured precedent
+   is an attack-dependent test reverting a correct fix, so this bucket must be
+   read, not summed away. **Wiring `antioracle.detect` into v3 is the first
+   candidate for the next change.**
+5. **No per-task regression net *at the chunk barrier*.** The per-task net now
+   runs every round inside the fix loop (V4); what is still absent is v2's
+   post-wave re-measurement, so a sibling reopening another chunk's fix surfaces
+   only at the final suite, where attribution costs a bisect.
+6. ~~**`task-record.schema.json` rejects v3 records**~~ — fixed 2026-08: the
+   contract now names `disposition_basis`, `chunk_id`, `merge_verdict`,
+   `attested_characterisation` and the measured round fields. Nothing validates
+   at runtime, so `test_v3_measured_fix.py` asserts the record's keys against the
+   contract instead.
+7. **`report.py` cannot see `disposition_basis`.** Less severe than it was — the
+   fix phase is measured, so `rounds_to_green` and the per-round table are
+   populated and `probe_coverage` is the only metric still reading a v3 null as
+   falsey (`probe_proven_pre_fix` stays attested). Check the rendered summary
+   before archiving.
 8. **No resume.** `run(phases=[n])` is the only checkpoint, and it re-seeds trees
    from trunk each time.
 

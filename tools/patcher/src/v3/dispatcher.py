@@ -3,21 +3,24 @@
 The dispatcher: v3's orchestrator, and deliberately the least intelligent
 component in the system.
 
-v1's orchestrator ran the gates and decided when a task was done. v2's computed
-a wave plan at runtime and re-measured every unit at the barrier. v3's does
-neither. The plan arrived offline, checked in; the judging moved inside the
-chunk agent. What is left is five jobs:
+v1's orchestrator planned nothing and gated every phase. v2's computed a wave
+plan at runtime and re-measured every unit at the barrier. v3's plan arrives
+offline, checked in, so what is left is six jobs:
 
     1. spawn one agent per chunk, all with the SAME generic prompt
     2. hand each agent its slice -- ordered tasks, write boundary, playbook refs
-    3. monitor liveness, timeout and the cost ceiling
-    4. own the merge queue, serially
-    5. advance to the next phase when every chunk in the bracket has merged,
+    3. run the fix phase's rounds: invoke, measure the gates, hand the failure
+       back, stop on green / budget / clock (`task_loop.run_fix_loop`)
+    4. monitor liveness, timeout and the cost ceiling
+    5. own the merge queue, serially
+    6. advance to the next phase when every chunk in the bracket has merged,
        and run the full suite once after the last one
 
-It never reads an agent's intermediate output to decide anything. The only
-artefacts it opens are the two the submission contract names -- the attestation
-and the declarations -- and it opens those to RECORD them, not to grade them.
+Job 3 is a boundary, not a supervisor. It never reads an agent's intermediate
+output, never edits, never decides what a fix should be, and never runs a check
+in the agent's place inside a round. The only artefacts it opens are the two the
+submission contract names -- the attestation and the declarations -- and it opens
+those to RECORD them, not to grade them.
 
 THE FIX PHASE, AND WHAT "THE ORCHESTRATOR IS NOT A JUDGE" DOES AND DOES NOT MEAN
 
@@ -611,9 +614,11 @@ def net_commands(cfg: dict, related_files) -> list:
 
     Naming the files is not enough. An agent handed a list of paths invents its
     own command and picks the wrong test environment, so the command goes in --
-    the same conclusion v2 reached in `prompts.build_fix`. It matters more here:
-    v3 runs no per-task regression net of its own, so this in-prompt run is the
-    ONLY per-task check that damage did not happen.
+    the same conclusion v2 reached in `prompts.build_fix`.
+
+    These are the same files V4 runs at the round boundary. Giving them to the
+    agent is not redundant: a round it can pre-check itself is a round it does
+    not have to spend, and a reconcile round costs a whole fresh invocation.
     """
     out = []
     for rel in related_files or ():
@@ -1118,9 +1123,9 @@ class Dispatcher:
                                                f'{reused_from}, not for this bug')
             rec['attested_characterisation'] = attested_ch
 
-            # The regression net, resolved before the patch prompt is built. v3
-            # runs no per-task net of its own, so what goes into this prompt is
-            # the only per-task check for collateral damage that exists.
+            # The regression net, resolved before the patch prompt is built. It
+            # is used twice: it goes into the prompt so the agent can clear it
+            # inside its turn, and it is V4 at every round boundary.
             # Agent-named files are unioned with a static scan for the same reason
             # v2 does it: the agent misses tests it did not think to look for, the
             # scan misses tests that reach the code through indirection.
@@ -1161,9 +1166,11 @@ class Dispatcher:
 
         `G3` -- the three artefacts exist and `characterisation.json` parses -- is
         a file-system fact and is checked and retried here, up to
-        `loop.characterise_rounds`, exactly as ARCHITECTURE.md specifies. `G1` and
-        `G2` need the artefacts RUN against the untouched tree, which is a patcher
-        gate, so in v3 they are the agent's report and are recorded as attested.
+        `loop.characterise_rounds`, exactly as ARCHITECTURE.md specifies. `G1` is
+        measured later, in the baseline sweep `_baseline` takes just before the
+        fix loop. `G2` is not measured at all: the probe is never run against the
+        untouched tree here, so the pre-fix verdict is the agent's report and is
+        recorded as attested, in `attested_characterisation`.
 
         The source-read-only rule is enforced twice for the same reason v1
         enforces it twice: the hook denies the write, and anything that got past
@@ -1399,11 +1406,12 @@ class Dispatcher:
                               reused_from) -> None:
         """The disposition, from the label the ORCHESTRATOR measured.
 
-        Every branch here is MEASURED. It used to read `attestation.json →
-        status` and label the result ATTESTED, which is the thing this change
-        exists to end: `status` is the agent's opinion of its own patch, and an
-        agent that stops after one round over a red gate and writes `fixed`
-        produced exactly the same record as one that reconciled to green.
+        Every branch here is MEASURED. While the fix loop was unimplemented this
+        function had nothing to read but `attestation.json → status`, and
+        labelled its output ATTESTED because that is what it was: `status` is the
+        agent's opinion of its own patch, and an agent that stopped after one
+        round over a red gate and wrote `fixed` produced exactly the same record
+        as one that reconciled to green. There are gate results now.
 
         `loop.label` is `task_loop._derive_label`'s reading of the gates the
         dispatcher ran on the round whose tree was kept:
@@ -1485,8 +1493,9 @@ class Dispatcher:
                    and loop.gates.get(g) not in ('pass', 'skipped', None)]
             claims = len(((att or {}).get('antioracle_claims')) or [])
             _dispose(rec, 'fixed_workflow_red', MEASURED,
-                     f'the probe stopped proving the defect, and {", ".join(sorted(red))} '
-                     f'was still red after {loop.rounds_used} measured round(s). The '
+                     'the probe stopped proving the defect, and '
+                     f'{", ".join(sorted(red))} was still red after '
+                     f'{loop.rounds_used} measured round(s). The '
                      f'agent claims {claims} of the failing assertion(s) assert the '
                      'vulnerable behaviour itself; that claim is recorded and '
                      'adjudicated by nothing. Never summed with `fixed` -- a correct '
