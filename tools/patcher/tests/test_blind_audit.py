@@ -13,6 +13,7 @@ import sys
 
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(HERE, '..', 'src'))
+sys.path.insert(0, os.path.join(HERE, '..', 'hooks'))
 import blind_guard  # noqa: E402
 
 HOOK = os.path.join(HERE, '..', 'hooks', 'sandbox_guard.py')
@@ -53,17 +54,32 @@ def test_honest_patching_rules_do_not_void_a_run(tmp_path):
     assert a['contaminated'] is False
 
 
+def test_a_denied_network_egress_does_not_void_a_run(tmp_path):
+    """The guard denied it, so nothing was fetched. patch-run-subset-04 was stamped
+    contaminated on exactly one such denial -- an `npx --yes` package fetch -- with
+    out_of_tree and answer_key_pattern both 0."""
+    a = _audit(_log(tmp_path, _denial('network_egress', 'npx --yes some-pkg')))
+    assert a['contaminated'] is False
+    assert a['runtime_denials']['network_egress'] == 1
+    assert any('network egress' in n for n in a['notes'])
+
+
+def test_network_egress_is_deny_only_by_construction(tmp_path):
+    """The premise the test above rests on. If evaluate() ever ALLOWS with this kind,
+    'denied means nothing was learned' breaks and the classifier must be revisited."""
+    import sandbox_guard as sg
+    for cmd in ('curl https://example.com', 'npm install left-pad',
+                'git clone https://github.com/x/y', 'npx --yes cowsay'):
+        d = sg.evaluate({'tool_name': 'Bash', 'tool_input': {'command': cmd}},
+                        str(tmp_path), 'fix', 'T', [], [])
+        assert not d.allow, cmd
+        assert d.kind == 'network_egress', cmd
+
+
 # ---- what MUST void a run -------------------------------------------------
 
 def test_an_answer_key_path_voids_the_run(tmp_path):
     a = _audit(_log(tmp_path, _denial('answer_key_pattern', 'juice-shop-answer-key')))
-    assert a['contaminated'] is True
-
-
-def test_network_egress_voids_the_run(tmp_path):
-    """Upstream Juice Shop IS the answer key. This kind was absent from the
-    contaminating set, so a fetch would not have voided a run."""
-    a = _audit(_log(tmp_path, _denial('network_egress', 'curl https://github.com/...')))
     assert a['contaminated'] is True
 
 
