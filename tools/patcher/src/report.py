@@ -13,6 +13,11 @@ Reporting rules this module encodes rather than leaves to whoever reads it:
   eval exists to catch.
 - Every rate is emitted with its denominator. A percentage without one is not
   comparable across runs.
+- A coverage number that was never measured is emitted as `null`, never as `0`,
+  and carries the basis it was computed from. `0.0` is a finding — the oracle
+  ran and came back red for every task. `null` is the absence of one. A reader
+  of an archived row cannot tell those apart after the fact, and the row is
+  append-only, so the distinction has to be made here or not at all.
 - `rounds_to_green` is a distribution, not a mean. The mean hides the tail, and
   the tail is where the cost is.
 - Cost and failure are reported even when the run went badly. A cost nobody can
@@ -31,9 +36,65 @@ DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'fixed_workflow_red',
                 'already_remediated', 'abandoned', 'partial', 'agent_failed',
                 'blocked')
 
+# The basis vocabulary for a coverage number. The first two strings are the same
+# two `v3/dispatcher.py` writes into `disposition_basis`, deliberately: a reader
+# should not have to learn two words for one distinction. `not_measured` is this
+# module's own, and names the state neither of those can express -- nobody looked.
+MEASURED, ATTESTED, NOT_MEASURED = 'measured', 'attested', 'not_measured'
+
 
 def _pct(num, den):
     return round(num / den, 4) if den else None
+
+
+def _flag(block, field):
+    """One characterisation flag as a tri-state: True, False, or None.
+
+    `None` means NOT MEASURED and must never collapse into `False`. v1 measures
+    both flags itself and so always carries a real boolean; v3 does not re-run
+    the exploit probe before the fix, so its `probe_proven_pre_fix` is null by
+    design and its pre-fix evidence lives in `attested_characterisation`.
+    """
+    if not isinstance(block, dict):
+        return None
+    v = block.get(field)
+    return None if v is None else bool(v)
+
+
+def _coverage(records, field):
+    """`(basis, count_of_true)` for one characterisation flag over all records.
+
+    Measured values win outright: if ANY record carries a measured value, the
+    number is computed from measured values alone and the attested ones are left
+    out of it. A rate that blends what was run with what was claimed is not a
+    rate of anything, and the blend cannot be undone by a later reader — so the
+    number carries exactly one basis. A run that measured nothing falls back to
+    the agent's own account, LABELLED as attested; a run with neither returns a
+    null count, which the caller emits as a null rate rather than as zero.
+    """
+    if not records:
+        # No tasks, so no claim in either direction: `_pct` already returns null
+        # for a zero denominator and a zero count is honest. Left exactly as it
+        # was rather than relabelled, because this is also the v1 shape.
+        return MEASURED, 0
+    measured, attested = [], []
+    for r in records:
+        v = _flag((r.get('measured') or {}).get('characterisation'), field)
+        if v is not None:
+            measured.append(v)
+            continue
+        # `disposition_basis` is consulted as well as the block itself, because a
+        # record disposed on the agent's attestation is attested whether or not
+        # it also carried a characterisation of its own.
+        if r.get('attested_characterisation') or r.get('disposition_basis') == ATTESTED:
+            av = _flag(r.get('attested_characterisation'), field)
+            if av is not None:
+                attested.append(av)
+    if measured:
+        return MEASURED, sum(measured)
+    if attested:
+        return ATTESTED, sum(attested)
+    return NOT_MEASURED, None
 
 
 def _parallel_summary(p) -> dict | None:
@@ -80,9 +141,24 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
         counts[r.get('disposition', 'blocked')] = counts.get(
             r.get('disposition', 'blocked'), 0) + 1
 
-    ch = [r['measured']['characterisation'] for r in records if r.get('measured')]
-    probe_ok = sum(1 for c in ch if c.get('probe_proven_pre_fix'))
-    wf_ok = sum(1 for c in ch if c.get('workflow_green_pre_fix'))
+    probe_basis, probe_ok = _coverage(records, 'probe_proven_pre_fix')
+    wf_basis, wf_ok = _coverage(records, 'workflow_green_pre_fix')
+    self_verification = {
+        'probe_coverage': None if probe_ok is None else _pct(probe_ok, n),
+        'workflow_characterised': None if wf_ok is None else _pct(wf_ok, n),
+        # Null, not `n`. "Every task is unproven" is a finding; "no task was
+        # checked" is not, and reading the second as the first is exactly the
+        # over-report the tri-state exists to prevent.
+        'probe_unproven_tasks': None if probe_ok is None else n - probe_ok,
+        'characterisation_blocked_tasks': None if wf_ok is None else n - wf_ok,
+    }
+    # The basis is emitted only when the number is NOT the plain measured one,
+    # so a v1 report is unchanged to the byte and an absent basis reads as
+    # `measured`. A consumer should default it to `measured` for that reason.
+    if probe_basis != MEASURED:
+        self_verification['probe_coverage_basis'] = probe_basis
+    if wf_basis != MEASURED:
+        self_verification['workflow_characterised_basis'] = wf_basis
 
     greens = [r['measured'].get('rounds_to_green') for r in records
               if r.get('measured') and r['measured'].get('rounds_to_green') is not None]
@@ -176,12 +252,7 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
         'totals': {
             'tasks': n,
             'dispositions': counts,
-            'self_verification': {
-                'probe_coverage': _pct(probe_ok, n),
-                'workflow_characterised': _pct(wf_ok, n),
-                'probe_unproven_tasks': n - probe_ok,
-                'characterisation_blocked_tasks': n - wf_ok,
-            },
+            'self_verification': self_verification,
             'rounds_to_green': {
                 'histogram': hist,
                 'median': statistics.median(greens) if greens else None,
@@ -206,6 +277,23 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
         },
         'tasks': records,
     }
+
+
+def _coverage_line(sv: dict, key: str, n: int) -> str:
+    """The right-hand side of one SELF-VERIFICATION line.
+
+    A number that was never measured prints as words, never as a rate. Someone
+    skimming a column of rates will not stop to ask whether `0.0` means the
+    oracle failed or that there was no oracle, so the two never look alike here.
+    An attested number prints its provenance beside it for the same reason: it
+    is the agent's account of its own work and is not evidence of the same kind.
+    """
+    basis = sv.get(f'{key}_basis', MEASURED)
+    if basis == NOT_MEASURED:
+        return f'not measured  ({n} tasks — no pre-fix result was recorded)'
+    if basis == ATTESTED:
+        return f'{sv[key]}  ({n} tasks — ATTESTED by the agent, not measured here)'
+    return f'{sv[key]}  ({n} tasks)'
 
 
 def _iso(ts: float) -> str:
@@ -254,8 +342,10 @@ def render_summary(report: dict) -> str:
         f"  blocked before a fix was attempted    : {d['blocked']}",
         '',
         'SELF-VERIFICATION COVERAGE  (the ceiling on what the sandbox could check)',
-        f"  workflow baseline established : {sv['workflow_characterised']}  ({n} tasks)",
-        f"  exploit probe reached PROVEN  : {sv['probe_coverage']}  ({n} tasks)",
+        '  workflow baseline established : '
+        + _coverage_line(sv, 'workflow_characterised', n),
+        '  exploit probe reached PROVEN  : '
+        + _coverage_line(sv, 'probe_coverage', n),
         '',
         'COST OF THE LOOP',
         f"  rounds to green (median / max): {rg['median']} / {rg['max']}",

@@ -3,7 +3,26 @@
 The aggregation tests exist because the reporting rules are easy to state and
 easy to violate silently: summing two dispositions that must stay apart, or
 emitting a rate whose denominator moved.
+
+One of those rules gets a section to itself, because it is the one where a
+silent violation becomes permanent. A coverage rate of `0.0` and a coverage rate
+that was never measured are different facts. The first says the oracle ran and
+came back red for every task; the second says nobody looked. A null that is
+allowed to fall through as zero looks exactly like a bad result, and the two are
+indistinguishable to anyone reading the number afterwards -- which matters here
+because the number is copied verbatim into an append-only history file, where a
+correction can only be a new row and the original stands forever beside it. So
+the distinction has to be made at the point the number is computed, carried in
+the output as an explicit basis, and printed as words rather than as a rate.
+
+The same section pins the older reporter's output byte for byte. This module is
+shared by run tracks that characterise differently: one measures both pre-fix
+flags itself and always has real booleans, another cannot re-run its probe
+pre-fix and legitimately has none. Making room for the second must not move a
+single digit of the first, or two tracks' rows stop being comparable and the
+history file records the reporting change as if it were a result.
 """
+import hashlib
 import json
 import os
 import subprocess
@@ -135,6 +154,246 @@ def test_summary_carries_no_per_task_detail():
     """`tasks[]` pairs a bug id with a file and a line; the summary must not."""
     text = report_mod.render_summary(agg([_rec('A', 'fixed', files=('routes/secret.ts',))]))
     assert 'routes/secret.ts' not in text and 'BUG' not in text
+
+
+# ---------------------------------------------------------------------------
+# A null is not a zero
+#
+# A record whose pre-fix flag is `None` was NOT MEASURED. A record whose flag is
+# `False` was measured and came back red. Everything below exists to keep those
+# two out of the same bucket, and to keep the older track's report unmoved while
+# the room is made.
+# ---------------------------------------------------------------------------
+
+def _unmeasured(bug_id, disposition='fixed', *, workflow=None, probe=None,
+                attested_ch=None, disposition_basis='measured'):
+    """A record from a track that does not re-run its exploit probe pre-fix.
+
+    Its `measured.characterisation` carries nulls where the older track carries
+    booleans, and whatever pre-fix account exists lives in
+    `attested_characterisation` -- a different dict, deliberately, so that the
+    agent's word is never mistaken for a measurement.
+    """
+    r = _rec(bug_id, disposition, probe=probe, workflow=workflow)
+    r['disposition_basis'] = disposition_basis
+    r['attested_characterisation'] = attested_ch
+    return r
+
+
+def test_an_unmeasured_probe_is_null_and_says_so_rather_than_reading_zero():
+    """The whole point. `0.0` would be a finding; there is no finding here."""
+    sv = agg([_unmeasured('A'), _unmeasured('B'),
+              _unmeasured('C')])['totals']['self_verification']
+    assert sv['probe_coverage'] is None
+    assert sv['probe_coverage_basis'] == 'not_measured'
+    # And not `3`: "every task unproven" is a claim nothing here can support.
+    assert sv['probe_unproven_tasks'] is None
+
+
+def test_the_measured_half_of_the_same_block_is_untouched_by_that():
+    """One half measured and the other null is the normal shape for that track,
+    and the halves must not drag each other. The workflow baseline IS run against
+    the untouched tree, so it keeps a real rate and no basis of its own."""
+    sv = agg([_unmeasured('A', workflow=True), _unmeasured('B', workflow=True),
+              _unmeasured('C', workflow=False),
+              _unmeasured('D', workflow=None)])['totals']['self_verification']
+    assert sv['workflow_characterised'] == 0.5
+    assert sv['characterisation_blocked_tasks'] == 2
+    assert 'workflow_characterised_basis' not in sv     # absent means measured
+    assert sv['probe_coverage'] is None
+
+
+def test_an_attested_pre_fix_result_is_used_and_labelled_as_attested():
+    """Better than a null, and not to be confused with a measurement: it is the
+    agent's account of its own oracle, so the number carries where it came from."""
+    proven = {'basis': 'attested', 'probe_proven_pre_fix': True,
+              'workflow_green_pre_fix': True}
+    unproven = dict(proven, probe_proven_pre_fix=False)
+    sv = agg([_unmeasured('A', attested_ch=proven),
+              _unmeasured('B', attested_ch=proven),
+              _unmeasured('C', attested_ch=unproven),
+              _unmeasured('D', attested_ch=unproven)])['totals']['self_verification']
+    assert sv['probe_coverage'] == 0.5
+    assert sv['probe_coverage_basis'] == 'attested'
+    assert sv['probe_unproven_tasks'] == 2
+
+
+def test_a_record_disposed_on_its_attestation_supplies_the_fallback_too():
+    """`already_remediated` is settled on the agent's word, so its pre-fix account
+    is the only one there is. Read it, and label the number for what it is."""
+    sv = agg([_unmeasured('A', 'already_remediated', disposition_basis='attested',
+                          attested_ch={'basis': 'attested',
+                                       'probe_proven_pre_fix': True})
+              ])['totals']['self_verification']
+    assert sv['probe_coverage'] == 1.0
+    assert sv['probe_coverage_basis'] == 'attested'
+
+
+def test_a_measured_rate_is_never_blended_with_an_attested_one():
+    """Two bases in one number is not a rate of anything, and no later reader can
+    take the blend apart. Measured wins outright; the attested record counts in
+    the denominator as uncovered rather than being credited on the agent's word."""
+    sv = agg([_rec('A', 'fixed', probe=True),
+              _unmeasured('B', attested_ch={'basis': 'attested',
+                                            'probe_proven_pre_fix': True}),
+              ])['totals']['self_verification']
+    assert sv['probe_coverage'] == 0.5
+    assert 'probe_coverage_basis' not in sv             # absent means measured
+    assert sv['probe_unproven_tasks'] == 1
+
+
+def test_a_measured_false_is_still_a_finding_and_never_falls_back():
+    """The fallback triggers on a null, not on a red. A measured `False` is
+    evidence and outranks the agent's claim to the contrary."""
+    r = _rec('A', 'fixed', probe=False)
+    r['attested_characterisation'] = {'basis': 'attested',
+                                      'probe_proven_pre_fix': True}
+    sv = agg([r])['totals']['self_verification']
+    assert sv['probe_coverage'] == 0.0
+    assert 'probe_coverage_basis' not in sv
+
+
+def test_the_summary_prints_an_unmeasured_coverage_as_words():
+    """A reader skimming a column of rates will not stop to ask whether `0.0`
+    means the oracle failed or that there was none."""
+    line = [ln for ln in report_mod.render_summary(
+        agg([_unmeasured('A'), _unmeasured('B')])).splitlines()
+        if 'exploit probe' in ln][0]
+    assert 'not measured' in line
+    assert '0.0' not in line and '0.5' not in line
+
+
+def test_the_summary_marks_an_attested_coverage_as_attested():
+    text = report_mod.render_summary(agg([
+        _unmeasured('A', attested_ch={'basis': 'attested',
+                                      'probe_proven_pre_fix': True})]))
+    line = [ln for ln in text.splitlines() if 'exploit probe' in ln][0]
+    assert 'ATTESTED by the agent' in line and '1.0' in line
+
+
+def test_the_basis_vocabulary_is_the_one_the_records_already_use():
+    """A reader should not have to learn two words for one distinction."""
+    from v3 import dispatcher
+    assert report_mod.MEASURED == dispatcher.MEASURED
+    assert report_mod.ATTESTED == dispatcher.ATTESTED
+
+
+def test_the_contract_knows_the_basis_fields_and_the_nulls():
+    """`self_verification` is `additionalProperties: false` and nothing validates
+    at runtime, so a field that reaches a report without reaching the schema makes
+    the report contract-INVALID and the first symptom would be a contract check on
+    a run that has already been paid for."""
+    contracts = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
+        __file__))), 'contracts')
+    with open(os.path.join(contracts, 'patcher-report.schema.json')) as fh:
+        sv = json.load(fh)['properties']['totals']['properties'][
+            'self_verification']['properties']
+    for k in ('probe_coverage_basis', 'workflow_characterised_basis'):
+        assert set(sv[k]['enum']) == {report_mod.MEASURED, report_mod.ATTESTED,
+                                      report_mod.NOT_MEASURED}
+    for k in ('probe_unproven_tasks', 'characterisation_blocked_tasks'):
+        assert 'null' in sv[k]['type']
+
+
+# ---- the older track, pinned ----------------------------------------------
+
+# Captured from `aggregate()` BEFORE the tri-state landed, with the clock frozen
+# so the whole dict is deterministic. The digest covers everything -- `run`,
+# `blind_audit`, `parallel` and `tasks` included; the two literals below it cover
+# the parts a change is most likely to move, so a break localises itself instead
+# of only saying that something did.
+FROZEN = 1_750_000_000.0
+V1_DIGEST = 'e1d61114670ba183fb04fe5cca896ef4f800da0717536edea7e8ef521c7b38e0'
+V1_TOTALS = '''{
+ "tasks": 4,
+ "dispositions": {
+  "fixed": 1,
+  "fixed_workflow_only": 1,
+  "fixed_workflow_red": 0,
+  "already_remediated": 0,
+  "abandoned": 1,
+  "partial": 0,
+  "agent_failed": 0,
+  "blocked": 1
+ },
+ "self_verification": {
+  "probe_coverage": 0.25,
+  "workflow_characterised": 0.5,
+  "probe_unproven_tasks": 3,
+  "characterisation_blocked_tasks": 2
+ },
+ "rounds_to_green": {
+  "histogram": {
+   "0": 1,
+   "2": 1,
+   "never": 2
+  },
+  "median": 1.0,
+  "max": 2
+ },
+ "blast_radius": {
+  "files_touched_total": 1,
+  "lines_added_total": 16,
+  "lines_removed_total": 8,
+  "tasks_touching_outside_bug_file": 0,
+  "tasks_net_deletion": 0
+ },
+ "tasks_reverted": 2,
+ "violations_total": 0,
+ "attestation_calibration": {
+  "claimed_fixed": 2,
+  "claimed_fixed_and_gates_green": 1,
+  "claimed_fixed_but_gates_red": 1,
+  "claimed_not_fixed_but_gates_green": 0,
+  "in_sandbox_overclaim_rate": 0.5
+ }
+}'''
+V1_SUMMARY_COVERAGE = ('SELF-VERIFICATION COVERAGE  (the ceiling on what the '
+                       'sandbox could check)\n'
+                       '  workflow baseline established : 0.5  (4 tasks)\n'
+                       '  exploit probe reached PROVEN  : 0.25  (4 tasks)')
+
+
+def _v1_pin_records():
+    """Every disposition shape the older track produces, and both flags in both
+    states, so the pin has something to catch."""
+    return [_rec('A', 'fixed', rounds_to_green=0, attested={'status': 'fixed'}),
+            _rec('B', 'fixed_workflow_only', rounds_to_green=2, probe=False),
+            _rec('C', 'abandoned', probe=False, workflow=False,
+                 attested={'status': 'fixed'}),
+            _rec('D', 'blocked', probe=False, workflow=False)]
+
+
+def _v1_pin_report(monkeypatch):
+    monkeypatch.setattr(report_mod.time, 'time', lambda: FROZEN)
+    return report_mod.aggregate(
+        _v1_pin_records(), run_meta={'run_id': 'pin', 'target_sha': 'deadbeef'},
+        blind_audit=CLEAN_AUDIT, agent_desc={'runner': 'fake'},
+        started_at=FROZEN - 3600)
+
+
+def test_the_older_tracks_report_is_unchanged_to_the_byte(monkeypatch):
+    """Its records always carry real booleans, so none of the new paths above are
+    reachable from them. Pinned rather than argued, because the failure mode is a
+    number that moved for a reporting reason and is read later as a result."""
+    out = _v1_pin_report(monkeypatch)
+    assert json.dumps(out['totals'], indent=1) == V1_TOTALS
+    assert hashlib.sha256(
+        json.dumps(out, indent=1, sort_keys=True).encode()).hexdigest() == V1_DIGEST
+
+
+def test_the_older_tracks_summary_is_unchanged_to_the_byte(monkeypatch):
+    text = report_mod.render_summary(_v1_pin_report(monkeypatch))
+    assert V1_SUMMARY_COVERAGE in text
+
+
+def test_a_run_with_no_tasks_at_all_reports_what_it_always_did(monkeypatch):
+    """The degenerate case is already honest -- a rate over zero tasks is null and
+    a count of zero is a fact -- so it is left exactly where it was."""
+    monkeypatch.setattr(report_mod.time, 'time', lambda: FROZEN)
+    sv = agg([])['totals']['self_verification']
+    assert sv == {'probe_coverage': None, 'workflow_characterised': None,
+                  'probe_unproven_tasks': 0, 'characterisation_blocked_tasks': 0}
 
 
 # ---------------------------------------------------------------------------
