@@ -6,3 +6,7 @@
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Agent worktrees: transient scaffolding created by isolated subagent runs.
+# .claude/skills/ IS tracked; only the worktrees are ephemeral.
+.claude/worktrees/
