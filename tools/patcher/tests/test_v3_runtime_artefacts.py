@@ -178,3 +178,55 @@ def test_without_the_base_file_the_second_chunk_is_rejected(tmp_path):
     )
     assert any('i18n/en.json' in str(e) for e in rejected), (
         f'rejected for some other reason than the boot-time file: {rejected}')
+
+
+# ----------------------------------------------------------------------------
+# The declarations artefact, as an agent actually writes it
+# ----------------------------------------------------------------------------
+
+def test_a_real_agents_declarations_file_is_read(tmp_path):
+    """Built from the shape a live agent produced, not from the parser's.
+
+    On patch-run-subset-05 a chunk declared a cross-boundary write correctly and
+    the run recorded it as UNDECLARED: the agent wrote `declarations`, the parser
+    read `files`, and the mismatch surfaced as an empty list rather than an error.
+    Every test in the suite constructed the artefact the parser's way, so the
+    whole suite passed over a mechanism that did not work on real input.
+
+    This asserts the live shape, and the two others the parser accepts, because a
+    prompt that names a file without pinning its schema will keep producing all
+    three.
+    """
+    import json as _json
+    for label, doc in (
+        ('live agent shape', {'chunk': 'C01', 'declarations': [
+            {'file': 'server.ts', 'bug_id': 'BUG-039', 'reason': 'removed the mount'}]}),
+        ('parser shape', {'files': [
+            {'file': 'server.ts', 'bug_id': 'BUG-039', 'reason': 'removed the mount'}]}),
+        ('bare list', [{'file': 'server.ts', 'bug_id': 'BUG-039',
+                        'reason': 'removed the mount'}]),
+    ):
+        tree = tmp_path / label.replace(' ', '-')
+        scratch = os.path.join(str(tree), workspace.scratch_rel('C01'))
+        os.makedirs(scratch, exist_ok=True)
+        with open(os.path.join(scratch, 'declarations.json'), 'w') as fh:
+            _json.dump(doc, fh)
+        got = dispatcher.read_declarations(str(tree), 'C01')
+        assert [d['file'] for d in got] == ['server.ts'], (
+            f'{label}: declarations.json was not read; a correctly declared '
+            'cross-boundary write would be recorded as undeclared')
+        assert got[0]['bug_id'] == 'BUG-039' and got[0]['reason']
+
+
+def test_nothing_beyond_the_whitelist_survives_the_read(tmp_path):
+    """The forward-feed path carries these entries into another chunk's prompt."""
+    import json as _json
+    scratch = os.path.join(str(tmp_path), workspace.scratch_rel('C01'))
+    os.makedirs(scratch, exist_ok=True)
+    with open(os.path.join(scratch, 'declarations.json'), 'w') as fh:
+        _json.dump({'declarations': [{
+            'file': 'server.ts', 'bug_id': 'BUG-039', 'reason': 'ok',
+            'class': 'X', 'playbook_ref': 'Y', 'challenge': 'Z', 'note': 'W'}]}, fh)
+    got = dispatcher.read_declarations(str(tmp_path), 'C01')
+    assert sorted(got[0]) == ['bug_id', 'file', 'reason'], (
+        f'unexpected fields survived the read: {sorted(got[0])}')

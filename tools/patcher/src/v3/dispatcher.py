@@ -99,6 +99,7 @@ import testmap
 import verify
 import workspace
 
+from . import boundary
 from . import chunk_map as chunk_map_mod
 from . import merge_queue as mq
 
@@ -185,15 +186,48 @@ in order; do not batch them and do not reorder them.
 
 - The files above: write freely.
 - `{shared_zone}`: shared extension zone. You may write here, but you MUST first
-  add the file and your reason to `{declarations}`. Several chunks legitimately
-  extend the same view or config, so a chunk that writes here is merged last.
+  add the file, the bug you are fixing and your reason to `{declarations}`.
+  Several chunks legitimately extend the same view or config, so a chunk that
+  writes here is merged last.
 - Any other file: same rule -- declare it in `{declarations}` before you write it.
   Reaching outside your files is allowed and sometimes necessary; a correct CSRF
   fix in this codebase spans four files to plumb a token into a view. What is not
   allowed is doing it silently.
 - `{never_writable}`: never, under any circumstances.
 
-{house_rules}
+Each entry in `{declarations}` is `{{"file": ..., "bug_id": ..., "reason": ...}}`.
+The reason is not paperwork: the chunk that owns that file runs after you and is
+shown what you wrote and why, so a file you touched does not read to it as damage.
+
+{landed}{house_rules}
+"""
+
+# The forward feed. A declared write lands in the trunk, and the chunk that OWNS
+# that file is seeded from the trunk one phase later -- seeing modified code with
+# nothing to say why it looks that way. Measured in the first v3 run: a chunk
+# read an earlier chunk's landed remediation as damage and restored what it had
+# removed, reopening a defect the run had already closed while the task that
+# closed it stayed recorded as `fixed`.
+#
+# The wording is deliberately not a prohibition. Forbidding further change here
+# would block legitimate hardening of a file that has only just been touched --
+# the same "restrict the solution space and still look successful" failure the
+# write boundary exists to avoid. What it asks for instead is that an agent which
+# does undo one of these says so, so the reversal is in the record rather than
+# silent.
+LANDED_BLOCK = """\
+## Landed work already in your files
+
+{entries}
+
+None of that is damage or leftovers. Each one is an earlier chunk's fix that the
+merge queue accepted, so it is part of the tree you were seeded from -- code that
+looks as though something was removed, or a check that seems to have arrived from
+nowhere, is that fix. Read it as correct existing code and work on top of it.
+Hardening these files further is still your job; if your own fix genuinely needs
+to change or undo one of them, do it and say so in your attestation rather than
+restoring what was there before.
+
 """
 
 CHARACTERISE_BODY = """\
@@ -375,7 +409,38 @@ def task_id_for(chunk_id: str, bug_id: str) -> str:
     return f'{chunk_id}-{bug_id}'
 
 
-def _header(a: Assignment, tree: str, cmap) -> str:
+def render_landed(inherited) -> str:
+    """The landed-declaration block, or nothing at all.
+
+    Nothing at all is the common case and it stays literally empty: an empty
+    section under a heading is noise in a prompt that is already long, and an
+    agent that learns the section is usually vacuous stops reading it on the run
+    where it is not.
+
+    Exactly four fields are rendered -- the file, the chunk, the bug it was
+    fixing and the reason it wrote. `file` and `bug_id` the agent already had in
+    its own slice, and `reason` is agent-authored from the blind tree. Nothing
+    else may be added here: this is the one path that carries text from one
+    chunk's prompt into another's, so anything class- or playbook-derived would
+    cross a chunk boundary the boundary map exists to keep closed.
+    """
+    lines = []
+    for d in inherited or ():
+        who = f"chunk {d.get('chunk_id')}"
+        phase = d.get('phase')
+        when = f' in phase {phase}' if phase is not None else ''
+        bug = d.get('bug_id')
+        why = (d.get('reason') or '').strip()
+        lines.append(
+            f"- `{d.get('file')}` — {who} changed this file{when} while fixing "
+            + (f'{bug}' if bug else 'one of its own bugs')
+            + (f'. Its reason: {why}' if why else '.'))
+    if not lines:
+        return ''
+    return LANDED_BLOCK.format(entries='\n'.join(lines))
+
+
+def _header(a: Assignment, tree: str, cmap, inherited=()) -> str:
     owned = '\n'.join(f'- `{f}`' for f in sorted(a.boundary.owned)) or '- (none)'
     tasklist = '\n'.join(
         f"{i + 1}. **{b['bug_id']}** — `{b['location']['file']}:{b['location']['line']}` "
@@ -389,12 +454,17 @@ def _header(a: Assignment, tree: str, cmap) -> str:
         shared_zone=', '.join(cmap.shared_extension_zone),
         never_writable=', '.join(cmap.never_writable),
         declarations=f'{workspace.scratch_rel(a.chunk_id)}/declarations.json',
+        landed=render_landed(inherited),
         house_rules=prompts.HOUSE_RULES)
 
 
 def build_characterise_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap,
-                              scratch_rel: str) -> str:
-    return _header(a, tree, cmap) + '\n' + CHARACTERISE_BODY.format(
+                              scratch_rel: str, inherited=()) -> str:
+    # The block belongs here as much as in the fix prompt. The failure it exists
+    # to stop was a reading formed during characterisation -- the agent decided
+    # the file had lost something before it wrote a line of code, and the fix
+    # phase only carried out what that reading implied.
+    return _header(a, tree, cmap, inherited) + '\n' + CHARACTERISE_BODY.format(
         bug_id=bug['bug_id'], file=bug['location']['file'],
         line=bug['location']['line'], bug=prompts._fmt_bug(bug),
         scratch=scratch_rel,
@@ -434,9 +504,9 @@ def _net_block(cmds) -> str:
 
 def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
                        scratch_rel: str, reused_from: str | None,
-                       max_rounds: int, related_files=()) -> str:
+                       max_rounds: int, related_files=(), inherited=()) -> str:
     entry, how = (blind_guard.select_entry(playbook, bug) if playbook else (None, 'none'))
-    return _header(a, tree, cmap) + '\n' + PATCH_BODY.format(
+    return _header(a, tree, cmap, inherited) + '\n' + PATCH_BODY.format(
         bug_id=bug['bug_id'], file=bug['location']['file'],
         line=bug['location']['line'], bug=prompts._fmt_bug(bug),
         playbook=prompts._fmt_playbook(entry, how,
@@ -645,6 +715,14 @@ class Dispatcher:
         self._spend = 0.0
         self._lock = threading.Lock()
         self.started_order: list = []
+        # Out-of-boundary writes that are IN THE TRUNK: one entry per declaration
+        # of a chunk whose submission the merge queue accepted, in the order the
+        # phases landed. Appended to only at the end of a phase, so a chunk can
+        # never be told about work that is still running beside it -- concurrent
+        # chunks in one phase see nothing of each other, which is correct, because
+        # a submission that is later rejected is rolled back byte for byte and its
+        # declarations describe a tree that no longer exists.
+        self.landed_declarations: list = []
 
     # -- trees -------------------------------------------------------------
 
@@ -687,6 +765,11 @@ class Dispatcher:
         self.seed_tree(self.trunk, tree)
         res = ChunkResult(chunk_id=a.chunk_id, bracket=a.bracket, phase=a.phase,
                           tree=tree)
+        inherited = self.inherited_declarations(a)
+        if inherited:
+            self.log(f'  [{a.chunk_id}] inherits {len(inherited)} landed '
+                     f'declaration(s) on file(s) it owns: '
+                     + ', '.join(sorted({d['file'] for d in inherited})))
         characterised: dict = {}        # file -> the bug whose artefacts are on disk
         guard = os.path.join(self.run_dir, 'guard', f'{a.chunk_id}.jsonl')
         os.makedirs(os.path.dirname(guard), exist_ok=True)
@@ -715,7 +798,8 @@ class Dispatcher:
                                  for b in a.tasks[i:])
                 break
 
-            rec = self._run_task(a, bug, tree, characterised, remediated, guard, res)
+            rec = self._run_task(a, bug, tree, characterised, remediated, guard, res,
+                                 inherited)
             res.tasks.append(rec)
             # Streamed the moment the task ends, from this chunk's worker thread.
             # Pre-merge: the queue may still overturn this disposition, and the
@@ -725,6 +809,19 @@ class Dispatcher:
 
         res.dispositions = disposition_counts(res.tasks)
         res.declared = read_declarations(tree, a.chunk_id)
+        # A declarations file that exists, parses, and yields nothing is the
+        # shape this went wrong in once: the artefact was there and correct, the
+        # parser looked for a different key, and the run recorded the write as
+        # undeclared without anything going red. Say it out loud rather than
+        # letting an empty list mean both "declared nothing" and "we could not
+        # read what you declared".
+        if not res.declared and os.path.isfile(
+                os.path.join(tree, workspace.scratch_rel(a.chunk_id),
+                             'declarations.json')):
+            self.log(f'  [{a.chunk_id}] !! declarations.json exists but yielded no '
+                     'entries -- check its shape; a declared write will be '
+                     'recorded as undeclared and will not reach the chunk that '
+                     'owns the file')
         res.changed_files = self._changed(tree)
         res.boundary_review = a.boundary.review(
             res.changed_files, [d['file'] for d in res.declared]).as_record()
@@ -733,7 +830,21 @@ class Dispatcher:
             self.store.record_chunk(res.as_record())
         return res
 
-    def _run_task(self, a, bug, tree, characterised, remediated, guard, res) -> dict:
+    def inherited_declarations(self, a: Assignment) -> list:
+        """The landed declarations that touch files THIS chunk owns.
+
+        That intersection is exactly the collision set: a declaration on a file
+        this chunk does not own describes code it is not going to edit, and
+        putting it in the prompt would only be more text to read past. A
+        declaration on a file it DOES own is the case that produced the revert --
+        the only writer of that file, reading a change it did not make.
+        """
+        owned = a.boundary.owned                 # already normalised, by WriteBoundary
+        return [d for d in self.landed_declarations
+                if boundary.normalise(d.get('file')) in owned]
+
+    def _run_task(self, a, bug, tree, characterised, remediated, guard, res,
+                  inherited=()) -> dict:
         """One bug, start to finish, in this chunk's tree.
 
         The steps and their order are `ARCHITECTURE.md`'s, unchanged: record what
@@ -760,7 +871,8 @@ class Dispatcher:
         snap = workspace.snapshot(tree, f'task-{a.chunk_id}-{bug_id}')
         try:
             char = self._characterise(a, bug, tree, task_id, scratch_rel, guard,
-                                      rec, res, snap) if reused_from is None else None
+                                      rec, res, snap,
+                                      inherited) if reused_from is None else None
             if reused_from is not None:
                 self.log(f'  [{a.chunk_id}] {bug_id}: reusing characterisation from '
                          f'{reused_from} ({rel_file})')
@@ -811,7 +923,8 @@ class Dispatcher:
                                        playbook=self.playbook, scratch_rel=scratch_rel,
                                        reused_from=reused_from,
                                        max_rounds=self.max_rounds,
-                                       related_files=related),
+                                       related_files=related,
+                                       inherited=inherited),
                     cwd=tree, phase=PATCH_PHASE, task_id=task_id,
                     log_path=os.path.join(self.run_dir, 'logs',
                                           f'{task_id}-patch.json'),
@@ -835,7 +948,8 @@ class Dispatcher:
 
     # -- the phases of one task -------------------------------------------
 
-    def _characterise(self, a, bug, tree, task_id, scratch_rel, guard, rec, res, snap):
+    def _characterise(self, a, bug, tree, task_id, scratch_rel, guard, rec, res, snap,
+                      inherited=()):
         """Phase ①, with the half of its gate set the dispatcher can evaluate.
 
         `G3` -- the three artefacts exist and `characterisation.json` parses -- is
@@ -853,7 +967,8 @@ class Dispatcher:
         workspace.ensure_scratch(tree, task_id)
         max_attempts = max(1, int(self.cfg.get('loop', {}).get('characterise_rounds', 2)))
         base = build_characterise_prompt(a, bug, tree=tree, cfg=self.cfg,
-                                         cmap=self.cmap, scratch_rel=scratch_rel)
+                                         cmap=self.cmap, scratch_rel=scratch_rel,
+                                         inherited=inherited)
         feedback, char = '', None
 
         for attempt in range(1, max_attempts + 1):
@@ -1098,6 +1213,11 @@ class Dispatcher:
                     attestation=None))
             merged = queue.drain()
             self._apply_merge_verdicts(results, merged)
+            # Only now, and only for the chunks that actually landed. Before the
+            # drain there is no trunk fact to advertise; after it, an accepted
+            # chunk's declared writes ARE the trunk and the chunk that owns those
+            # files needs to be told before it reads them as damage.
+            self._land_declarations([r.as_record() for r in results], merged, phase_no)
         finally:
             workspace.discard_snapshot(base_snap)
             self._phase_base = None
@@ -1122,6 +1242,40 @@ class Dispatcher:
                                     spend_usd=self.spend_usd)
             self.log(f'phase {phase_no}: checkpointed to {self.store.run_dir}')
         return record
+
+    def _land_declarations(self, chunk_records, merged, phase_no) -> None:
+        """Record the declarations of ACCEPTED chunks, and only those.
+
+        The filter is the whole of the correctness argument. A rejected
+        submission was rolled back byte for byte, so its declared write is not in
+        the trunk at all -- advertising it as landed would tell the owning chunk
+        that a change it cannot see is deliberate, and send it looking for
+        something that was never applied. That is a worse failure than the
+        silence this replaces, so an unknown verdict is treated as not accepted.
+
+        The same argument disqualifies a declaration the chunk wrote and then did
+        not act on: `boundary.review` already separates the files a chunk declared
+        AND changed from the ones it only intended to, and only the first kind is
+        a fact about the trunk.
+        """
+        accepted = {e['chunk_id'] for e in (merged.get('accepted') or [])}
+        landed = []
+        for c in chunk_records or ():
+            if c.get('chunk_id') not in accepted:
+                continue
+            review = c.get('boundary_review')
+            written = {boundary.normalise(f) for f in
+                       ((review.get('declared') if review else c.get('changed_files'))
+                        or ())}
+            for d in c.get('declared') or ():
+                if boundary.normalise(d.get('file')) not in written:
+                    continue
+                landed.append({'chunk_id': c['chunk_id'], 'phase': phase_no,
+                               'file': d.get('file'), 'bug_id': d.get('bug_id'),
+                               'reason': d.get('reason') or ''})
+        if landed:
+            with self._lock:
+                self.landed_declarations.extend(landed)
 
     @staticmethod
     def _apply_merge_verdicts(results, merged) -> None:
@@ -1173,6 +1327,14 @@ class Dispatcher:
             for phase_no in sorted(done):
                 self.log(f'phase {phase_no}: already complete, resumed from '
                          f'{self.store.run_dir}')
+            # Landed declarations are a property of the TRUNK, not of the session
+            # that produced them, and the trunk survives a lost session. Replayed
+            # from every stored phase -- including one outside `order`, whose
+            # merges are in the trunk just the same -- so a resumed run does not
+            # hand a chunk the unexplained tree the first run took care to explain.
+            for rec in self.store.phase_records():
+                self._land_declarations(rec.get('chunks'), rec.get('merge') or {},
+                                        rec.get('phase'))
             # The ceiling is a property of the RUN, not of the session. Seeding it
             # from the store stops a resumed run from getting a fresh budget every
             # time a session dies.
@@ -1268,18 +1430,39 @@ def read_declarations(tree: str, chunk_id: str) -> list:
     undeclared write is still detected -- `boundary.review` compares the
     declarations against what actually changed -- so a chunk cannot avoid the
     merge-last penalty by writing nothing here.
+
+    Exactly three fields are kept, and the whitelist is deliberate rather than
+    incidental: these entries are forwarded into another chunk's prompt once the
+    submission is accepted, so anything else the agent chose to write into this
+    file stops here.
     """
     path = os.path.join(tree, workspace.scratch_rel(chunk_id), 'declarations.json')
     doc = _read_json(path)
     if not doc:
         return []
-    raw = doc.get('files') if isinstance(doc, dict) else doc
+    # Both spellings, because the prompt names the file but has never pinned the
+    # key, and an agent that picks the other reasonable one must not lose its
+    # declaration silently. Measured: on patch-run-subset-05 a chunk wrote
+    # {"chunk": ..., "declarations": [...]}, this function read `files`, returned
+    # [], and a correctly declared cross-boundary write was recorded as
+    # UNDECLARED. Nothing failed; the entry simply was not there. Every test in
+    # the suite built the artefact the parser's way, so none of them could see it.
+    raw = None
+    if isinstance(doc, dict):
+        for key in ('files', 'declarations'):
+            if isinstance(doc.get(key), list):
+                raw = doc[key]
+                break
+    else:
+        raw = doc
     out = []
     for item in raw or []:
         if isinstance(item, str):
-            out.append({'file': item, 'reason': ''})
+            out.append({'file': item, 'bug_id': None, 'reason': ''})
         elif isinstance(item, dict) and item.get('file'):
-            out.append({'file': item['file'], 'reason': item.get('reason') or ''})
+            out.append({'file': item['file'],
+                        'bug_id': item.get('bug_id') or None,
+                        'reason': item.get('reason') or ''})
     return out
 
 

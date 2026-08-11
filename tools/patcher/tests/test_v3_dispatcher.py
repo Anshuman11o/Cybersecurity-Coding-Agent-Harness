@@ -163,10 +163,13 @@ class Script:
             _append(os.path.join(cwd, extra_rel), text)
         chunk_id = task_id.split('-')[0]
         if chunk_id in self.declare:
+            # A declaration is either a bare path -- the sloppy agent, which the
+            # reader still has to survive -- or the full entry the prompt asks for.
+            entries = [{'file': f, 'reason': 'plumbing'} if isinstance(f, str)
+                       else dict(f) for f in self.declare[chunk_id]]
             _write(os.path.join(cwd, workspace.scratch_rel(chunk_id),
                                 'declarations.json'),
-                   json.dumps({'files': [{'file': f, 'reason': 'plumbing'}
-                                         for f in self.declare[chunk_id]]}))
+                   json.dumps({'files': entries}))
         if bug_id not in self.no_attestation:
             _write(os.path.join(scratch, 'attestation.json'),
                    json.dumps({'bug_id': bug_id,
@@ -447,12 +450,223 @@ def test_an_undeclared_out_of_boundary_write_is_recorded_not_dropped(tmp_path):
 def test_declarations_are_read_from_the_agents_own_artefact(tmp_path):
     tree = str(tmp_path / 't')
     _write(os.path.join(tree, workspace.scratch_rel('A01'), 'declarations.json'),
-           json.dumps({'files': [{'file': 'views/v.pug', 'reason': 'token'},
+           json.dumps({'files': [{'file': 'views/v.pug', 'bug_id': 'BUG-001',
+                                  'reason': 'token'},
                                  'config/x.yml']}))
     assert dispatcher.read_declarations(tree, 'A01') == [
-        {'file': 'views/v.pug', 'reason': 'token'},
-        {'file': 'config/x.yml', 'reason': ''}]
+        {'file': 'views/v.pug', 'bug_id': 'BUG-001', 'reason': 'token'},
+        {'file': 'config/x.yml', 'bug_id': None, 'reason': ''}]
     assert dispatcher.read_declarations(tree, 'B01') == []
+
+
+def test_a_declaration_carries_nothing_the_forward_feed_did_not_ask_for(tmp_path):
+    """The read is a whitelist, not a passthrough. An accepted declaration is
+    rendered into another chunk's prompt, so a field nobody asked for would be
+    text crossing a chunk boundary unexamined."""
+    tree = str(tmp_path / 't')
+    _write(os.path.join(tree, workspace.scratch_rel('A01'), 'declarations.json'),
+           json.dumps({'files': [{'file': 'views/v.pug', 'bug_id': 'BUG-001',
+                                  'reason': 'token', 'class': 'CSRF',
+                                  'playbook_ref': 'a01-access',
+                                  'challenge': 'anything at all'}]}))
+    assert dispatcher.read_declarations(tree, 'A01') == [
+        {'file': 'views/v.pug', 'bug_id': 'BUG-001', 'reason': 'token'}]
+
+
+# ----------------------------------------------------------------------------
+# Landed declarations: telling the owner why its file already changed
+# ----------------------------------------------------------------------------
+#
+# Measured in the first v3 run. A phase-0 chunk fixed its bug by also editing a
+# file a phase-1 chunk owned; it declared the write and the queue accepted it.
+# The owning chunk was then seeded from that trunk, read the change as damage,
+# and put back what had been removed -- reopening a defect the run had already
+# closed, while the task that closed it stayed recorded as `fixed`. Declarations
+# reached the merge queue and stopped there; nothing carried them forward.
+
+LANDED_HEADING = '## Landed work already in your files'
+LANDED_ENTRY = ('`routes/c.ts` — chunk A01 changed this file in phase 0 while '
+                'fixing BUG-001. Its reason: removed the mount that exposed it')
+
+
+def _prompts_for(script, chunk_id):
+    return [p for p in script.prompts if f'chunk **{chunk_id}**' in p]
+
+
+def _declaring_script(target='routes/c.ts'):
+    """A01 fixes BUG-001 by also reaching into `target`, and says so."""
+    return Script(extra={'BUG-001': {target: '// plumbed by A01\n'}},
+                  declare={'A01': [{'file': target, 'bug_id': 'BUG-001',
+                                    'reason': 'removed the mount that exposed it'}]})
+
+
+def assert_landed_declarations_survive(d, trunk):
+    """Post-run: no accepted chunk's declared file is gone from the final trunk.
+
+    Presence is the whole of what this can assert. A declared file that was
+    deleted outright after landing is caught here; a landed remediation reverted
+    line by line inside a file that still exists is not, and nothing short of a
+    content oracle would catch it. It is stated rather than implied because the
+    defect this whole change addresses was of the second kind.
+    """
+    missing = [x['file'] for x in d.landed_declarations
+               if not os.path.exists(os.path.join(trunk, x['file']))]
+    assert not missing, ('accepted chunks declared on file(s) that are not in the '
+                         f'final trunk: {missing}')
+
+
+def test_a_landed_declaration_reaches_the_chunk_that_owns_the_file(tmp_path):
+    """The fix for the revert: C01 owns `routes/c.ts`, A01 landed a change in it
+    a phase earlier, and C01 is told so before it reads the file."""
+    script = _declaring_script()
+    d, trunk, _r = _build(tmp_path, script)
+    rep = d.run()
+    assert rep['phases'][0]['merge']['rejected'] == []
+    assert d.landed_declarations == [
+        {'chunk_id': 'A01', 'phase': 0, 'file': 'routes/c.ts', 'bug_id': 'BUG-001',
+         'reason': 'removed the mount that exposed it'}]
+    c01 = _prompts_for(script, 'C01')
+    assert c01
+    for p in c01:
+        assert LANDED_HEADING in p
+        assert LANDED_ENTRY in p
+        assert 'say so in your attestation' in p
+    assert_landed_declarations_survive(d, trunk)
+
+
+def test_the_block_does_not_forbid_touching_the_landed_change(tmp_path):
+    """A prohibition here would close off legitimate further hardening of a file
+    that has only just been edited -- the same 'restrict the solution space and
+    still look successful' failure the write boundary exists to avoid."""
+    script = _declaring_script()
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    block = _prompts_for(script, 'C01')[0].split(LANDED_HEADING)[1]
+    assert 'Hardening these files further is still your job' in block
+    assert 'do it and say so in your attestation' in block
+    for forbidding in ('do not change', 'must not', 'never touch', 'may not edit'):
+        assert forbidding not in block.lower()
+
+
+def test_a_rejected_chunks_declaration_is_never_advertised_as_landed(tmp_path):
+    """A rejected submission was rolled back byte for byte, so its declared write
+    is not in the trunk at all. Announcing it would send the owning chunk looking
+    for a change that was never applied -- worse than the silence it replaces."""
+    script = _declaring_script()
+
+    def build(tree):
+        # Red the moment A01's submission -- the declaring one -- is applied.
+        return 'plumbed by A01' not in _read(tree, 'routes/c.ts'), 'tsc: nope'
+
+    d, trunk, _r = _build(tmp_path, script, build_gate=build)
+    rep = d.run()
+    assert [e['chunk_id'] for e in rep['phases'][0]['merge']['rejected']] == ['A01']
+    assert 'plumbed by A01' not in _read(trunk, 'routes/c.ts')
+    assert d.landed_declarations == []
+    assert not [p for p in script.prompts if LANDED_HEADING in p]
+
+
+def test_a_declaration_the_chunk_never_acted_on_is_not_advertised(tmp_path):
+    """A01 says it will reach into `routes/c.ts` and then does not. Nothing about
+    the trunk changed, so there is nothing to explain -- and telling C01 that its
+    file carries a landed remediation it cannot find is the same failure as
+    telling it about a rejected one."""
+    script = Script(declare={'A01': [{'file': 'routes/c.ts', 'bug_id': 'BUG-001',
+                                      'reason': 'thought I would need to'}]})
+    d, _t, _r = _build(tmp_path, script)
+    rep = d.run()
+    a01 = [c for c in rep['phases'][0]['chunks'] if c['chunk_id'] == 'A01'][0]
+    assert a01['boundary_review']['unused_declarations'] == ['routes/c.ts']
+    assert d.landed_declarations == []
+    assert not [p for p in script.prompts if LANDED_HEADING in p]
+
+
+def test_a_chunk_that_owns_no_declared_file_is_told_nothing_at_all(tmp_path):
+    """Not an empty section, not a heading with nothing under it. A block that is
+    usually vacuous is a block that stops being read on the run where it is not.
+
+    A01 declares on the shared extension zone, which no chunk owns. The
+    declaration lands, and C01 -- which runs a phase later and would be shown one
+    on a file of its own -- hears nothing about this one.
+    """
+    script = Script(extra={'BUG-001': {'views/v.pug': 'p csrf token\n'}},
+                    declare={'A01': [{'file': 'views/v.pug', 'bug_id': 'BUG-001',
+                                      'reason': 'plumbed a token into the view'}]})
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    assert [x['file'] for x in d.landed_declarations] == ['views/v.pug']
+    c01 = _prompts_for(script, 'C01')
+    assert c01
+    for p in c01:
+        assert 'Landed work' not in p
+        assert 'views/v.pug' not in p
+
+
+def test_the_landed_block_reaches_the_characterise_step_as_well_as_the_fix(tmp_path):
+    """The failing agent formed its 'this looks like damage' reading while
+    characterising, before it wrote a line of code. A block that arrived only
+    with the fix prompt would arrive after the conclusion had been drawn."""
+    script = _declaring_script()
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    c01 = _prompts_for(script, 'C01')
+    characterise = [p for p in c01 if '## This step: characterise bug' in p]
+    fix = [p for p in c01 if '## This step: fix bug' in p]
+    assert characterise and fix
+    assert all(LANDED_HEADING in p for p in characterise + fix)
+
+
+def test_chunks_in_one_phase_do_not_see_each_others_declarations(tmp_path):
+    """They run concurrently against trees seeded before either started, and a
+    submission can still be rejected and rolled back. Only landed-and-merged work
+    is a fact about the trunk, so only landed-and-merged work propagates."""
+    # A01 reaches into `lib/b.ts`, which A02 owns and which A02 -- an agent that
+    # writes no source this run -- leaves alone, so the declared write lands
+    # cleanly rather than colliding with its owner's own edit.
+    script = Script(edit=False, extra={'BUG-001': {'lib/b.ts': '// plumbed by A01\n'}},
+                    declare={'A01': [{'file': 'lib/b.ts', 'bug_id': 'BUG-001',
+                                      'reason': 'moved the check out of the caller'}]})
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    a02 = _prompts_for(script, 'A02')
+    assert a02
+    assert not [p for p in a02 if LANDED_HEADING in p]
+    # It did land -- just after A02 had already been dispatched.
+    assert [x['file'] for x in d.landed_declarations] == ['lib/b.ts']
+
+
+def test_only_the_file_bug_and_reason_cross_into_another_chunks_prompt(tmp_path):
+    """This is the one path that carries text out of one chunk's sandbox and into
+    another's prompt. What it carries is whitelisted at the read and again at the
+    render, so a field an agent invented cannot ride along."""
+    script = Script(
+        extra={'BUG-001': {'routes/c.ts': '// plumbed by A01\n'}},
+        declare={'A01': [{'file': 'routes/c.ts', 'bug_id': 'BUG-001',
+                          'reason': 'removed the mount that exposed it',
+                          'class': 'Broken Access Control',
+                          'playbook_ref': 'a01-access',
+                          'note': 'whatever else the agent felt like writing'}]})
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    assert [sorted(x) for x in d.landed_declarations] == [
+        ['bug_id', 'chunk_id', 'file', 'phase', 'reason']]
+    for p in _prompts_for(script, 'C01'):
+        block = p.split(LANDED_HEADING)[1].split('## Hard constraints')[0]
+        assert LANDED_ENTRY in block
+        for leaked in ('Broken Access Control', 'a01-access',
+                       'whatever else the agent felt like writing'):
+            assert leaked not in p
+
+
+def test_the_declarations_file_the_prompt_asks_for_names_the_bug(tmp_path):
+    """The reason and the bug are what the owning chunk is shown. An entry with
+    only a path renders as an unexplained edit, which is most of the problem."""
+    script = Script()
+    d, _t, _r = _build(tmp_path, script)
+    d.run()
+    p = script.prompts[0]
+    assert '{"file": ..., "bug_id": ..., "reason": ...}' in p
+    assert 'does not read to it as damage' in p
 
 
 def test_every_chunks_work_reaches_the_trunk(tmp_path):
