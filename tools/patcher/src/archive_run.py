@@ -87,9 +87,16 @@ FORBIDDEN_VALUE_PATTERNS = (
 # per-task record may hold them. The published row carries the disposition
 # HISTOGRAM -- a count under the bare name `fixed_workflow_red`, which locates
 # nothing -- and never the lists behind it.
+#
+# `test_file` joined them when the v3 fix phase became measured: a per-round gate
+# result carries `failures[].test_file`, which names the test that went red for a
+# given bug. `test_title` was already here and `test_file` was not, and the value
+# patterns do not catch a path under `test/` -- so the pair "this bug, that test"
+# had a way through. Tightening only; a row that trips this is rephrased, never
+# the guard.
 FORBIDDEN_KEYS = ('tasks', 'per_case', 'bug_id', 'bugs', 'location', 'line',
                   'file', 'files', 'challenge', 'challenge_key', 'it_title',
-                  'test_title', 'workflow_red', 'antioracle_claims')
+                  'test_title', 'test_file', 'workflow_red', 'antioracle_claims')
 
 
 class ArchiveError(RuntimeError):

@@ -11,9 +11,25 @@ appears here.
 **This document specifies the loop for v3 as well.** v3 changes only a task's
 surroundings — parallelisation, the orchestrator, a checked-in chunk map,
 bug-wise tasks inside an owned-file set. The phases below, their order, the gates
-and the seven dispositions of §2 are inherited unchanged.
+and the dispositions of §2 are inherited unchanged.
 `docs/patcher/ARCHITECTURE-V3.md` §0 maps this document onto what v3 does, phase
-by phase, and §0.4 lists the per-round facts a v3 run does not record.
+by phase.
+
+v3's first three runs did not implement ③ VERIFY and ④ RECONCILE: the loop was
+described in the agent's prompt and driven by nothing, so `rounds_used` was
+whatever the agent typed and the dispositions were recorded as *attested*. That
+was an under-implementation, not a smaller design — the loop below is what v3's
+own architecture specifies. **Since 2026-08 v3 runs ②③④ through the same
+orchestrator loop v1 does** (`task_loop.run_fix_loop`), so the gates below are
+executed by the runner in both tracks and a v3 `fixed` is a measurement.
+
+That does not make the runner a participant *inside* a round, in either track.
+It does not write code, choose or narrow the fix, or run these gates in place of
+the agent's own self-verification — the agent still runs the typecheck, the
+workflow test, the probe and the net itself, inside its turn. What the runner
+owns is the boundary between rounds and the measurement taken there. What is
+still attested in v3 is ① — the pre-fix probe and workflow verdicts in
+`characterisation.json`.
 
 ---
 
@@ -79,7 +95,7 @@ Terminal dispositions, and nothing else is permitted:
 |---|---|---|
 | `fixed` | every gate passed | patched |
 | `fixed_workflow_only` | axis B green, probe never reached `PROVEN` so axis A is unverified in-sandbox | patched |
-| `fixed_workflow_red` | axis A attested closed, but the agent listed workflow assertions it left failing in `attestation.json → workflow_red`. Reporting only: no gate, no revert | patched |
+| `fixed_workflow_red` | axis A closed and axis B red: the probe stopped proving the defect while the workflow test or the regression net was still failing when the budget ran out. Reporting only: no revert. In v1 this outcome is `partial` under `keep_if_workflow_intact`; in v3 it is its own row | patched |
 | `already_remediated` | probe could not be proven **and** an earlier task edited the same location — the fix landed upstream in this run | unchanged by this task |
 | `abandoned` | reconcile budget exhausted, both axes unsatisfiable | reverted (default policy) |
 | `partial` | budget exhausted, best round retained | patched, flagged |
@@ -95,9 +111,21 @@ closes a vulnerability and leaves a workflow assertion failing may be right —
 that assertion may encode the vulnerable behaviour itself — but the justification
 used to live in free-text `residual_risk`, which nothing parses, so the record
 read as a clean `fixed` and the difference surfaced only if a human read the
-transcript. The claim is now structural (`workflow_red`, `antioracle_claims`),
-and it is **recorded, not adjudicated**: nothing accepts or rejects it, no gate
-turns on it, and the tree still merges.
+transcript. The claim is structural (`workflow_red`, `antioracle_claims`), and it
+is **recorded, not adjudicated**: nothing accepts or rejects it, no gate turns on
+it, and the tree still merges.
+
+**Amended 2026-08.** In v3 the disposition is no longer *reached* from that
+claim, because there are now gate results to reach it from: the probe blocked,
+something else red, budget spent. The agent's two lists sit beside that
+measurement instead of producing it — which is strictly more than they were worth
+alone, and closes the hole in the previous shape, where an agent could move its
+own task out of the success column by writing a list, or keep it there by leaving
+the list empty.
+The bucket still may not be summed with `fixed`: a correct fix over an
+attack-dependent assertion and a fix that broke the feature both land here, and
+the record still cannot tell them apart. It can now say which gate was red, in
+which round, and what the agent claimed about it.
 
 ---
 

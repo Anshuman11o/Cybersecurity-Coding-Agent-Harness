@@ -356,9 +356,13 @@ def main() -> int:
     ]
     rep['v3_dispatch']['full_suite'] = result.get('full_suite')
     rep['note_on_basis'] = (
-        'Every green disposition in a v3 run is the agent\'s own report, not an '
-        'orchestrator measurement. See v3_dispatch.disposition_basis. Do not pool '
-        'these counts with a v1 or v2 row.')
+        "v3's fix phase is measured: the orchestrator runs V1-V4 between the "
+        'agent\'s rounds and the disposition comes from those gates, not from '
+        'attestation.json. What is still ATTESTED is the pre-fix characterisation '
+        '-- whether the probe demonstrated the defect before the change -- which '
+        'is what separates `fixed` from `fixed_workflow_only`, and the '
+        '`already_remediated` disposition that rests on it. See '
+        'v3_dispatch.disposition_basis for the split.')
 
     path = store.write_report(rep)
     log(report_mod.render_summary(rep))

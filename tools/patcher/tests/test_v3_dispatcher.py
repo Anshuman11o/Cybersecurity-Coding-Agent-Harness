@@ -8,13 +8,18 @@ under test is the orchestration, which is the whole of what v3 changed:
   - phases advance only when the previous phase has merged
   - characterisation reuse fires within one chunk and one file, and nowhere else
   - a chunk that reached outside its boundary merges last
-  - the orchestrator runs no patcher gate; the full suite runs once, at the end
+  - the merge queue's own gate is one build per submission; the full suite runs
+    once, at the end
 
 And -- because v3 changed only the OUTSIDE of a task -- that the inner loop's
 recorded facts survived the move: every bug still ends with one of
-`ARCHITECTURE.md` §2's seven dispositions, `fixed` is still distinguished from
-`fixed_workflow_only`, and every green outcome is labelled as the self-report it
-now is.
+`ARCHITECTURE.md` §2's dispositions, `fixed` is still distinguished from
+`fixed_workflow_only`, and every record says whether its disposition was measured
+or attested.
+
+The per-task gates themselves are `test_v3_measured_fix.py`'s subject: v3 drives
+the reconcile loop through `task_loop.run_fix_loop`, which its architecture
+always specified and its first three runs did not implement.
 """
 import json
 import os
@@ -30,10 +35,40 @@ from v3 import merge_queue as mq  # noqa: E402
 
 HOOK = os.path.join(os.path.dirname(__file__), '..', 'hooks', 'sandbox_guard.py')
 
-CFG = {'commands': {'typecheck': 'npx tsc --noEmit',
-                    'run_test_file': 'npx tsx --test {file}',
-                    'run_probe': 'npx tsx {file}'},
-       'target': {}, 'loop': {'reconcile_rounds': 4}}
+# The gate commands are configurable, and here they are Python standing in for
+# the Node toolchain -- the same substitution `test_task_loop` makes, for the
+# same reason: the orchestrator must have no hidden dependency on the target's
+# runtime. They are really executed: the dispatcher runs the gates at each round
+# boundary of the fix phase.
+CFG = {'commands': {'typecheck': 'python3 -c "pass"',
+                    'run_test_file': 'python3 {file}',
+                    'run_server_test_file': 'python3 {file}',
+                    'run_probe': 'python3 {file}',
+                    'timeout_s': {'typecheck': 60, 'test_file': 60, 'probe': 60}},
+       'target': {}, 'loop': {'reconcile_rounds': 2, 'max_task_wall_s': 600}}
+
+# The fake application's oracle, written by the scripted agent while it
+# characterises. Both artefacts read the bug's own source file:
+#
+#   probe     prints NOT_PROVEN once `// fixed {bug_id}` is in the file, which is
+#             exactly what the scripted fix writes -- so a scripted edit closes
+#             the defect and a scripted no-op does not.
+#   workflow  passes unless the file carries BROKE_FEATURE, which lets a script
+#             break the legitimate path on purpose.
+WORKFLOW_STUB = '''\
+import sys, pathlib
+src = pathlib.Path({file!r}).read_text()
+if "BROKE_FEATURE" in src:
+    print("not ok 1 - {bug_id} feature still works")
+    sys.exit(1)
+print("ok 1 - {bug_id} feature still works")
+'''
+
+PROBE_STUB = '''\
+import pathlib
+src = pathlib.Path({file!r}).read_text()
+print("NOT_PROVEN" if "fixed {bug_id}" in src else "PROVEN")
+'''
 
 TRUNK_FILES = {
     'lib/a.ts': 'export const a = 1;\n',
@@ -147,8 +182,10 @@ class Script:
             if bug_id in self.no_artefacts:
                 return (step, bug_id) not in self.fail
             os.makedirs(scratch, exist_ok=True)
-            for name in ('workflow.test.ts', 'exploit.probe.ts'):
-                _write(os.path.join(scratch, name), f'// {bug_id}\n')
+            _write(os.path.join(scratch, 'workflow.test.ts'),
+                   WORKFLOW_STUB.format(file=rel, bug_id=bug_id))
+            _write(os.path.join(scratch, 'exploit.probe.ts'),
+                   PROBE_STUB.format(file=rel, bug_id=bug_id))
             _write(os.path.join(scratch, 'characterisation.json'),
                    json.dumps({'bug_id': bug_id,
                                'workflow_test_written': True,
@@ -703,15 +740,23 @@ def test_a_rejected_merge_does_not_poison_the_chunks_behind_it(tmp_path):
 # What the orchestrator does NOT do
 # ----------------------------------------------------------------------------
 
-def test_the_orchestrator_runs_no_patcher_gate_only_the_build(tmp_path):
-    """One build per accepted submission, and nothing else. No workflow test, no
-    probe, no per-chunk regression net -- that judgement moved into the agent."""
+def test_the_merge_queue_still_runs_only_the_build(tmp_path):
+    """The patcher gates are the fix loop's, per task; the QUEUE's gate is still
+    one build per accepted submission and nothing else.
+
+    That separation is the point. The queue is asking a different question --
+    does the trunk still compile with this chunk applied -- and answering it with
+    a per-chunk test run would serialise every submission behind a suite.
+    """
     builds = []
     script = Script()
     d, _t, _r = _build(tmp_path, script,
                        build_gate=lambda tree: (builds.append(tree), (True, ''))[1])
-    d.run()
+    rep = d.run()
     assert len(builds) == 4          # A01, A02, B01 in phase 0; C01 in phase 1
+    # And the per-task gates did run, which is what makes the count above a
+    # statement about the queue rather than about the architecture.
+    assert rep['per_task_gates_run'] == 5
 
 
 def test_the_full_suite_runs_once_after_the_last_phase(tmp_path):
@@ -824,26 +869,46 @@ def test_every_bug_ends_with_one_of_the_seven_dispositions_and_says_what_it_rest
         assert r['location']['file'] and r['location']['line']
     assert rep['dispositions']['fixed'] == 4
     assert rep['dispositions']['fixed_workflow_only'] == 1     # BUG-002, reused probe
-    assert rep['disposition_basis'] == {'measured': 0, 'attested': 5}
+    # The fix phase runs through `task_loop.run_fix_loop`, so every disposition
+    # it reaches is measured from gates this process ran. `attested` is the
+    # pre-fix residue only (`already_remediated`), which this run has none of.
+    # v3's first three runs read `attested` here because the reconcile loop was
+    # prompt text with nothing driving it.
+    assert rep['disposition_basis'] == {'measured': 5, 'attested': 0}
 
 
-def test_a_green_v3_disposition_is_labelled_a_self_report_not_a_measurement(tmp_path):
-    """v1's `fixed` was measured by the orchestrator. v3's is the agent's word.
+def test_a_green_v3_disposition_is_measured_while_characterisation_stays_attested(
+        tmp_path):
+    """The two bases, in one record.
 
-    Emitting them under one unqualified name would let a v3 row be pooled with a
-    v1 row in `docs/benchmarking-results.md`, where each row cost a paid run.
+    v3's architecture always specified the reconcile loop; its first three runs
+    only described it in a prompt, so `fixed` rested on `rounds_used` -- a claim
+    by the party being measured. The loop is now driven by
+    `task_loop.run_fix_loop`, so a v3 `fixed` is a gate result.
+
+    What did NOT move is characterisation. G2 -- whether the probe demonstrated
+    the defect against the untouched tree -- is still the agent's report, and it
+    is still what separates `fixed` from `fixed_workflow_only`, so the measured
+    field stays null and the attested one carries the verdict.
     """
     d, _t, _r = _build(tmp_path, Script())
     rep = d.run()
     rec = _by_bug(rep)['BUG-001']
     assert rec['disposition'] == 'fixed'
-    assert rec['disposition_basis'] == 'attested'
-    assert rec['measured']['rounds'] == []
-    assert rec['measured']['rounds_to_green'] is None
-    assert rec['measured']['gates_run'] == 0
+    assert rec['disposition_basis'] == 'measured'
+    assert [r['round'] for r in rec['measured']['rounds']] == [0]
+    assert rec['measured']['rounds'][0]['gates']['V3_probe_blocked'] == 'pass'
+    assert rec['measured']['rounds_to_green'] == 0
+    assert rec['measured']['rounds_used'] == 1
+    assert rec['measured']['label'] == 'green'
+    assert rec['measured']['gates_run'] == 1
+    assert rec['measured']['gates_not_run_reason'] is None
+    assert rec['measured']['final_gates']['probe_blocked'] == 'pass'
+    # Attested still, and only here: the pre-fix probe verdict.
     assert rec['measured']['characterisation']['probe_proven_pre_fix'] is None
     assert rec['attested_characterisation']['probe_proven_pre_fix'] is True
-    assert rep['per_task_gates_run'] == 0
+    assert rep['per_task_gates_run'] == 5
+    assert rep['rounds_to_green']['histogram'] == {'0': 5}
 
 
 def test_a_probe_that_never_proved_the_defect_is_never_reported_as_fixed(tmp_path):
@@ -949,12 +1014,23 @@ def test_an_attested_fix_that_changed_no_source_file_is_not_a_fix(tmp_path):
     assert rep['attestation_overclaims'] == 5
 
 
-def test_not_fixed_with_work_retained_is_partial_not_abandoned(tmp_path):
+def test_a_not_fixed_claim_over_green_gates_is_fixed_and_recorded_as_an_underclaim(
+        tmp_path):
+    """The measurement wins in BOTH directions, which is new here.
+
+    This used to be `partial`: the agent said `not_fixed`, kept its work, and the
+    disposition followed the claim because there was nothing else to follow. The
+    gates now say the probe stopped proving the defect and nothing else went red,
+    so the task is `fixed` and the disagreement is recorded rather than obeyed --
+    the same treatment an overclaim gets, in the opposite direction.
+    """
     d, _t, _r = _build(tmp_path, Script(status={'BUG-003': 'not_fixed'}))
     rep = d.run()
     rec = _by_bug(rep)['BUG-003']
-    assert rec['disposition'] == 'partial'
+    assert rec['disposition'] == 'fixed'
+    assert rec['disposition_basis'] == 'measured'
     assert rec['attested']['status'] == 'not_fixed'
+    assert rec['attestation_delta']['kind'] == 'underclaim'
     assert rec['diff_stats']['files_touched']
 
 

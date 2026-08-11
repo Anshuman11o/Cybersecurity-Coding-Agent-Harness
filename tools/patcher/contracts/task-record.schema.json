@@ -12,6 +12,52 @@
     "bug_id": { "type": "string" },
     "task_index": { "type": "integer", "minimum": 0 },
 
+    "chunk_id": {
+      "type": ["string", "null"],
+      "description": "v3 only. The chunk whose agent owned this task."
+    },
+    "task_id": {
+      "type": ["string", "null"],
+      "description": "v3 only. Scratch directory name, chunk-qualified. Two bugs share one when the second reused the first's characterisation."
+    },
+    "file": {
+      "type": ["string", "null"],
+      "description": "v3 only. Same value as `location.file`, lifted so a chunk's records can be grouped without reaching into the object."
+    },
+    "characterised": { "type": "boolean" },
+    "reused_from": {
+      "type": ["string", "null"],
+      "description": "v3 only. The bug whose characterisation artefacts this task was measured against, when they were reused rather than re-paid for. Non-null forces `fixed_workflow_only`: the probe was written for another defect."
+    },
+    "attempted": { "type": "boolean" },
+    "related_test_files": { "type": "array", "items": { "type": "string" } },
+
+    "disposition_basis": {
+      "enum": ["measured", "attested"],
+      "description": "How the disposition was reached. `measured` = this process ran something and observed the result. `attested` = it rests on the agent's own report. v3's fix phase is measured: the orchestrator runs V1–V4 at each round boundary. Its first three runs recorded `attested` there because the reconcile loop was prompt text with nothing driving it, so the round budget was unverifiable; what is still attested is the pre-fix characterisation and the `already_remediated` decision that rests on it. A green count whose basis is `attested` is a self-report and must never be pooled with one whose basis is `measured`."
+    },
+    "merge_verdict": {
+      "enum": ["accepted", "rejected", null],
+      "description": "v3 only. Whether this task's chunk survived the merge queue. A rejected submission is rolled back byte for byte, so none of its tasks reached the trunk."
+    },
+    "disposition_before_merge": {
+      "type": ["string", "null"],
+      "description": "v3 only. Present when the merge queue overturned a disposition, so an integration failure does not erase the outcome the agent actually reached."
+    },
+    "attested_characterisation": {
+      "type": ["object", "null"],
+      "description": "v3 only. The agent's own account of its pre-fix oracle, read from `characterisation.json`. Kept separate from `measured.characterisation` and never merged with it.",
+      "additionalProperties": false,
+      "properties": {
+        "basis": { "enum": ["attested"] },
+        "workflow_green_pre_fix": { "type": "boolean" },
+        "probe_proven_pre_fix": { "type": "boolean" },
+        "probe_result_now": { "type": ["string", "null"] },
+        "probe_notes": { "type": ["string", "null"] },
+        "reused_from": { "type": ["string", "null"] }
+      }
+    },
+
     "location": {
       "type": "object",
       "additionalProperties": false,
@@ -36,7 +82,7 @@
         "agent_failed",
         "blocked"
       ],
-      "description": "Terminal state. `fixed`, `fixed_workflow_only` and `fixed_workflow_red` are never summed into one bucket. `fixed_workflow_only` means the agent could not demonstrate the vulnerability in its own sandbox, so axis A is unverified. `fixed_workflow_red` means it attested a fix while leaving a workflow assertion failing, so axis B is contested: nothing here can tell an assertion that encoded the vulnerable behaviour from a fix that broke the feature."
+      "description": "Terminal state. `fixed`, `fixed_workflow_only` and `fixed_workflow_red` are never summed into one bucket. `fixed_workflow_only` means the vulnerability was never demonstrated in-sandbox, so the remediation gate was skipped rather than passed and axis A is unverified. `fixed_workflow_red` means the probe stopped proving the defect while the workflow test or the regression net was still red when the budget ran out, so axis B is contested: nothing here can tell an assertion that encoded the vulnerable behaviour from a fix that broke the feature. The agent's own account of which assertions it left red lives in `attested.workflow_red` and is recorded, never adjudicated."
     },
     "disposition_reason": {
       "type": ["string", "null"],
@@ -55,17 +101,30 @@
           "additionalProperties": false,
           "properties": {
             "workflow_green_pre_fix": {
-              "type": "boolean",
-              "description": "Gate G1. False here means the task could never have detected damage and was blocked."
+              "type": ["boolean", "null"],
+              "description": "Gate G1, measured: the workflow test run against the untouched tree. False means the task's own oracle was already red before the fix, so a red workflow gate afterwards is not evidence the change broke anything. Null means NOT MEASURED, never measured-and-false."
             },
             "probe_proven_pre_fix": {
-              "type": "boolean",
-              "description": "Gate G2. False means axis A is unverifiable in-sandbox for this task."
+              "type": ["boolean", "null"],
+              "description": "Gate G2. False means axis A is unverifiable in-sandbox for this task. Null means NOT MEASURED — v3 does not re-run the probe pre-fix and records the agent's verdict in `attested_characterisation` instead."
             },
-            "attempts": { "type": "integer", "minimum": 1 },
+            "attempts": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Characterise invocations paid for. Zero when the artefacts were reused from an earlier task in the same chunk."
+            },
+            "workflow_test_written": { "type": "boolean" },
+            "probe_written": { "type": "boolean" },
+            "characterisation_parsed": { "type": "boolean" },
             "workflow_test_path": { "type": ["string", "null"] },
             "exploit_probe_path": { "type": ["string", "null"] },
             "related_test_files": { "type": "array", "items": { "type": "string" } },
+            "antioracle_tests": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Net rows recognised as asserting attack-dependent behaviour, which V4 will not charge as regressions. Empty where no detector ran."
+            },
+            "antioracle_detector_available": { "type": "boolean" },
             "baseline_failures": {
               "type": "array",
               "items": { "type": "string" },
@@ -84,14 +143,37 @@
             "properties": {
               "round": { "type": "integer", "minimum": 0 },
               "green": { "type": "boolean" },
+              "gate_seconds": {
+                "type": "object",
+                "description": "Seconds per gate for this round. How much of a run's wall clock was gates rather than agent — the question asked when sizing the next dataset.",
+                "additionalProperties": { "type": "number" }
+              },
+              "excused": {
+                "type": "array",
+                "description": "Regression rows V4 declined to charge, and why. Recorded rather than dropped: an exclusion nobody can see is indistinguishable from a gate that was never run. Names test files, so per-task record only.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "test_file": { "type": ["string", "null"] },
+                    "test_title": { "type": ["string", "null"] },
+                    "why": { "type": ["string", "null"] }
+                  }
+                }
+              },
               "gates": {
                 "type": "object",
+                "description": "The four gate verdicts. The bare `V1`..`V4` keys are a duplicate marker written by `verify.VerifyResult.fail` alongside the long name; they carry no information the long names do not, and are named here only because the record really does contain them.",
                 "additionalProperties": false,
                 "properties": {
                   "V1_typecheck": { "enum": ["pass", "fail", "skipped", "error"] },
                   "V2_workflow": { "enum": ["pass", "fail", "skipped", "error"] },
                   "V3_probe_blocked": { "enum": ["pass", "fail", "skipped", "error"] },
-                  "V4_no_regression": { "enum": ["pass", "fail", "skipped", "error"] }
+                  "V4_no_regression": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V1": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V2": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V3": { "enum": ["pass", "fail", "skipped", "error"] },
+                  "V4": { "enum": ["pass", "fail", "skipped", "error"] }
                 }
               },
               "failures": {
@@ -131,6 +213,33 @@
         "rounds_to_green": {
           "type": ["integer", "null"],
           "description": "Null when the task never went green. The main cost lever; recorded per task rather than averaged so the distribution survives."
+        },
+        "rounds_used": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rounds this process ran and measured. NEVER `attested.rounds_used`, which is the agent's claim about itself and is recorded separately so the two can be compared."
+        },
+        "label": {
+          "enum": ["green", "vuln_only", "workflow_only", "neither", "agent_failed", null],
+          "description": "The fix loop's four-square reading of the gates on the round whose tree was kept, before it is mapped to a disposition. Null when the task never reached a fix phase."
+        },
+        "deadline_exceeded": {
+          "type": "boolean",
+          "description": "True when the task's wall-clock budget, not its round budget, ended the loop. An infrastructure limit must never be read later as a reasoning result."
+        },
+        "gates_run": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Gate suites this process ran for the task, one per measured round. Zero means the task never reached its fix phase."
+        },
+        "gates_not_run_reason": {
+          "type": ["string", "null"],
+          "description": "Why `gates_run` is zero. Null when gates ran."
+        },
+        "invocations": {
+          "type": "array",
+          "description": "Every agent invocation for this task, characterise included. The per-round `agent` entries cover the fix loop only, and a roll-up built from those alone under-reports a run's spend by the whole characterise phase.",
+          "items": { "$ref": "#/definitions/invocation" }
         },
         "wall_s": { "type": "number" },
         "cost_usd": {

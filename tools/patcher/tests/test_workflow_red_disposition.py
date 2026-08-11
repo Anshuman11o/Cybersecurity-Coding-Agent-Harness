@@ -14,14 +14,24 @@ So the claim is made structural. `workflow_red` and `antioracle_claims` are
 fields with a shape, they survive normalisation, and a non-empty `workflow_red`
 produces its own disposition.
 
+AMENDED 2026-08. v3's fix phase is now driven by `task_loop.run_fix_loop`, as its
+architecture always specified, so `fixed_workflow_red` is reached by a
+MEASUREMENT -- the orchestrator ran the workflow test and the regression net at
+the round boundary, one of them was red, and the probe had stopped proving the
+defect. The agent's `workflow_red` and `antioracle_claims` no longer decide the
+disposition; they are recorded beside the measurement, which is strictly more
+than they were worth alone. Everything below about normalisation, counting and
+the publishing boundary is unchanged; the one test that asserted the disposition
+came off the agent's list now asserts that it does not.
+
 Three properties this file pins, each of which is a way the change could go
 wrong and be useful-looking anyway:
 
-**It reports; it does not gate.** The disposition is `ATTESTED`, not measured --
-nothing here runs a test, and nothing accepts or rejects the anti-oracle claim.
-The tree still merges. A gate built on an agent's self-report would be a gate the
-agent can open by omitting a line, which is worse than no gate because it reads
-like one.
+**It reports; it does not gate.** The tree still merges, and no anti-oracle claim
+is ever accepted or rejected. A gate built on an agent's self-report would be a
+gate the agent can open by omitting a line, which is worse than no gate because
+it reads like one -- and that is exactly why the disposition was moved onto the
+orchestrator's own gates rather than being given teeth on the agent's list.
 
 **It is never summed with `fixed`.** From outside, a correct fix over a genuine
 anti-oracle and a fix that broke the feature are indistinguishable -- that is
@@ -134,7 +144,10 @@ class _RedScript(Script):
     def __call__(self, prompt, phase, task_id, cwd):
         ok = super().__call__(prompt, phase, task_id, cwd)
         path = os.path.join(cwd, workspace.scratch_rel(task_id), 'attestation.json')
-        if phase != 'fix' or not os.path.isfile(path):
+        # Every round, not just round 0. The base script rewrites the attestation
+        # on each invocation, and the loop reads the LAST one -- a claim written
+        # only on the fix round would be silently overwritten by the reconciles.
+        if phase not in ('fix', 'reconcile') or not os.path.isfile(path):
             return ok
         with open(path) as fh:
             doc = json.load(fh)
@@ -153,8 +166,16 @@ def _dispositions(tmp_path, script):
             for p in rep['phases'] for c in p['chunks'] for t in c['tasks']}
 
 
-def test_a_red_workflow_assertion_splits_fixed_into_its_own_disposition(tmp_path):
+def test_a_measured_red_workflow_splits_fixed_into_its_own_disposition(tmp_path):
+    """The disposition, reached the way it is now reached: by running the test.
+
+    The agent closes the defect -- its own probe stops printing `PROVEN` -- and
+    breaks the legitimate path in the same edit. The orchestrator runs both gates
+    every round, spends the whole budget, and lands on `vuln_only`, which is this
+    disposition. The agent's list of red assertions is recorded next to it.
+    """
     script = _RedScript(
+        extra={'BUG-003': {'lib/b.ts': '// BROKE_FEATURE\n'}},
         red={'BUG-003': ['w.test.ts :: keeps the basket private',
                          'w.test.ts :: rejects a foreign token']},
         claims={'BUG-003': [{'test': 'w.test.ts',
@@ -164,16 +185,38 @@ def test_a_red_workflow_assertion_splits_fixed_into_its_own_disposition(tmp_path
 
     red = recs['BUG-003']
     assert red['disposition'] == 'fixed_workflow_red'
-    # Attested, not measured: v3 runs no orchestrator-side gate, so this is the
-    # agent's account of its own sandbox and the record says so.
-    assert red['disposition_basis'] == dispatcher.ATTESTED
-    assert '2 workflow assertion' in red['disposition_reason']
-    assert '1 of which' in red['disposition_reason']
+    # MEASURED now, not attested: these gates were run by this process.
+    assert red['disposition_basis'] == dispatcher.MEASURED
+    assert red['measured']['label'] == 'vuln_only'
+    assert red['measured']['final_gates'] == {
+        'typecheck': 'pass', 'workflow': 'fail', 'probe_blocked': 'pass',
+        'no_regression': 'skipped'}
+    # The budget was spent on it rather than the claim ending the loop early.
+    assert red['measured']['rounds_used'] == CFG['loop']['reconcile_rounds'] + 1
+    assert 'V2_workflow' in red['disposition_reason']
+    assert 'adjudicated by nothing' in red['disposition_reason']
+    # And the claim survives, unadjudicated, beside a measurement that agrees the
+    # path is closed and disagrees about nothing else it can see.
     assert red['attested']['workflow_red'] == [
         'w.test.ts :: keeps the basket private',
         'w.test.ts :: rejects a foreign token']
     assert red['attested']['antioracle_claims'][0]['it_title'] == \
         'keeps the basket private'
+
+
+def test_the_agents_own_list_no_longer_decides_the_disposition(tmp_path):
+    """`workflow_red` over gates that measured green is `fixed`. Letting the list
+    dispose would mean an agent could move its own task out of the success
+    column, or -- far worse in the other direction -- keep it there by leaving
+    the list empty."""
+    script = _RedScript(red={'BUG-003': ['w.test.ts :: keeps the basket private']})
+    recs = _dispositions(tmp_path, script)
+
+    rec = recs['BUG-003']
+    assert rec['disposition'] == 'fixed'
+    assert rec['disposition_basis'] == dispatcher.MEASURED
+    assert rec['measured']['label'] == 'green'
+    assert rec['attested']['workflow_red'] == ['w.test.ts :: keeps the basket private']
 
 
 def test_an_attestation_without_the_field_still_disposes_fixed(tmp_path):

@@ -19,20 +19,48 @@ It never reads an agent's intermediate output to decide anything. The only
 artefacts it opens are the two the submission contract names -- the attestation
 and the declarations -- and it opens those to RECORD them, not to grade them.
 
-WHY TWO INVOCATIONS PER TASK, NOT ONE AND NOT SEVEN
+THE FIX PHASE, AND WHAT "THE ORCHESTRATOR IS NOT A JUDGE" DOES AND DOES NOT MEAN
 
-v1 spends one invocation per phase and gates between them: 2 to 7 per bug. v3
-spends two:
+v3's architecture always specified the reconcile loop: fix, verify, hand the
+failure back, up to `loop.reconcile_rounds`. What it shipped with was that loop
+described in a prompt and nothing enforcing it -- the dispatcher spent one
+invocation and then read `rounds_used` out of `attestation.json`. That is an
+under-implementation, not a smaller design. The budget was unverifiable: an agent
+could close the vulnerability, leave a workflow assertion red, write down that
+the assertion is illegitimate, exit after one round, and no field in the record
+could tell that apart from a fix that reconciled to green.
+
+Wiring the fix phase to `task_loop.run_fix_loop` -- the SAME loop v1 uses --
+makes the implementation match the architecture that was already written down.
+The dispatcher invokes the agent, runs V1..V4 itself at the ROUND BOUNDARY, hands
+the structured failure back, and stops on one of exactly three machine-checked
+conditions: measured green, the round budget, the wall clock. An anti-oracle
+claim in the attestation is not one of them; it is recorded and acted on by
+nothing.
+
+None of that makes the orchestrator a judge inside a round, and the distinction
+is load-bearing. It does not write code, does not choose or narrow the fix, does
+not run tests IN PLACE OF the agent's own self-verification -- the agent still
+runs the typecheck, the workflow test, the probe and the net itself, inside its
+turn, and is still the only party that decides what to change. What the
+orchestrator owns is the boundary between rounds and the measurement taken there.
+"The orchestrator runs the gates" is not "the orchestrator interferes with the
+agent's loop"; it is the difference between a budget that is spent and a budget
+that is claimed.
+
+The cost is real: the gates run once per round per task, so wall time per task
+rises and `loop.chunk_timeout_s` may need raising before a run.
 
     characterise   writes workflow.test.ts + exploit.probe.ts + characterisation.json,
                    source read-only. Kept as its own invocation for one reason:
                    it is the unit that CHARACTERISATION REUSE skips. Folded into
                    the fix call it could not be skipped, and reuse is the only
                    mitigation v3 has for the bug-wise cost regression (§6 of the
-                   architecture doc).
-    patch          fix, self-verify, reconcile until green or budget spent,
-                   attest, submit. The agent runs its own loop here, which is
-                   the actual v3 change; the orchestrator is not in it.
+                   architecture doc). Its gates G1/G2 are still the agent's own
+                   report -- characterisation stays ATTESTED.
+    fix/reconcile  1..(reconcile_rounds + 1) invocations, the budget the
+                   architecture always specified, now actually spent and counted.
+                   The disposition that comes out of it is MEASURED.
 
 CHARACTERISATION REUSE
 
@@ -59,29 +87,38 @@ The three conditions are all load-bearing and the tests pin each:
 
 WHAT THIS STILL RECORDS PER TASK, AND WHY
 
-v3 moved the fix/verify/reconcile loop inside the agent's turn. It did NOT move
-the task record. `ARCHITECTURE.md` §2 defines seven terminal dispositions and is
+Who takes the measurement at a round boundary has never been what the task record
+is for. `ARCHITECTURE.md` §2 defines seven terminal dispositions and is
 explicit that `fixed` and `fixed_workflow_only` are never summed; §5.1 says the
 report carries one record per bug. Both are what the eval reads, and neither is a
 consequence of WHO ran the gates -- so v3 emits a record per bug with a
 disposition from exactly that seven-value set, and the denominator stays whole
 even for a task the run never reached.
 
-What v3 cannot do is claim those dispositions are MEASURED. So every record
-carries `disposition_basis`:
+Every record still carries `disposition_basis`, and it differs by phase:
 
-    measured   the dispatcher observed it itself, without running a patcher gate:
-               the invocation returned or did not, the gate artefacts are on disk
-               or are not, the task changed source files or did not, the chunk's
-               submission merged or was rolled back byte for byte.
-    attested   it rests on the agent's own report in `characterisation.json` or
-               `attestation.json`.
+    measured   the dispatcher observed it itself -- the gates it ran between the
+               agent's rounds, the invocation returning or not, the artefacts
+               being on disk or not, the task changing source files or not, the
+               chunk's submission merging or being rolled back byte for byte.
+    attested   it rests on the agent's own report in `characterisation.json`.
 
-A v3 `fixed` is an ATTESTED fixed. It is not comparable with a v1 or v2 `fixed`
-and must never be pooled with one -- which is why the basis is a field rather
-than a footnote. `measured.rounds` is empty and `measured.rounds_to_green` is
-null for every v3 task, because no orchestrator-side round exists to record.
-Those are nulls meaning "not measured", never zeros meaning "measured and clean".
+Every disposition reached by the fix phase is MEASURED, from `V1..V4` run by this
+process, exactly as v1 reaches its own. It read `attested` for v3's first three
+runs because the loop was not wired up, not because the fix phase was designed to
+rest on a self-report. The one disposition still recorded as ATTESTED is
+`already_remediated`, which is decided before the fix phase from
+`characterisation.json` alone.
+
+One attested INPUT survives inside a measured disposition, and it is stated
+rather than hidden: whether the probe demonstrated the defect BEFORE the fix is
+the agent's report, and it is what makes V3 a live gate rather than a skipped
+one -- so it is still what separates `fixed` from `fixed_workflow_only`. v1
+measures that pre-fix verdict and v3 does not, which is why a v3
+`fixed_workflow_only` population is larger than v1's would be on the same bugs.
+
+`measured.rounds`, `measured.rounds_to_green` and `measured.final_gates` are
+populated per task, exactly as v1 populates them.
 """
 from __future__ import annotations
 
@@ -310,20 +347,33 @@ Your frozen gate artefacts for this bug are already written:
 {reuse_note}
 ### Run your own loop
 
-The orchestrator does not check your work between steps. You do:
+Run these steps yourself, in order, before you finish:
 
 1. fix the defect, inside your owned files where possible
 2. self-verify: `{typecheck_cmd}`, then `{workflow_cmd}`, then `{probe_cmd}`,
    then **the regression net, which you run yourself and must leave clean**:
 {net_block}
-   Two exceptions, and they are the only two. A test that was ALREADY failing
-   before your change is not yours to fix. And a test that requires the attack to
-   succeed cannot be satisfied by a correct fix — if you find one, leave your fix
-   correct, say so in `residual_risk`, and do not weaken the fix to turn it green.
+   One exception, and it is the only one: a test that was ALREADY FAILING before
+   your change is not yours to fix. It was red when you arrived and it is red
+   now, and nothing you do to it is part of this task.
+
+   A test that appears to REQUIRE THE ATTACK TO SUCCEED is **not** an exception.
+   It is an input to step 3. Take it there.
 3. if any of those is red, reconcile and go back to 2 — up to {max_rounds}
    rounds. The workflow test is the record of what correct behaviour looks like;
    use it to find a change that satisfies both axes. Do not edit the test to
    match the code, weaken the probe, or delete the feature.
+
+   A red assertion you believe encodes the vulnerable behaviour itself is the
+   HARDEST case of this step, not an exemption from it. Spend the rounds on it:
+   look for a change that closes the path AND leaves that assertion green. Such
+   an assertion is usually about the FEATURE the vulnerable code happens to
+   provide rather than about the attack — it asserts that some legitimate call
+   still returns something, and it goes red because the fix was broader than the
+   defect. A narrower fix, one that closes only the path the probe takes and
+   leaves the legitimate shape of the behaviour alone, frequently satisfies
+   both. "No correct fix can satisfy this" is a conclusion to reach with the
+   rounds spent, not on round one.
 4. when green, or when the budget is spent, write `{attestation_path}`:
 
 ```json
@@ -347,8 +397,73 @@ adjudicated: nothing accepts or rejects the claim, and listing an assertion
 neither helps nor hurts you. Omitting one only makes a red submission
 indistinguishable from a clean one.
 
+**If your rounds run out while you are holding a fix that closes the path but
+leaves an assertion red, KEEP THE FIX.** Do not weaken it and do not revert it to
+buy back a green gate: a reopened vulnerability is the worse of the two
+outcomes, and the record has a place for the red assertion. List every one of
+them in `workflow_red` and finish.
+
+### How this is measured, said plainly rather than sprung on you
+
+The orchestrator runs `{typecheck_cmd}`, the workflow test, the probe and the
+regression net **itself**, after your turn ends, and it counts the rounds itself.
+Two consequences, and neither is a trap:
+
+- `rounds_used` in your attestation is recorded but not believed. The number
+  that reaches the record is the number of rounds this process ran.
+- if a gate is still red and rounds remain, you will simply be invoked again
+  with the exact failure output. Declaring yourself finished early buys nothing;
+  saying honestly what is still red costs nothing.
+
 Then move to your next bug. Do not stop to report; the whole chunk is submitted
 to the merge queue once, at the end.
+"""
+
+# Appended to the fix prompt on every round after the first. The agent gets the
+# same slice, the same boundary, the same landed block and the same submission
+# contract it had on round 0 -- and then the failure the ORCHESTRATOR measured,
+# which is the only thing that is new. Built here rather than through
+# `prompts.build_reconcile` because that renders a whole v1-shaped prompt and
+# would drop the chunk header, the write boundary and the landed-work block; the
+# failure formatter and the per-kind guidance are shared with v1 so the two
+# tracks tell an agent the same thing about the same red gate.
+RECONCILE_BLOCK = """\
+
+---
+
+## Round {round_no} of {max_rounds}: your change did not pass its gates
+
+This is not a review of your reasoning. The commands below were run by the
+orchestrator against the tree exactly as you left it, after your turn ended.
+
+### Your change so far
+
+```diff
+{diff}
+```
+
+### What was measured
+
+{failures}
+
+### What to do about it
+
+{guidance}
+
+Both of these must hold when you finish, and neither one alone counts:
+
+- **the vulnerability is closed** — the probe prints `NOT_PROVEN`
+- **the application still works** — the workflow test passes, and no related
+  test that was passing at the start of this task is failing now
+
+Still forbidden, and still enforced: editing the workflow test or the probe;
+weakening or reverting the security fix to make a gate go green; deleting the
+feature to quiet the probe. If you believe a red assertion cannot be satisfied
+by any correct fix, keep the fix, spend the round looking for the narrower
+version anyway, and record the assertion in `workflow_red` — do not work around
+it quietly.
+
+Update `{attestation_path}` before you finish this round.
 """
 
 REUSE_NOTE = """\
@@ -521,10 +636,39 @@ def _net_block(cmds) -> str:
     return '\n```\n' + '\n'.join(cmds) + '\n```\n'
 
 
+def _reconcile_block(round_no, max_rounds, failures, diff, attestation_path) -> str:
+    """The measured failure, handed back. Empty on round 0, which has none."""
+    if not round_no:
+        return ''
+    kinds = []
+    for f in failures or ():
+        k = f.get('kind')
+        if k and k not in kinds:
+            kinds.append(k)
+    guidance = '\n\n'.join(prompts.RECONCILE_GUIDANCE[k] for k in kinds
+                           if k in prompts.RECONCILE_GUIDANCE) \
+        or prompts.RECONCILE_GUIDANCE['harness_error']
+    return RECONCILE_BLOCK.format(
+        round_no=round_no, max_rounds=max_rounds,
+        diff=(diff or '(no change recorded yet)')[:30000],
+        failures=prompts._fmt_failures(failures), guidance=guidance,
+        attestation_path=attestation_path)
+
+
 def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
                        scratch_rel: str, reused_from: str | None,
-                       max_rounds: int, related_files=(), inherited=()) -> str:
+                       max_rounds: int, related_files=(), inherited=(),
+                       round_no: int = 0, failures=(), diff='') -> str:
+    """The fix prompt, and on a reconcile round the same prompt plus the failure.
+
+    Deliberately additive rather than a second prompt: the write boundary, the
+    landed-work block and the submission contract are as load-bearing on round 3
+    as on round 0, and a reconcile prompt that dropped them would let an agent
+    reach outside its files, or read a landed fix as damage, precisely when it is
+    under the most pressure to do something drastic.
+    """
     entry, how = (blind_guard.select_entry(playbook, bug) if playbook else (None, 'none'))
+    attestation_path = f'{scratch_rel}/attestation.json'
     return _header(a, tree, cmap, inherited) + '\n' + PATCH_BODY.format(
         bug_id=bug['bug_id'], file=bug['location']['file'],
         line=bug['location']['line'], bug=prompts._fmt_bug(bug),
@@ -538,7 +682,8 @@ def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
         probe_cmd=_cmd(cfg, 'run_probe', f'{scratch_rel}/exploit.probe.ts'),
         max_rounds=max_rounds,
         net_block=_net_block(net_commands(cfg, related_files)),
-        attestation_path=f'{scratch_rel}/attestation.json')
+        attestation_path=attestation_path) + _reconcile_block(
+            round_no, max_rounds, failures, diff, attestation_path)
 
 
 # ----------------------------------------------------------------------------
@@ -548,13 +693,17 @@ def build_patch_prompt(a: Assignment, bug: dict, *, tree, cfg, cmap, playbook,
 def _record_skeleton(chunk_id: str, bug: dict, task_id: str) -> dict:
     """One record per bug, in the shape `ARCHITECTURE.md` §5.1 names.
 
-    `measured` holds only what the dispatcher observed by looking; `attested`
-    holds what the agent said. The two are never merged, and the null defaults
-    below mean NOT MEASURED rather than measured-and-false. A consumer that
-    treats `probe_proven_pre_fix: null` as falsey under-reports probe coverage,
-    which is the safe direction; one that treated it as zero rounds to green
-    would over-report, so `rounds` is an empty list and `rounds_to_green` a null
-    with `gates_run: 0` beside them saying why.
+    `measured` holds what the dispatcher observed by looking or by running;
+    `attested` holds what the agent said. The two are never merged, and the null
+    defaults below mean NOT MEASURED rather than measured-and-false. A consumer
+    that treats `probe_proven_pre_fix: null` as falsey under-reports probe
+    coverage, which is the safe direction; one that treated a null
+    `rounds_to_green` as zero would over-report, so it stays null and
+    `gates_run` says how many gate suites actually ran.
+
+    The defaults describe a task that never reached the fix phase. A task that
+    did overwrites `rounds`, `final_gates`, `rounds_to_green`, `rounds_used`,
+    `label` and `gates_run` with what the loop measured.
     """
     loc = bug.get('location') or {}
     return {
@@ -574,8 +723,11 @@ def _record_skeleton(chunk_id: str, bug: dict, task_id: str) -> dict:
         'merge_verdict': None,
         'measured': {
             'characterisation': {
-                # Gates G1 and G2 need the artefacts RUN, and v3's orchestrator
-                # runs no patcher gate. What it can see is whether they exist.
+                # G1 IS measured, from the baseline sweep taken just before the
+                # fix loop: the workflow test is run against the untouched tree.
+                # G2 is not -- the probe is not re-run pre-fix, so
+                # `probe_proven_pre_fix` stays null here and the agent's report
+                # lives in `attested_characterisation`.
                 'workflow_green_pre_fix': None,
                 'probe_proven_pre_fix': None,
                 'workflow_test_written': False,
@@ -585,15 +737,21 @@ def _record_skeleton(chunk_id: str, bug: dict, task_id: str) -> dict:
                 'workflow_test_path': None,
                 'exploit_probe_path': None,
                 'related_test_files': [],
+                'baseline_failures': [],
             },
             'rounds': [],
             'final_gates': {},
             'rounds_to_green': None,
+            # The count this process ran, never `attestation.json → rounds_used`.
+            'rounds_used': 0,
+            # The loop's own four-square verdict on the round whose tree was
+            # kept: green / vuln_only / workflow_only / neither / agent_failed.
+            'label': None,
+            'deadline_exceeded': False,
             'gates_run': 0,
             'gates_not_run_reason':
-                'v3 runs the fix/verify/reconcile loop inside one agent '
-                'invocation, so no orchestrator-side round or gate result exists '
-                'for this task. See docs/patcher/ARCHITECTURE-V3.md §7.',
+                'this task never reached the fix phase, so no gate suite ran for '
+                'it. See docs/patcher/ARCHITECTURE-V3.md §7.',
             'wall_s': 0.0,
             'cost_usd': 0.0,
             'invocations': [],
@@ -653,6 +811,42 @@ def _dispose(rec: dict, disposition: str, basis: str, reason: str | None) -> dic
     rec['disposition_basis'] = basis
     rec['disposition_reason'] = reason
     return rec
+
+
+# The four gate names, in order. `verify.VerifyResult.fail` also writes a bare
+# `V1`..`V4` marker beside the long name, which is a duplicate and not a fifth
+# gate -- so anything reading gates for a HUMAN reads these four and nothing else.
+GATE_NAMES = ('V1_typecheck', 'V2_workflow', 'V3_probe_blocked', 'V4_no_regression')
+
+
+def _gate_summary(gates: dict) -> str:
+    return ', '.join(f'{g}={gates[g]}' for g in GATE_NAMES if g in gates) \
+        or 'no gate result'
+
+
+def _rounds_to_green(records) -> dict:
+    """The distribution, never a mean -- the mean hides the tail and the tail is
+    where the cost is. `never` counts tasks that reached a fix phase and did not
+    go green; a task that never reached one is in neither bucket."""
+    hist: dict = {}
+    values = []
+    for r in records:
+        m = r.get('measured') or {}
+        if not (m.get('rounds') or []):
+            continue
+        n = m.get('rounds_to_green')
+        key = 'never' if n is None else str(n)
+        hist[key] = hist.get(key, 0) + 1
+        if n is not None:
+            values.append(n)
+    values.sort()
+    median = None
+    if values:
+        mid = len(values) // 2
+        median = (values[mid] if len(values) % 2
+                  else (values[mid - 1] + values[mid]) / 2)
+    return {'histogram': hist, 'median': median,
+            'max': max(values) if values else None}
 
 
 def disposition_counts(records) -> dict:
@@ -868,9 +1062,10 @@ class Dispatcher:
 
         The steps and their order are `ARCHITECTURE.md`'s, unchanged: record what
         correct behaviour is before touching anything, then fix, then verify
-        against that record, then reconcile, then attest. What v3 changed is that
-        the middle three happen inside one invocation instead of three. What it
-        did NOT change is that the task ends with a disposition.
+        against that record, then reconcile, then attest. Verify and reconcile
+        are the ORCHESTRATOR's again -- `task_loop.run_fix_loop`, the same loop
+        v1 runs -- so what ends the fix phase is a machine-checked exit condition
+        rather than the agent's own account of its budget.
         """
         t0 = time.time()
         bug_id = bug['bug_id']
@@ -937,23 +1132,11 @@ class Dispatcher:
             skip = self._pre_fix_disposition(rec, ch, attested_ch, loc_key,
                                              remediated, reused_from)
             if not skip:
-                inv = self.runner.run(
-                    build_patch_prompt(a, bug, tree=tree, cfg=self.cfg, cmap=self.cmap,
-                                       playbook=self.playbook, scratch_rel=scratch_rel,
-                                       reused_from=reused_from,
-                                       max_rounds=self.max_rounds,
-                                       related_files=related,
-                                       inherited=inherited),
-                    cwd=tree, phase=PATCH_PHASE, task_id=task_id,
-                    log_path=os.path.join(self.run_dir, 'logs',
-                                          f'{task_id}-patch.json'),
-                    guard_log=guard)
-                self._note(rec, res, inv)
-                att_raw = _read_json(
-                    os.path.join(tree, scratch_rel, 'attestation.json'))
-                rec['attested'] = task_loop._normalise_attestation(att_raw)
+                loop = self._run_fix_loop(a, bug, tree, task_id, scratch_rel, guard,
+                                          rec, res, snap, related, attested_ch,
+                                          reused_from, inherited, t0)
                 changed = workspace.changed_files(tree, snap)
-                self._post_fix_disposition(rec, inv, attested_ch, changed,
+                self._post_fix_disposition(rec, loop, attested_ch, changed,
                                            reused_from)
                 # `fixed_workflow_red` counts as remediated here for the same
                 # reason `partial` does: the location was edited and the defect is
@@ -1043,6 +1226,145 @@ class Dispatcher:
                          f'{attempt} incomplete ({len(problems)} problem(s)); retrying')
         return char
 
+    def _baseline(self, tree, related, workflow_rel, rec) -> dict:
+        """Run the net and the workflow test against the tree BEFORE the fix.
+
+        Not optional, and v3 went without it for its first three runs. `verify`
+        charges a related test as a regression when it fails now and was not
+        recorded as failing before -- and with no baseline, "before" is an empty
+        dict, so EVERY red row in the net counts, including the ones that were
+        already red when the task started. A task with one pre-existing failure
+        anywhere in its net would then be labelled `vuln_only` no matter what the
+        agent did, and `vuln_only` is the label that becomes
+        `fixed_workflow_red`. That is a measurement reporting damage that was
+        there before the patcher arrived.
+
+        The workflow test is swept with the net, which is where the measured half
+        of G1 comes from: it is run once against the untouched tree, so a task
+        whose oracle was ALREADY red is identifiable afterwards instead of having
+        its V2 failures silently attributed to the fix.
+        """
+        files = list(related)
+        if workflow_rel and workflow_rel not in files:
+            files.append(workflow_rel)
+        outcomes = verify.collect_outcomes(self.cfg, tree, files) if files else {}
+
+        ch = rec['measured']['characterisation']
+        ch['baseline_failures'] = sorted(
+            f'{rel}: {title}'
+            for rel, r in outcomes.items()
+            for title, status in r['outcomes'].items() if status == 'fail')
+        wf = outcomes.get(workflow_rel) if workflow_rel else None
+        if wf is not None:
+            ch['workflow_green_pre_fix'] = bool(wf['exit_ok'])
+        return outcomes
+
+    def _run_fix_loop(self, a, bug, tree, task_id, scratch_rel, guard, rec, res,
+                      snap, related, attested_ch, reused_from, inherited, t0):
+        """Phases ②③④, driven by the orchestrator, and the record of what it saw.
+
+        Four things here are easy to get subtly wrong and each has a test:
+
+        * `max_rounds` is a TOTAL and includes round 0. `self.max_rounds` is
+          `loop.reconcile_rounds`, a count of RECONCILES, so the loop is given
+          one more than that -- passing it raw gives v3 one round fewer than the
+          config asks for and nothing anywhere would say so.
+        * the loop never restores the tree. It snapshots the best round and hands
+          the path back; keeping or reverting is policy, and policy is here. v3
+          keeps the best round, because a chunk is submitted whole and there is
+          no per-task revert that would not also drop the tasks around it.
+        * the snapshot is the caller's to discard, every path, or a long chunk
+          leaks one tar per task.
+        * the phase strings come from the loop (`fix` for round 0, `reconcile`
+          after), and both are in the sandbox hook's vocabulary and both freeze
+          the gate artefacts. That is why `PATCH_PHASE` is `fix` and not a
+          v3-specific name.
+        """
+        bug_id = bug['bug_id']
+        # The paths recorded by the characterise step, which are None when the
+        # artefact is not on disk. Passing a path that does not exist would run a
+        # gate against a missing file and charge the failure to the fix; `verify`
+        # skips a gate it is handed None for, which is the honest reading.
+        ch = rec['measured']['characterisation']
+        workflow_rel = ch['workflow_test_path']
+        probe_rel = ch['exploit_probe_path']
+        # The attested pre-fix verdict, and the only attested input left in the
+        # fix phase. False makes V3 `skipped` rather than failed: a probe that
+        # never demonstrated the defect cannot demonstrate its closure either.
+        probe_expected = bool(attested_ch and attested_ch['probe_proven_pre_fix'])
+        attestation_rel = f'{scratch_rel}/attestation.json'
+        baseline = self._baseline(tree, related, workflow_rel, rec)
+
+        # Per BUG, not per task_id: a reused characterisation gives two bugs the
+        # same task_id, and one directory would mean the second bug's rounds
+        # overwriting the first's logs.
+        log_dir = os.path.join(self.run_dir, 'logs', f'{a.chunk_id}-{bug_id}')
+        os.makedirs(log_dir, exist_ok=True)
+
+        def build_prompt(round_no, vr, diff):
+            return build_patch_prompt(
+                a, bug, tree=tree, cfg=self.cfg, cmap=self.cmap,
+                playbook=self.playbook, scratch_rel=scratch_rel,
+                reused_from=reused_from, max_rounds=self.max_rounds,
+                related_files=related, inherited=inherited,
+                round_no=round_no, failures=(vr.failures if vr else ()), diff=diff)
+
+        loop = task_loop.run_fix_loop(
+            cfg=self.cfg, tree=tree, task_id=task_id, bug=bug, runner=self.runner,
+            build_prompt=build_prompt,
+            workflow_rel=workflow_rel, probe_rel=probe_rel,
+            probe_expected=probe_expected, related=related,
+            baseline_outcomes=baseline,
+            # v3 has no anti-oracle detector wired in, and this is not the place
+            # to invent a second excusal path: `verify` excuses a row from the
+            # tests' own text or not at all. A net row a correct fix cannot
+            # satisfy therefore goes red, the label says `vuln_only`, and the
+            # agent's own claim about it sits beside that in `attested`.
+            antioracles=None,
+            max_rounds=self.max_rounds + 1,
+            deadline=t0 + float(self.cfg.get('loop', {}).get('max_task_wall_s', 5400)),
+            log_dir=log_dir, guard_log=guard,
+            snap_path=snap, attestation_rel=attestation_rel)
+
+        for inv in loop.invocations:
+            self._note(rec, res, inv)
+
+        # Keep the best round's tree, then let go of the snapshot on every path.
+        try:
+            if loop.best_snapshot:
+                workspace.restore(tree, loop.best_snapshot)
+        except workspace.WorkspaceError as ex:
+            rec['violations'].append({'kind': 'scratch_missing',
+                                      'detail': f'best-round restore failed: {ex}',
+                                      'phase': PATCH_PHASE, 'auto_reverted': False})
+        finally:
+            if loop.best_snapshot:
+                workspace.discard_snapshot(loop.best_snapshot)
+
+        rec['attested'] = loop.attestation
+        m = rec['measured']
+        m['rounds'] = loop.rounds
+        m['rounds_used'] = loop.rounds_used
+        m['label'] = loop.label
+        m['deadline_exceeded'] = loop.deadline_exceeded
+        m['gates_run'] = len(loop.rounds)
+        m['gates_not_run_reason'] = None
+        if loop.green:
+            m['rounds_to_green'] = loop.rounds[-1]['round']
+        # The SELECTED round, not the last one: it is the tree that was just
+        # restored and the tree that will be submitted, so a `final_gates` taken
+        # from a later and worse round would describe a tree nobody kept.
+        m['final_gates'] = {
+            'typecheck': loop.gates.get('V1_typecheck', 'skipped'),
+            'workflow': loop.gates.get('V2_workflow', 'skipped'),
+            'probe_blocked': loop.gates.get('V3_probe_blocked', 'skipped'),
+            'no_regression': loop.gates.get('V4_no_regression', 'skipped'),
+        }
+        if loop.deadline_exceeded:
+            self.log(f'  [{a.chunk_id}] {bug_id}: task wall-clock budget exhausted '
+                     f'after {loop.rounds_used} round(s)')
+        return loop
+
     def _pre_fix_disposition(self, rec, ch, attested_ch, loc_key, remediated,
                              reused_from) -> bool:
         """Decide, before spending the fix phase, whether it is worth spending.
@@ -1073,83 +1395,128 @@ class Dispatcher:
                 'measurement.'))
         return False
 
-    def _post_fix_disposition(self, rec, inv, attested_ch, changed, reused_from) -> None:
-        """The disposition, once the fix phase has returned.
+    def _post_fix_disposition(self, rec, loop, attested_ch, changed,
+                              reused_from) -> None:
+        """The disposition, from the label the ORCHESTRATOR measured.
 
-        Liveness and the diff are measured; everything green is attested, and
-        says so. The one thing that is never inferred is a bare `fixed` for a task
-        whose probe never demonstrated the defect -- that is
-        `fixed_workflow_only`, and the two are not summed.
+        Every branch here is MEASURED. It used to read `attestation.json →
+        status` and label the result ATTESTED, which is the thing this change
+        exists to end: `status` is the agent's opinion of its own patch, and an
+        agent that stops after one round over a red gate and writes `fixed`
+        produced exactly the same record as one that reconciled to green.
 
-        `fixed_workflow_red` splits the remaining `fixed` population the same way,
-        on the agent's own `workflow_red` list: a fix submitted over a workflow
-        assertion it left failing. This too is ATTESTED and not measured -- the
-        dispatcher runs no test, so it cannot tell whether that assertion encodes
-        the vulnerable behaviour (the agent's anti-oracle claim, recorded verbatim
-        and never adjudicated here) or whether the fix broke the feature. Recording
-        the difference is the whole point; an attestation with no `workflow_red`
-        field is the pre-existing shape and still disposes plain `fixed`.
+        `loop.label` is `task_loop._derive_label`'s reading of the gates the
+        dispatcher ran on the round whose tree was kept:
+
+            green          probe closed, build/workflow/net clean  -> fixed
+            vuln_only      probe closed, something else red        -> fixed_workflow_red
+            workflow_only  probe not closed, nothing else red      -> fixed_workflow_only
+            neither        neither axis                            -> partial / abandoned
+            agent_failed   no usable invocation, or no attestation -> agent_failed
+
+        Two of those mappings are worth their own sentence.
+
+        `vuln_only` -> `fixed_workflow_red`. The tag was added (43774ce) for a fix
+        submitted over a workflow assertion the agent said it left red, on the
+        agent's own list. It now means the same outcome MEASURED: the path is
+        demonstrably closed and a gate the dispatcher ran is demonstrably red.
+        The agent's `workflow_red` and `antioracle_claims` are still recorded, in
+        `attested`, and are still adjudicated by nothing -- they are now a claim
+        sitting beside a measurement that may or may not agree with it, which is
+        strictly more information than the claim alone. It is still never summed
+        with `fixed`: a correct fix over an attack-dependent assertion and a fix
+        that broke the feature both land here, and the record still cannot tell
+        them apart -- it can now at least say WHICH gate was red and in which
+        round.
+
+        `workflow_only` -> `fixed_workflow_only` carries the one attested input
+        left: V3 is `skipped`, not passed, because the agent reported the probe
+        never demonstrated the defect (or the oracle was another bug's). A
+        skipped remediation gate is not a closed vulnerability.
         """
         att = rec['attested']
-        if not inv.ok:
-            _dispose(rec, 'agent_failed', MEASURED,
-                     f'the fix invocation did not return successfully: '
-                     f'{inv.reason or "no reason reported"}. Its edits, if any, were '
-                     'reverted rather than submitted unattested.')
-        elif att is None:
-            _dispose(rec, 'agent_failed', MEASURED,
-                     'the fix invocation returned but wrote no parseable '
-                     'attestation.json, which is the only durable output its contract '
-                     'names. Nothing about this task can be reported, so its edits '
-                     'were reverted rather than merged.')
-        elif att['status'] == 'fixed' and not changed:
-            _dispose(rec, 'abandoned', MEASURED,
-                     'the agent attested a fix and changed no source file. The '
-                     'measurement wins: nothing was patched.')
-        elif att['status'] == 'fixed':
-            proven = bool(attested_ch and attested_ch['probe_proven_pre_fix'])
-            red = att.get('workflow_red') or []
-            if proven and red:
-                claims = len(att.get('antioracle_claims') or [])
-                _dispose(rec, 'fixed_workflow_red', ATTESTED,
-                         f'the agent reported the defect closed but left {len(red)} '
-                         f'workflow assertion(s) failing, {claims} of which it claims '
-                         'assert the vulnerable behaviour itself. Attested, not '
-                         'measured: the dispatcher ran no test and neither accepts nor '
-                         'rejects the anti-oracle claim. Never summed with `fixed` -- a '
-                         'correct fix over an anti-oracle and a fix that broke the '
-                         'feature look identical from here.')
-            elif proven:
-                _dispose(rec, 'fixed', ATTESTED,
-                         'the agent reported both axes green in its own sandbox. '
-                         'Attested, not measured: v3 runs no orchestrator-side gate.')
-            else:
-                why = ('the probe was reused from ' + str(reused_from) +
-                       ' and does not exercise this defect' if reused_from
-                       else 'the probe never demonstrated the defect before the fix')
-                _dispose(rec, 'fixed_workflow_only', ATTESTED,
-                         f'the agent reported the workflow intact, but {why}, so the '
-                         'remediation axis is unverified even in-sandbox. Never summed '
-                         'with `fixed`.')
-        elif changed:
-            _dispose(rec, 'partial', ATTESTED,
-                     'the agent reported it did not close the defect within its own '
-                     'budget, and its work is retained: v3 submits a chunk whole, so '
-                     'there is no per-task revert that would not also drop the tasks '
-                     'around it.')
-        else:
-            _dispose(rec, 'abandoned', ATTESTED,
-                     'the agent reported it did not close the defect and left the tree '
-                     'unchanged.')
+        label = loop.label
+        wf_red_pre_fix = (rec['measured']['characterisation']['workflow_green_pre_fix']
+                          is False)
+        # Said out loud wherever a red gate drives the disposition. Without it, a
+        # task whose oracle was already broken before the agent arrived reads
+        # exactly like a task that broke it.
+        pre_red = (' The workflow test was ALREADY RED against the unmodified tree, '
+                   'measured before this fix, so a red workflow gate here is not '
+                   'evidence that this change broke anything.' if wf_red_pre_fix else '')
 
-        # The agent's claim against what the dispatcher could see. Recorded,
+        if label == 'agent_failed':
+            # Deliberately not read as "revert whatever is there": a run can be
+            # `agent_failed` for a missing attestation while its gates measured
+            # green, so the reason records what was measured before the tree goes
+            # back. What decides the revert is REVERT_DISPOSITIONS, below, and it
+            # still reverts -- the attestation is the submission contract's only
+            # durable output, and a change nobody can describe is not submittable.
+            gates = _gate_summary(loop.gates)
+            if not any(getattr(i, 'ok', False) for i in loop.invocations):
+                why = ('no fix invocation returned successfully in '
+                       f'{loop.rounds_used} round(s)')
+            else:
+                why = ('the fix invocation returned but wrote no parseable '
+                       'attestation.json, which is the only durable output its '
+                       'contract names')
+            _dispose(rec, 'agent_failed', MEASURED,
+                     f'{why}. Measured at the best round: {gates}. Its edits were '
+                     'reverted rather than submitted undescribed.')
+        elif not changed:
+            # An unchanged tree cannot have fixed anything, whatever the gates
+            # say about it, and a green sheet over no diff means a gate is
+            # answering about something other than this task.
+            _dispose(rec, 'abandoned', MEASURED,
+                     ('the agent attested a fix and changed no source file. '
+                      if att and att['status'] == 'fixed' else
+                      'the fix phase ended with no source file changed. ')
+                     + f'Measured label was `{label}` over an empty diff, so nothing '
+                       'was patched.')
+        elif label == 'green':
+            _dispose(rec, 'fixed', MEASURED,
+                     f'every gate passed at round {rec["measured"]["rounds_to_green"]}: '
+                     'the probe stopped proving the defect, the workflow test still '
+                     'passes and the regression net is clean. Measured by the '
+                     'orchestrator, not attested.')
+        elif label == 'vuln_only':
+            red = [g for g in GATE_NAMES
+                   if g != 'V3_probe_blocked'
+                   and loop.gates.get(g) not in ('pass', 'skipped', None)]
+            claims = len(((att or {}).get('antioracle_claims')) or [])
+            _dispose(rec, 'fixed_workflow_red', MEASURED,
+                     f'the probe stopped proving the defect, and {", ".join(sorted(red))} '
+                     f'was still red after {loop.rounds_used} measured round(s). The '
+                     f'agent claims {claims} of the failing assertion(s) assert the '
+                     'vulnerable behaviour itself; that claim is recorded and '
+                     'adjudicated by nothing. Never summed with `fixed` -- a correct '
+                     'fix over an attack-dependent assertion and a fix that broke the '
+                     'feature both land here.' + pre_red)
+        elif label == 'workflow_only':
+            why = ('the probe was reused from ' + str(reused_from) +
+                   ' and does not exercise this defect' if reused_from
+                   else 'the probe never demonstrated the defect before the fix')
+            _dispose(rec, 'fixed_workflow_only', MEASURED,
+                     f'the build, the workflow test and the regression net were '
+                     f'measured clean, but {why}, so the remediation gate was skipped '
+                     'rather than passed and the remediation axis is unverified. Never '
+                     'summed with `fixed`.')
+        else:                                                    # 'neither'
+            gates = _gate_summary(loop.gates)
+            _dispose(rec, 'partial', MEASURED,
+                     f'gates still red after {loop.rounds_used} measured round(s) '
+                     f'({gates}), and the work is retained: v3 submits a chunk whole, '
+                     'so there is no per-task revert that would not also drop the tasks '
+                     'around it. Read the round table before trusting this task.'
+                     + pre_red)
+
+        # The agent's claim against the orchestrator's own measurement. Recorded,
         # never used to alter the disposition.
         if att:
-            # Same call as the `remediated` bookkeeping above, for consistency:
-            # `fixed_workflow_red` is treated as agreeing with a `fixed` claim,
-            # because it was DERIVED from the agent's own report rather than from
-            # anything that contradicted it. Calling it an overclaim would put a
-            # disagreement in the record where there was none.
+            # `fixed_workflow_red` counts as agreeing with a `fixed` claim: the
+            # measurement agrees the path is closed, and the disagreement is
+            # about a gate the disposition already names. Calling it an overclaim
+            # would double-count one fact.
             green = rec['disposition'] in GREEN_DISPOSITIONS or \
                 rec['disposition'] == 'fixed_workflow_red'
             if att['status'] == 'fixed' and not green:
@@ -1418,17 +1785,24 @@ class Dispatcher:
             # third that the agent submitted over a workflow assertion it left
             # failing, which nothing here can adjudicate.
             'dispositions': disposition_counts(records),
-            # Every green disposition in a v3 run is the agent's own report. The
-            # split is emitted so a reader cannot mistake one for a measurement,
-            # and so a v3 row is never pooled with a v1 or v2 row.
+            # Emitted still, and now mostly `measured`: the fix phase runs the
+            # gates itself. What remains attested is `already_remediated`, whose
+            # probe verdict is the agent's. A reader who wants to know whether a
+            # green count is evidence or a self-report reads this split, and a
+            # run whose ATTESTED share is large is a run whose fix phase mostly
+            # did not happen.
             'disposition_basis': {
                 MEASURED: sum(1 for r in records
                               if r.get('disposition_basis') == MEASURED),
                 ATTESTED: sum(1 for r in records
                               if r.get('disposition_basis') == ATTESTED),
             },
-            'rounds_to_green': None,
-            'per_task_gates_run': 0,
+            'rounds_to_green': _rounds_to_green(records),
+            # Gate suites run by the orchestrator, one per measured round. Zero
+            # here means no task reached its fix phase, not that gates are absent
+            # from the architecture -- which is what it used to mean.
+            'per_task_gates_run': sum((r.get('measured') or {}).get('gates_run') or 0
+                                      for r in records),
             'tasks_merge_rejected': sum(1 for r in records
                                         if r.get('merge_verdict') == 'rejected'),
             'attestation_overclaims': sum(

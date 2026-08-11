@@ -207,6 +207,31 @@
     "tasks": {
       "type": "array",
       "items": { "$ref": "task-record.schema.json" }
+    },
+
+    "note_on_basis": {
+      "type": "string",
+      "description": "Written by the v3 runner. Says which phases of the run were measured and which rest on the agent's own report, so a count in `totals` is never read as stronger evidence than it is."
+    },
+
+    "v3_dispatch": {
+      "type": "object",
+      "description": "v3 only: the dispatcher's own run summary, kept out of the v1/v2 columns it would be misread in. `report.aggregate` does not know these fields. Open-ended by design — it mirrors the dispatcher's returned dict, and pinning its shape here would mean two statements of the same fact that can drift.",
+      "properties": {
+        "disposition_basis": {
+          "type": "object",
+          "description": "Task counts by `disposition_basis`. The fix phase is measured — the orchestrator runs V1–V4 at each round boundary — so a large `attested` share means most tasks did not reach a fix phase, not that the gates are absent. Runs before 2026-08 report `attested` throughout because the reconcile loop was described in the prompt and driven by nothing.",
+          "additionalProperties": { "type": "integer" }
+        },
+        "per_task_gates_run": {
+          "type": "integer",
+          "description": "Gate suites the orchestrator ran across the run, one per measured round per task. Zero used to be structural; it is now a finding."
+        },
+        "rounds_to_green": {
+          "type": ["object", "null"],
+          "description": "Distribution over tasks that reached a fix phase. Null on a run whose fix phase produced no measured round."
+        }
+      }
     }
   },
 
