@@ -50,6 +50,30 @@ print("not ok 1 - product listing still works")
 sys.exit(1)
 '''
 
+# A test in the regression net that asserts the defect is still reachable. It is
+# green against the unmodified code and goes red the moment the defect is closed,
+# so no correct fix can satisfy it. The detector cannot excuse it -- it has no
+# attack payload in its own text -- which is exactly the case that makes charging
+# V4 with the revert decision destroy correct work.
+ATTACK_DEPENDENT_TEST = '''\
+import sys, pathlib
+src = pathlib.Path("routes/search.ts").read_text()
+if "VULN" in src:
+    print("ok 1 - raw search term still reaches the query builder")
+    sys.exit(0)
+print("not ok 1 - raw search term still reaches the query builder")
+sys.exit(1)
+'''
+
+ATTACK_DEPENDENT_REL = 'test/api/search-legacy.test.ts'
+
+# A typecheck the fake agent can break on purpose, by writing BROKEN into source.
+TYPECHECK_STUB = '''\
+import sys, pathlib
+src = pathlib.Path("routes/search.ts").read_text()
+sys.exit(1 if "BROKEN" in src else 0)
+'''
+
 CHARACTERISATION = {
     'bug_id': 'BUG-001',
     'correct_behaviour': 'search returns matching products',
@@ -293,6 +317,82 @@ def test_keep_if_workflow_intact_reverts_real_damage(env):
     rec = task_loop.run_task(BUG, 0, ctx_for(cfg, tree, run_dir, behave))
     assert rec['disposition'] == 'abandoned'
     assert open(_src(tree)).read() == before
+
+
+def test_keep_if_workflow_intact_keeps_a_fix_an_existing_test_objects_to(env):
+    """A correct fix can be failed by a test that requires the attack to succeed.
+
+    The regression net is a damage detector, not an oracle: some of its rows assert
+    that a payload was acted upon, and closing the path makes them red by
+    construction. The detector that excuses them reads the tests' own text and
+    cannot recognise the ones that carry no payload, so V4 informs the record and
+    does not decide the revert. Measured: on one run, three of ten failures were a
+    single unit whose probe was blocked and whose workflow test was green on every
+    round of its budget, discarded solely because its net objected.
+    """
+    cfg, tree, run_dir = env
+    cfg['policy']['on_exhausted'] = 'keep_if_workflow_intact'
+    open(os.path.join(tree, ATTACK_DEPENDENT_REL), 'w').write(ATTACK_DEPENDENT_TEST)
+    characterisation = dict(CHARACTERISATION,
+                            related_test_files=['test/api/search.test.ts',
+                                                ATTACK_DEPENDENT_REL])
+
+    def behave(prompt, phase, task_id, cwd):
+        if phase == 'characterise':
+            _write_scratch(tree, task_id, characterisation=characterisation)
+        else:
+            # The fix everyone wants: defect closed, feature untouched.
+            _set_markers(tree, vuln=False, feature=True)
+            open(_src(tree), 'a').write('// parameterised\n')
+            _attest(tree, task_id)
+        return True
+
+    rec = task_loop.run_task(BUG, 0, ctx_for(cfg, tree, run_dir, behave))
+
+    assert ATTACK_DEPENDENT_REL in rec['measured']['characterisation'][
+        'related_test_files']
+    # V4 is the only red gate, and it was driven red by the fix itself.
+    assert rec['measured']['final_gates'] == {
+        'typecheck': 'pass', 'workflow': 'pass',
+        'probe_blocked': 'pass', 'no_regression': 'fail'}
+    assert rec['disposition'] == 'partial'
+    # The agent's edit survives: this is the work the old clause deleted.
+    src = open(_src(tree)).read()
+    assert '// parameterised' in src
+    assert 'VULN' not in src and 'FEATURE' in src
+    # And the record says the net objected, so a red net is never kept silently.
+    reason = rec['disposition_reason']
+    assert 'regression net' in reason and 'RED' in reason
+
+
+def test_keep_if_workflow_intact_reverts_a_tree_that_does_not_build(env):
+    """The sharp edge this policy exists to keep: a non-compiling tree is reverted.
+
+    One cumulative tree means a broken build is not this task's problem alone --
+    every task after it inherits it and every later gate becomes meaningless.
+    """
+    cfg, tree, run_dir = env
+    cfg['policy']['on_exhausted'] = 'keep_if_workflow_intact'
+    open(os.path.join(tree, 'typecheck_stub.py'), 'w').write(TYPECHECK_STUB)
+    cfg['commands']['typecheck'] = 'python3 typecheck_stub.py'
+    before = open(_src(tree)).read()
+
+    def behave(prompt, phase, task_id, cwd):
+        if phase == 'characterise':
+            _write_scratch(tree, task_id)
+        else:
+            # Defect closed and feature intact, but the tree no longer compiles.
+            _set_markers(tree, vuln=False, feature=True)
+            open(_src(tree), 'a').write('// BROKEN\n')
+            _attest(tree, task_id)
+        return True
+
+    rec = task_loop.run_task(BUG, 0, ctx_for(cfg, tree, run_dir, behave))
+    assert rec['measured']['final_gates']['typecheck'] == 'fail'
+    assert rec['disposition'] == 'abandoned'
+    assert open(_src(tree)).read() == before
+    # The reason names the clause that failed, not a generic one.
+    assert 'does not build' in rec['disposition_reason']
 
 
 def test_keep_best_prefers_preservation_over_remediation(env):

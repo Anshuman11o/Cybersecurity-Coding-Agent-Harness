@@ -384,15 +384,43 @@ def _apply_exhausted_policy(ctx, rec, vr, best, snap_path):
         workspace.restore(ctx.tree, best[2])
         return 'partial', f'{why}. Best round ({best[0]}) retained under keep_best.'
 
+    # V4 is deliberately not a clause here. A test that requires the attack to
+    # succeed cannot be satisfied by a correct fix, so charging the regression net
+    # with the revert decision deletes correct work: three of the ten failures on
+    # the subset 4 run were one unit that had its probe blocked and its own workflow
+    # test green on every round of its budget, discarded only because the net
+    # objected. `antioracle.py` narrows that class but cannot close it -- it
+    # recognises a test carrying an attack payload in its own text, and the rows
+    # that killed that unit carried none. So the net is reported, never obeyed.
+    #
+    # The two clauses that remain are what keeps this from being `keep_best` with
+    # its sharp edge: a tree that does not compile poisons every task after it, and
+    # a change that closes the attack by breaking the feature is the exact damage
+    # this whole procedure exists to prevent. Never ship known damage; do ship a fix
+    # that an existing test merely objects to.
     if policy == 'keep_if_workflow_intact':
         workflow_ok = vr.gates.get('V2_workflow') in ('pass', 'skipped')
-        regress_ok = vr.gates.get('V4_no_regression') in ('pass', 'skipped')
         build_ok = vr.gates.get('V1_typecheck') == 'pass'
-        if workflow_ok and regress_ok and build_ok:
-            return 'partial', (f'{why}. Workflow intact and the tree builds, so the '
-                               'attempt was kept under keep_if_workflow_intact.')
+        if workflow_ok and build_ok:
+            kept = (f'{why}. Workflow intact and the tree builds, so the attempt was '
+                    'kept under keep_if_workflow_intact.')
+            if vr.gates.get('V4_no_regression') not in ('pass', 'skipped'):
+                # Said out loud, in the record, every time. A task kept over a red
+                # net is not the same object as one kept over a clean net, and if
+                # the two are indistinguishable afterwards then dropping the clause
+                # has quietly converted real collateral damage into silence.
+                kept += (' The regression net was RED and the attempt was kept anyway:'
+                         ' the failing rows may be tests a correct fix cannot satisfy,'
+                         ' or they may be real collateral damage, and this record does'
+                         ' not tell them apart. Read the V4 failures before trusting'
+                         ' this task.')
+            return 'partial', kept
+        # Which clause failed, in the record: a reverted task has no tree left to
+        # inspect, so its reason is the only account of why it went.
+        broke = ('the tree does not build' if not build_ok
+                 else 'the workflow test was not intact')
         workspace.restore(ctx.tree, snap_path)
-        return 'abandoned', f'{why}. Workflow was not intact, so the task was reverted.'
+        return 'abandoned', f'{why}. Reverted because {broke}.'
 
     workspace.restore(ctx.tree, snap_path)
     return 'abandoned', (f'{why}. Reverted: shipping a change that fails its own gates '
