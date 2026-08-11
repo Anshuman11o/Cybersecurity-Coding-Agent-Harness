@@ -188,6 +188,12 @@ Subset 2 puts no bugs in `frontend/**` or `data/**`, so B is empty and C is
 routes only. That is a property of this report, not of the map: pass a wider
 report and the same brackets fill out.
 
+`subsets/subset-02.chunk-map.json` is this same map in the subset form the v3
+dispatcher reads: bracket B dropped because it holds no chunk, phases renumbered
+densely, and the `depends_on` edges naming B removed. Nothing else differs —
+`test_subset02_map.py` asserts every surviving chunk is equal to its counterpart
+here, so the generator still owns every id, file, line, class and reason.
+
 ---
 
 ## Regenerating
