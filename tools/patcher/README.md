@@ -196,10 +196,14 @@ symlinks do not help.
 
 ## 4. Layout
 
+Full detail — every module, its public entry points, the import graph and which
+track needs it — is in [`STRUCTURE.md`](STRUCTURE.md). The summary:
+
 ```
 tools/patcher/
 ├── README.md                     this file — the architecture
 ├── ARCHITECTURE.md               the loop, state machine and gates in full detail
+├── STRUCTURE.md                  the module map: what every file is, and why
 │
 ├── contracts/                    JSON Schemas. Blind-safe by construction.
 │   ├── bug-report.schema.json        INPUT  — what the agent is told
@@ -207,30 +211,60 @@ tools/patcher/
 │   ├── task-record.schema.json       OUTPUT — one per task, measured facts + attestation
 │   └── patcher-report.schema.json    OUTPUT — the aggregation
 │
-├── config/
-│   └── run-config.example.json   every knob, with the default and why
+├── config/                       run configs; every knob with its default and why
+├── inputs/                       bug reports and playbooks — master, and per subset
+├── plan/                         offline chunk-map generator + the checked-in maps
+├── docs/PARALLELISATION.md       the v2 design note: units, waves, measured costs
 │
 ├── src/
-│   ├── run_patcher.py            ENTRYPOINT. Outer while loop, checkpoint/resume.
+│   │  ENTRY POINTS
+│   ├── run_patcher.py            v1 tasks and v2 waves. Outer loop, checkpoint/resume.
+│   ├── run_patcher_v3.py         v3 chunk dispatch. Separate on purpose — see below.
+│   │
+│   │  AGENT WORK — one agent, one bug
 │   ├── task_loop.py              Inner while loop. The five phases, the gates.
-│   ├── agent.py                  AgentRunner interface + Claude CLI adapter.
+│   ├── agent.py                  AgentRunner interface + Claude CLI adapter + FakeRunner.
 │   ├── prompts.py                Every prompt, one file, blind-safe.
-│   ├── workspace.py              Tree prep, per-task snapshot/revert, diff capture.
-│   ├── verify.py                 Runner-executed gates. Typecheck, workflow, probe.
+│   │
+│   │  PARALLELISATION — what may run alongside what
+│   ├── grouping.py               Bug -> unit granularity (per-bug vs per-file).
+│   ├── wave_plan.py              v2. Deterministic plan from the real import graph.
+│   ├── wave_runner.py            v2. Runs a wave's chains concurrently, folds back.
+│   │
+│   │  MEASUREMENT — the orchestrator's own gates; no agent runs in these
+│   ├── verify.py                 Typecheck, workflow, probe, regression, blast radius.
 │   ├── testmap.py                Changed file -> existing test files that exercise it.
+│   ├── antioracle.py             Tests that cannot survive a correct fix.
+│   │
+│   │  THE TREE — and where two agents' edits meet
+│   ├── workspace.py              Tree prep, per-task snapshot/revert, diff, hash.
+│   ├── integrator.py             v2. Fold a wave's unit trees back into one.
+│   │
+│   │  BLIND BOUNDARY / RECORDS
 │   ├── blind_guard.py            Input scrub + post-run transcript audit.
-│   ├── state.py                  Run state, incremental flush, resume.
-│   └── report.py                 Task records -> patcher-report.json.
+│   ├── state.py                  v1/v2 run state, incremental flush, resume.
+│   ├── report.py                 Task records -> patcher-report.json.
+│   ├── archive_run.py            Finished run -> repo aggregate + private detail.
+│   │
+│   └── v3/                       THE DISPATCHER TRACK — imports the modules above
+│       ├── chunk_map.py          Load + validate the checked-in offline plan.
+│       ├── boundary.py           Owned / shared-extension / never-writable / read-denied.
+│       ├── dispatcher.py         Spawn, monitor, merge, advance. Runs no patcher gate.
+│       ├── merge_queue.py        The one serial point: apply, build, conflict-check.
+│       └── run_store.py          Durable per-chunk run store.
 │
 ├── hooks/
 │   └── sandbox_guard.py          PreToolUse hard denial. Invoked by the CLI.
 │
-└── tests/                        Self-tests. Run with a fake agent, no model, no cost.
-    ├── test_blind_guard.py
-    ├── test_sandbox_guard.py
-    ├── test_task_loop.py
-    └── test_report.py
+└── tests/                        24 files. Fake agent, no model, no cost, ~19s.
 ```
+
+**v1 and v2 are not superseded.** `v3/dispatcher.py` imports `task_loop`,
+`prompts`, `workspace`, `verify`, `testmap` and `blind_guard`;
+`v3/merge_queue.py` imports `integrator`; `run_patcher_v3.py` imports
+`run_patcher` for config loading and preflight; and the offline planner under
+`plan/` imports `wave_plan`. v3 is an orchestrator layered onto the older
+tracks, not a replacement for them. `STRUCTURE.md` §5 has the full graph.
 
 ## 5. Running it
 
@@ -250,8 +284,32 @@ setsid nohup python3 tools/patcher/src/run_patcher.py \
 python3 tools/patcher/src/run_patcher.py --config <cfg> --resume <run_id>
 ```
 
-`run_patcher.py --check` validates inputs, the tree, the toolchain and the
-sandbox hook, then exits without spending a token. Run it first, every time.
+A v3 dispatch run has its own entry point and the same discipline:
+
+```bash
+python3 tools/patcher/src/run_patcher_v3.py --config <cfg> --check
+
+setsid nohup python3 tools/patcher/src/run_patcher_v3.py \
+    --config tools/patcher/config/subset5.run-config.json \
+    > run.log 2>&1 &
+```
+
+`--check` validates inputs, the tree, the toolchain and the sandbox hook, then
+exits without spending a token. Run it first, every time. A v3 config also
+declares `chunk_map`, which `--check` validates against the bug report before
+anything is dispatched.
+
+> **Pass the v3 config to the right entry point yourself — nothing checks it.**
+> `run_patcher.py` never reads `chunk_map`, and `loop.execution` defaults to
+> `sequential` when absent, which it is in a v3 config. So a v3 config handed to
+> `run_patcher.py` does not fail: it runs as a v1 sequential run with the plan
+> silently ignored. The comment inside `config/subset5.run-config.json` claiming
+> it "would refuse it" is wrong. Recorded in `STRUCTURE.md` §9; fixing it is a
+> code change and is not part of this documentation pass.
+
+After the run, invoke the `archive-patch-run` skill — not `archive-run`. A
+patcher run's store lives outside the repository and nothing durable points at
+it, so an unarchived run is lost. One already was.
 
 ---
 
