@@ -105,6 +105,16 @@ scan, and **nothing vets that set**. Both failure modes entered through it.
    seed-denylist read ("the read did not happen, so the run stands"). **Not yet
    corrected.**
 
+   > **Correction, 2026-08-11.** The classifier is now fixed (`ccb882c`);
+   > `network_egress` has left `CONTAMINATING_KINDS` and a denied attempt is
+   > counted and surfaced as a note. The qualification above still stands as
+   > written for **this run's archived numbers**: the row in
+   > `results/eval-history/patcher.jsonl` records `contaminated` as it was
+   > measured at the time and is append-only, so it is not edited. A re-audit
+   > against the run's guard log would now return `false`, but the run store it
+   > would need lives outside this repository on ephemeral disk and is gone, so
+   > no rescore row can be produced. Later runs are unaffected.
+
 ### Changed as a result
 
 | Change | Where |
@@ -116,6 +126,8 @@ scan, and **nothing vets that set**. Both failure modes entered through it.
 | Effort and reasoning wired and validated at config load | `src/agent.py` |
 | Seed denylist reaches the patcher, parsed from the scanner's single source of truth | `hooks/sandbox_guard.py`, `src/blind_guard.py` |
 | Regression net delivered to the fix phase as runnable commands | `src/prompts.py` |
+| A denied egress attempt is counted and noted, not treated as a leak; a test pins the deny-only premise it rests on | `src/blind_guard.py` |
+| `keep_if_workflow_intact` no longer requires a green regression net; a task kept over a red net says so in its own reason | `src/task_loop.py` |
 
 ### Open, in priority order
 
@@ -127,10 +139,21 @@ scan, and **nothing vets that set**. Both failure modes entered through it.
    it keyed by `file:line` so no challenge name enters this repository.
 3. **Give the agent the acceptance criterion.** One line per bug entry — what
    must stop working — removes the whole false-confidence class.
-4. **Correct the contamination classifier** so a *denied* egress attempt is
-   recorded, not treated as a leak.
+4. ~~**Correct the contamination classifier** so a *denied* egress attempt is
+   recorded, not treated as a leak.~~ **Done, 2026-08-11** (`ccb882c`). What
+   remains is a different question and is not this one: an egress channel
+   `NETWORK_BINARIES` does not recognise is never logged as `network_egress` at
+   all, so no audit rule can catch it. That is **hook coverage**, and it is open.
 5. **`keep_best` has a sharp edge**: it will retain a round that fails typecheck,
    and a non-compiling tree poisons every task after it. The safer form is
    `keep_if_workflow_intact` with its no-regression clause dropped — keep a fix
    that builds and preserves the feature even if an existing test objects. See
    `_apply_exhausted_policy` in `src/task_loop.py`.
+
+   **Half done, 2026-08-11** (`604cc32`): the no-regression clause is dropped, so
+   `keep_if_workflow_intact` now banks a fix that builds and keeps the feature
+   even when the net objects, and records that the net was red when it does.
+   **`subset4.run-config.json` still selects `keep_best`, so no run executes this
+   branch yet.** Switching the active policy changes what a run does and is a
+   deliberate decision that has not been made — make it before the next run, not
+   during one.

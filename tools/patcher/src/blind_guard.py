@@ -500,13 +500,29 @@ def select_entry(playbook: dict, bug: dict):
 # Post-run audit
 # ----------------------------------------------------------------------------
 
-# What actually means the run learned something it must not have. `network_egress`
-# belongs here and was missing: upstream Juice Shop IS the answer key, so one
-# successful fetch would end a run's validity -- and the audit would not have said
-# so. `out_of_tree` stays, but only the non-incidental kind reaches this set;
-# sandbox_guard now separates a reach for /dev/null or the shared node_modules from
-# a reach for something that could hold an answer.
-CONTAMINATING_KINDS = {'answer_key_pattern', 'network_egress', 'out_of_tree'}
+# A denial is proof the guard WORKED: a PreToolUse deny means the call never ran,
+# so nothing was learned. The flag cannot rest on "the agent tried" -- it must rest
+# on evidence that answer-key material reached this run's input surface:
+#
+#   answer_key_pattern  the agent constructed a path matching the answer key. It
+#                       did not read it, but something told it where to look, and
+#                       that is a compromised input surface.
+#   out_of_tree         (non-incidental only) a reach outside the sandbox whose
+#                       target could hold an answer. Fails closed.
+#
+# `network_egress` was here and is now not. It CANNOT mean a successful fetch:
+# kind is set only by sandbox_guard.deny() (ALLOW carries none), every
+# network_egress branch in evaluate() denies, and audit_run skips allowed records
+# entirely -- deny-only by construction. Including it voided patch-run-subset-04 on
+# one denied `npx --yes` while out_of_tree and answer_key_pattern were both 0 and
+# nothing reached the network. It is now counted and surfaced, exactly as a denied
+# seed-denylist read is.
+#
+# The hole the old comment reached for is real but lives in the HOOK: an egress
+# channel NETWORK_BINARIES does not recognise is never logged as network_egress at
+# all, so no audit rule here could ever catch it. That is a coverage question for
+# sandbox_guard, not a classifier question.
+CONTAMINATING_KINDS = {'answer_key_pattern', 'out_of_tree'}
 
 _AUDIT_COUNTER_KEYS = ('out_of_tree', 'out_of_tree_incidental', 'test_dir_write',
                        'gate_artefact_edit', 'network_egress', 'answer_key_pattern',
@@ -607,6 +623,13 @@ def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
             'file (the challenge model, anti-cheat, or the seed-data creator) were '
             'denied by the hook. The reads did not happen, so the run stands; if the '
             'count is large, the inputs are pointing the agent at those files.')
+
+    if counters['network_egress']:
+        notes.append(
+            f"{counters['network_egress']} network egress attempt(s) were denied by the "
+            'hook. Nothing was fetched, so the run stands; upstream is itself the '
+            'answer key, so a large count means the agent is trying to reach it and '
+            'the inputs should be re-read.')
 
     scrub_block = {
         'bug_report_clean': True,
