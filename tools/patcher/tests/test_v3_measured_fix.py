@@ -62,12 +62,13 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+import antioracle  # noqa: E402
 import task_loop  # noqa: E402
 import workspace  # noqa: E402
 from v3 import dispatcher  # noqa: E402
 
-from test_v3_dispatcher import (BUGS, CFG, Script, _build, _map_doc,  # noqa: E402
-                                _read, _write)
+from test_v3_dispatcher import (BUGS, CFG, Runner, Script, _build,  # noqa: E402
+                                _map_doc, _read, _write)
 
 TOTAL_ROUNDS = CFG['loop']['reconcile_rounds'] + 1
 
@@ -79,6 +80,33 @@ import sys
 # exercises lib/b.ts
 print("not ok 1 - b already fails")
 sys.exit(1)
+'''
+
+# A net row that requires the ATTACK to land: green while lib/b.ts is vulnerable,
+# red the moment a correct fix closes the path. No round of any budget can satisfy
+# it, so charging it as a regression reverts correct work.
+#
+# The docstring is the shape `antioracle.detect` reads -- an `it()` sending an
+# attack payload and asserting a 2xx -- and the TAP line below is what the same
+# row looks like in the runner's output, under the same title. Real corpus files
+# are TypeScript; the gate commands here are Python, exactly as the rest of this
+# fixture substitutes one toolchain for the other.
+ANTI_ORACLE_REL = 'test/api/ftp.test.ts'
+ANTI_ORACLE_TITLE = 'GET the .bak file for the challenge'
+ANTI_ORACLE = '''\
+import sys, pathlib
+"""
+describe('/ftp', () => {
+  void it('GET the .bak file for the challenge', async () => {
+    const res = await request(app).get('/ftp/package.json.bak%2500.md')
+    assert.equal(res.status, 200)
+  })
+})
+"""
+if "fixed BUG-003" in pathlib.Path('lib/b.ts').read_text():
+    print("not ok 1 - GET the .bak file for the challenge")
+    sys.exit(1)
+print("ok 1 - GET the .bak file for the challenge")
 '''
 
 
@@ -433,6 +461,105 @@ def test_a_workflow_test_that_was_red_before_the_fix_says_so_in_the_reason(tmp_p
 
 
 # ---------------------------------------------------------------------------
+# The anti-oracle exclusion
+# ---------------------------------------------------------------------------
+#
+# `antioracle.filter_regressions` is the ONLY excusal path `verify` has, and its
+# list is derived from the net's own files -- files already in the work tree and
+# already readable by the agent. v3 inherited v1's loop and, for a while, none of
+# v1's detector: it passed `antioracles=None`, so a row that asserts the attack
+# still lands went red every round, the loop could never measure green, and the
+# task spent its whole budget before exiting on exhaustion and landing
+# `fixed_workflow_red`. Measured on v1 before the detector existed: one unit,
+# five rounds, 37 minutes, $10.79, reverted with its probe blocked throughout.
+#
+# The excusal the design refuses is the AGENT's -- `antioracle_claims` in the
+# attestation -- and that refusal is tested separately, above.
+
+def _antioracle_run(tmp_path, plan):
+    script = _PerBug(plan, related=[ANTI_ORACLE_REL])
+    d, trunk, _r = _build(tmp_path, script)
+    _write(os.path.join(trunk, ANTI_ORACLE_REL), ANTI_ORACLE)
+    return d, script
+
+
+def test_a_net_row_asserting_the_attack_lands_is_not_charged_to_a_correct_fix(tmp_path):
+    """The end-to-end property. One round closes the path; the net row that
+    required the path to stay open goes red as a direct consequence, and is
+    excused rather than charged."""
+    d, script = _antioracle_run(tmp_path, {'BUG-003': [(True, False)]})
+    rec = _tasks(d.run())['BUG-003']
+    ch = rec['measured']['characterisation']
+
+    assert ANTI_ORACLE_REL in rec['related_test_files']         # it was in the net
+    assert ch['antioracle_detector_available'] is True
+    assert ch['antioracle_tests'] == [ANTI_ORACLE_TITLE]
+    # Excused, not dropped: the run can always be asked what it chose not to charge.
+    assert rec['measured']['rounds'][0]['excused'] == [
+        {'test_file': ANTI_ORACLE_REL, 'test_title': ANTI_ORACLE_TITLE,
+         'why': 'asserts attack-dependent behaviour; a correct fix cannot satisfy it'}]
+    assert rec['measured']['final_gates']['no_regression'] == 'pass'
+    assert rec['measured']['label'] == 'green'
+    assert rec['disposition'] == 'fixed'
+    # And the budget was not burned reaching a green nothing could have reached.
+    assert script.fix_rounds('BUG-003') == 1
+    assert rec['measured']['rounds_used'] == 1
+
+
+def test_the_detector_output_reaches_the_loop_and_is_not_none(tmp_path, monkeypatch):
+    """`antioracles=None` was passed for three v3 runs and nothing in the record
+    said so: a run with the detector and a run without produce the same fields,
+    differing only in how much they spent. Pinned at the call boundary."""
+    seen = []
+    real = task_loop.run_fix_loop
+
+    def spy(**kw):
+        seen.append(kw)
+        return real(**kw)
+
+    monkeypatch.setattr(task_loop, 'run_fix_loop', spy)
+    d, _script = _antioracle_run(tmp_path, {'BUG-003': [(True, False)]})
+    d.run(phases=[0])
+
+    kw = next(k for k in seen if k['bug']['bug_id'] == 'BUG-003')
+    assert kw['antioracles'] is not None, (
+        'verify has no other excusal path; None means a test that cannot survive '
+        'a correct fix is charged as damage the fix did')
+    assert kw['antioracles']['available'] is True
+    assert kw['antioracles']['tests'][ANTI_ORACLE_REL] == {ANTI_ORACLE_TITLE}
+    # Derived by the detector from the net's own files, not assembled here.
+    assert kw['antioracles'] == antioracle.detect(
+        d.chunk_tree('A02'), kw['related'])
+
+
+def test_a_genuine_regression_beside_an_antioracle_is_still_charged(tmp_path):
+    """The half that makes the other half safe. The excusal is per row, so real
+    damage sitting in the same net still goes red and still costs the budget."""
+    d, _script = _antioracle_run(tmp_path, {'BUG-003': [(True, True)]})
+    rec = _tasks(d.run())['BUG-003']
+
+    assert rec['measured']['characterisation']['antioracle_tests'] == [ANTI_ORACLE_TITLE]
+    assert rec['measured']['final_gates']['no_regression'] == 'pass'   # excused
+    assert rec['measured']['final_gates']['workflow'] == 'fail'        # not excused
+    assert rec['measured']['label'] == 'vuln_only'
+    assert rec['disposition'] == 'fixed_workflow_red'
+
+
+def test_nothing_is_excused_when_the_classifier_cannot_be_loaded(tmp_path, monkeypatch):
+    """Fails toward charging. A missing exclusion costs a correct fix and is
+    visible in the round table; a guessed one hides real damage and is silent."""
+    monkeypatch.setattr(antioracle, '_classifier', lambda: None)
+    d, _script = _antioracle_run(tmp_path, {'BUG-003': [(True, False)]})
+    rec = _tasks(d.run())['BUG-003']
+    ch = rec['measured']['characterisation']
+
+    assert ch['antioracle_detector_available'] is False
+    assert ch['antioracle_tests'] == []
+    assert rec['measured']['final_gates']['no_regression'] == 'fail'
+    assert rec['disposition'] == 'fixed_workflow_red'
+
+
+# ---------------------------------------------------------------------------
 # The snapshot the loop hands back
 # ---------------------------------------------------------------------------
 
@@ -511,6 +638,77 @@ def test_every_field_a_v3_record_carries_is_in_the_task_record_contract(tmp_path
         schema['properties']['measured']['properties']['label']['enum']
     assert rec['disposition_basis'] in \
         schema['properties']['disposition_basis']['enum']
+
+
+class _Metered(Runner):
+    """A runtime that reports what a real one reports: which model did the work,
+    and how long the invocation sat waiting on a rate limit rather than thinking."""
+
+    def run(self, *a, **kw):
+        inv = super().run(*a, **kw)
+        inv.cost_usd = 0.25
+        inv.model_usage = {'claude-opus': {'inputTokens': 100, 'outputTokens': 20}}
+        inv.rate_limited_s = 31.0
+        inv.usage = {'input_tokens': 100}
+        inv.num_turns = 7
+        return inv
+
+
+def test_the_whole_invocation_record_is_stored_not_a_five_key_subset(tmp_path):
+    """The dispatcher used to hand-pick `{phase, ok, reason, wall_s, cost_usd}`.
+
+    Two of the dropped fields cannot be reconstructed from anywhere else.
+    `model_usage` is the only source of the report's `run.cost.by_model`, so a v3
+    report's was always `{}` — a run could say what it cost but never which model
+    spent it. `rate_limited_s` is what separates wall time spent blocked on
+    infrastructure from wall time spent reasoning, which the reporting rule
+    exists to keep apart. `phase` is the first field of `Invocation` and survives
+    unchanged, so nothing that reads the thin shape loses anything.
+    """
+    d, _t, _r = _build(tmp_path, Script())
+    d.runner = _Metered(behaviour=Script())
+    rec = _tasks(d.run())['BUG-001']
+    invs = rec['measured']['invocations']
+
+    assert [i['phase'] for i in invs] == ['characterise', 'fix']
+    assert all(i['model_usage'] == {'claude-opus': {'inputTokens': 100,
+                                                    'outputTokens': 20}} for i in invs)
+    assert all(i['rate_limited_s'] == 31.0 for i in invs)
+    assert all(i['num_turns'] == 7 for i in invs)
+    assert all(i['usage'] == {'input_tokens': 100} for i in invs)
+    # The transcript is not stored on the record; the log path that points at it is.
+    assert all('result_tail' not in i for i in invs)
+
+
+def test_by_model_in_the_report_is_built_from_those_records(tmp_path):
+    """The consumer that made the omission visible. `report.aggregate` sums
+    `model_usage` across every invocation, so the subset made `by_model` empty on
+    every v3 run — and an empty dict reads as "the runtime reported nothing",
+    which is a statement about the runtime rather than about the dispatcher."""
+    import report as report_mod
+
+    d, _t, _r = _build(tmp_path, Script())
+    d.runner = _Metered(behaviour=Script())
+    rep = d.run()
+    records = [t for p in rep['phases'] for c in p['chunks'] for t in c['tasks']]
+    agg = report_mod.aggregate(records, run_meta={}, blind_audit={},
+                               agent_desc={}, tree_digest_start=None,
+                               tree_digest_end=None, infrastructure_failures=[],
+                               started_at=None, parallel=None)
+
+    assert agg['run']['cost']['by_model'], 'by_model was empty on a metered run'
+    assert agg['run']['cost']['by_model']['claude-opus']['outputTokens'] == \
+        20 * agg['run']['cost']['invocations']
+
+
+def test_every_invocation_key_is_named_by_the_task_record_contract(tmp_path):
+    d, _t, _r = _build(tmp_path, Script())
+    d.runner = _Metered(behaviour=Script())
+    rec = _tasks(d.run())['BUG-001']
+    named = set(_schema('task-record.schema.json')['definitions']['invocation']
+                ['properties'])
+    for inv in rec['measured']['invocations']:
+        assert set(inv) <= named, set(inv) - named
 
 
 def test_the_per_round_gate_detail_stays_out_of_a_published_row():

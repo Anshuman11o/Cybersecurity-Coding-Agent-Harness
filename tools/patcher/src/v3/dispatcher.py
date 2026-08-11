@@ -132,6 +132,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
+import antioracle
 import blind_guard
 import prompts
 import task_loop
@@ -1300,6 +1301,23 @@ class Dispatcher:
         # never demonstrated the defect cannot demonstrate its closure either.
         probe_expected = bool(attested_ch and attested_ch['probe_proven_pre_fix'])
         attestation_rel = f'{scratch_rel}/attestation.json'
+
+        # Derived from the net's own files, before any fix, exactly as v1 does it.
+        # A test that requires the attack to SUCCEED cannot be satisfied by a
+        # correct change, so leaving it in the net charges a correct fix with
+        # damage; with the gates now measured every round, the loop cannot reach
+        # green over such a row and spends its whole budget before exiting on
+        # exhaustion. Measured, on v1, before the detector existed: one unit, five
+        # rounds, 37 minutes, $10.79, reverted with its probe blocked throughout.
+        antioracles = antioracle.detect(tree, related)
+        ch['antioracle_tests'] = sorted(
+            t for titles in (antioracles.get('tests') or {}).values() for t in titles)
+        ch['antioracle_detector_available'] = antioracles.get('available', False)
+        if ch['antioracle_tests']:
+            self.log(f'  [{a.chunk_id}] {bug_id}: '
+                     f"{len(ch['antioracle_tests'])} attack-dependent test(s) in the "
+                     'net will not be charged as regressions')
+
         baseline = self._baseline(tree, related, workflow_rel, rec)
 
         # Per BUG, not per task_id: a reused characterisation gives two bugs the
@@ -1322,12 +1340,20 @@ class Dispatcher:
             workflow_rel=workflow_rel, probe_rel=probe_rel,
             probe_expected=probe_expected, related=related,
             baseline_outcomes=baseline,
-            # v3 has no anti-oracle detector wired in, and this is not the place
-            # to invent a second excusal path: `verify` excuses a row from the
-            # tests' own text or not at all. A net row a correct fix cannot
-            # satisfy therefore goes red, the label says `vuln_only`, and the
-            # agent's own claim about it sits beside that in `attested`.
-            antioracles=None,
+            # THE excusal path, not a second one. `verify` excuses a net row
+            # through `antioracle.filter_regressions` or not at all, and the list
+            # it filters against is derived from the test files' own text -- files
+            # already in the work tree, already readable by the agent, never the
+            # answer key. Passing None here does not make the loop stricter; it
+            # removes the only mechanism `verify` has for telling a test that
+            # cannot survive a correct fix from damage the fix did.
+            #
+            # The second excusal path this design refuses is the AGENT'S
+            # ATTESTATION -- `workflow_red`, `antioracle_claims`, `residual_risk`
+            # -- and that refusal lives in `task_loop.run_fix_loop`'s exit
+            # conditions, independently of this argument. The claim is recorded in
+            # `attested` and adjudicated by nothing.
+            antioracles=antioracles,
             max_rounds=self.max_rounds + 1,
             deadline=t0 + float(self.cfg.get('loop', {}).get('max_task_wall_s', 5400)),
             log_dir=log_dir, guard_log=guard,
@@ -1552,10 +1578,19 @@ class Dispatcher:
 
     def _note(self, rec, res, inv) -> None:
         """Record an invocation. Liveness is exactly this: did it come back, and
-        what did it cost. Nothing about WHAT it produced is looked at here."""
-        rec['measured']['invocations'].append(
-            {'phase': inv.phase, 'ok': inv.ok, 'reason': inv.reason,
-             'wall_s': round(inv.wall_s, 1), 'cost_usd': inv.cost_usd})
+        what did it cost. Nothing about WHAT it produced is looked at here.
+
+        The WHOLE record, as v1 writes it (`task_loop._finish`), not a hand-picked
+        subset. The subset was five keys and dropped four that nothing else can
+        reconstruct: `model_usage`, which is the only source of the report's
+        `run.cost.by_model` and was therefore always empty on a v3 run; `usage`
+        and `num_turns`; and `rate_limited_s`, which is what separates wall time
+        spent waiting on infrastructure from wall time spent reasoning -- the
+        distinction the reporting rule exists to preserve. `phase` is the first
+        field of `Invocation`, so the label survives unchanged, and every key
+        `as_record()` emits is already named in `task-record.schema.json`'s
+        `invocation` definition."""
+        rec['measured']['invocations'].append(inv.as_record())
         rec['measured']['cost_usd'] = round(
             rec['measured']['cost_usd'] + float(inv.cost_usd or 0.0), 4)
         res.invocations += 1

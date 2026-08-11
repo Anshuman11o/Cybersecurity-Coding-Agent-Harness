@@ -231,9 +231,17 @@ def build_row(report: dict, *, label: str, harness_sha: str | None,
         # and this is where that rule is enforced on the harness side.
         'scored': (score or {}).get('aggregate'),
 
+        # `runtime_denials`, not `denials`. The producer has always emitted the
+        # former (`blind_guard.audit_run`) and `patcher-report.schema.json` has
+        # always named the former; this read asked for a key no report has ever
+        # carried, so every row written so far records `denials: null` -- a run
+        # with denials and a run without look identical in the history. The row's
+        # own key stays `denials` because rows already in the history use it and
+        # that file is append-only; only the read is corrected here, and the
+        # historical rows are corrected the way that file requires, by appending.
         'blind_audit': {
             'contaminated': (report.get('blind_audit') or {}).get('contaminated'),
-            'denials': (report.get('blind_audit') or {}).get('denials'),
+            'denials': (report.get('blind_audit') or {}).get('runtime_denials'),
         },
         'archived_to': archived_to,
         'located_detail_at': located_detail_at,

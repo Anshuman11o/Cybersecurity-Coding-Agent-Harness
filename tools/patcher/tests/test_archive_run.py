@@ -39,7 +39,22 @@ def _report(**over):
             'agent': {'runner': 'claude-cli', 'model': 'opus', 'require_probe': False},
             'cost': {'total_usd': 190.12, 'invocations': 61},
         },
-        'blind_audit': {'contaminated': False, 'denials': 0},
+        # `blind_guard.audit_run`'s actual output shape, key for key. The fixture
+        # used to hand-build `{'contaminated': ..., 'denials': 0}` -- a key no
+        # report has ever carried -- so the archiver's read of the wrong key
+        # passed here and wrote `denials: null` into every real row.
+        'blind_audit': {
+            'contaminated': False,
+            'runtime_enforced': True,
+            'input_scrub': {'bug_report_clean': True, 'playbook_clean': True,
+                            'keys_stripped': [], 'value_pattern_hits': []},
+            'runtime_denials': {
+                'out_of_tree': 0, 'out_of_tree_incidental': 2, 'test_dir_write': 1,
+                'gate_artefact_edit': 0, 'network_egress': 0,
+                'answer_key_pattern': 0, 'seed_denylist': 0, 'git_history': 0,
+                'total': 3},
+            'notes': [],
+        },
         'totals': {
             'tasks': 24,
             'dispositions': {'fixed': 19, 'abandoned': 5},
@@ -77,6 +92,32 @@ def test_the_row_carries_the_aggregate(row):
     assert row['in_sandbox']['dispositions'] == {'fixed': 19, 'abandoned': 5}
     assert row['cost']['total_usd'] == 190.12
     assert row['blind_audit']['contaminated'] is False
+
+
+def test_the_row_carries_the_denial_counters_the_guard_actually_emitted():
+    """The row's `denials` comes from the report's `runtime_denials`.
+
+    It read a key called `denials` for as long as the archiver has existed, and
+    `blind_guard.audit_run` has never emitted one, so the field was null in every
+    row ever written: a run that tripped the hook and a run that never did are
+    indistinguishable in the permanent history. The old fixture hand-built the
+    wrong key, which is exactly why the tests agreed with the bug.
+    """
+    row = archive_run.build_row(_report(), label='x', harness_sha='abc',
+                                archived_to='/private/x')
+    denials = row['blind_audit']['denials']
+    assert denials is not None, 'the counters were dropped on the floor again'
+    assert denials['total'] == 3
+    assert denials['test_dir_write'] == 1
+    assert denials['out_of_tree_incidental'] == 2
+
+
+def test_a_report_with_no_audit_block_still_builds_a_row():
+    """A crashed run can reach the archiver without an audit. Recording nulls is
+    the honest outcome; refusing the archive would lose the run."""
+    row = archive_run.build_row(_report(blind_audit={}), label='x',
+                                harness_sha='abc', archived_to='/private/x')
+    assert row['blind_audit'] == {'contaminated': None, 'denials': None}
 
 
 def test_the_row_never_contains_the_task_records(row):

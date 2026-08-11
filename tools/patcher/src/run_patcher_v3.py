@@ -310,8 +310,36 @@ def main() -> int:
         log(f'guard: {len(parts)} chunk log(s) concatenated for the audit')
     else:
         log('guard: no chunk logs found')
+    # The inputs are re-loaded purely to recover their `ScrubReport`s. `preflight`
+    # already loaded and scrubbed them, but it kept the documents and dropped the
+    # reports, and `audit_run` defaults `scrub_reports=()` -- which makes its
+    # `input_scrub` block assert `bug_report_clean: True, playbook_clean: True,
+    # keys_stripped: []` whether or not anything was stripped. An assertion that
+    # is unconditional is not evidence.
+    #
+    # The severity is bounded, and worth being exact about: a forbidden VALUE in
+    # an input raises `BlindBoundaryError` out of `blind_guard.scrub`, so preflight
+    # would already have refused the run and no run can reach this line with
+    # withheld material embedded in it. What the empty default silently loses is
+    # the record of the keys that WERE stripped -- the signal that the generator
+    # producing these inputs is emitting material it should not -- and the
+    # warnings, including the playbook's `content_status`, which is the
+    # qualification that has to travel next to every number this run produces.
+    scrub_reports = []
+    try:
+        _, br_rep = blind_guard.load_bug_report(cfg['inputs']['bug_report'])
+        scrub_reports.append(br_rep)
+        _, pb_rep = blind_guard.load_playbook(cfg['inputs']['playbook'])
+        scrub_reports.append(pb_rep)
+    except Exception:                                            # noqa: BLE001
+        # Unreachable on a run that got this far -- preflight loaded both. If it
+        # somehow fails here, the audit is weaker, not wrong, and losing the whole
+        # report over it would throw away a paid run's records.
+        pass
+
     audit = blind_guard.audit_run(
         combined or os.path.join(store.guard_dir, run_store_mod.COMBINED_GUARD),
+        scrub_reports,
         extra_notes=[f'guard log is {len(parts)} per-chunk log(s) concatenated: '
                      f'{", ".join(parts)}'] if parts else (),
         runtime_enforced=(runner_kind != 'fake'))
@@ -325,7 +353,32 @@ def main() -> int:
                       phases_run_this_session=result.get(
                           'phases_run_this_session')),
         blind_audit=audit,
-        agent_desc=runner.describe(),
+        # The runner, plus the knobs that decide how hard the run tried.
+        # `runner.describe()` alone names the model and nothing about the loop, so
+        # a v3 row could not state the reconcile budget it ran under -- which is
+        # precisely the thing that changed when the fix phase became measured, and
+        # precisely what a later comparison between two v3 rows turns on.
+        #
+        # The LOOP pair is quoted from the config because v3 reads both. The
+        # POLICY triple is stated as v3's own fixed behaviour and is deliberately
+        # NOT copied out of `cfg['policy']`: the dispatcher never opens that block
+        # (subset5.run-config.json says so in its own comment), so a row reading
+        # `require_probe: true` because a config said so would be a false claim
+        # about how the run was measured. If v3 ever grows one of these branches,
+        # it reads from the config here and this comment goes.
+        agent_desc={**runner.describe(),
+                    'reconcile_rounds': (cfg.get('loop') or {}).get('reconcile_rounds'),
+                    'characterise_rounds': (cfg.get('loop') or {}).get(
+                        'characterise_rounds'),
+                    # A chunk is submitted whole, so there is no per-task revert on
+                    # exhaustion: the best MEASURED round is kept.
+                    'on_exhausted': 'keep_best',
+                    # `testmap.select` over the bug's file, unconditionally.
+                    'regression_net': 'related',
+                    # There is no require_probe branch in the dispatcher; a probe
+                    # that never proved the defect makes V3 `skipped` and the task
+                    # `fixed_workflow_only`, never `blocked`.
+                    'require_probe': False},
         tree_digest_start=digest_start,
         tree_digest_end=workspace.tree_digest(trunk),
         infrastructure_failures=store.infrastructure_failures,
