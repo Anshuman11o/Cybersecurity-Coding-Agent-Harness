@@ -102,7 +102,22 @@ import workspace
 from . import chunk_map as chunk_map_mod
 from . import merge_queue as mq
 
-SEED_EXCLUDES = ('.patcher-snapshots', workspace.SCRATCH_DIRNAME)
+# Not seeded into a chunk tree, and therefore never part of a submission.
+#
+# `logs` is here because the application writes into it as soon as it starts, and
+# every chunk agent starts it to run a probe. Anything a chunk creates that the
+# phase base does not have is a file the three-way merge has no common ancestor
+# for, so two chunks in one phase each producing their own copy is an
+# unresolvable conflict -- and the SECOND chunk to reach the queue loses its
+# whole submission over it. That is measured, not hypothetical: it cost
+# patch-run-subset-05 a chunk.
+#
+# The other runtime artefacts the app restores at startup -- ftp/legal.md, the
+# promo subtitle track and i18n/*.json -- are NOT excluded here. Excluding them
+# would hide real edits to files an agent may legitimately touch. They are put
+# into the base tree instead, by `setup/prepare_env.sh`, so the merge has an
+# ancestor for them and they simply never appear as changes.
+SEED_EXCLUDES = ('.patcher-snapshots', workspace.SCRATCH_DIRNAME, 'logs')
 
 # The phase name is not a label. It is the argument the sandbox hook is launched
 # with (`agent.ClaudeCliRunner._settings_path` -> `sandbox_guard.py --phase`), and

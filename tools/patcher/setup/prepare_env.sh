@@ -50,9 +50,21 @@ verify() {
            frontend/dist/frontend/index.html \
            frontend/dist/frontend/styles.css \
            frontend/dist/frontend/main.js \
-           frontend/dist/frontend/polyfills.js; do
+           frontend/dist/frontend/polyfills.js \
+           ftp/legal.md \
+           frontend/dist/frontend/assets/public/videos/owasp_promo.vtt; do
     if [ -f "$BASE/$f" ]; then echo "OK      $f"; else echo "MISSING $f"; rc=1; fi
   done
+  # The localisation set the app restores at startup. Checked as a count, because
+  # the number of languages is upstream's business and moves between releases.
+  local n
+  n=$(find "$BASE/i18n" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)
+  if [ "$n" -gt 0 ]; then
+    echo "OK      i18n/*.json ($n file(s))"
+  else
+    echo "MISSING i18n/*.json — the startup restore has not run against this base"
+    rc=1
+  fi
   # The sixth file is content-hashed, so it is matched by glob, exactly as
   # preflight matches it.
   if compgen -G "$BASE/frontend/dist/frontend/hacking-instructor-*.js" >/dev/null; then
@@ -112,6 +124,38 @@ fi
 # The Angular build cache is regenerable and would otherwise be copied into
 # every work tree.
 rm -rf "$BASE/frontend/.angular"
+
+# Run the application's OWN startup restore once, so the files it materialises at
+# boot are part of the base tree.
+#
+# Why this is not cosmetic. Every chunk agent starts the app to run its probe,
+# and the app copies data/static/legal.md, the promo subtitle track and 43
+# data/static/i18n/*.json into place as it boots. Absent from the base, those are
+# files the three-way merge has no common ancestor for: the first chunk to reach
+# the merge queue creates them in the trunk, and the SECOND chunk's identical
+# copies conflict against them and take its entire submission down with them.
+# patch-run-subset-05 lost a chunk exactly this way -- 43 conflicts, none of them
+# about a line any agent wrote.
+#
+# Putting them in the base makes the ancestor exist, so they merge silently and
+# never appear as a change at all. Done by calling the app's own routine rather
+# than copying by hand, so this cannot drift from what the app actually does.
+say "running the application's startup restore so its boot-time files are in the base"
+cat > "$BASE/.prepare-restore.mts" <<'TS'
+const mod: any = await import('./lib/startup/restoreOverwrittenFilesWithOriginals')
+const restore = typeof mod.default === 'function' ? mod.default : mod.default?.default
+if (typeof restore !== 'function') {
+  throw new Error('restoreOverwrittenFilesWithOriginals did not resolve to a callable default export')
+}
+await restore()
+TS
+if ( cd "$BASE" && npx tsx .prepare-restore.mts ) 2>&1 | tail -3; then
+  say "startup restore done"
+else
+  say "WARNING: the startup restore failed. Chunks running concurrently in one"
+  say "         phase will conflict on the files it would have created."
+fi
+rm -f "$BASE/.prepare-restore.mts"
 
 say "recording what actually got installed -> $PATCHER_WORK/pinned/"
 ( cd "$BASE" && CYPRESS_INSTALL_BINARY=0 \
