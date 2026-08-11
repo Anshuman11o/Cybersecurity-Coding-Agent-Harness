@@ -14,9 +14,25 @@ appears here.
 **This document specifies the loop for v3 as well.** v3 changes only a task's
 surroundings — parallelisation, the orchestrator, a checked-in chunk map,
 bug-wise tasks inside an owned-file set. The phases below, their order, the gates
-and the seven dispositions of §2 are inherited unchanged.
+and the dispositions of §2 are inherited unchanged.
 `docs/patcher/ARCHITECTURE-V3.md` §0 maps this document onto what v3 does, phase
-by phase, and §0.4 lists the per-round facts a v3 run does not record.
+by phase.
+
+v3's first three runs did not implement ③ VERIFY and ④ RECONCILE: the loop was
+described in the agent's prompt and driven by nothing, so `rounds_used` was
+whatever the agent typed and the dispositions were recorded as *attested*. That
+was an under-implementation, not a smaller design — the loop below is what v3's
+own architecture specifies. **Since 2026-08 v3 runs ②③④ through the same
+orchestrator loop v1 does** (`task_loop.run_fix_loop`), so the gates below are
+executed by the runner in both tracks and a v3 `fixed` is a measurement.
+
+That does not make the runner a participant *inside* a round, in either track.
+It does not write code, choose or narrow the fix, or run these gates in place of
+the agent's own self-verification — the agent still runs the typecheck, the
+workflow test, the probe and the net itself, inside its turn. What the runner
+owns is the boundary between rounds and the measurement taken there. What is
+still attested in v3 is ① — the pre-fix probe and workflow verdicts in
+`characterisation.json`.
 
 Two divergences are called out inline below rather than left to that document:
 the revert set in §2, and the run's outputs in §5.
@@ -101,23 +117,50 @@ Terminal dispositions, and nothing else is permitted:
 |---|---|---|
 | `fixed` | every gate passed | patched |
 | `fixed_workflow_only` | axis B green, probe never reached `PROVEN` so axis A is unverified in-sandbox | patched |
+| `fixed_workflow_red` | axis A closed and axis B red: the probe stopped proving the defect while the workflow test or the regression net was still failing when the budget ran out. Reporting only: no revert. In v1 this outcome is `partial` under `keep_if_workflow_intact`; in v3 it is its own row | patched |
 | `already_remediated` | probe could not be proven **and** an earlier task edited the same location — the fix landed upstream in this run | unchanged by this task |
 | `abandoned` | reconcile budget exhausted, both axes unsatisfiable | reverted (default policy) |
 | `partial` | budget exhausted, best round retained | patched, flagged |
 | `agent_failed` | the runtime failed (timeout, unparseable output, rate limit past max wait) | reverted |
 | `blocked` | a gate could not be evaluated at all (typecheck harness broken, tree unbuildable) | reverted |
 
-`fixed` and `fixed_workflow_only` are reported separately and never summed into
-one "fixed" count. Folding them would be exactly the "false confidence" failure
-`docs/patcher/EVAL-METRICS.md` exists to catch.
+`fixed`, `fixed_workflow_only` and `fixed_workflow_red` are reported separately
+and never summed into one "fixed" count. Folding them would be exactly the "false
+confidence" failure `docs/patcher/EVAL-METRICS.md` exists to catch.
+
+`fixed_workflow_red` exists because the alternative was silence. An agent that
+closes a vulnerability and leaves a workflow assertion failing may be right —
+that assertion may encode the vulnerable behaviour itself — but the justification
+used to live in free-text `residual_risk`, which nothing parses, so the record
+read as a clean `fixed` and the difference surfaced only if a human read the
+transcript. The claim is structural (`workflow_red`, `antioracle_claims`), and it
+is **recorded, not adjudicated**: nothing accepts or rejects it, no gate turns on
+it, and the tree still merges.
+
+**Amended 2026-08.** In v3 the disposition is no longer *reached* from that
+claim, because there are now gate results to reach it from: the probe blocked,
+something else red, budget spent. The agent's two lists sit beside that
+measurement instead of producing it — which is strictly more than they were worth
+alone, and closes the hole in the previous shape, where an agent could move its
+own task out of the success column by writing a list, or keep it there by leaving
+the list empty.
+The bucket still may not be summed with `fixed`: a correct fix over an
+attack-dependent assertion and a fix that broke the feature both land here, and
+the record still cannot tell them apart. It can now say which gate was red, in
+which round, and what the agent claimed about it.
 
 **The revert set differs between tracks, and the difference is not a policy
 choice.** v1 and v2 revert `{abandoned, agent_failed, blocked}`
 (`task_loop.REVERT_DISPOSITIONS`). v3 reverts `{agent_failed, blocked}` only
-(`v3/dispatcher.REVERT_DISPOSITIONS`), because v3's orchestrator runs no gate:
-there, `abandoned` can only mean the task changed nothing, or its chunk was
-rolled back whole at the merge queue. In both cases there is nothing left to
-revert. The seven dispositions themselves are identical.
+(`v3/dispatcher.REVERT_DISPOSITIONS`). Both tracks measure the same gates every
+round; what differs is where a red-gate exhaustion lands. In v1 it can become
+`abandoned` under `policy.on_exhausted`, and that disposition carries a revert.
+v3 has no per-task revert to offer — a chunk is submitted whole, so dropping one
+task's work would also drop the tasks around it — so an exhausted v3 task keeps
+its best round and is recorded `partial` or `fixed_workflow_red`. `abandoned` in
+v3 therefore only ever means the task changed nothing, or its chunk was rolled
+back whole at the merge queue, and in both cases there is nothing left to revert.
+The seven dispositions themselves are identical.
 
 ---
 
@@ -275,9 +318,10 @@ back, so a record that reached `state.json` is a record whose tree state is
 already final. A crash mid-close-out costs the task and leaves no record of it.
 
 Scratch is harvested and removed, not left in the tree, so the submitted diff
-never contains agent-authored test files. `workspace.tree_diff()` also excludes
-the scratch path unconditionally, so even a harvest failure cannot leak it into
-the deliverable.
+never contains agent-authored test files. `workspace.iter_source_files()` — which
+every diff, hash and snapshot walks — skips the scratch path unconditionally
+(`DIGEST_SKIP_DIRS`), so even a harvest failure cannot leak it into the
+deliverable.
 
 ---
 
@@ -359,8 +403,10 @@ Reconciles dominate. `rounds_to_green` in the report is therefore both a quality
 signal and the main cost lever, which is why it is recorded per task rather than
 averaged.
 
-This shape is v1's, and it does not transfer. v3 folds ②③④ into a single
-invocation in which the agent runs the gate commands itself, so the invocation
-count stops being the cost lever and `rounds_to_green` is `null` rather than
-measured — `docs/patcher/ARCHITECTURE-V3.md` §0.4 lists what that costs the eval
-and §6 states the cost regression.
+This shape is v3's too, since ②③④ run through the same loop: 1 characterise
+(+ up to 1 retry) + 1 fix + up to 4 reconciles. `rounds_to_green` is measured in
+both tracks and is the cost lever in both. Two v3-specific terms sit on top of
+it — characterisation reuse can remove the characterise invocation entirely for
+the second and later bugs in a file, and bug-wise tasks multiply the task count
+against v2's file-wise units. `docs/patcher/ARCHITECTURE-V3.md` §6 states that
+cost regression and §0.4 the price of the per-round gate suites.

@@ -37,7 +37,11 @@
     "Directory traversal attempts that are already refused must keep being refused with the same error the application already returns."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "The name authorised and the name opened are the same string, compared after every decode, truncation and normalisation the request will undergo.",
+    "The resolved absolute path is inside the intended directory; membership is decided by comparing resolved paths, not string prefixes."
+   ]
   },
   {
    "entry_id": "jwt-verification",
@@ -68,7 +72,11 @@
     "Unauthenticated requests must keep receiving the status code they receive today."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "The verification algorithm comes from the server's own configuration, and a token whose header names a different algorithm -- including none -- is rejected.",
+    "Signature, issuer and expiry are all checked before any claim in the token is trusted."
+   ]
   },
   {
    "entry_id": "open-redirect",
@@ -97,7 +105,10 @@
     "Requests with no destination parameter must keep their current behaviour."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "A redirect target is accepted only when it matches a server-side allow-list; caller-supplied input never reaches the Location header unvalidated."
+   ]
   },
   {
    "entry_id": "crypto-and-encoding",
@@ -128,7 +139,10 @@
     "Authentication response shapes and status codes must not change."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "Secrets are protected by a keyed or salted algorithm chosen for that purpose; encoding is never used where hashing or encryption is required."
+   ]
   },
   {
    "entry_id": "input-validation-design",
@@ -156,7 +170,10 @@
     "Boundary values that are legitimately allowed must not become rejected."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "Every externally supplied field is validated server-side against a positive specification -- type, length, range, format -- before it is used or stored."
+   ]
   },
   {
    "entry_id": "information-exposure",
@@ -186,7 +203,12 @@
     "Health and readiness behaviour other components depend on must be retained."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "Operational and diagnostic surfaces require authentication, or are bound where the public cannot reach them.",
+    "No response body carries a stack trace, framework version, filesystem path or query text.",
+    "The control is the access decision itself; recording, counting or labelling the access does not satisfy it."
+   ]
   },
   {
    "entry_id": "csrf",
@@ -216,7 +238,11 @@
     "Read-only requests must not start requiring a token they never carried."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "A state-changing request is accepted only with a token the server issued and can verify, or an equivalent origin check; an ambient cookie alone is not sufficient."
+   ]
   }
- ]
+ ],
+ "must_hold_provenance": "must_hold is the remediation criterion for each entry's classes, authored from the OWASP sources named above and from the class definition alone. It is deliberately independent of any run: nothing in it is derived from an observed failure, a scored result or a target-specific finding, so a run measured against it is measuring the property and not the harness's memory of the last attempt. It is NOT rendered into any agent prompt -- prompts.py selects guidance, principles, preserve and common_mistakes by name. The agent optimises against the principle; the gate decides whether the criterion holds."
 }

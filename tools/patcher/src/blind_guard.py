@@ -522,11 +522,17 @@ def select_entry(playbook: dict, bug: dict):
 # channel NETWORK_BINARIES does not recognise is never logged as network_egress at
 # all, so no audit rule here could ever catch it. That is a coverage question for
 # sandbox_guard, not a classifier question.
+#
+# `git_history` is not here either, on the same reasoning. It is deny-only by the
+# same construction, and a denied `git show` means the revision was never
+# rendered: nothing was read, so nothing was learned. It is counted and noted
+# below, because an agent reaching into history is worth seeing even though the
+# reach failed.
 CONTAMINATING_KINDS = {'answer_key_pattern', 'out_of_tree'}
 
 _AUDIT_COUNTER_KEYS = ('out_of_tree', 'out_of_tree_incidental', 'test_dir_write',
                        'gate_artefact_edit', 'network_egress', 'answer_key_pattern',
-                       'seed_denylist')
+                       'seed_denylist', 'git_history')
 
 _RESOLVED_RE = re.compile(r'resolves to (\S+?),')
 
@@ -623,6 +629,18 @@ def audit_run(guard_log: str, scrub_reports=(), extra_notes=(), *,
             'file (the challenge model, anti-cheat, or the seed-data creator) were '
             'denied by the hook. The reads did not happen, so the run stands; if the '
             'count is large, the inputs are pointing the agent at those files.')
+
+    if counters['git_history']:
+        # The corpus was committed unstripped and stripped afterwards, so the
+        # pre-strip source is still reachable through the commit graph. The hook
+        # denies the commands that would render it; a denial means the revision
+        # was never materialised, so the run stands.
+        notes.append(
+            f"{counters['git_history']} attempt(s) to read the corpus out of git "
+            'history (or out of the object store directly) were denied by the hook. '
+            'Nothing was rendered, so the run stands. The blobs are still in '
+            'history: this is a mitigation, not a removal, and a large count means '
+            'the agent is being pointed at history and the inputs should be re-read.')
 
     if counters['network_egress']:
         notes.append(

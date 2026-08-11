@@ -10,6 +10,13 @@ that one for a patcher run: its steps are about stage outputs and
 `scanner.jsonl`, and following it will put a patcher run in the wrong file with
 the wrong fields.
 
+This skill covers **one step of the lifecycle**: the archive. The steps on either
+side of it — capturing the run's identity before launch, and writing the score
+into a file after a sighted scoring pass — are `record-run` and
+`docs/protocols/run-record-keeping.md`. Those are where runs have actually been
+lost: two rows in `patcher.jsonl` carry no score because both runs were scored
+into a conversation that then ended.
+
 **A patcher run is gone the moment its container is.** `outputs.run_dir` in every
 shipped config points *outside* the repository — deliberately, because a per-task
 record pairs a bug id with a file and a line, and the publishing rule does not
@@ -73,6 +80,17 @@ independently. `eval-result.schema.json` there encodes the rule structurally:
 `aggregate` is publishable, `per_case[]` is not. `--score` reads the `aggregate`
 block and nothing else.
 
+**If the score arrives after this archive has already been written** — the usual
+case — `--score` is no longer available and the row cannot be edited. Append a
+rescore row instead, in the same session the number appears:
+
+    python3 tools/eval/run_records.py record-score --run <run_id> \
+        --score <eval-result.json> --ground-truth-set "…" --defects "…" \
+        --located-detail-at "…" --notes "…"
+
+A score reported to a human and not written to a file does not exist. That is
+how `patch-run-subset-04` and `patch-run-subset-05` ended up with none.
+
 Two things the row must state next to any number, because both are open:
 
 - **no committed lockfile** for the target tree (`.npmrc` sets
@@ -114,6 +132,13 @@ holds the located half; this repository holds one line of aggregate.
 
       python3 -m pytest tools/patcher/tests/test_archive_run.py -q
 
+- the run's record is complete, and no run on disk lacks a row:
+
+      python3 tools/eval/run_records.py check --run <run_id>   # exit 0, no `unscored`
+      python3 tools/eval/run_records.py check                  # no ERROR
+
 - and nothing located reached the repository:
 
       grep -rE "\bBUG-[0-9]+\b|[a-z][A-Za-z0-9]*Challenge\b" results/ docs/ prompts/
+
+Then finish the lifecycle: `record-run`.

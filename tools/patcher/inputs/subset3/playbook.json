@@ -32,7 +32,10 @@
     "Field length limits and validation errors must not change."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "Stored input is encoded for the context it is rendered into, or refused on the way in; the stored value never reaches the page as markup."
+   ]
   },
   {
    "entry_id": "csrf",
@@ -62,7 +65,11 @@
     "Read-only requests must not start requiring a token they never carried."
    ],
    "reference_url": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
-   "content_retrieved": true
+   "content_retrieved": true,
+   "must_hold": [
+    "A state-changing request is accepted only with a token the server issued and can verify, or an equivalent origin check; an ambient cookie alone is not sufficient."
+   ]
   }
- ]
+ ],
+ "must_hold_provenance": "must_hold is the remediation criterion for each entry's classes, authored from the OWASP sources named above and from the class definition alone. It is deliberately independent of any run: nothing in it is derived from an observed failure, a scored result or a target-specific finding, so a run measured against it is measuring the property and not the harness's memory of the last attempt. It is NOT rendered into any agent prompt -- prompts.py selects guidance, principles, preserve and common_mistakes by name. The agent optimises against the principle; the gate decides whether the criterion holds."
 }

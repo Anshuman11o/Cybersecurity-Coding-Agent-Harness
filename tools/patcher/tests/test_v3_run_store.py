@@ -274,6 +274,35 @@ def test_the_final_suite_waits_for_every_phase_across_sessions(tmp_path):
     assert d2.run()['full_suite'] == {'ran': True}
 
 
+def test_a_resumed_run_still_explains_a_landed_declaration_to_its_owner(tmp_path):
+    """A declaration that landed is a fact about the TRUNK, and the trunk outlives
+    the session that produced it. A resumed run that forgot them would hand the
+    owning chunk exactly the unexplained tree the first session took care to
+    explain -- and a resumed run is the likely one, since phase 0 is where a
+    session limit lands."""
+    store = rs.RunStore(str(tmp_path / 'run')).begin()
+    s1 = Script(extra={'BUG-001': {'routes/c.ts': '// plumbed by A01\n'}},
+                declare={'A01': [{'file': 'routes/c.ts', 'bug_id': 'BUG-001',
+                                  'reason': 'removed the mount that exposed it'}]})
+    d1, trunk, _r1 = _build(tmp_path, s1, store=store)
+    d1.run(phases=[0])
+    assert [x['file'] for x in d1.landed_declarations] == ['routes/c.ts']
+
+    reopened = rs.RunStore.load(store.run_dir)
+    s2 = Script()
+    d2 = dispatcher.Dispatcher(
+        d1.cmap, bugs=BUGS, playbook=None, runner=Runner(behaviour=s2), trunk=trunk,
+        run_dir=str(tmp_path / 'run'), cfg=d1.cfg,
+        trees_root=str(tmp_path / 'trees2'), log=lambda *a, **k: None,
+        final_suite=lambda t: {'ran': True}, store=reopened)
+    d2.run()
+
+    assert d2.landed_declarations == d1.landed_declarations
+    c01 = [p for p in s2.prompts if 'chunk **C01**' in p]
+    assert c01
+    assert all('## Landed work already in your files' in p for p in c01)
+
+
 def test_a_crashed_chunk_leaves_a_trace_rather_than_vanishing(tmp_path):
     store = rs.RunStore(str(tmp_path / 'run')).begin()
     d, trunk, _r = _build(tmp_path, Script(), store=store)

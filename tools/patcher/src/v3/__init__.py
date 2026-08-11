@@ -10,7 +10,15 @@ being a judge.
   v1  orchestrator plans nothing, runs one task at a time, gates every phase
   v2  orchestrator computes a wave plan at runtime, runs a wave, gates the merge
   v3  the plan is a checked-in artefact; the orchestrator dispatches, monitors,
-      and merges. It runs no patcher gate at all.
+      merges, and drives the reconcile loop's round boundary through
+      `task_loop.run_fix_loop`. It does not judge inside a round -- it does not
+      write code, choose the fix, or self-verify in the agent's place.
+      Characterisation is still the agent's own report.
+
+v3's first three runs shipped without the loop wired up: the reconcile budget was
+described in the prompt and enforced by nothing, so `rounds_used` was whatever
+the agent typed. That was an under-implementation of the architecture, and it is
+now implemented.
 
 See `docs/patcher/ARCHITECTURE-V3.md` for the specification and for what this
 gives up in exchange.

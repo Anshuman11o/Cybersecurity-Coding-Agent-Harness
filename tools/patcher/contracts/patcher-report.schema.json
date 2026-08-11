@@ -39,6 +39,8 @@
             "runner": { "type": "string" },
             "model": { "type": ["string", "null"] },
             "max_turns": { "type": ["integer", "null"] },
+            "effort": { "type": ["string", "null"], "description": "Reasoning effort the CLI was invoked at. Recorded here because the runtime does not echo it back — the result JSON carries no effort field, so an invocation record cannot be used to reconstruct it. A run that cannot say what effort it used cannot be compared to one that can." },
+            "reasoning": { "type": ["string", "null"], "description": "The --thinking mode the CLI was invoked with. Recorded here for the same reason as `effort`." },
             "reconcile_rounds": { "type": ["integer", "null"] },
             "characterise_rounds": { "type": ["integer", "null"] },
             "on_exhausted": { "type": ["string", "null"] },
@@ -101,13 +103,17 @@
         },
         "runtime_denials": {
           "type": "object",
+          "description": "One counter per denial kind the hook records, from blind_guard._AUDIT_COUNTER_KEYS, plus `total`. Kept in step with that tuple: the producer emitted three of these for some time before the contract named them, so a reader checking a report against this block would have called a valid report invalid.",
           "additionalProperties": false,
           "properties": {
             "out_of_tree": { "type": "integer" },
+            "out_of_tree_incidental": { "type": "integer", "description": "Denied reads outside the tree that the hook classifies as incidental (a toolchain path, /dev/null and the like). Counted separately because they do not contaminate a run and must not be read as if they did." },
             "test_dir_write": { "type": "integer" },
             "gate_artefact_edit": { "type": "integer" },
             "network_egress": { "type": "integer" },
             "answer_key_pattern": { "type": "integer" },
+            "seed_denylist": { "type": "integer", "description": "Denied attempts to open a corpus seed-denylisted file. Denied, so nothing was learned and the run stands — but a large count means the inputs are pointing the agent at those files." },
+            "git_history": { "type": "integer", "description": "Denied attempts to read the corpus out of git history or the object store. Nothing was rendered, so the run stands; the blobs are still in history, so this is a mitigation and not a removal." },
             "total": { "type": "integer" }
           }
         },
@@ -124,11 +130,12 @@
 
         "dispositions": {
           "type": "object",
-          "description": "Counts by terminal disposition. Must sum to `tasks`. `fixed` and `fixed_workflow_only` stay separate.",
+          "description": "Counts by terminal disposition. Must sum to `tasks`. `fixed`, `fixed_workflow_only` and `fixed_workflow_red` stay separate.",
           "additionalProperties": false,
           "properties": {
             "fixed": { "type": "integer" },
             "fixed_workflow_only": { "type": "integer" },
+            "fixed_workflow_red": { "type": "integer" },
             "already_remediated": { "type": "integer" },
             "abandoned": { "type": "integer" },
             "partial": { "type": "integer" },
@@ -144,14 +151,30 @@
           "properties": {
             "probe_coverage": {
               "type": ["number", "null"],
-              "description": "Fraction of tasks whose exploit probe reached PROVEN before the fix. The ceiling on in-sandbox axis-A confidence."
+              "description": "Fraction of tasks whose exploit probe reached PROVEN before the fix. The ceiling on in-sandbox axis-A confidence. `null` means NOT MEASURED and is never interchangeable with 0: 0 says every probe came back red, null says no pre-fix probe result was recorded at all. Read `probe_coverage_basis` before comparing this across runs."
             },
             "workflow_characterised": {
               "type": ["number", "null"],
-              "description": "Fraction of tasks with a green pre-fix workflow test. Below 1.0 means some tasks had no damage detector at all."
+              "description": "Fraction of tasks with a green pre-fix workflow test. Below 1.0 means some tasks had no damage detector at all. `null` means NOT MEASURED, as for `probe_coverage`."
             },
-            "probe_unproven_tasks": { "type": "integer" },
-            "characterisation_blocked_tasks": { "type": "integer" }
+            "probe_coverage_basis": {
+              "type": "string",
+              "enum": ["measured", "attested", "not_measured"],
+              "description": "What `probe_coverage` was computed from. ABSENT MEANS `measured`, which is the v1 shape and the reason this key is optional. `measured` = this harness ran the oracle; `attested` = no record carried a measured value so the agent's own pre-fix report was used instead, and the number is a self-report; `not_measured` = neither existed and the rate is null. A number never blends two bases: measured values win outright when any exist."
+            },
+            "workflow_characterised_basis": {
+              "type": "string",
+              "enum": ["measured", "attested", "not_measured"],
+              "description": "What `workflow_characterised` was computed from. Same vocabulary and same absent-means-measured rule as `probe_coverage_basis`."
+            },
+            "probe_unproven_tasks": {
+              "type": ["integer", "null"],
+              "description": "Tasks whose probe did not reach PROVEN pre-fix. `null` when nothing was measured — the count of unproven tasks is unknown, not equal to the task count."
+            },
+            "characterisation_blocked_tasks": {
+              "type": ["integer", "null"],
+              "description": "Tasks with no green pre-fix workflow test. `null` when nothing was measured, as for `probe_unproven_tasks`."
+            }
           }
         },
 
@@ -206,6 +229,31 @@
     "tasks": {
       "type": "array",
       "items": { "$ref": "task-record.schema.json" }
+    },
+
+    "note_on_basis": {
+      "type": "string",
+      "description": "Written by the v3 runner. Says which phases of the run were measured and which rest on the agent's own report, so a count in `totals` is never read as stronger evidence than it is."
+    },
+
+    "v3_dispatch": {
+      "type": "object",
+      "description": "v3 only: the dispatcher's own run summary, kept out of the v1/v2 columns it would be misread in. `report.aggregate` does not know these fields. Open-ended by design — it mirrors the dispatcher's returned dict, and pinning its shape here would mean two statements of the same fact that can drift.",
+      "properties": {
+        "disposition_basis": {
+          "type": "object",
+          "description": "Task counts by `disposition_basis`. The fix phase is measured — the orchestrator runs V1–V4 at each round boundary — so a large `attested` share means most tasks did not reach a fix phase, not that the gates are absent. Runs before 2026-08 report `attested` throughout because the reconcile loop was described in the prompt and driven by nothing.",
+          "additionalProperties": { "type": "integer" }
+        },
+        "per_task_gates_run": {
+          "type": "integer",
+          "description": "Gate suites the orchestrator ran across the run, one per measured round per task. Zero used to be structural; it is now a finding."
+        },
+        "rounds_to_green": {
+          "type": ["object", "null"],
+          "description": "Distribution over tasks that reached a fix phase. Null on a run whose fix phase produced no measured round."
+        }
+      }
     }
   },
 

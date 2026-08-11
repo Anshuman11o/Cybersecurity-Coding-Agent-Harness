@@ -60,8 +60,10 @@
       "is the answer key, and one fetch of it would end this run's validity.",
       "effort and reasoning are stated rather than inherited. A config that leans on",
       "a default records what the default WAS, not what this run ran at.",
-      "timeout_s 2400 is per INVOCATION. A v3 fix invocation carries the whole",
-      "internal reconcile loop, so it uses more of that budget than a v2 round did."
+      "timeout_s 2400 is per INVOCATION, and a v3 fix invocation is now one ROUND --",
+      "the loop is driven by the orchestrator, so this bounds a single round the way",
+      "it bounds a v2 one. What bounds the whole task is loop.max_task_wall_s, and",
+      "what bounds the chunk is loop.chunk_timeout_s."
     ]
   },
 
@@ -91,19 +93,30 @@
       "The price is 10 characterisation invocations instead of 3.",
 
       "cost_ceiling_usd 120 is a runaway stop, not a budget forecast. Anchor: subset",
-      "4 cost $41.61 over 15 invocations under v2 waves. This run is 20 invocations",
-      "(10 characterise + 10 fix) and a v3 fix invocation is dearer than a v2 round,",
-      "so 120 sits above any plausible honest total while still bounding a loop that",
-      "will not terminate. ARCHITECTURE-V3 forbids quoting an expected figure until a",
-      "v3 and a v2 run have been scored on the same denominator; this is a ceiling,",
-      "not that figure. Hitting it is not a lost run: the check runs before each task,",
+      "4 cost $41.61 over 15 invocations under v2 waves. The fix phase now runs one",
+      "invocation PER ROUND under task_loop.run_fix_loop, so this run is 10",
+      "characterise plus between 10 and 50 fix invocations (reconcile_rounds 4 means",
+      "5 rounds at most per task) -- not the flat 20 an unenforced fix phase would",
+      "have spent. 120 still sits above any plausible honest total while bounding a",
+      "loop that will not terminate, but it is now the binding constraint rather than",
+      "a formality, and a run that spends its whole round budget on most tasks will",
+      "reach it. ARCHITECTURE-V3 forbids quoting an expected figure until a v3 and a",
+      "v2 run have been scored on the same denominator; this is a ceiling, not that",
+      "figure. Hitting it is not a lost run: the check runs before each task,",
       "remaining tasks are recorded unreached, and the phase checkpoint survives.",
 
-      "chunk_timeout_s 10800 (3h) bounds the largest chunk, C01, which holds 5 tasks",
-      "and therefore 10 invocations with reuse off. Subset 4 averaged ~600s per",
-      "invocation, so C01's expected wall is ~100 min and this is roughly 1.8x that.",
-      "Checked BEFORE each task, so it stops a chunk taking new work rather than",
-      "interrupting an invocation in flight -- agent.timeout_s is what bounds one",
+      "chunk_timeout_s 10800 (3h) bounds the largest chunk, C01, which holds 5 tasks.",
+      "RE-CHECK THIS BEFORE THE RUN. The figure was sized when a task cost 2",
+      "invocations; with the loop enforced a task costs 1 characterise plus up to 5",
+      "fix rounds, and each round also pays for a gate suite -- typecheck, workflow",
+      "test, probe and regression net -- that the orchestrator runs against the tree.",
+      "Subset 4 averaged ~600s per invocation and 79s of gates across the WHOLE run,",
+      "because its gates ran once per unit; here they run once per round per task.",
+      "C01's worst case is therefore 5 tasks x 6 invocations plus 25 gate suites, far",
+      "beyond 3h, and this timeout will stop the chunk between tasks rather than let",
+      "it finish. Either raise it or accept that C01's later tasks may be recorded",
+      "unreached. Checked BEFORE each task, so it stops a chunk taking new work rather",
+      "than interrupting an invocation in flight -- agent.timeout_s bounds one",
       "invocation."
     ]
   },
@@ -117,9 +130,12 @@
     "_comment": [
       "v3 READS NONE OF THIS. The whole block is here because preflight reuses",
       "run_patcher's validation, which requires on_exhausted to be one of the three",
-      "legal values. There is no orchestrator-side reconcile loop in v3 to exhaust:",
-      "the loop moved inside the agent's single invocation, so `on_exhausted` has",
-      "nothing to act on and `dispatcher.py` never looks at `policy`.",
+      "legal values. v3 does run a reconcile loop and does exhaust it, but the",
+      "exhaustion policy is not configurable: `dispatcher.py` never looks at `policy`",
+      "and always keeps the best round, because a chunk is submitted whole and there",
+      "is no per-task revert that would not also drop the tasks around it. An",
+      "exhausted v3 task is recorded `partial` or `fixed_workflow_red`, never",
+      "`abandoned` over red gates.",
       "Recorded rather than deleted so the config digest of a v3 run and a v2 run",
       "differ only where the runs differ.",
       "final_full_suite true is honoured, but by the dispatcher's own end-of-run",
@@ -146,9 +162,12 @@
       "queue's build gate. run_patcher_v3.py passes merge_queue.typecheck_gate(cfg)",
       "explicitly, because the Dispatcher constructor otherwise falls back to",
       "always_ok, which accepts every merge without compiling anything.",
-      "The agent runs its own gates inside its invocation and reports the result.",
-      "That report is an attestation, never a measurement -- v3 runs no per-task",
-      "orchestrator gate at all."
+      "The other three timeouts are load-bearing too, and were not under v2: the",
+      "orchestrator runs test_file, probe and typecheck itself at EVERY round",
+      "boundary through task_loop.run_fix_loop, so each is paid once per round per",
+      "task rather than once per unit. The agent also runs the same commands inside",
+      "its own turn; that report is an attestation and the gate result is the",
+      "measurement, and the two are recorded separately."
     ]
   },
 

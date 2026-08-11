@@ -22,6 +22,16 @@ committed here.
 
 Never rewrite a historical record. If a run is later found invalid, annotate it
 in its `notes` field. A rewritten history cannot be trusted to show a regression.
+A score that arrives after a row is written is a **new row** carrying
+`rescore_of`, appended by `tools/eval/run_records.py record-score` — not an edit.
+
+To see which runs here are incomplete, unscored, or sitting on disk with no row
+at all:
+
+    python3 tools/eval/run_records.py check
+
+`docs/protocols/run-record-keeping.md` is the lifecycle this file is the durable
+half of, including §5 on what does **not** survive a container reclaim.
 
 ## `reports/`
 

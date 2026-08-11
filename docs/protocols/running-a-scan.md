@@ -236,6 +236,14 @@ See `eval-howto.md` for the metrics, then invoke the `archive-run` skill. The
 next run overwrites stage outputs in place; one run has already been lost this
 way (~3 million tokens).
 
+Archiving is one step of the record, not the whole of it. `run-record-keeping.md`
+covers the rest — what to capture before launch (§1), where the score goes when
+it arrives after the archive is written (§1, and it is a command, not a
+resolution), the checklist whose items are commands (§3), and what does not
+survive a container reclaim (§5). Settle it with:
+
+    python3 tools/eval/run_records.py check --run <run_id>
+
 ---
 
 ## Reference: a full v2 run, 2026-07-28

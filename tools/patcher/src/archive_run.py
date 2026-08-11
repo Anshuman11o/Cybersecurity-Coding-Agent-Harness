@@ -79,9 +79,24 @@ FORBIDDEN_VALUE_PATTERNS = (
 )
 
 # Key names that carry located material by construction.
+#
+# `workflow_red` and `antioracle_claims` are here for the same reason as the
+# rest: their entries are "<test file> :: <it() title>" and {test, it_title, why},
+# so every one of them names a test file, and an anti-oracle claim additionally
+# pairs that file with a defect the agent believes it was asserting. Only the
+# per-task record may hold them. The published row carries the disposition
+# HISTOGRAM -- a count under the bare name `fixed_workflow_red`, which locates
+# nothing -- and never the lists behind it.
+#
+# `test_file` joined them when the v3 fix phase became measured: a per-round gate
+# result carries `failures[].test_file`, which names the test that went red for a
+# given bug. `test_title` was already here and `test_file` was not, and the value
+# patterns do not catch a path under `test/` -- so the pair "this bug, that test"
+# had a way through. Tightening only; a row that trips this is rephrased, never
+# the guard.
 FORBIDDEN_KEYS = ('tasks', 'per_case', 'bug_id', 'bugs', 'location', 'line',
                   'file', 'files', 'challenge', 'challenge_key', 'it_title',
-                  'test_title')
+                  'test_title', 'test_file', 'workflow_red', 'antioracle_claims')
 
 
 class ArchiveError(RuntimeError):
@@ -216,9 +231,17 @@ def build_row(report: dict, *, label: str, harness_sha: str | None,
         # and this is where that rule is enforced on the harness side.
         'scored': (score or {}).get('aggregate'),
 
+        # `runtime_denials`, not `denials`. The producer has always emitted the
+        # former (`blind_guard.audit_run`) and `patcher-report.schema.json` has
+        # always named the former; this read asked for a key no report has ever
+        # carried, so every row written so far records `denials: null` -- a run
+        # with denials and a run without look identical in the history. The row's
+        # own key stays `denials` because rows already in the history use it and
+        # that file is append-only; only the read is corrected here, and the
+        # historical rows are corrected the way that file requires, by appending.
         'blind_audit': {
             'contaminated': (report.get('blind_audit') or {}).get('contaminated'),
-            'denials': (report.get('blind_audit') or {}).get('denials'),
+            'denials': (report.get('blind_audit') or {}).get('runtime_denials'),
         },
         'archived_to': archived_to,
         'located_detail_at': located_detail_at,

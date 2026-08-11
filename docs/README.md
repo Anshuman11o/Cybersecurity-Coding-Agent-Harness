@@ -10,6 +10,7 @@ real time.
 | What rules must I not break? | `../CLAUDE.md` |
 | How do I execute a scan, end to end? | `protocols/running-a-scan.md` |
 | How do I score a run and compare it to the last one? | `protocols/eval-howto.md` |
+| How do I make sure a run is recorded and its score does not get lost? | `protocols/run-record-keeping.md` |
 | What has been run, and what did it show? | `run-history.md` |
 | What gets measured, and how is a score defined? | `protocols/eval-framework.md` |
 | How does the scanner run under any given LLM, and how do I add one? | `architecture/multi-model-architecture.md` |
