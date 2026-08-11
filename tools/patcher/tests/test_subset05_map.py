@@ -465,14 +465,75 @@ def test_every_chunks_write_boundary_resolves(chunk_map):
                     reason='subset-5 run config is authored separately')
 def test_run_config_matches_the_map(chunk_map):
     cfg = _load(CONFIG_PATH)
-    peak = max(p['concurrency'] for p in chunk_map['phases'])
-    assert cfg['loop']['task_concurrency'] == peak, (
-        f'the config asks for {cfg["loop"]["task_concurrency"]} concurrent '
-        f'agents; the map peaks at {peak}')
     assert cfg['inputs']['bug_report'] == chunk_map['generated_from']['bug_report']
+    assert cfg['inputs']['chunk_map'] == 'tools/patcher/plan/subsets/subset-05.chunk-map.json', (
+        'inputs.chunk_map must name this subset\'s map: v3 runs an offline plan '
+        'and computes nothing at run time')
     # Same target app, not necessarily the same path: the map is generated from
     # the in-repo checkout, a run needs a BUILT tree outside it.
     assert (os.path.basename(cfg['target']['base_tree'].rstrip('/'))
             == os.path.basename(chunk_map['generated_from']['tree'].rstrip('/'))), (
         f"config base_tree {cfg['target']['base_tree']!r} and map tree "
         f"{chunk_map['generated_from']['tree']!r} are different applications")
+
+
+@pytest.mark.skipif(not os.path.isfile(CONFIG_PATH),
+                    reason='subset-5 run config is authored separately')
+def test_the_config_does_not_describe_a_run_it_cannot_produce():
+    """v3 has no execution mode and no granularity knob.
+
+    Tasks are one per bug by construction, and parallelism is read from the
+    map's phase concurrency. A `task_concurrency` here would be a number nothing
+    reads -- and this repository has already shipped one of those: the knob sat
+    in the example config for a release while nothing consumed it, so a run
+    asking for five agents got one and reported success.
+    """
+    cfg = _load(CONFIG_PATH)
+    for dead in ('execution', 'task_granularity', 'task_concurrency',
+                 'gate_concurrency'):
+        assert dead not in cfg['loop'], (
+            f'loop.{dead} is a v1/v2 knob that the v3 dispatcher never reads; '
+            'leaving it here describes a run this config cannot produce')
+
+
+@pytest.mark.skipif(not os.path.isfile(CONFIG_PATH),
+                    reason='subset-5 run config is authored separately')
+def test_the_guards_that_bound_a_paid_run_are_set():
+    cfg = _load(CONFIG_PATH)
+    loop = cfg['loop']
+    assert isinstance(loop.get('cost_ceiling_usd'), (int, float)) \
+        and loop['cost_ceiling_usd'] > 0, \
+        'loop.cost_ceiling_usd unset: nothing stops a loop that will not terminate'
+    assert isinstance(loop.get('chunk_timeout_s'), int) \
+        and loop['chunk_timeout_s'] > 0, \
+        'loop.chunk_timeout_s unset: a wedged chunk is never timed out'
+    assert cfg['commands'].get('typecheck'), (
+        'commands.typecheck is the merge queue build gate; without it every '
+        'chunk merges without ever being compiled')
+
+
+@pytest.mark.skipif(not os.path.isfile(CONFIG_PATH),
+                    reason='subset-5 run config is authored separately')
+def test_characterisation_reuse_is_off_so_the_subset_measures_what_it_is_for(bug_report):
+    """The one setting this subset exists to exercise.
+
+    Five of the ten bugs sit at one file:line and are one defect. With reuse on,
+    the later four inherit the first one's oracle, `reused_from` is non-null, and
+    the dispatcher's `already_remediated` branch -- which requires
+    `reused_from is None` -- is unreachable. They would land as
+    `fixed_workflow_only`, and the property the subset was built to observe would
+    be the one property it could not observe.
+    """
+    cfg = _load(CONFIG_PATH)
+    by_loc = {}
+    for b in bug_report['bugs']:
+        key = f"{b['location']['file']}:{b['location']['line']}"
+        by_loc.setdefault(key, []).append(b['bug_id'])
+    shared = {k: v for k, v in by_loc.items() if len(v) > 1}
+    assert shared, ('this test guards a subset with several bugs at one location; '
+                    'if that is no longer true, revisit the setting rather than '
+                    'deleting the test')
+    assert cfg['loop'].get('reuse_characterisation') is False, (
+        f'{sum(len(v) for v in shared.values())} bug(s) share a location '
+        f'({", ".join(sorted(shared))}); with reuse_characterisation on, '
+        'already_remediated cannot fire for any of them')

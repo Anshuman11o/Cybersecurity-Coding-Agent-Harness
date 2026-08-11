@@ -64,6 +64,23 @@ def log(msg: str) -> None:
     print(f'[{time.strftime("%H:%M:%S")}] {msg}', flush=True)
 
 
+def load_config(path: str) -> dict:
+    """`run_patcher.load_config`, plus the one key v3 adds.
+
+    `inputs.chunk_map` has no v1/v2 counterpart, so the shared loader does not
+    normalise it and a relative path would resolve against the caller's cwd
+    instead of the repository root -- the same path meaning two things depending
+    on where the run was launched from. Resolved here rather than in
+    `run_patcher.load_config`, because ARCHITECTURE-V3 §8 keeps v3 out of the file
+    that runs v1 and v2.
+    """
+    cfg = run_patcher.load_config(path)
+    cmap_path = (cfg.get('inputs') or {}).get('chunk_map')
+    if cmap_path:
+        cfg['inputs']['chunk_map'] = run_patcher._abs(cmap_path)
+    return cfg
+
+
 # ----------------------------------------------------------------------------
 # Preflight
 # ----------------------------------------------------------------------------
@@ -139,6 +156,11 @@ def preflight(cfg: dict, runner_kind: str):
     if loop.get('chunk_timeout_s') is None:
         notes.append('loop.chunk_timeout_s is unset: a wedged chunk will not be '
                      'timed out')
+    if loop.get('reuse_characterisation') is None:
+        notes.append('loop.reuse_characterisation is unset, defaulting to true: '
+                     'the second and later bugs in a file reuse the first one\'s '
+                     'oracle, which forces `fixed_workflow_only` and makes '
+                     '`already_remediated` unreachable')
 
     return problems, notes, bug_report, playbook, cmap
 
@@ -163,14 +185,16 @@ def main() -> int:
                          'every phase. The end-of-run suite is skipped unless the '
                          'run covers every phase in the map.')
     ap.add_argument('--no-reuse-characterisation', action='store_true',
-                    help='characterise every bug separately instead of reusing the '
-                         'first characterisation of each file. Costs one extra '
-                         'invocation per additional bug in a file, and is what makes '
+                    help='override loop.reuse_characterisation to false: characterise '
+                         'every bug separately instead of reusing the first '
+                         'characterisation of each file. Costs one extra invocation '
+                         'per additional bug in a file, and is what makes '
                          '`already_remediated` reachable: the reuse path forces '
-                         '`fixed_workflow_only` instead.')
+                         '`fixed_workflow_only` instead. Prefer setting it in the '
+                         'config, which is what config_digest records.')
     args = ap.parse_args()
 
-    cfg = run_patcher.load_config(args.config)
+    cfg = load_config(args.config)
     runner_kind = args.agent or cfg.get('agent', {}).get('runner', 'claude-cli')
 
     problems, notes, bug_report, playbook, cmap = preflight(cfg, runner_kind)
@@ -235,9 +259,16 @@ def main() -> int:
     # -- dispatch -----------------------------------------------------------
     runner = agent_mod.build_runner(cfg, os.path.join(run_dir, 'sandbox'),
                                     runner_kind)
-    reuse = not args.no_reuse_characterisation
+    # Config first, CLI as an override. The config is what `config_digest` hashes
+    # into the run record, so a run configured here can say later how it ran; a
+    # flag typed at the shell leaves no trace.
+    reuse = bool((cfg.get('loop') or {}).get('reuse_characterisation', True))
+    if args.no_reuse_characterisation:
+        reuse = False
     log(f'reuse_characterisation={reuse}'
-        + ('' if reuse else '  (already_remediated is reachable)'))
+        + ('' if reuse else '  (already_remediated is reachable)')
+        + ('  [--no-reuse-characterisation overrode the config]'
+           if args.no_reuse_characterisation else ''))
 
     d = dispatcher_mod.Dispatcher(
         cmap,
