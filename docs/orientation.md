@@ -92,6 +92,10 @@ lane assignment is reproducible from the same recon output.
   crowded carry 24 between them. One line swings the headline by up to 11 points.
 - **The denominator is 97, not 98.** One entry is in a denylisted file and is
   unreachable by construction. Reporting it as a miss understates every run.
+- **A score reported into a conversation does not exist.** Two patcher runs were
+  scored and the numbers were never written to a file; the sessions ended and
+  they were gone. `python3 tools/eval/run_records.py check` lists every run in
+  that state.
 
 ## Where to go next
 
@@ -100,6 +104,7 @@ lane assignment is reproducible from the same recon output.
 | What are the rules I must not break? | `../CLAUDE.md` |
 | How do I execute a scan, end to end? | `protocols/running-a-scan.md` |
 | How do I score a run and compare it? | `protocols/eval-howto.md` |
+| How do I keep a run — and its score — from being lost? | `protocols/run-record-keeping.md` |
 | What has been run, and what did it show? | `run-history.md` |
 | How do I add or switch an inference model? | `architecture/multi-model-architecture.md` |
 | What may the scanner never see? | `protocols/blind-development.md` |

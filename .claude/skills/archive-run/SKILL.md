@@ -11,6 +11,12 @@ completed work).
 
 Run every step. Skipping a step silently loses something.
 
+This skill covers **one step of the lifecycle**: the archive. Capturing the run's
+identity before launch, and writing a score into a file after a sighted scoring
+pass, are `record-run` and `docs/protocols/run-record-keeping.md`. Those are
+where runs have actually been lost — including two patcher scores that were
+produced and never written down.
+
 > **One output location, both tracks.** Every stage — v1 (`stage0-recon`,
 > `stage05-lane-selector`, `stage1-budget-governor`, `stage2-hunt-lanes`,
 > `stage3-validate`) and v2 (`stage05-lane-selector-perfile`,
@@ -124,6 +130,21 @@ Never rewrite a historical record. If a run is later found invalid, annotate it
 in `notes` — do not edit or delete it. A re-score is a new line marked as a
 re-score, not an edit to the original.
 
+**If the score arrives after this line has been written**, the row cannot be
+edited. Append a re-score row, in the same session the number appears:
+
+    python3 tools/eval/run_records.py record-score \
+        --history results/eval-history/scanner.jsonl --run <run_id> \
+        --score <score_scanner.py --json-out file> --aggregate-key . \
+        --ground-truth-set "97 reachable entries, <date>" --defects "…" --notes "…"
+
+`--aggregate-key .` because that file is a flat metrics document with no
+`aggregate` wrapper; naming the block is where you decide it carries nothing
+located. The new row keeps the `metrics` shape the scanner history uses, so
+`generate_eval_report.py` still reads it.
+
+A score reported to a human and not written to a file does not exist.
+
 ## 7. Regenerate the report
 
     python3 tools/eval/generate_eval_report.py
@@ -146,6 +167,13 @@ disclosure rules.
 
 - the archive contains every stage output, every log, and the manifest
 - `results/eval-history/scanner.jsonl` has exactly one new line
+- the run's record is complete, and no run on disk lacks a row:
+
+      python3 tools/eval/run_records.py check --run <run_id>   # exit 0, no `unscored`
+      python3 tools/eval/run_records.py check                  # no ERROR
+
 - no challenge identifier or ground-truth location entered the scanner repo:
 
       grep -rE "\b[a-zA-Z]+Challenge\b" results/ docs/ prompts/
+
+Then finish the lifecycle: `record-run`.

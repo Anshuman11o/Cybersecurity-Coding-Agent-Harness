@@ -23,6 +23,7 @@ set. Those are tracked, not scored.
 
 | File | Purpose |
 |---|---|
+| `run_records.py` | The run ledger. `check` reports every run whose record is incomplete, unscored, or missing entirely; `record-score` writes a score into an already-archived run as a rescore row. See `../../docs/protocols/run-record-keeping.md` |
 | `generate_eval_report.py` | Renders the PDF from `results/eval-history/*.jsonl` |
 | `cost-model.py` | Predicts token cost for a per-file scan, bucketed by file size |
 | `usage-tracker.ts` | Emits per-lane predicted-vs-actual usage records |
