@@ -388,6 +388,173 @@ def test_unparseable_command_denied(tree):
     assert not d.allow
 
 
+# -- git history ------------------------------------------------------------
+#
+# The corpus was committed with its instrumentation intact and stripped in a
+# later commit, so the stripped material is still in the commit graph. Every
+# case here is one route from a sandboxed agent back to a pre-strip blob.
+#
+# No test names a revision that exists. That is the point of the rule: it denies
+# the COMMANDS, so it cannot be evaded by finding another way to name the same
+# commit, and it keeps working for a repository whose history it has never seen.
+
+@pytest.mark.parametrize('cmd', [
+    # render a blob at a revision
+    'git show HEAD:server.ts',
+    'git show',
+    'git cat-file -p 0123abc',
+    'git cat-file blob 0123abcdef',
+    'git ls-tree -r HEAD',
+    'git diff-tree -p HEAD',
+    'git checkout-index -a --prefix=/tmp/x/',
+    # serialise history into something readable as a file
+    'git archive HEAD',
+    'git archive -o /tmp/a.tar HEAD',
+    'git bundle create /tmp/b.bundle --all',
+    'git fast-export --all',
+    'git format-patch -1',
+    # materialise a revision into a tree
+    'git worktree add /tmp/w HEAD',
+    'git bisect start',
+    'git cherry-pick 0123abc',
+    'git rebase some-branch',
+    # diffs and searches against a revision
+    'git diff HEAD',
+    'git diff HEAD~3 -- server.ts',
+    'git diff some-branch..HEAD',
+    'git diff some-tag server.ts',
+    'git difftool HEAD',
+    'git grep sequelize HEAD',
+    'git grep sequelize 0123abc -- routes',
+    # `git grep` takes its pattern as the first positional, so that token is not
+    # a revision -- unless the pattern came from an option instead, and then the
+    # first positional IS the revision. Moving one argument behind `-e` used to
+    # walk straight past the check and render matching lines out of history.
+    'git grep -e sequelize HEAD~2',
+    'git grep --regexp=sequelize HEAD~2',
+    'git grep -f /tmp/patterns.txt HEAD~2',
+    'git grep --file=/tmp/patterns.txt 0123abc',
+    'git blame HEAD~2 -- server.ts',
+    'git log -p',
+    'git log -p -- server.ts',
+    'git log -Ssomestring',
+    'git whatchanged -p',
+    # restore a path at a revision
+    'git checkout 0123abc -- server.ts',
+    'git restore --source=HEAD~5 server.ts',
+    'git switch some-branch',
+])
+def test_git_history_read_denied(tree, cmd):
+    d = ev('Bash', {'command': cmd}, tree)
+    assert not d.allow, cmd
+    assert d.kind == 'git_history', f'{cmd} -> {d.kind}'
+
+
+@pytest.mark.parametrize('cmd', [
+    # a revision named by shape, by ref, by tag, by ancestry, by reflog -- all
+    # the same denial, from the same rule, with nothing revision-specific in it
+    'git show 0123abc',
+    'git show 0123abcdef0123abcdef0123abcdef0123abcdef',
+    'git show some-tag',
+    'git show HEAD~40',
+    'git show HEAD@{12}',
+    'git show refs/heads/some-branch',
+])
+def test_git_history_denied_however_the_revision_is_named(tree, cmd):
+    """A denylist of the two commit ids involved would close none of these."""
+    d = ev('Bash', {'command': cmd}, tree)
+    assert not d.allow and d.kind == 'git_history', cmd
+
+
+@pytest.mark.parametrize('cmd', [
+    'git -C . show HEAD:server.ts',            # -C takes a value: the naive
+    'git -c core.pager=cat show HEAD',         # "first non-flag token" scan
+    'git --git-dir=/repo/.git show HEAD',      # reads that value as the subcommand
+    '/usr/bin/git show HEAD',                  # not a bare `git`
+    'cat $(git show HEAD:server.ts)',          # never a segment's first token
+    'bash -c "git show HEAD:server.ts"',       # nor here
+    'ls routes && git show HEAD:server.ts',
+])
+def test_git_history_denied_through_indirection(tree, cmd):
+    d = ev('Bash', {'command': cmd}, tree)
+    assert not d.allow, cmd
+    assert d.kind == 'git_history', f'{cmd} -> {d.kind}'
+
+
+@pytest.mark.parametrize('cmd', [
+    'cat .git/HEAD',
+    'cp -r .git /tmp/copy',
+    'python3 -c "import zlib; print(zlib.decompress(open(\'.git/objects/ab/cd\', \'rb\').read()))"',
+])
+def test_git_object_store_denied(tree, cmd):
+    """The blobs are readable without git: .git/objects IS the pre-strip source."""
+    d = ev('Bash', {'command': cmd}, tree)
+    assert not d.allow and d.kind == 'git_history', cmd
+
+
+@pytest.mark.parametrize('rel', ['.git/config', '.git/objects/ab/cdef', '../.git/HEAD'])
+def test_git_directory_read_denied_by_path(tree, rel):
+    d = ev('Read', {'file_path': rel}, tree)
+    assert not d.allow and d.kind == 'git_history'
+
+
+# -- git that must keep working ---------------------------------------------
+#
+# The run itself uses git, and a guard that denies the whole binary would stop
+# the work rather than protect it. Nothing here can reach a revision.
+
+@pytest.mark.parametrize('cmd', [
+    'git status',
+    'git status --short',
+    'git rev-parse HEAD',                 # archive_run reads the commit this way
+    'git rev-parse --short HEAD',
+    'git diff',                           # working tree against the index
+    'git diff --stat',
+    'git diff -- server.ts',
+    'git diff server.ts',
+    'git diff routes/search.ts',
+    'git log',
+    'git log --oneline',
+    'git log -n 5',
+    'git log --oneline -n 5 --format=%H',
+    'git grep sequelize',                 # searches the working tree
+    'git grep -n foo -- routes',
+    'git grep -e pattern',
+    'git blame server.ts',
+    'git blame -L 1,10 server.ts',
+    'git merge-file -q server.ts server.ts server.ts',   # the integrator's own call
+    'git branch --show-current',
+    'git add -A',
+    'cat .gitignore',
+])
+def test_ordinary_git_still_allowed(tree, cmd):
+    d = ev('Bash', {'command': cmd}, tree)
+    assert d.allow, f'{cmd} -> {d.kind}: {d.reason}'
+
+
+def test_git_history_denial_is_logged_with_its_own_kind(tree, tmp_path):
+    """It has to be visible in the audit: a denial blind_audit cannot see did not
+    happen, and this one is the difference between a guarded run and a lucky one."""
+    import json
+    import subprocess
+    log = tmp_path / 'guard.jsonl'
+    r = subprocess.run(
+        [sys.executable, sg.__file__, '--tree', tree, '--log', str(log),
+         '--phase', 'fix', '--task', 'BUG-001'],
+        input=json.dumps({'tool_name': 'Bash', 'cwd': tree,
+                          'tool_input': {'command': 'git show HEAD:server.ts'}}),
+        capture_output=True, text=True)
+    assert r.returncode == 0
+    out = json.loads(r.stdout)['hookSpecificOutput']
+    assert out['permissionDecision'] == 'deny'
+    assert 'sandbox:git_history' in out['permissionDecisionReason']
+
+    rec = json.loads(log.read_text().strip())
+    assert rec['allowed'] is False
+    assert rec['kind'] == 'git_history'
+    assert rec['task'] == 'BUG-001' and rec['phase'] == 'fix'
+
+
 # -- tools ------------------------------------------------------------------
 
 @pytest.mark.parametrize('tool', ['WebFetch', 'WebSearch', 'Task'])

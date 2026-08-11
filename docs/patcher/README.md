@@ -78,6 +78,59 @@ Residual, not closed: a broad content search over the whole tree
 (`grep -r <ordinary term> .`) can still surface lines *from* those files in its
 output. The path deny does not see it, because no denylisted path is named.
 
+## Pre-strip source in git history (guarded 2026-08-11)
+
+The corpus was committed once with its challenge instrumentation intact and
+stripped in a later commit. **The strip changed the working tree; it did not
+change history.** Every pre-strip blob is still reachable in this repository's
+commit graph, so any command that renders a revision back into text returns the
+instrumented file — a challenge identifier next to a file and a line, which is
+the pairing the blind boundary exists to prevent. Measured on the repository as
+it stands, the number of corpus files carrying that instrumentation is an order
+of magnitude higher one commit back than in the tree an agent can read.
+
+Patcher **runs** were never exposed: `setup/prepare_env.sh` builds the base tree
+with `tar --exclude=.git`, and no chunk tree has a `.git` at all. The exposure is
+to any agent working in a checkout of this repository.
+
+Closed in `hooks/sandbox_guard.py`, under `kind: git_history`:
+
+- subcommands whose purpose is to turn a revision into content, or to write one
+  into a tree, are denied outright;
+- subcommands that are harmless against the working tree and become a history
+  read once a revision is named — `diff`, `grep`, `blame`, `checkout`,
+  `restore`, `switch` — are denied when an argument names a revision. A
+  positional argument counts as a revision unless it demonstrably names a file
+  that exists, so an unrecognised branch or tag falls closed;
+- `git log` keeps working; the flags that make it print or search diffs do not;
+- reads of a `.git` directory are denied by path and by command, because the
+  object store is the pre-strip source in zlib framing and needs no git binary;
+- the scan runs over the whole command line, so `git` reached through a path, a
+  command substitution or `bash -c` is caught too.
+
+**Denied by capability, never by revision.** No commit id appears in the guard.
+Listing the two commits involved would close nothing: the same blobs are reachable
+through every ancestor, any branch or tag containing them, `HEAD~n`, `@{n}`
+reflog syntax, a `git rev-list` enumeration, and an abbreviated object id of any
+length. There is no finite set of revisions to block, so what is blocked is the
+finite set of commands that can render one.
+
+`git status`, `git rev-parse HEAD`, `git diff` of the working tree, `git log`,
+`git grep` over the tree, `git blame <file>` and `git merge-file` all still work;
+the last is what the integrator's three-way merge runs.
+
+A denial is counted by `blind_guard.audit_run` and surfaced as a report note. It
+does **not** void a run, for the reason recorded in `RUN-HISTORY.md` for denied
+egress: the command was denied, so the revision was never rendered and nothing
+was read. A large count still means the inputs are pointing the agent at history.
+
+**This is a mitigation, not a removal.** The blobs remain in history; only the
+routes to them from inside a sandboxed agent are closed. An agent outside the
+hook — anything not running under the sandbox — still reaches them with one
+command. Full remediation is a history rewrite, which is deferred: it would
+invalidate every existing clone, worktree and recorded commit id, and it is not
+something to do underneath a run.
+
 ## What the bug report may carry (narrowed 2026-08-10)
 
 A bug-report entry now carries exactly five things:

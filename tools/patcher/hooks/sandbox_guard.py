@@ -233,6 +233,117 @@ DENIED_SUBCOMMANDS = {
 # Local binaries (tsc, tsx, eslint) are needed; explicit remote fetch is not.
 NPX_DENIED_FLAGS = {'-y', '--yes', '-p', '--package', '--registry'}
 
+# ----------------------------------------------------------------------------
+# Git history -- the pre-strip source is still in the commit graph
+# ----------------------------------------------------------------------------
+#
+# The corpus was committed once with its challenge instrumentation intact and
+# stripped in a later commit. The strip changed the working tree; it did not
+# change history. Every pre-strip blob is still reachable, so a command that
+# renders a revision back into text hands over instrumented source -- a challenge
+# identifier sitting next to a file and a line, which is the exact pairing the
+# blind boundary forbids. Measured on the repository as it stands: the count of
+# corpus files carrying that instrumentation is an order of magnitude higher one
+# commit back than it is in the tree the agent can see.
+#
+# DENIED BY CAPABILITY, NEVER BY REVISION. Naming the two commits would be
+# security theatre: the same blobs are reachable through every ancestor of those
+# commits, any branch or tag containing them, `HEAD~n`, `@{n}` reflog syntax, a
+# `git rev-list` enumeration, an abbreviated object id of any length, and the raw
+# object files under `.git/`. There is no finite set of revisions to block. What
+# is finite is the set of commands that can turn A revision -- any revision --
+# back into content, so that is what is blocked, and the rules below never look
+# at which revision was named.
+#
+# This is a MITIGATION, NOT A REMOVAL. The blobs remain in history; only the
+# routes to them from inside a sandboxed agent are closed. Removing them means
+# rewriting history, which is deferred. See docs/patcher/README.md.
+
+# Subcommands that exist to turn a revision into content, or to write a revision
+# into a working tree. Denied outright -- no form of them is needed here.
+#
+# `merge-file` is deliberately absent: it three-way-merges three FILES, reads no
+# revision, and the integrator depends on it.
+GIT_CONTENT_SUBCOMMANDS = {
+    # print a blob, or a tree's contents, at a revision
+    'show', 'cat-file', 'ls-tree', 'diff-tree', 'diff-index', 'unpack-file',
+    'checkout-index',
+    # serialise history -- blobs included -- into something readable as a file
+    'archive', 'bundle', 'fast-export', 'format-patch', 'pack-objects',
+    # materialise a revision into a tree on disk
+    'worktree', 'bisect', 'cherry-pick', 'merge', 'rebase', 'replay',
+    'filter-branch',
+    # diff drivers whose arguments are revisions
+    'difftool', 'range-diff',
+}
+
+# Subcommands that are fine against the working tree and become a history read
+# the moment a revision is named: `git diff` vs `git diff <rev>`, `git grep <pat>`
+# vs `git grep <pat> <rev>`, `git blame <file>` vs `git blame <rev> -- <file>`.
+GIT_REV_SENSITIVE_SUBCOMMANDS = {
+    'diff', 'grep', 'blame', 'annotate', 'checkout', 'restore', 'switch',
+}
+
+# `git log` names revisions harmlessly -- a subject line is not source. It leaks
+# only when asked to render the diffs, which is what these flags do. `-G`/`-S`
+# are searches over historical content: an answer to "did this string ever exist"
+# is a read of the revision that held it, one bit at a time.
+GIT_PATCH_FLAG_SUBCOMMANDS = {'log', 'shortlog', 'whatchanged', 'reflog'}
+
+_GIT_PATCH_FLAG_RE = re.compile(
+    r'^(-p|-u|--patch|--patch-with-[\w-]+|--full-diff|--cc|-c|-m|'
+    r'--word-diff(=.*)?|-[GS].*|--pickaxe[\w-]*(=.*)?)$')
+
+# git's own options, before the subcommand. These take a VALUE, so the "first
+# non-flag token is the subcommand" rule used elsewhere in this file reads the
+# value instead: in `git -C . show HEAD` it decides the subcommand is `.`. That is
+# a bypass, so the git parsing below consumes them explicitly.
+_GIT_GLOBAL_VALUE_OPTS = {'-C', '-c', '--git-dir', '--work-tree', '--namespace',
+                          '--exec-path', '--super-prefix', '--config-env',
+                          '--attr-source'}
+
+# Per-subcommand options that take a separate value, so the value is not mistaken
+# for a revision. Kept deliberately small: an unknown option's value falls through
+# to the revision test and is denied, which is the safe direction.
+_GIT_VALUE_OPTS = {
+    'grep': {'-e', '-f', '-A', '-B', '-C', '--max-depth', '--threads', '-m',
+             '--max-count'},
+    'diff': {'-O', '--output', '--diff-filter', '-l', '-U', '--unified',
+             '--src-prefix', '--dst-prefix'},
+    'blame': {'-L', '-C', '-M', '-S', '--date', '--contents', '--since'},
+    'annotate': {'-L', '-C', '-M', '-S', '--date', '--contents', '--since'},
+    'checkout': {'-b', '-B', '--orphan', '--conflict'},
+    'switch': {'-c', '-C', '--orphan', '--conflict'},
+    'restore': {'--conflict'},
+}
+
+# Options that name a revision in their own value, whatever else the command says.
+_GIT_REV_OPT_RE = re.compile(r'^(--source|-s|--merge-base|--tree-ish)(=.*)?$')
+
+# A revision by shape. Only consulted for tokens that also name a real file, so
+# that a file genuinely called `HEAD` cannot be used to smuggle one past.
+_GIT_REV_SHAPED_RE = re.compile(
+    r'^[0-9a-fA-F]{4,40}$|\.\.|@\{|[\^~:]|^refs/|'
+    r'^(HEAD|FETCH_HEAD|ORIG_HEAD|MERGE_HEAD|CHERRY_PICK_HEAD|@)$')
+
+# The object store itself. `.git/objects/**` IS the pre-strip source, zlib-framed:
+# reading it with python, or copying the directory somewhere and pointing
+# `--git-dir` at the copy, reaches the same blobs without ever naming a
+# subcommand above. Anchored so `.gitignore` and `.github/` do not match.
+_GIT_INTERNALS_PATH_RE = re.compile(r'(^|/)\.git(/|$)')
+_GIT_INTERNALS_TEXT_RE = re.compile(r'(?<![\w.\-])\.git(?![\w.\-])')
+
+# `git` reached through a path, a command substitution, or an interpreter's -c
+# string: `cat $(git show …)`, `bash -c "git show …"`. None of those make `git`
+# the first token of a segment, so the whole line is scanned as well.
+_GIT_INVOCATION_RE = re.compile(r'(?:^|(?<=[\s;|&()`"\'/]))git\s+([^;|&()`\n]*)')
+
+_GIT_DENY_TAIL = (
+    'The working tree was stripped of the material this run is scored against, '
+    'but history was not: any command that renders a revision back into text '
+    'returns the unstripped file. Revisions are not readable here, in any form. '
+    'Work from the tree as it stands.')
+
 # Tree-relative prefixes no agent may write to. `test/` is how the work is
 # judged; editing it converts a failed patch into a passing one.
 PROTECTED_WRITE_PREFIXES = ('test/', 'cypress/')
@@ -361,6 +472,13 @@ def check_path(raw: str, cwd: str, tree: str, *, writing: bool,
         named = raw if raw == seed else f'{raw} ({seed})'
         return deny('seed_denylist', f'{named} {_SEED_DENY_MSG}{_seed_source_note()}')
 
+    # Before resolution, so a path into a git directory anywhere is caught, and
+    # again after it, so `.` -> the repository root cannot be walked into.
+    if _GIT_INTERNALS_PATH_RE.search(raw.replace('\\', '/')):
+        return deny('git_history',
+                    f'{raw} is inside a git directory. The object store holds the '
+                    f'pre-strip source verbatim. {_GIT_DENY_TAIL}')
+
     resolved = _resolve(raw, cwd)
 
     if not _inside(resolved, tree):
@@ -384,6 +502,11 @@ def check_path(raw: str, cwd: str, tree: str, *, writing: bool,
         return deny('seed_denylist',
                     f'{raw} resolves to {rel}, which {_SEED_DENY_MSG}'
                     f'{_seed_source_note()}')
+
+    if _GIT_INTERNALS_PATH_RE.search(rel):
+        return deny('git_history',
+                    f'{raw} resolves to {rel}, inside a git directory. '
+                    f'{_GIT_DENY_TAIL}')
 
     if not writing:
         return ALLOW
@@ -438,6 +561,123 @@ def _looks_like_path(tok: str) -> bool:
     return ('/' in tok) or tok.startswith('~') or tok in ('.', '..')
 
 
+# -- git history ------------------------------------------------------------
+
+def _git_subcommand(args):
+    """(subcommand, remaining args), with git's own global options consumed."""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in _GIT_GLOBAL_VALUE_OPTS:
+            i += 2                       # the option AND its value
+            continue
+        if a.startswith('-'):
+            i += 1
+            continue
+        break
+    if i >= len(args):
+        return None, []
+    return args[i], args[i + 1:]
+
+
+def _names_a_real_file(tok: str, cwd: str, tree: str) -> bool:
+    try:
+        if os.path.isabs(tok):
+            return os.path.exists(tok)
+        return (os.path.exists(os.path.join(cwd, tok))
+                or os.path.exists(os.path.join(tree, tok)))
+    except (OSError, ValueError):
+        return False
+
+
+def git_revision_argument(sub: str, args, cwd: str, tree: str):
+    """The argument of a rev-sensitive git subcommand that names a revision.
+
+    Fails closed by construction: a positional argument is treated as a REVISION
+    unless it demonstrably names a file that exists. `git diff routes/x.ts` is a
+    working-tree diff and passes; `git diff v1.2`, `git diff some-branch` and
+    `git diff <sha>` do not, and neither does a branch name this guard has never
+    heard of. That asymmetry is deliberate -- the guard cannot enumerate refs, and
+    guessing that an unknown word is harmless is the guess that loses.
+    """
+    value_opts = _GIT_VALUE_OPTS.get(sub, frozenset())
+    positional = 0
+    skip_value = False
+    # `git grep` normally takes its pattern as the first positional, so that one
+    # token is not a revision. But the pattern can be supplied by option instead
+    # -- `-e`, `-f`, `--regexp=`, `--file=` -- and then the first positional is
+    # the REVISION. Skipping it unconditionally let `git grep -e <pat> <rev>`
+    # through, which renders matching lines straight out of history: the leak
+    # this guard exists to stop, reached by moving one argument behind a flag.
+    pattern_from_opt = False
+    for tok in args:
+        if tok == '--':
+            break                        # everything after `--` is a pathspec
+        if skip_value:
+            skip_value = False
+            continue
+        if _GIT_REV_OPT_RE.match(tok):
+            return tok                   # e.g. `git restore --source=<rev>`
+        if tok.startswith('-'):
+            if sub == 'grep' and (tok in ('-e', '-f')
+                                  or tok.startswith(('--regexp=', '--file='))):
+                pattern_from_opt = True
+            if tok in value_opts:
+                skip_value = True
+            continue
+        positional += 1
+        if sub == 'grep' and positional == 1 and not pattern_from_opt:
+            continue                     # the search pattern, not a revision
+        if _names_a_real_file(tok, cwd, tree) and not _GIT_REV_SHAPED_RE.search(tok):
+            continue
+        return tok
+    return None
+
+
+def check_git_history(command: str, cwd: str, tree: str) -> Decision:
+    """Deny git invocations that can render a revision back into content.
+
+    Scanned over the WHOLE command line rather than per segment, because `git`
+    reaches history without ever being a segment's first token: `cat $(git show
+    …)`, `bash -c "git show …"`, `/usr/bin/git show …`.
+    """
+    if _GIT_INTERNALS_TEXT_RE.search(command):
+        return deny('git_history',
+                    'command names the .git directory. The object store holds the '
+                    f'pre-strip source verbatim, so it is not readable. {_GIT_DENY_TAIL}')
+
+    for m in _GIT_INVOCATION_RE.finditer(command):
+        try:
+            args = shlex.split(m.group(1), posix=True)
+        except ValueError:
+            args = m.group(1).split()    # best effort; the caller denies it anyway
+        sub, rest = _git_subcommand(args)
+        if not sub:
+            continue
+
+        if sub in GIT_CONTENT_SUBCOMMANDS:
+            return deny('git_history',
+                        f'`git {sub}` renders a revision back into content or writes '
+                        f'one into a tree. {_GIT_DENY_TAIL}')
+
+        if sub in GIT_PATCH_FLAG_SUBCOMMANDS:
+            flag = next((t for t in rest if _GIT_PATCH_FLAG_RE.match(t)), None)
+            if flag:
+                return deny('git_history',
+                            f'`git {sub} {flag}` prints historical diffs, or searches '
+                            f'them, which is a read of the revisions they come from. '
+                            f'`git {sub}` without it is fine. {_GIT_DENY_TAIL}')
+
+        if sub in GIT_REV_SENSITIVE_SUBCOMMANDS:
+            rev = git_revision_argument(sub, rest, cwd, tree)
+            if rev:
+                return deny('git_history',
+                            f'`git {sub}` was given {rev!r}, which is not a file in '
+                            f'this tree and is therefore a revision. {_GIT_DENY_TAIL}')
+
+    return ALLOW
+
+
 def check_bash(command: str, cwd: str, tree: str, *, phase: str, task: str,
                extra_path_patterns, extra_cmd_patterns) -> Decision:
     if not isinstance(command, str) or not command.strip():
@@ -457,6 +697,12 @@ def check_bash(command: str, cwd: str, tree: str, *, phase: str, task: str,
         return deny('seed_denylist',
                     f'command names {seed}, which {_SEED_DENY_MSG}'
                     f'{_seed_source_note()}')
+
+    # Also whole-line, and for the same reason: the token-level rules below see
+    # `git` only when it is a segment's first word.
+    d = check_git_history(command, cwd, tree)
+    if not d.allow:
+        return d
 
     for segment in _split_commands(command):
         try:

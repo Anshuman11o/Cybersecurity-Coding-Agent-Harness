@@ -64,6 +64,27 @@ def test_a_denied_network_egress_does_not_void_a_run(tmp_path):
     assert any('network egress' in n for n in a['notes'])
 
 
+def test_a_denied_git_history_read_does_not_void_a_run(tmp_path):
+    """Same reasoning as the egress case above: the command was denied, so the
+    revision was never rendered and nothing was read. It is counted and noted,
+    because an agent reaching into history is worth seeing even when it failed."""
+    a = _audit(_log(tmp_path, _denial('git_history', 'git show <rev>:<file>')))
+    assert a['contaminated'] is False
+    assert a['runtime_denials']['git_history'] == 1
+    assert any('git history' in n for n in a['notes'])
+
+
+def test_git_history_is_deny_only_by_construction(tmp_path):
+    """The premise the test above rests on."""
+    import sandbox_guard as sg
+    for cmd in ('git show HEAD:server.ts', 'git cat-file -p 0123abc',
+                'git log -p', 'git worktree add /tmp/w HEAD', 'cat .git/HEAD'):
+        d = sg.evaluate({'tool_name': 'Bash', 'tool_input': {'command': cmd}},
+                        str(tmp_path), 'fix', 'T', [], [])
+        assert not d.allow, cmd
+        assert d.kind == 'git_history', cmd
+
+
 def test_network_egress_is_deny_only_by_construction(tmp_path):
     """The premise the test above rests on. If evaluate() ever ALLOWS with this kind,
     'denied means nothing was learned' breaks and the classifier must be revisited."""
