@@ -19,6 +19,7 @@ is the same size as task 1's.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import time
@@ -200,6 +201,202 @@ def _characterise(bug, ctx, rec, snap_path):
 
 
 # ----------------------------------------------------------------------------
+# Phases 2 + 3 + 4: the reconcile loop
+# ----------------------------------------------------------------------------
+# Extracted from `run_task` so that every track can be held to the same exit
+# condition. A track that invokes the agent once and then reads the agent's own
+# `attestation.json` to decide whether it was done has no measured exit condition
+# at all: the agent can leave a gate red, declare in prose that the gate is
+# illegitimate, and stop, and the record cannot afterwards distinguish that from
+# a fix that reconciled. The number of rounds such a track reports is the agent's
+# claim about itself, which is the one thing this architecture has already been
+# burned by trusting.
+#
+# So the loop lives here, in the orchestrator, and both callers get the same
+# three exit conditions and the same measured labelling. What each caller keeps
+# for itself is only its prompt text, through `build_prompt`.
+
+def _phase_for_round(round_no: int) -> str:
+    """Round 0 is the fix; every round after it is a reconcile.
+
+    The phase name is also the log filename stem (`{phase}-{round_no}.json`) and
+    the value the sandbox hook is armed with, so it is derived in exactly one
+    place rather than passed in.
+    """
+    return 'fix' if round_no == 0 else 'reconcile'
+
+
+@dataclasses.dataclass
+class FixLoopResult:
+    """What the orchestrator measured, and nothing the agent said about itself.
+
+    `gates`, `failures`, `excused` and `green` describe the SELECTED round -- the
+    best one under `_score` -- because that is the round whose tree the caller
+    will decide to keep or revert. `rounds` and `invocations` are the full,
+    ordered history, so a caller that wants the last round rather than the best
+    one can take it from there.
+    """
+
+    label: str
+    rounds_used: int
+    green: bool
+    gates: dict
+    failures: list
+    excused: list
+    attestation: dict | None
+    rounds: list
+    invocations: list
+    # --- beyond the agreed interface -------------------------------------------
+    # Additive, all defaulted, and needed by v1 to stay byte-identical: it selects
+    # its disposition from the LAST round's verdict while restoring the BEST
+    # round's tree, and it records the wall-clock break as a violation. None of it
+    # changes the meaning of the fields above.
+    best_round: int | None = None
+    # The caller owns disposal of this snapshot (`workspace.discard_snapshot`).
+    # The loop never restores it: whether an exhausted attempt is kept or reverted
+    # is policy, and policy is the caller's.
+    best_snapshot: str | None = None
+    best_verify: object = None
+    last_verify: object = None
+    deadline_exceeded: bool = False
+
+
+def _derive_label(selected, invocations, attestation) -> str:
+    """The four outcome squares, read off the gates the orchestrator ran.
+
+    Never off the attestation. An agent that says `status: fixed` over a red
+    probe gets `neither` here, and an agent that says `not_fixed` over a clean
+    sheet gets `green`.
+
+    Two readings are deliberate:
+
+      * a probe that was SKIPPED (never demonstrated the defect before the fix)
+        or that ERRORED is not a measured `NOT_PROVEN`, so it does not count as
+        the vulnerability having been closed. The honest square for "the feature
+        still works and the remediation axis is unverified" is `workflow_only`.
+      * a tree that does not compile short-circuits V2 and V4 to `skipped`, which
+        must not be read as "workflow and net clean" -- so the build is folded
+        into the clean test rather than left out of the table.
+    """
+    if not any(getattr(inv, 'ok', False) for inv in invocations) or attestation is None:
+        return 'agent_failed'
+    gates = (selected.gates if selected is not None else {}) or {}
+    probe_closed = gates.get('V3_probe_blocked') == 'pass'
+    clean = (gates.get('V1_typecheck') == 'pass'
+             and gates.get('V2_workflow') in ('pass', 'skipped')
+             and gates.get('V4_no_regression') in ('pass', 'skipped'))
+    if probe_closed:
+        return 'green' if clean else 'vuln_only'
+    return 'workflow_only' if clean else 'neither'
+
+
+def run_fix_loop(*, cfg, tree, task_id, bug, runner, build_prompt,
+                 workflow_rel, probe_rel, probe_expected,
+                 related, baseline_outcomes, antioracles,
+                 max_rounds, deadline, log_dir, guard_log,
+                 snap_path, attestation_rel) -> FixLoopResult:
+    """Invoke, measure, hand back the failure, repeat. The orchestrator decides.
+
+    `max_rounds` is the TOTAL number of rounds, round 0 (the fix) included -- so
+    `max_rounds=0` invokes the agent zero times and `max_rounds=1` is a single
+    fix attempt with no reconcile. A caller whose budget is expressed as a number
+    of reconciles passes that number plus one.
+
+    `build_prompt(round_no, vr, diff) -> str` is the only thing a caller keeps to
+    itself. Round 0 is called with `vr=None` and `diff=''`; every later round is
+    called with the previous round's `VerifyResult` and the diff of the tree
+    against `snap_path`.
+
+    The loop mutates the tree only through the agent. It takes a snapshot of the
+    best round and returns its path; it never restores one. Whether an exhausted
+    attempt is kept or reverted belongs to the caller's policy.
+
+    `bug` is accepted and deliberately unread: everything bug-specific reaches the
+    agent through `build_prompt`, and a loop that could reach into the bug record
+    would be a loop that could start making decisions per defect.
+    """
+    rounds: list = []
+    invocations: list = []
+    best = None                      # (round_no, VerifyResult, snapshot path)
+    vr = None
+    deadline_exceeded = False
+    round_no = 0
+
+    while round_no < max_rounds:
+        phase = _phase_for_round(round_no)
+        # Only computed for a reconcile: the diff is against the task's own
+        # starting snapshot, and on round 0 there is nothing in it.
+        diff = '' if round_no == 0 else workspace.diff_against_snapshot(tree, snap_path)
+
+        inv = runner.run(build_prompt(round_no, vr, diff), cwd=tree, phase=phase,
+                         task_id=task_id,
+                         log_path=os.path.join(log_dir, f'{phase}-{round_no}.json'),
+                         guard_log=guard_log)
+        invocations.append(inv)
+
+        vr = verify.verify(cfg, tree, workflow_rel=workflow_rel, probe_rel=probe_rel,
+                           probe_expected=probe_expected, related_files=related,
+                           baseline_outcomes=baseline_outcomes,
+                           antioracles=antioracles)
+
+        rounds.append({
+            'round': round_no, 'green': vr.green, 'gates': dict(vr.gates),
+            'gate_seconds': dict(vr.durations),
+            'excused': list(vr.excused),
+            'failures': vr.failures, 'agent': inv.as_record(),
+        })
+
+        if best is None or _score(vr) > _score(best[1]):
+            best = (round_no, vr, workspace.snapshot(tree, f'best-{task_id}'))
+
+        # THE THREE EXIT CONDITIONS, AND THERE ARE ONLY THREE: measured green,
+        # the round budget, the wall clock.
+        #
+        # An anti-oracle claim in the attestation is NOT one of them, and must
+        # never become one. If the agent writes `workflow_red`, `antioracle_claims`
+        # or a `residual_risk` explanation while a gate is still red and rounds
+        # remain, the loop runs another round: the claim may well be correct --
+        # some tests in the net assert the attack succeeds and no correct fix can
+        # satisfy them -- but "this failure does not count" decided by the party
+        # being measured is the exact self-report this design exists to refuse.
+        # The claim is recorded, in `attestation`, and acted on by nothing here.
+        # Excusal is `verify.verify`'s job, from the tests' own text, and there is
+        # deliberately no second excusal path.
+        if vr.green:
+            break
+        if round_no + 1 >= max_rounds:
+            break
+        if time.time() > deadline:
+            deadline_exceeded = True
+            break
+        round_no += 1
+
+    # Read once, at the end, for the record. Never consulted by the loop above.
+    attestation = _normalise_attestation(
+        _read_json(os.path.join(tree, attestation_rel)))
+    selected = best[1] if best else None
+
+    return FixLoopResult(
+        label=_derive_label(selected, invocations, attestation),
+        # The rounds this loop ran and measured. A `rounds_used` in the
+        # attestation is the agent's claim about itself and is not read here.
+        rounds_used=len(rounds),
+        green=bool(selected.green) if selected is not None else False,
+        gates=dict(selected.gates) if selected is not None else {},
+        failures=list(selected.failures) if selected is not None else [],
+        excused=list(selected.excused) if selected is not None else [],
+        attestation=attestation,
+        rounds=rounds,
+        invocations=invocations,
+        best_round=best[0] if best else None,
+        best_snapshot=best[2] if best else None,
+        best_verify=selected,
+        last_verify=vr,
+        deadline_exceeded=deadline_exceeded,
+    )
+
+
+# ----------------------------------------------------------------------------
 # The task
 # ----------------------------------------------------------------------------
 
@@ -269,17 +466,14 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
     # ---- phase 2 + 3 + 4: the reconcile loop -----------------------------
     entry, how = blind_guard.select_entry(ctx.playbook, bug)
     attestation_rel = f'{workspace.scratch_rel(task_id)}/attestation.json'
-    attestation_abs = os.path.join(tree, attestation_rel)
 
     max_rounds = max(0, int(ctx.loop.get('reconcile_rounds', 4)))
     deadline = t0 + float(ctx.loop.get('max_task_wall_s', 5400))
-    best = None
-    vr = None
-    round_no = 0
 
-    while True:
+    def build_prompt(round_no, vr, diff):
+        """v1's own prompts. The loop supplies the round, the verdict and the diff."""
         if round_no == 0:
-            prompt = prompts.build_fix(
+            return prompts.build_fix(
                 tree=tree, bug=bug, characterisation=characterisation or {},
                 playbook_entry=entry, playbook_how=how,
                 general_guidance=ctx.playbook.get('general_guidance'),
@@ -290,50 +484,43 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
                 typecheck_cmd=cfg['commands']['typecheck'],
                 attestation_path=attestation_rel, round_no=0,
                 net_cmds=net_cmds)
-            phase = 'fix'
-        else:
-            prompt = prompts.build_reconcile(
-                tree=tree, bug=bug, characterisation=characterisation or {},
-                diff=workspace.diff_against_snapshot(tree, snap_path),
-                failures=vr.failures if vr else [], round_no=round_no,
-                max_rounds=max_rounds,
-                workflow_cmd=_cmd(cfg, 'run_test_file', workflow_rel),
-                probe_cmd=_cmd(cfg, 'run_probe', probe_rel),
-                typecheck_cmd=cfg['commands']['typecheck'],
-                attestation_path=attestation_rel)
-            phase = 'reconcile'
+        return prompts.build_reconcile(
+            tree=tree, bug=bug, characterisation=characterisation or {},
+            diff=diff,
+            failures=vr.failures if vr else [], round_no=round_no,
+            # The agent is told the RECONCILE budget, which is what it has always
+            # been told: `loop.max_rounds` below counts round 0 as well.
+            max_rounds=max_rounds,
+            workflow_cmd=_cmd(cfg, 'run_test_file', workflow_rel),
+            probe_cmd=_cmd(cfg, 'run_probe', probe_rel),
+            typecheck_cmd=cfg['commands']['typecheck'],
+            attestation_path=attestation_rel)
 
-        inv = ctx.runner.run(prompt, cwd=tree, phase=phase, task_id=task_id,
-                             log_path=os.path.join(task_dir, f'{phase}-{round_no}.json'),
-                             guard_log=ctx.guard_log())
-        rec.setdefault('_invocations', []).append(inv)
+    loop = run_fix_loop(
+        cfg=cfg, tree=tree, task_id=task_id, bug=bug, runner=ctx.runner,
+        build_prompt=build_prompt,
+        workflow_rel=workflow_rel, probe_rel=probe_rel,
+        probe_expected=probe_expected, related=related,
+        baseline_outcomes=baseline_outcomes, antioracles=antioracles,
+        # `reconcile_rounds` counts RECONCILES; the loop counts total rounds and
+        # round 0 is the fix. The +1 is what keeps a budget of n reconciles worth
+        # n+1 measured rounds, as it always has been.
+        max_rounds=max_rounds + 1, deadline=deadline,
+        log_dir=task_dir, guard_log=ctx.guard_log(),
+        snap_path=snap_path, attestation_rel=attestation_rel)
 
-        vr = verify.verify(cfg, tree, workflow_rel=workflow_rel, probe_rel=probe_rel,
-                           probe_expected=probe_expected, related_files=related,
-                           baseline_outcomes=baseline_outcomes,
-                           antioracles=antioracles)
-
-        rec['measured']['rounds'].append({
-            'round': round_no, 'green': vr.green, 'gates': dict(vr.gates),
-            'gate_seconds': dict(vr.durations),
-            'excused': list(vr.excused),
-            'failures': vr.failures, 'agent': inv.as_record(),
-        })
-
-        if best is None or _score(vr) > _score(best[1]):
-            best = (round_no, vr, workspace.snapshot(tree, f'best-{task_id}'))
-
-        if vr.green:
-            rec['measured']['rounds_to_green'] = round_no
-            break
-        if round_no >= max_rounds:
-            break
-        if time.time() > deadline:
-            rec['violations'].append({'kind': 'scratch_missing',
-                                      'detail': 'task wall-clock budget exhausted mid-loop',
-                                      'phase': phase, 'auto_reverted': False})
-            break
-        round_no += 1
+    rec['measured']['rounds'] = loop.rounds
+    rec.setdefault('_invocations', []).extend(loop.invocations)
+    vr = loop.last_verify
+    best = ((loop.best_round, loop.best_verify, loop.best_snapshot)
+            if loop.best_snapshot else None)
+    if loop.green:
+        rec['measured']['rounds_to_green'] = loop.rounds[-1]['round']
+    if loop.deadline_exceeded:
+        rec['violations'].append({'kind': 'scratch_missing',
+                                  'detail': 'task wall-clock budget exhausted mid-loop',
+                                  'phase': _phase_for_round(loop.rounds[-1]['round']),
+                                  'auto_reverted': False})
 
     rec['measured']['final_gates'] = {
         'typecheck': vr.gates.get('V1_typecheck', 'skipped'),
@@ -341,7 +528,7 @@ def run_task(bug: dict, index: int, ctx: TaskContext) -> dict:
         'probe_blocked': vr.gates.get('V3_probe_blocked', 'skipped'),
         'no_regression': vr.gates.get('V4_no_regression', 'skipped'),
     }
-    rec['attested'] = _normalise_attestation(_read_json(attestation_abs))
+    rec['attested'] = loop.attestation
 
     # ---- disposition ------------------------------------------------------
     if vr.green:
