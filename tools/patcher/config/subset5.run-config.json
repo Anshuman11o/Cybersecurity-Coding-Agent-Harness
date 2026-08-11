@@ -9,10 +9,24 @@
     "Launch detached, because the run outlives a session:",
     "  setsid nohup python3 tools/patcher/src/run_patcher_v3.py --config tools/patcher/config/subset5.run-config.json > run.log 2>&1 &",
     "If it dies, --resume continues from the last completed phase.",
-    "Paths may be absolute or relative to the repository root."
+    "Paths may be absolute or relative to the repository root.",
+
+    "SECOND RUN OF THIS SUBSET. The first (run_id patch-run-subset-05, 2026-08-11)",
+    "ran before the fix phase was wired to task_loop.run_fix_loop, so its fix phase",
+    "spent one invocation per task, ran no orchestrator gate, and recorded 9 of 10",
+    "dispositions as `attested`. This run is the first with a MEASURED fix phase.",
+    "Do not read the two rows as one trend: what changed is what produced the",
+    "numbers, not the patcher."
   ],
 
-  "run_id": "patch-run-subset-05",
+  "run_id": "patch-run-subset-05-r2",
+  "_comment_run_id": [
+    "NOT `patch-run-subset-05`. archive_run.append_row refuses a run_id already in",
+    "results/eval-history/patcher.jsonl unless it carries --rescore-of, and that",
+    "file already holds two rows under the first id. This is a new run, not a",
+    "rescore of the old one, so it takes a new id rather than a false flag.",
+    "outputs.run_dir templates {run_id}, so the run store separates by itself."
+  ],
 
   "inputs": {
     "bug_report": "tools/patcher/inputs/subset5/bug-report.json",
@@ -29,13 +43,17 @@
 
   "target": {
     "base_tree": "/home/user/patcher-work/base/juice-shop-blind",
-    "work_tree": "/home/user/patcher-work/subset5/trunk",
+    "work_tree": "/home/user/patcher-work/subset5-r2/trunk",
     "node_modules": "/home/user/patcher-work/node_modules",
     "_comment": [
       "work_tree is the v3 TRUNK: the integration tree every accepted chunk merges",
       "into. Each chunk also gets its own tree, seeded from the trunk, under",
       "<trunk>/../v3-chunk-trees/<chunk_id> unless trees_root says otherwise.",
-      "Subset-scoped so a subset-4 tree and a subset-5 tree can exist side by side.",
+      "RUN-scoped, not subset-scoped, from this run on. There are now two runs of",
+      "subset 5, and the sighted scoring pass identifies the delivered tree by",
+      "hashing it against the run's own tree_digest_end -- so two runs sharing one",
+      "trunk path is how a scorer ends up measuring the wrong tree. The first run's",
+      "trunk was /home/user/patcher-work/subset5/trunk; this one does not touch it.",
       "node_modules is the shared install, symlinked in: it must not appear in the",
       "diff or the tree hash."
     ]
@@ -72,7 +90,8 @@
     "reconcile_rounds": 4,
     "reuse_characterisation": false,
     "cost_ceiling_usd": 120.0,
-    "chunk_timeout_s": 10800,
+    "max_task_wall_s": 5400,
+    "chunk_timeout_s": 28800,
     "_comment": [
       "There is no `execution`, `task_granularity` or `task_concurrency` here. v3 has",
       "no execution mode: tasks are one per bug by construction, and parallelism is",
@@ -105,19 +124,31 @@
       "figure. Hitting it is not a lost run: the check runs before each task,",
       "remaining tasks are recorded unreached, and the phase checkpoint survives.",
 
-      "chunk_timeout_s 10800 (3h) bounds the largest chunk, C01, which holds 5 tasks.",
-      "RE-CHECK THIS BEFORE THE RUN. The figure was sized when a task cost 2",
-      "invocations; with the loop enforced a task costs 1 characterise plus up to 5",
-      "fix rounds, and each round also pays for a gate suite -- typecheck, workflow",
-      "test, probe and regression net -- that the orchestrator runs against the tree.",
-      "Subset 4 averaged ~600s per invocation and 79s of gates across the WHOLE run,",
-      "because its gates ran once per unit; here they run once per round per task.",
-      "C01's worst case is therefore 5 tasks x 6 invocations plus 25 gate suites, far",
-      "beyond 3h, and this timeout will stop the chunk between tasks rather than let",
-      "it finish. Either raise it or accept that C01's later tasks may be recorded",
-      "unreached. Checked BEFORE each task, so it stops a chunk taking new work rather",
-      "than interrupting an invocation in flight -- agent.timeout_s bounds one",
-      "invocation."
+      "max_task_wall_s 5400 is STATED rather than inherited. It was unset before,",
+      "and task_loop/dispatcher both default it to 5400 -- so the previous run",
+      "recorded no task wall budget anywhere, which is one of the five defects in",
+      "force against its row: it cannot be reproduced at the same budget and a later",
+      "run at a different one is not a controlled comparison. The value is unchanged;",
+      "only the silence is. It bounds one TASK and is checked after a completed",
+      "round, so a task always gets round 0 and is stopped between rounds, never",
+      "mid-invocation. At ~600s per invocation plus ~250s of gates per round, one",
+      "characterise plus 5 fix rounds plus the baseline sweep lands just inside it.",
+
+      "chunk_timeout_s RAISED from 10800 (3h) to 28800 (8h) for this run. 3h was",
+      "sized when a task cost 2 invocations and ran no gates. With the loop enforced",
+      "a task costs 1 characterise plus up to 5 fix rounds, and every round also pays",
+      "for a gate suite -- typecheck, workflow test, probe, regression net -- run by",
+      "the orchestrator. Subset 4 averaged ~600s per invocation and 79s of gates",
+      "across the WHOLE run because its gates ran once per unit; here they run once",
+      "per round per task. At 3h the largest chunk, C01 (5 tasks), would have been",
+      "stopped between tasks after roughly three of them, and its remaining bugs",
+      "recorded `blocked` -- guaranteed non-fixes taken straight out of the",
+      "denominator, which is the failure mode the map validation refuses at plan time",
+      "and which reappears at runtime if this number is wrong. 28800 = 5 tasks x",
+      "max_task_wall_s 5400 plus headroom, so C01's whole task budget is spendable",
+      "and cost_ceiling_usd becomes the binding stop, which is what the runbook asks",
+      "for. Checked BEFORE each task, so it stops a chunk taking new work rather than",
+      "interrupting an invocation in flight -- agent.timeout_s bounds one invocation."
     ]
   },
 
