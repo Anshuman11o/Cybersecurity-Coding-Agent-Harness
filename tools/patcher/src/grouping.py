@@ -102,8 +102,6 @@ def group(bugs: list, granularity: str = 'bug') -> list:
             'location': {'file': path, 'line': primary['location']['line']},
             'owasp': _merged_owasp(members),
             'class': _merged_class(members),
-            'vulnerability': None,      # per-member text is rendered from members
-            'reproduction': None,
             'members': members,
             'member_bug_ids': [b['bug_id'] for b in members],
         })

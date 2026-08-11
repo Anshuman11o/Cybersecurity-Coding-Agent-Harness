@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness/tools/patcher/contracts/bug-report.schema.json",
   "title": "Patcher input — bug report",
-  "description": "The finding set handed to the remediation agent. Stipulated 100% accurate: every entry is a real defect and there are no false positives, so the agent spends no effort on triage. BLIND-SAFE BY CONSTRUCTION: the forbidden-key list below is enforced by tools/patcher/src/blind_guard.py before any prompt is built, and a report carrying any of those keys fails the run rather than being dispatched.",
+  "description": "The finding set handed to the remediation agent. Stipulated 100% accurate: every entry is a real defect and there are no false positives, so the agent spends no effort on triage. AN ENTRY LOCALISES A DEFECT AND CLASSIFIES IT — file, line, OWASP codes, class, playbook ref — AND SAYS NOTHING ELSE. The prose fields `vulnerability` and `reproduction` were removed on 2026-08-10: the agent's own task loop already requires it to characterise the code path and build a probe from the source, and prose describing what is wrong or how to trigger it does part of that work for it. BLIND-SAFE BY CONSTRUCTION: additionalProperties:false plus the forbidden-key list below are enforced by tools/patcher/src/blind_guard.py before any prompt is built, and a report carrying an off-contract field fails the run rather than being dispatched.",
 
   "type": "object",
   "required": ["report_id", "target_dir", "bugs"],
@@ -52,6 +52,7 @@
   "definitions": {
     "bug": {
       "type": "object",
+      "description": "One confirmed defect: where it is and what class it belongs to. additionalProperties is false and is load-bearing — blind_guard reads this property list and refuses any entry carrying a field that is not in it, naming the field and the bug id at preflight. That is what stops a generator reintroducing `vulnerability`, `reproduction`, or a renamed carrier for the same prose.",
       "required": ["bug_id", "location", "owasp", "class"],
       "additionalProperties": false,
       "properties": {
@@ -102,14 +103,6 @@
           "type": "string",
           "minLength": 1,
           "description": "Human-readable vulnerability class, e.g. 'Injection / SQL'. Used to select the playbook section."
-        },
-        "vulnerability": {
-          "type": ["string", "null"],
-          "description": "What is wrong, in prose. MUST NOT contain the correct fix, a patch, a diff, or an oracle test title — blind_guard scans this field."
-        },
-        "reproduction": {
-          "type": ["string", "null"],
-          "description": "How the defect is exercised, in prose. Seeds phase 1's exploit probe. A request shape is fine; an oracle assertion is not."
         },
         "playbook_ref": {
           "type": ["string", "null"],

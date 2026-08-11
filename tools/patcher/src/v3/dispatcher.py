@@ -320,9 +320,9 @@ def assignments(cmap, bugs, playbook=None) -> list:
     """One Assignment per chunk, in the map's deterministic chunk order.
 
     A task carries the bug dict from the REPORT, not the summary in the map. The
-    map holds file and line so it can be validated offline; the prose the agent
-    needs -- the vulnerability, the reproduction, the class -- only exists in the
-    report, and duplicating it into a checked-in artefact would create two
+    map holds file and line so it can be validated offline; the rest of what the
+    agent is given -- the OWASP codes, the class, the playbook ref -- only exists
+    in the report, and duplicating it into a checked-in artefact would create two
     statements of the same fact that can drift.
     """
     by_id = {b.get('bug_id'): b for b in (bugs or [])}

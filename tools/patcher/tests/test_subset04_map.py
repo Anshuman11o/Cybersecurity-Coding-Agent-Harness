@@ -220,4 +220,13 @@ def test_run_config_matches_the_map(chunk_map):
     assert cfg['loop']['task_granularity'] == 'file'
     assert cfg['loop']['gate_concurrency'] is None
     assert cfg['inputs']['bug_report'] == chunk_map['generated_from']['bug_report']
-    assert cfg['target']['base_tree'] == chunk_map['generated_from']['tree']
+    # Same target app, not necessarily the same path. The map is generated from the
+    # in-repo checkout; a run needs a BUILT tree (preflight requires build/server.js
+    # and the Angular bundle), and building inside the repo checkout would put build
+    # artefacts in the pristine base every run is copied from. So the run points at a
+    # built copy outside the repo whose source is byte-identical. The invariant that
+    # still has to hold is that both name the same application.
+    assert (os.path.basename(cfg['target']['base_tree'].rstrip('/'))
+            == os.path.basename(chunk_map['generated_from']['tree'].rstrip('/'))), (
+        f"config base_tree {cfg['target']['base_tree']!r} and map tree "
+        f"{chunk_map['generated_from']['tree']!r} are different applications")

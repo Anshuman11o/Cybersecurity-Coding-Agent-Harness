@@ -6,7 +6,10 @@ Append-only JSONL, one line per evaluated run. Everything else in this directory
 is derived from it.
 
 - `scanner.jsonl` — runs of this harness's own scanner
-- `patcher.jsonl` — runs of the patcher (v1 task loop, v2 waves, v3 chunks)
+- `patcher.jsonl` — runs of the patcher. Aggregate only: no challenge identifier,
+  and no pairing of a bug id or a file with a found/not-found outcome. The
+  readable companion is `docs/patcher/RUN-HISTORY.md`; the located per-case
+  evidence lives in the answer-key repo, never here.
 - `external-baseline.jsonl` — the third-party tool comparison (frozen)
 
 Rows are **aggregate only**. A patcher row in particular is written by

@@ -85,15 +85,15 @@ def _map_doc() -> dict:
 
 BUGS = [
     {'bug_id': 'BUG-001', 'location': {'file': 'lib/a.ts', 'line': 1},
-     'class': 'Crypto', 'playbook_ref': 'a02-crypto', 'vulnerability': 'weak hash'},
+     'class': 'Crypto', 'playbook_ref': 'a02-crypto'},
     {'bug_id': 'BUG-002', 'location': {'file': 'lib/a.ts', 'line': 7},
-     'class': 'Crypto', 'playbook_ref': 'a02-crypto', 'vulnerability': 'weak salt'},
+     'class': 'Crypto', 'playbook_ref': 'a02-crypto'},
     {'bug_id': 'BUG-003', 'location': {'file': 'lib/b.ts', 'line': 1},
-     'class': 'AuthZ', 'playbook_ref': 'a01-access', 'vulnerability': 'missing check'},
+     'class': 'AuthZ', 'playbook_ref': 'a01-access'},
     {'bug_id': 'BUG-004', 'location': {'file': 'frontend/src/f.ts', 'line': 1},
-     'class': 'XSS', 'playbook_ref': 'a03-xss', 'vulnerability': 'unescaped'},
+     'class': 'XSS', 'playbook_ref': 'a03-xss'},
     {'bug_id': 'BUG-005', 'location': {'file': 'routes/c.ts', 'line': 1},
-     'class': 'Injection', 'playbook_ref': 'a03-injection', 'vulnerability': 'concat'},
+     'class': 'Injection', 'playbook_ref': 'a03-injection'},
 ]
 
 STEP = re.compile(r'## This step: (\w+) bug (\S+) \(([^:]+):')

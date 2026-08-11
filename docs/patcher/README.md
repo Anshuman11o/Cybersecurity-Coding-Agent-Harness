@@ -78,6 +78,55 @@ Residual, not closed: a broad content search over the whole tree
 (`grep -r <ordinary term> .`) can still surface lines *from* those files in its
 output. The path deny does not see it, because no denylisted path is named.
 
+## What the bug report may carry (narrowed 2026-08-10)
+
+A bug-report entry now carries exactly five things:
+
+- `bug_id`
+- `location` — file and line (plus optional `end_line` and `symbol`)
+- `owasp` — the codes, capped at three
+- `class` — the human-readable vulnerability class
+- `playbook_ref`
+
+It no longer carries the two prose fields it used to: `vulnerability` (what is
+wrong) and `reproduction` (how it is exercised). Both were removed from every
+shipped report, from the contract, and from the rendered prompt.
+
+**Why.** The agent's own task loop already requires it to characterise the code
+path and build an exploit probe from the source, and it is handed the exact file,
+the exact line and the vulnerability class. Prose describing the defect and how
+to trigger it did part of that work for it: it hints at the fix and hands over
+the probe's shape. A narrower report makes the task harder and the result more
+honest. Nothing was added to compensate — working from file, line and class alone
+is the point.
+
+Enforced in three places, so the narrowing is structural rather than a one-off
+edit to the input files:
+
+- `tools/patcher/contracts/bug-report.schema.json` — the two fields are gone from
+  `definitions.bug.properties`, and that object is closed
+  (`additionalProperties: false`).
+- `tools/patcher/src/blind_guard.py` — `validate_bug_report` refuses an entry
+  carrying either field, naming the field and the bug id, at preflight before
+  anything is spent. It reads its allowed-key set from the schema, so any
+  off-contract field — including a renamed carrier for the same prose — fails the
+  same way, and the schema stays the single statement of what an entry may carry.
+- `tools/patcher/src/prompts.py` — `_fmt_bug()` renders location and class only.
+  A report that somehow reached it carrying the old fields would still not print
+  them.
+
+**Refused, not stripped.** The forbidden-key scrub removes a stray key and
+records it; these are different. A report still emitting them is a generator
+nobody has fixed, and trimming it silently would let every later run measure
+something narrower than its input claimed while nothing said so.
+
+**Not closed: the generator.** The tool that produces these reports lives outside
+this repository and was not touched. The harness therefore *refuses* a wide
+report; it does not stop one being emitted. Until the generator is given the same
+treatment, a freshly generated report will fail preflight — which is the intended
+failure, but it is a failure someone has to act on rather than a state that
+maintains itself.
+
 ## Contracts are mirrors
 
 `contracts/*.schema.json` are copies. The authoritative versions live with the

@@ -81,7 +81,7 @@
   },
 
   "policy": {
-    "on_exhausted": "revert",
+    "on_exhausted": "keep_best",
     "require_probe": false,
     "regression_net": "related",
     "final_full_suite": true,

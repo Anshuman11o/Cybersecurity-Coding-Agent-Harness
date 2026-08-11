@@ -130,6 +130,33 @@ def _deny_sets(schema: dict):
     return keys, pats
 
 
+# The two prose fields the report used to carry. Removed from the contract on
+# 2026-08-10: the agent is told to build its own workflow test and probe from the
+# file, the line and the class, and prose describing what is wrong or how to
+# trigger it does part of that work for it. A report that still carries them is
+# refused rather than trimmed -- trimming would let a generator go on emitting
+# them while every run silently measured something narrower than the input
+# claimed. See docs/patcher/README.md.
+WITHHELD_BUG_KEYS = ('vulnerability', 'reproduction')
+
+
+def _allowed_bug_keys() -> set:
+    """The bug-entry keys the contract permits, read from the schema.
+
+    Read rather than re-listed so the schema stays the single statement of what
+    an entry may carry; `additionalProperties: false` on that object is what this
+    turns into a preflight failure with a field name and a bug id, instead of a
+    JSON Pointer nobody reads.
+    """
+    try:
+        bug = _load_schema('bug-report.schema.json')['definitions']['bug']
+        if bug.get('additionalProperties') is False:
+            return set(bug.get('properties') or {})
+    except Exception:                                            # noqa: BLE001
+        pass
+    return set()
+
+
 # ----------------------------------------------------------------------------
 # Recursive scrub
 # ----------------------------------------------------------------------------
@@ -198,6 +225,7 @@ def validate_bug_report(doc: dict) -> list:
         # A silent count drift has cost this project a run before.
         e.append(f'bug_count says {doc["bug_count"]}, bugs[] holds {len(bugs)}')
 
+    allowed = _allowed_bug_keys()
     seen = set()
     for i, b in enumerate(bugs):
         at = f'bugs[{i}]'
@@ -206,6 +234,31 @@ def validate_bug_report(doc: dict) -> list:
             continue
 
         bid = b.get('bug_id')
+        named = bid if isinstance(bid, str) and bid else at
+
+        # Loud, and before anything is spent -- the same treatment the seed
+        # denylist gets below, and for the same reason: the material reaches the
+        # model inside the prompt, where no runtime hook can intercept it.
+        for key in WITHHELD_BUG_KEYS:
+            if key in b:
+                e.append(
+                    f'{at}.{key}: bug {named} carries {key!r}, which the bug-report '
+                    'contract no longer permits. The agent is given the file, the '
+                    'line and the vulnerability class, and builds its own '
+                    'characterisation from the source; prose saying what is wrong or '
+                    'how to exercise it does that work for it and makes the result '
+                    'less honest. Drop the field at the generator -- it is not '
+                    'stripped here, because a report that still emits it is a '
+                    'generator nobody has fixed.')
+        # Anything else off-contract is refused too, so a renamed carrier for the
+        # same prose cannot walk in through a field the schema never allowed.
+        if allowed:
+            for key in sorted(set(b) - allowed - set(WITHHELD_BUG_KEYS)):
+                e.append(f'{at}.{key}: bug {named} carries {key!r}, which is not in '
+                         'the bug-report contract (contracts/bug-report.schema.json, '
+                         'definitions.bug). Add it to the schema deliberately or drop '
+                         'it at the generator.')
+
         if not isinstance(bid, str) or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', bid or ''):
             e.append(f'{at}.bug_id: missing or not a safe identifier '
                      '(it becomes a directory name)')

@@ -34,8 +34,6 @@
     }
    ],
    "class": "Broken Authentication / Cryptographic Failure",
-   "vulnerability": "Originally verified in routes/login.ts by checking whether the admin account could be authenticated with the well-known weak password 'admin123' -- made feasible because passwords are hashed with unsalted MD5.",
-   "reproduction": "POST /rest/user/login with email=admin@<domain> and password=admin123 and confirm successful authentication.",
    "playbook_ref": "crypto-and-encoding"
   },
   {
@@ -62,8 +60,6 @@
     }
    ],
    "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
-   "vulnerability": "Session tokens are verified by a call that is handed only the token and a key, with no permitted-algorithm list. The algorithm named in the token's own header therefore decides how the token is checked. Because the key the server verifies with is a public one, a caller can present a token whose header declares a symmetric algorithm and have that public key used as the shared secret -- material the caller already has -- so a token the server never issued verifies as genuine.",
-   "reproduction": "Obtain the application's public verification key. Build a token whose header names a symmetric algorithm such as HS256 and whose payload identifies an existing account, and sign it using the public key bytes as the HMAC secret. Present it as the session token on an authenticated endpoint and observe the request served as that account.",
    "playbook_ref": "jwt-verification"
   },
   {
@@ -90,8 +86,6 @@
     }
    ],
    "class": "Identification and Authentication Failures / JWT Algorithm Confusion",
-   "vulnerability": "The same token verification accepts whatever algorithm the token's header declares, including the \"none\" algorithm, which asserts that the token is unsigned. A token carrying that header and an empty signature segment is accepted, so its payload can be written freely by the caller and is trusted as an authenticated identity.",
-   "reproduction": "Construct a token whose header sets the algorithm to \"none\", whose payload identifies an existing account, and whose signature segment is empty. Send it as the session token on an authenticated endpoint and observe the request served as that account.",
    "playbook_ref": "jwt-verification"
   },
   {
@@ -108,8 +102,6 @@
     }
    ],
    "class": "Server-Side Request Forgery / Open Redirect",
-   "vulnerability": "The redirect allow-list is enforced by testing whether the requested URL contains an allow-listed URL anywhere within it. Containment is not identity: a URL pointing at an entirely unrelated host satisfies the test as long as an allow-listed string appears somewhere in it, including inside a query string or fragment the destination host ignores. The check therefore admits destinations the allow-list was written to exclude.",
-   "reproduction": "Call the redirect endpoint with a target URL whose host is one you control and which carries an allow-listed URL as a substring -- appended as a query parameter, for example. Observe the application issue a redirect to your host rather than rejecting the request.",
    "playbook_ref": "open-redirect"
   },
   {
@@ -126,8 +118,6 @@
     }
    ],
    "class": "Insecure Design / Missing Input Validation",
-   "vulnerability": "The feedback rating column is declared non-null but carries no bound on its value, and its setter stores whatever it is handed without inspecting it. A rating outside the range the product offers -- zero, or a negative number -- is persisted and later returned and aggregated as though it were a rating a user could have given.",
-   "reproduction": "POST feedback with a rating of 0, or a negative number, through the API. Read the feedback back and observe the out-of-range value stored and returned rather than rejected.",
    "playbook_ref": "input-validation-design"
   },
   {
@@ -144,8 +134,6 @@
     }
    ],
    "class": "Security Misconfiguration / Information Exposure",
-   "vulnerability": "The metrics handler serialises the entire telemetry register into the response body and is mounted without any authentication or authorization in front of it. Operational internals -- process and runtime counters, per-endpoint request volumes, the deployed version, and application-specific gauges -- are readable by any anonymous caller.",
-   "reproduction": "GET the metrics endpoint with no session token and observe a 200 carrying the full metrics exposition, including the version gauge and per-endpoint counters.",
    "playbook_ref": "information-exposure"
   },
   {
@@ -162,8 +150,6 @@
     }
    ],
    "class": "Broken Access Control / CSRF",
-   "vulnerability": "The profile-update handler identifies the caller solely from the session token cookie and then performs a state change on that account, with no anti-CSRF token and no check on the request's origin. Any third-party page loaded in a logged-in user's browser can submit the request cross-site and have it accepted on the victim's ambient credentials.",
-   "reproduction": "From an origin unrelated to the application, submit a form POST to the profile-update endpoint carrying a username field while the victim's session cookie is present, and observe the change applied to the victim's account.",
    "playbook_ref": "csrf"
   },
   {
@@ -180,8 +166,6 @@
     }
    ],
    "class": "Security Misconfiguration / Improper Input Handling",
-   "vulnerability": "The uploads directory is mounted for static serving with only a challenge-observation middleware in front of it, which inspects requests and performs no authorization. Every file the directory holds is therefore retrievable by anyone who can name its path, including files whose names contain characters that must be percent-encoded to be requested and which are consequently absent from any listing the application links to.",
-   "reproduction": "Request a file directly under the uploads path with no session token, percent-encoding the characters in its name that require it, and observe the file returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -198,8 +182,6 @@
     }
    ],
    "class": "Security Misconfiguration / Sensitive File Exposure",
-   "vulnerability": "The translation asset directory is mounted for static serving with no authorization in front of it, so every file it contains is retrievable by path. That includes translation files for languages the application does not offer in its language selector, which are shipped in the directory but never linked from the interface.",
-   "reproduction": "Request a translation file under the i18n asset path whose language the application's selector does not offer, with no session token, and observe the file returned.",
    "playbook_ref": "path-and-filename-validation"
   },
   {
@@ -216,8 +198,6 @@
     }
    ],
    "class": "Security Misconfiguration / Verbose Error Messages",
-   "vulnerability": "The final error middleware in the chain is a development-time handler that renders the caught exception into the response: the message, the full stack frames, and the surrounding source lines. It is registered unconditionally, so any unhandled server-side error discloses internal file paths, framework versions and application source to the caller who triggered it.",
-   "reproduction": "Trigger an unhandled server-side error -- for example by calling an endpoint with a path parameter of a type it cannot process -- and observe the response body containing a stack trace with absolute file paths and source excerpts rather than a generic error.",
    "playbook_ref": "information-exposure"
   }
  ]
