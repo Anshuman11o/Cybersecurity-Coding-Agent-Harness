@@ -183,16 +183,19 @@ diff, nothing else.
 | `abandoned` | attested `fixed` but changed nothing; or reported `not_fixed` and changed nothing; or its chunk was rejected at the merge queue | **measured** |
 | `fixed` | attested fixed **and** its own probe demonstrated the defect pre-fix | attested |
 | `fixed_workflow_only` | attested fixed but the probe never proved the defect — including every reused-oracle task | attested |
+| `fixed_workflow_red` | as `fixed`, but `attestation.json → workflow_red` lists workflow assertions the agent left failing. Reporting only: no gate, no revert, no adjudication of its anti-oracle claims | attested |
 | `partial` | reported `not_fixed`, work retained | attested |
 | `already_remediated` | probe won't fire **and** an earlier task in this chunk already changed this `file:line` **and** `reused_from is None` | attested |
 | `blocked` | no characterisation after retries, or the chunk stopped before this task | measured |
 
-`fixed` and `fixed_workflow_only` are **counted in separate buckets and never
-summed**, at task, chunk, phase and run level.
+`fixed`, `fixed_workflow_only` and `fixed_workflow_red` are **counted in separate
+buckets and never summed**, at task, chunk, phase and run level.
 
 `attestation_delta` records the agent's claim against what the dispatcher could
 see — `overclaim` when it said fixed and the disposition disagrees — and is
-**recorded, never used to alter the disposition**.
+**recorded, never used to alter the disposition**. `fixed_workflow_red` is not an
+overclaim: it is derived from the agent's own report, so nothing contradicted the
+claim and no delta is written.
 
 **Note the interaction that decides subset 5's numbers:** `already_remediated`
 requires `reused_from is None`. With reuse on, the second and later bugs in a

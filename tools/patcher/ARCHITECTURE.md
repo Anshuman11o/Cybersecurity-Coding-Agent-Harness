@@ -79,15 +79,25 @@ Terminal dispositions, and nothing else is permitted:
 |---|---|---|
 | `fixed` | every gate passed | patched |
 | `fixed_workflow_only` | axis B green, probe never reached `PROVEN` so axis A is unverified in-sandbox | patched |
+| `fixed_workflow_red` | axis A attested closed, but the agent listed workflow assertions it left failing in `attestation.json → workflow_red`. Reporting only: no gate, no revert | patched |
 | `already_remediated` | probe could not be proven **and** an earlier task edited the same location — the fix landed upstream in this run | unchanged by this task |
 | `abandoned` | reconcile budget exhausted, both axes unsatisfiable | reverted (default policy) |
 | `partial` | budget exhausted, best round retained | patched, flagged |
 | `agent_failed` | the runtime failed (timeout, unparseable output, rate limit past max wait) | reverted |
 | `blocked` | a gate could not be evaluated at all (typecheck harness broken, tree unbuildable) | reverted |
 
-`fixed` and `fixed_workflow_only` are reported separately and never summed into
-one "fixed" count. Folding them would be exactly the "false confidence" failure
-`docs/patcher/EVAL-METRICS.md` exists to catch.
+`fixed`, `fixed_workflow_only` and `fixed_workflow_red` are reported separately
+and never summed into one "fixed" count. Folding them would be exactly the "false
+confidence" failure `docs/patcher/EVAL-METRICS.md` exists to catch.
+
+`fixed_workflow_red` exists because the alternative was silence. An agent that
+closes a vulnerability and leaves a workflow assertion failing may be right —
+that assertion may encode the vulnerable behaviour itself — but the justification
+used to live in free-text `residual_risk`, which nothing parses, so the record
+read as a clean `fixed` and the difference surfaced only if a human read the
+transcript. The claim is now structural (`workflow_red`, `antioracle_claims`),
+and it is **recorded, not adjudicated**: nothing accepts or rejects it, no gate
+turns on it, and the tree still merges.
 
 ---
 

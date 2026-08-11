@@ -70,15 +70,24 @@ put a self-report into a column that reads as evidence.
 |---|---|---|
 | `fixed` | the agent attested a fix, its probe demonstrated the defect before the change, and the task changed at least one source file | **attested** |
 | `fixed_workflow_only` | the agent attested a fix but the probe never reached `PROVEN`, **or** the oracle was reused from another bug in the file and so does not exercise this defect | **attested** |
+| `fixed_workflow_red` | as `fixed`, except the agent's `attestation.json` listed workflow assertions it left failing in `workflow_red`. Reporting only — the dispatcher runs no test, adjudicates no anti-oracle claim, and does not revert | **attested** |
 | `already_remediated` | the probe would not fire and an earlier task in the same chunk already changed that `file:line`. Closes with no fix phase, exactly as §③ G2 says | **attested** |
 | `partial` | the agent reported `not_fixed` and its work is retained | **attested** |
 | `abandoned` | the agent reported `not_fixed` and changed nothing; **or** attested a fix and changed nothing; **or** its chunk's submission was rejected at the merge queue and rolled back, so no part of it reached the trunk | **measured** in the second and third cases |
 | `agent_failed` | the fix invocation did not return, or returned and wrote no parseable `attestation.json` — its contract's only durable output. Edits reverted | **measured** |
 | `blocked` | no workflow record on disk after the characterise retries; or the chunk stopped (cost ceiling, timeout, crash) before this task was reached | **measured** |
 
-`fixed` and `fixed_workflow_only` are counted in separate buckets at task, chunk,
-phase and run level and are never summed — the same rule `report.py` encodes, for
-the same reason.
+`fixed`, `fixed_workflow_only` and `fixed_workflow_red` are counted in separate
+buckets at task, chunk, phase and run level and are never summed — the same rule
+`report.py` encodes, for the same reason. `fixed_workflow_red` in particular is
+the one case where the disposition records a fact the orchestrator cannot check:
+whether the red assertion encoded the vulnerable behaviour or the fix broke the
+feature. Keeping it in its own bucket is what makes the question askable later;
+summing it into `fixed` is what made it invisible before.
+
+`workflow_red` entries and `antioracle_claims` name test files, so they are
+per-task record material only. The published aggregate row carries the
+disposition **count**, under a name that locates nothing.
 
 **Bug-wise tasks make `already_remediated` common rather than exotic.** A chunk
 *is* a set of files and their bugs, so a later bug at a location an earlier fix

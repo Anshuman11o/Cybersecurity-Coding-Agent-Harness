@@ -4,10 +4,13 @@ Task records -> `patcher-report.json`, one of the run's two outputs.
 
 Reporting rules this module encodes rather than leaves to whoever reads it:
 
-- `fixed` and `fixed_workflow_only` are never summed. The second means the agent
-  could not demonstrate the defect in its own sandbox, so the remediation axis
-  is unverified; folding it in is the false-confidence failure the eval exists
-  to catch.
+- `fixed`, `fixed_workflow_only` and `fixed_workflow_red` are never summed.
+  `fixed_workflow_only` means the agent could not demonstrate the defect in its
+  own sandbox, so the remediation axis is unverified. `fixed_workflow_red` means
+  it submitted over a workflow assertion it left failing, and nothing here can
+  say whether that assertion encoded the vulnerable behaviour or the fix broke
+  the feature. Folding either into `fixed` is the false-confidence failure the
+  eval exists to catch.
 - Every rate is emitted with its denominator. A percentage without one is not
   comparable across runs.
 - `rounds_to_green` is a distribution, not a mean. The mean hides the tail, and
@@ -24,8 +27,9 @@ import os
 import statistics
 import time
 
-DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'already_remediated', 'abandoned',
-                'partial', 'agent_failed', 'blocked')
+DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'fixed_workflow_red',
+                'already_remediated', 'abandoned', 'partial', 'agent_failed',
+                'blocked')
 
 
 def _pct(num, den):
@@ -99,7 +103,14 @@ def aggregate(records, *, run_meta, blind_audit, agent_desc,
         deleters += 1 if ds.get('net_deletion') else 0
 
     claimed = [r for r in records if (r.get('attested') or {}).get('status') == 'fixed']
-    green_set = {'fixed', 'fixed_workflow_only'}
+    # Calibration only -- this set answers "did the disposition AGREE with the
+    # claim", not "how many succeeded". `fixed_workflow_red` is here for the same
+    # reason the dispatcher records no `attestation_delta` for it: that disposition
+    # is derived from the agent's own report, so nothing contradicted the claim and
+    # counting it as `claimed_fixed_but_gates_red` would put a disagreement in the
+    # record where there was none. It is still absent from every success total
+    # below -- `dispositions` keeps it as its own key and nothing sums it.
+    green_set = {'fixed', 'fixed_workflow_only', 'fixed_workflow_red'}
     claimed_green = sum(1 for r in claimed if r.get('disposition') in green_set)
     claimed_red = len(claimed) - claimed_green
     underclaim = sum(1 for r in records
@@ -235,6 +246,7 @@ def render_summary(report: dict) -> str:
         'DISPOSITIONS',
         f"  fixed (both axes verified in-sandbox) : {d['fixed']}",
         f"  fixed, remediation axis unverified    : {d['fixed_workflow_only']}",
+        f"  fixed, workflow left red (attested)   : {d.get('fixed_workflow_red', 0)}",
         f"  already closed by an earlier task     : {d['already_remediated']}",
         f"  kept but gates red (partial)          : {d['partial']}",
         f"  abandoned, reverted                   : {d['abandoned']}",

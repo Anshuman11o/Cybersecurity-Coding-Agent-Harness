@@ -29,13 +29,14 @@
       "enum": [
         "fixed",
         "fixed_workflow_only",
+        "fixed_workflow_red",
         "already_remediated",
         "abandoned",
         "partial",
         "agent_failed",
         "blocked"
       ],
-      "description": "Terminal state. `fixed` and `fixed_workflow_only` are never summed into one bucket: the second means the agent could not demonstrate the vulnerability in its own sandbox, so axis A is unverified."
+      "description": "Terminal state. `fixed`, `fixed_workflow_only` and `fixed_workflow_red` are never summed into one bucket. `fixed_workflow_only` means the agent could not demonstrate the vulnerability in its own sandbox, so axis A is unverified. `fixed_workflow_red` means it attested a fix while leaving a workflow assertion failing, so axis B is contested: nothing here can tell an assertion that encoded the vulnerable behaviour from a fix that broke the feature."
     },
     "disposition_reason": {
       "type": ["string", "null"],
@@ -150,6 +151,24 @@
         "why_it_closes_the_path": { "type": ["string", "null"] },
         "why_the_workflow_still_works": { "type": ["string", "null"] },
         "residual_risk": { "type": ["string", "null"] },
+        "workflow_red": {
+          "type": "array",
+          "description": "Workflow assertions the agent left failing, as `<test file> :: <it() title>`. Empty means the agent claims the workflow test is green — silence is a claim, not an absence of one. Located material: it names test files, so it stays in the per-task record and never reaches a published aggregate row.",
+          "items": { "type": "string" }
+        },
+        "antioracle_claims": {
+          "type": "array",
+          "description": "The subset of `workflow_red` the agent believes asserts the vulnerable behaviour itself. Recorded verbatim and never adjudicated here; the orchestrator runs no test.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "test": { "type": ["string", "null"] },
+              "it_title": { "type": ["string", "null"] },
+              "why": { "type": ["string", "null"] }
+            }
+          }
+        },
         "rounds_used": { "type": ["integer", "null"] }
       }
     },

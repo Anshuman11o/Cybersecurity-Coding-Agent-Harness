@@ -79,9 +79,17 @@ FORBIDDEN_VALUE_PATTERNS = (
 )
 
 # Key names that carry located material by construction.
+#
+# `workflow_red` and `antioracle_claims` are here for the same reason as the
+# rest: their entries are "<test file> :: <it() title>" and {test, it_title, why},
+# so every one of them names a test file, and an anti-oracle claim additionally
+# pairs that file with a defect the agent believes it was asserting. Only the
+# per-task record may hold them. The published row carries the disposition
+# HISTOGRAM -- a count under the bare name `fixed_workflow_red`, which locates
+# nothing -- and never the lists behind it.
 FORBIDDEN_KEYS = ('tasks', 'per_case', 'bug_id', 'bugs', 'location', 'line',
                   'file', 'files', 'challenge', 'challenge_key', 'it_title',
-                  'test_title')
+                  'test_title', 'workflow_red', 'antioracle_claims')
 
 
 class ArchiveError(RuntimeError):

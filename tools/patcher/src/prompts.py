@@ -344,9 +344,24 @@ Write `{attestation_path}`:
   "why_it_closes_the_path": "one or two sentences — the mechanism, not the intention",
   "why_the_workflow_still_works": "one or two sentences",
   "residual_risk": "what you could not close, or null",
+  "workflow_red": ["<test file> :: <it() title>"],
+  "antioracle_claims": [
+    {{"test": "<test file>", "it_title": "<exact it() title>",
+      "why": "why this assertion encodes the vulnerable behaviour rather than
+              legitimate behaviour"}}
+  ],
   "rounds_used": {round}
 }}
 ```
+
+`workflow_red` is the list of workflow assertions still failing when you finish;
+leave it `[]` if the workflow test is fully green. Silence is a claim of green,
+so if you are submitting with anything red it must be listed. Any of those you
+believe asserts the vulnerable behaviour itself — an anti-oracle — must ALSO
+appear in `antioracle_claims`, with the reasoning. These two lists are recorded,
+not adjudicated: nothing here accepts or rejects the claim, and listing an
+assertion neither helps nor hurts you. Omitting one only makes a red submission
+indistinguishable from a clean one.
 
 Be calibrated. The orchestrator runs every one of these checks itself and
 compares its measurements against what you claimed here; a confident claim that

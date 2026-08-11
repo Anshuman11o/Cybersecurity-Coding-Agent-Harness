@@ -445,9 +445,45 @@ def _normalise_attestation(raw):
         'why_it_closes_the_path': raw.get('why_it_closes_the_path'),
         'why_the_workflow_still_works': raw.get('why_the_workflow_still_works'),
         'residual_risk': raw.get('residual_risk'),
+        # The two structured fields behind `residual_risk`. An agent that ships a
+        # correct fix over a red workflow assertion used to be able to say so only
+        # in prose, which nothing parses, so the record was a plain `fixed` and the
+        # red assertion was invisible until a human read the transcript. These are
+        # lists so the record can be counted; they are the agent's claim and are
+        # never checked here.
+        'workflow_red': _str_list(raw.get('workflow_red')),
+        'antioracle_claims': _claim_list(raw.get('antioracle_claims')),
         'rounds_used': raw.get('rounds_used') if isinstance(raw.get('rounds_used'), int)
         else None,
     }
+
+
+# A missing, null or malformed field means "the agent said nothing", which is the
+# same record as an empty list -- an absent claim, not a claim of red. Anything
+# that is not a list at all becomes `[]` rather than being wrapped, because a
+# string here is as likely to be prose as a single entry and guessing which would
+# invent a claim the agent did not make.
+def _str_list(raw) -> list:
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if isinstance(item, str) and item.strip():
+            out.append(item.strip())
+    return out
+
+
+# Three keys, whitelisted for the same reason `dispatcher.read_declarations`
+# whitelists its own: these entries are forwarded into the run record and read
+# downstream, so whatever else the agent chose to write into the file stops here.
+_CLAIM_KEYS = ('test', 'it_title', 'why')
+
+
+def _claim_list(raw) -> list:
+    if not isinstance(raw, list):
+        return []
+    return [{k: item.get(k) for k in _CLAIM_KEYS}
+            for item in raw if isinstance(item, dict)]
 
 
 def _finish(rec, ctx, bug, snap_path, t0, task_dir):

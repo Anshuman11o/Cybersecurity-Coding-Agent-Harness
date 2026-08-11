@@ -124,11 +124,12 @@
 
         "dispositions": {
           "type": "object",
-          "description": "Counts by terminal disposition. Must sum to `tasks`. `fixed` and `fixed_workflow_only` stay separate.",
+          "description": "Counts by terminal disposition. Must sum to `tasks`. `fixed`, `fixed_workflow_only` and `fixed_workflow_red` stay separate.",
           "additionalProperties": false,
           "properties": {
             "fixed": { "type": "integer" },
             "fixed_workflow_only": { "type": "integer" },
+            "fixed_workflow_red": { "type": "integer" },
             "already_remediated": { "type": "integer" },
             "abandoned": { "type": "integer" },
             "partial": { "type": "integer" },

@@ -145,8 +145,13 @@ CHARACTERISE_PHASE = 'characterise'
 PATCH_PHASE = 'fix'
 
 # ARCHITECTURE.md §2. Nothing else is permitted, in v1 or here.
-DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'already_remediated', 'abandoned',
-                'partial', 'agent_failed', 'blocked')
+DISPOSITIONS = ('fixed', 'fixed_workflow_only', 'fixed_workflow_red',
+                'already_remediated', 'abandoned', 'partial', 'agent_failed',
+                'blocked')
+# `fixed_workflow_red` is deliberately NOT here. It is a fix submitted over a
+# workflow assertion the agent left failing; whether that assertion was an
+# anti-oracle or real breakage is exactly what the record cannot say, so summing
+# it with `fixed` would restore the ambiguity the disposition exists to remove.
 GREEN_DISPOSITIONS = ('fixed', 'fixed_workflow_only')
 
 # v1 also reverts `abandoned`, because there it means "the orchestrator's gates
@@ -325,8 +330,22 @@ The orchestrator does not check your work between steps. You do:
 {{"bug_id": "{bug_id}", "status": "fixed" | "not_fixed", "confidence": 0.0,
   "what_changed": "one sentence", "why_it_closes_the_path": "one or two sentences",
   "why_the_workflow_still_works": "one or two sentences",
-  "residual_risk": "what could not be closed, or null", "rounds_used": 0}}
+  "residual_risk": "what could not be closed, or null",
+  "workflow_red": ["<test file> :: <it() title>"],
+  "antioracle_claims": [{{"test": "<test file>", "it_title": "<exact it() title>",
+                         "why": "why this assertion encodes the vulnerable
+                                 behaviour rather than legitimate behaviour"}}],
+  "rounds_used": 0}}
 ```
+
+`workflow_red` lists every workflow assertion still failing when you finish, and
+is `[]` when the workflow test is fully green. Silence is a claim of green, so a
+submission with anything red must list it. Any of those you believe asserts the
+vulnerable behaviour itself — an anti-oracle — must ALSO appear in
+`antioracle_claims`, with the reasoning. Both lists are recorded, not
+adjudicated: nothing accepts or rejects the claim, and listing an assertion
+neither helps nor hurts you. Omitting one only makes a red submission
+indistinguishable from a clean one.
 
 Then move to your next bug. Do not stop to report; the whole chunk is submitted
 to the merge queue once, at the end.
@@ -936,8 +955,13 @@ class Dispatcher:
                 changed = workspace.changed_files(tree, snap)
                 self._post_fix_disposition(rec, inv, attested_ch, changed,
                                            reused_from)
+                # `fixed_workflow_red` counts as remediated here for the same
+                # reason `partial` does: the location was edited and the defect is
+                # believed closed, so a later task at the same file:line is
+                # `already_remediated` rather than a second independent fix. What
+                # is unresolved about it is the workflow, not the vulnerability.
                 if rec['disposition'] in GREEN_DISPOSITIONS or \
-                        rec['disposition'] == 'partial':
+                        rec['disposition'] in ('partial', 'fixed_workflow_red'):
                     remediated[loc_key] = bug_id
 
             self._close_out(rec, tree, snap, bug)
@@ -1056,6 +1080,15 @@ class Dispatcher:
         says so. The one thing that is never inferred is a bare `fixed` for a task
         whose probe never demonstrated the defect -- that is
         `fixed_workflow_only`, and the two are not summed.
+
+        `fixed_workflow_red` splits the remaining `fixed` population the same way,
+        on the agent's own `workflow_red` list: a fix submitted over a workflow
+        assertion it left failing. This too is ATTESTED and not measured -- the
+        dispatcher runs no test, so it cannot tell whether that assertion encodes
+        the vulnerable behaviour (the agent's anti-oracle claim, recorded verbatim
+        and never adjudicated here) or whether the fix broke the feature. Recording
+        the difference is the whole point; an attestation with no `workflow_red`
+        field is the pre-existing shape and still disposes plain `fixed`.
         """
         att = rec['attested']
         if not inv.ok:
@@ -1075,7 +1108,18 @@ class Dispatcher:
                      'measurement wins: nothing was patched.')
         elif att['status'] == 'fixed':
             proven = bool(attested_ch and attested_ch['probe_proven_pre_fix'])
-            if proven:
+            red = att.get('workflow_red') or []
+            if proven and red:
+                claims = len(att.get('antioracle_claims') or [])
+                _dispose(rec, 'fixed_workflow_red', ATTESTED,
+                         f'the agent reported the defect closed but left {len(red)} '
+                         f'workflow assertion(s) failing, {claims} of which it claims '
+                         'assert the vulnerable behaviour itself. Attested, not '
+                         'measured: the dispatcher ran no test and neither accepts nor '
+                         'rejects the anti-oracle claim. Never summed with `fixed` -- a '
+                         'correct fix over an anti-oracle and a fix that broke the '
+                         'feature look identical from here.')
+            elif proven:
                 _dispose(rec, 'fixed', ATTESTED,
                          'the agent reported both axes green in its own sandbox. '
                          'Attested, not measured: v3 runs no orchestrator-side gate.')
@@ -1101,7 +1145,13 @@ class Dispatcher:
         # The agent's claim against what the dispatcher could see. Recorded,
         # never used to alter the disposition.
         if att:
-            green = rec['disposition'] in GREEN_DISPOSITIONS
+            # Same call as the `remediated` bookkeeping above, for consistency:
+            # `fixed_workflow_red` is treated as agreeing with a `fixed` claim,
+            # because it was DERIVED from the agent's own report rather than from
+            # anything that contradicted it. Calling it an overclaim would put a
+            # disagreement in the record where there was none.
+            green = rec['disposition'] in GREEN_DISPOSITIONS or \
+                rec['disposition'] == 'fixed_workflow_red'
             if att['status'] == 'fixed' and not green:
                 rec['attestation_delta'] = {'agent_said': 'fixed',
                                             'measurement_said': rec['disposition'],
@@ -1361,10 +1411,12 @@ class Dispatcher:
             'phases': out,
             'phase_order': order,
             'tasks_total': len(records),
-            # Counted, never summed. `fixed` and `fixed_workflow_only` stay in
-            # separate buckets here for the same reason report.py keeps them
-            # apart: the second means the remediation axis was never demonstrated
-            # even in the agent's own sandbox.
+            # Counted, never summed. `fixed`, `fixed_workflow_only` and
+            # `fixed_workflow_red` stay in separate buckets here for the same
+            # reason report.py keeps them apart: the second means the remediation
+            # axis was never demonstrated even in the agent's own sandbox, and the
+            # third that the agent submitted over a workflow assertion it left
+            # failing, which nothing here can adjudicate.
             'dispositions': disposition_counts(records),
             # Every green disposition in a v3 run is the agent's own report. The
             # split is emitted so a reader cannot mistake one for a measurement,
