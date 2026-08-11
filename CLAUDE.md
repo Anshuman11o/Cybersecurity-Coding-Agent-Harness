@@ -151,6 +151,34 @@ silently. Read that file's own rules before editing it: same scorer, same
 denominator, every number from a committed artifact, and any qualification
 travels in the row rather than in a footnote.
 
+## After a patcher run
+
+Invoke the `archive-patch-run` skill — not `archive-run`, which is scanner-shaped
+and will file the run under the wrong metrics.
+
+A patcher run is more fragile than a scan. `outputs.run_dir` points **outside**
+this repository, because a per-task record pairs a bug id with a file and a line
+and the publishing rule forbids that in a committed artefact. So the run store
+lives on ephemeral disk with nothing durable pointing at it. The subset 2 run was
+scored and then lost exactly this way: its records, transcripts, cost and
+disposition histogram are gone, and only the sighted per-case table survived in
+the answer-key repo. Its row in `results/eval-history/patcher.jsonl` carries
+nulls where those numbers should be.
+
+The split is not optional and is enforced in code by
+`tools/patcher/src/archive_run.py`: **aggregate** to
+`results/eval-history/patcher.jsonl`, **located detail** to the private store.
+The archiver refuses a row containing a bug id, a challenge key, a `file:line`
+reference or a source path. If it fires, rephrase the row — never loosen the
+guard. That file is append-only for the same reason
+`docs/benchmarking-results.md` is: a correction is a new row carrying
+`rescore_of`, never an edit.
+
+**Never read two oracle sets as one trend.** Subset 2 went from 2/10 to 10/23
+effective fixes without a single patch changing, because the ground truth grew
+13 driver-backed oracles underneath it. A ground-truth change invalidates
+comparison across it, and the qualification travels in the row.
+
 ## Long-running work
 
 Scans take roughly an hour and outlive an agent session. Launch them with

@@ -1,0 +1,279 @@
+{
+ "map_id": "chunk-map/v1",
+ "subset_id": "subset-02",
+ "generated_from": {
+  "bug_report": "tools/patcher/inputs/bug-report.json",
+  "bug_report_id": "bug-report-subset2",
+  "tree": "target-apps/juice-shop-blind"
+ },
+ "derived_from": {
+  "full_map": "tools/patcher/plan/chunk-map.json",
+  "generator": "tools/patcher/plan/build_chunk_map.py",
+  "transform": "Subset form of the generated map, per tools/patcher/plan/subsets/README.md: bracket(s) B hold no chunks in this report and are dropped, phases renumber densely in bracket order, and dependency edges on a dropped bracket are removed. Chunk ids, files, task order, lines, classes and reasons are the generated map's, unchanged -- an id names a set of files and its place in the merge order, so renumbering would make this read as its own plan.",
+  "dropped_brackets": [
+   {
+    "bracket": "B",
+    "name": "frontend+contracts",
+    "reason": "no bug in this report lands in this bracket"
+   }
+  ]
+ },
+ "bug_count": 24,
+ "chunk_count": 4,
+ "excluded_bugs": [],
+ "shared_extension_zone": [
+  "views/**",
+  "config/**",
+  "swagger.yml"
+ ],
+ "never_writable": [
+  "test/**",
+  "**/*.spec.ts"
+ ],
+ "read_denylist": [
+  "models/challenge.ts",
+  "lib/antiCheat.ts",
+  "data/datacreator.ts"
+ ],
+ "phases": [
+  {
+   "phase": 0,
+   "brackets": [
+    "A"
+   ],
+   "concurrency": 1
+  },
+  {
+   "phase": 1,
+   "brackets": [
+    "C"
+   ],
+   "concurrency": 2
+  },
+  {
+   "phase": 2,
+   "brackets": [
+    "D"
+   ],
+   "concurrency": 1
+  }
+ ],
+ "brackets": [
+  {
+   "bracket": "A",
+   "name": "core",
+   "phase": 0,
+   "depends_on": [],
+   "concurrency": 1,
+   "chunks": [
+    {
+     "chunk_id": "A01",
+     "reason": "import cycle: lib/insecurity.ts, models/feedback.ts are mutually reachable through real import statements and cannot be ordered relative to each other, so they are one editing unit; the cycle carries 7 bugs, at or above the per-chunk cap of 4, so it is a chunk on its own",
+     "files": [
+      "lib/insecurity.ts",
+      "models/feedback.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-010",
+       "file": "lib/insecurity.ts",
+       "line": 41,
+       "class": "Broken Authentication / Cryptographic Failure"
+      },
+      {
+       "bug_id": "BUG-011",
+       "file": "lib/insecurity.ts",
+       "line": 55,
+       "class": "Identification and Authentication Failures / JWT Algorithm Confusion"
+      },
+      {
+       "bug_id": "BUG-012",
+       "file": "lib/insecurity.ts",
+       "line": 55,
+       "class": "Identification and Authentication Failures / JWT Algorithm Confusion"
+      },
+      {
+       "bug_id": "BUG-013",
+       "file": "lib/insecurity.ts",
+       "line": 135,
+       "class": "Server-Side Request Forgery / Open Redirect"
+      },
+      {
+       "bug_id": "BUG-014",
+       "file": "lib/insecurity.ts",
+       "line": 135,
+       "class": "Server-Side Request Forgery / Open Redirect"
+      },
+      {
+       "bug_id": "BUG-017",
+       "file": "models/feedback.ts",
+       "line": 44,
+       "class": "Cross-Site Scripting - Persisted"
+      },
+      {
+       "bug_id": "BUG-018",
+       "file": "models/feedback.ts",
+       "line": 51,
+       "class": "Insecure Design / Missing Input Validation"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "bracket": "C",
+   "name": "handlers+seed",
+   "phase": 1,
+   "depends_on": [
+    "A"
+   ],
+   "concurrency": 2,
+   "chunks": [
+    {
+     "chunk_id": "C01",
+     "reason": "routes/fileServer.ts carries 5 bugs, at or above the per-chunk cap of 4, so it is a chunk on its own",
+     "files": [
+      "routes/fileServer.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-039",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Directory Listing Enabled"
+      },
+      {
+       "bug_id": "BUG-040",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-041",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-042",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-043",
+       "file": "routes/fileServer.ts",
+       "line": 27,
+       "class": "Security Misconfiguration / Path Filter Bypass"
+      }
+     ]
+    },
+    {
+     "chunk_id": "C02",
+     "reason": "first-fit packing: routes/easterEgg.ts, routes/metrics.ts, routes/premiumReward.ts, routes/updateUserProfile.ts import nothing of each other, and 4 bugs total stays within the cap of 4",
+     "files": [
+      "routes/easterEgg.ts",
+      "routes/metrics.ts",
+      "routes/premiumReward.ts",
+      "routes/updateUserProfile.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-038",
+       "file": "routes/easterEgg.ts",
+       "line": 13,
+       "class": "Cryptographic Failures / Weak Encoding"
+      },
+      {
+       "bug_id": "BUG-062",
+       "file": "routes/metrics.ts",
+       "line": 86,
+       "class": "Security Misconfiguration / Information Exposure"
+      },
+      {
+       "bug_id": "BUG-067",
+       "file": "routes/premiumReward.ts",
+       "line": 13,
+       "class": "Broken Access Control / Business Logic Flaw"
+      },
+      {
+       "bug_id": "BUG-087",
+       "file": "routes/updateUserProfile.ts",
+       "line": 32,
+       "class": "Broken Access Control / CSRF"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "bracket": "D",
+   "name": "wiring",
+   "phase": 2,
+   "depends_on": [
+    "A",
+    "C"
+   ],
+   "concurrency": 1,
+   "chunks": [
+    {
+     "chunk_id": "D01",
+     "reason": "bracket D is uncapped: the wiring files are one editing surface and land together in the final phase",
+     "files": [
+      "server.ts"
+     ],
+     "tasks": [
+      {
+       "bug_id": "BUG-091",
+       "file": "server.ts",
+       "line": 234,
+       "class": "Security Misconfiguration / Improper Input Handling"
+      },
+      {
+       "bug_id": "BUG-092",
+       "file": "server.ts",
+       "line": 235,
+       "class": "Security Misconfiguration / Sensitive File Exposure"
+      },
+      {
+       "bug_id": "BUG-093",
+       "file": "server.ts",
+       "line": 267,
+       "class": "Security Misconfiguration / Directory Listing Enabled"
+      },
+      {
+       "bug_id": "BUG-094",
+       "file": "server.ts",
+       "line": 365,
+       "class": "Broken Access Control / Broken Function Level Authorization"
+      },
+      {
+       "bug_id": "BUG-095",
+       "file": "server.ts",
+       "line": 477,
+       "class": "Broken Object Property Level Authorization / Mass Assignment"
+      },
+      {
+       "bug_id": "BUG-096",
+       "file": "server.ts",
+       "line": 477,
+       "class": "Broken Object Property Level Authorization / Mass Assignment"
+      },
+      {
+       "bug_id": "BUG-097",
+       "file": "server.ts",
+       "line": 479,
+       "class": "Broken Object Property Level Authorization / Mass Assignment"
+      },
+      {
+       "bug_id": "BUG-098",
+       "file": "server.ts",
+       "line": 674,
+       "class": "Security Misconfiguration / Verbose Error Messages"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
