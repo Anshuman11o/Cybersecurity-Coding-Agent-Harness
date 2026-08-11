@@ -600,8 +600,13 @@ class Dispatcher:
                  chunk_timeout_s: int | None = None,
                  cost_ceiling_usd: float | None = None,
                  build_gate=None, final_suite=None,
-                 seed_tree=None):
+                 seed_tree=None, store=None):
         self.cmap = cmap
+        # Durable run store, or None. When present, every task, chunk and phase
+        # is written to disk as it completes, and `run()` resumes from the last
+        # completed phase. Without one the run exists only in the returned dict
+        # and a lost session is a lost run -- the way subset 2 was lost.
+        self.store = store
         self.bugs = bugs
         self.playbook = playbook
         self.runner = runner
@@ -697,6 +702,11 @@ class Dispatcher:
 
             rec = self._run_task(a, bug, tree, characterised, remediated, guard, res)
             res.tasks.append(rec)
+            # Streamed the moment the task ends, from this chunk's worker thread.
+            # Pre-merge: the queue may still overturn this disposition, and the
+            # phase record is what carries the final one.
+            if self.store is not None:
+                self.store.record_task(rec)
 
         res.dispositions = disposition_counts(res.tasks)
         res.declared = read_declarations(tree, a.chunk_id)
@@ -704,6 +714,8 @@ class Dispatcher:
         res.boundary_review = a.boundary.review(
             res.changed_files, [d['file'] for d in res.declared]).as_record()
         res.wall_s = time.time() - t0
+        if self.store is not None:
+            self.store.record_chunk(res.as_record())
         return res
 
     def _run_task(self, a, bug, tree, characterised, remediated, guard, res) -> dict:
@@ -1037,12 +1049,23 @@ class Dispatcher:
                         why = f'crash: {type(ex).__name__}: {ex}'
                         unreached = [_unreached_record(c.chunk_id, b, why)
                                      for b in self.assignments[c.chunk_id].tasks]
-                        results.append(ChunkResult(
+                        crashed = ChunkResult(
                             chunk_id=c.chunk_id, bracket=c.bracket, phase=phase_no,
                             tree=self.chunk_tree(c.chunk_id),
                             tasks=unreached,
                             dispositions=disposition_counts(unreached),
-                            stopped=why))
+                            stopped=why)
+                        results.append(crashed)
+                        # run_chunk raised, so it never recorded itself. A crashed
+                        # chunk that leaves no trace on disk reads later as a chunk
+                        # that was never planned.
+                        if self.store is not None:
+                            for rec in unreached:
+                                self.store.record_task(rec)
+                            self.store.record_chunk(crashed.as_record())
+                            self.store.note_infrastructure_failure(
+                                'chunk_crash', detail=why, chunk_id=c.chunk_id,
+                                phase=phase_no)
 
             results.sort(key=lambda r: r.chunk_id)
             queue = mq.MergeQueue(trunk=self.trunk, base_snap=base_snap,
@@ -1064,7 +1087,7 @@ class Dispatcher:
             workspace.discard_snapshot(base_snap)
             self._phase_base = None
 
-        return {
+        record = {
             'phase': phase_no,
             'brackets': [b.bracket for b in self.cmap.brackets_in_phase(phase_no)],
             'workers': workers,
@@ -1076,6 +1099,14 @@ class Dispatcher:
             'spend_usd': round(sum(r.cost_usd for r in results), 4),
             'tree_digest': workspace.tree_digest(self.trunk),
         }
+        # Checkpoint before the next phase starts. This record is authoritative:
+        # the merge queue has drained and its verdicts are applied, so the task
+        # dispositions in it are final where the streamed ones were not.
+        if self.store is not None:
+            self.store.record_phase(record, tree_digest=record['tree_digest'],
+                                    spend_usd=self.spend_usd)
+            self.log(f'phase {phase_no}: checkpointed to {self.store.run_dir}')
+        return record
 
     @staticmethod
     def _apply_merge_verdicts(results, merged) -> None:
@@ -1114,12 +1145,36 @@ class Dispatcher:
         t0 = time.time()
         order = [p for p in self.cmap.phase_order()
                  if phases is None or p in set(phases)]
-        out: list = []
-        for phase_no in order:
-            out.append(self.run_phase(phase_no))
 
+        # Resume. A phase already in the store is not re-run: its agents were
+        # paid for once and its merges already landed in the trunk, so running it
+        # again would spend twice and merge an already-merged change.
+        done: set = set()
+        out: list = []
+        if self.store is not None:
+            out = [r for r in self.store.phase_records(order)
+                   if r.get('phase') in set(order)]
+            done = {r.get('phase') for r in out}
+            for phase_no in sorted(done):
+                self.log(f'phase {phase_no}: already complete, resumed from '
+                         f'{self.store.run_dir}')
+            # The ceiling is a property of the RUN, not of the session. Seeding it
+            # from the store stops a resumed run from getting a fresh budget every
+            # time a session dies.
+            if done and self.store.spend_usd:
+                with self._lock:
+                    self._spend = float(self.store.spend_usd)
+
+        for phase_no in order:
+            if phase_no in done:
+                continue
+            out.append(self.run_phase(phase_no))
+        out.sort(key=lambda r: r.get('phase') if r.get('phase') is not None else -1)
+
+        # The suite runs when every phase in the map has been executed, whether in
+        # this session or an earlier one -- never on a partial tree.
         suite = None
-        if phases is None or set(order) == set(self.cmap.phase_order()):
+        if {r.get('phase') for r in out} == set(self.cmap.phase_order()):
             suite = self._run_final_suite()
 
         records = [t for p in out for c in p['chunks'] for t in c['tasks']]
@@ -1159,6 +1214,11 @@ class Dispatcher:
                 if t.get('characterised')),
             'spend_usd': self.spend_usd,
             'cost_ceiling_usd': self.cost_ceiling_usd,
+            # Which phases this session actually executed, and which were read
+            # back from an earlier one. A resumed run's wall clock covers only
+            # this session; its spend is cumulative because the ceiling is.
+            'resumed_phases': sorted(done),
+            'phases_run_this_session': sorted(p for p in order if p not in done),
             'wall_s': round(time.time() - t0, 1),
             'rejected_total': sum(len(p['merge']['rejected']) for p in out),
             'full_suite': suite,
