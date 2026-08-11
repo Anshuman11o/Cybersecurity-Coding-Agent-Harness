@@ -24,7 +24,7 @@ flat, so the layer is not visible from the filename — that is what §3 is for.
 |---|---|---|---|
 | **v1** | `src/run_patcher.py` | runs one task at a time; runs every gate itself and decides when a task is done | load-bearing |
 | **v2** | `src/run_patcher.py` (wave mode) | computes a wave plan at runtime, runs a wave concurrently, gates the merge | load-bearing |
-| **v3** | `src/run_patcher_v3.py` | dispatches chunks against a checked-in plan; runs **no** patcher gate at all | current |
+| **v3** | `src/run_patcher_v3.py` | dispatches chunks against a checked-in plan; drives the fix loop's round boundary and runs V1–V4 there, plus the build gate at the merge queue | current |
 
 v3 is not a rewrite. It imports v1's inner loop, v1's work tree, v1's gates,
 v1's prompts and v2's integrator. Deleting either older track breaks it — see §5.
@@ -81,7 +81,7 @@ tools/patcher/
 ├── inputs/                      bug reports and playbooks, master + per subset
 ├── plan/                        the offline chunk-map generator and its output
 ├── docs/                        PARALLELISATION.md — the v2 design note
-└── tests/                       24 files, FakeRunner-driven, no model, no cost
+└── tests/                       30 files, FakeRunner-driven, no model, no cost
 ```
 
 ---
@@ -96,8 +96,8 @@ This is the layer to read if the question is *what does the agent actually do*.
 | File | Lines | Owns | Entry points | Tracks |
 |---|---|---|---|---|
 | `agent.py` | 361 | the runtime boundary. `AgentRunner` is narrow on purpose so the loop never learns which runtime it is talking to. Usage is **measured** from the runtime's own JSON, never estimated. Carries `FakeRunner`, which drives the whole state machine for free. | `build_runner`, `ClaudeCliRunner`, `FakeRunner`, `Invocation`, `validate_agent_settings` | all |
-| `prompts.py` | 553 | every prompt the patcher dispatches, in one file, so the blind-safety property can be checked across all of them at once. Each phase gets a fresh process, so each prompt is self-contained. | `build_characterise`, `build_fix`, `build_reconcile`, `STANDING_CONSTRAINT`, `HOUSE_RULES` | all |
-| `task_loop.py` | 505 | the inner `while`. CHARACTERISE → FIX → VERIFY → RECONCILE → close out, with the exit condition in Python rather than in a prompt. Owns the seven dispositions and the revert-on-exhaustion policy. | `run_task`, `TaskContext`, `REVERT_DISPOSITIONS` | v1, v2; v3 uses `_normalise_attestation` |
+| `prompts.py` | 568 | every prompt the patcher dispatches, in one file, so the blind-safety property can be checked across all of them at once. Each phase gets a fresh process, so each prompt is self-contained. | `build_characterise`, `build_fix`, `build_reconcile`, `STANDING_CONSTRAINT`, `HOUSE_RULES` | all |
+| `task_loop.py` | 728 | the inner `while`. CHARACTERISE → FIX → VERIFY → RECONCILE → close out, with the exit condition in Python rather than in a prompt. Owns the seven dispositions and the revert-on-exhaustion policy. `run_fix_loop` is the FIX/VERIFY/RECONCILE half, extracted so every track is held to the same three exit conditions — measured green, the round budget, the wall clock — and never to anything the agent says about itself. | `run_task`, `run_fix_loop`, `FixLoopResult`, `TaskContext`, `REVERT_DISPOSITIONS` | all; v3 calls `run_fix_loop` only — `run_task`, `_characterise` and `_finish` stay v1/v2 |
 
 ### L2 · Planning — parallelisation, and dividing the work
 
@@ -117,8 +117,8 @@ offline and checks the answer in.
 |---|---|---|---|---|
 | `run_patcher.py` | 591 | **entry point.** The outer loop, config loading, preflight, checkpoint/resume. `--check` validates inputs, tree, toolchain and hook and spends nothing. | `main`, `load_config`, `preflight`, `config_digest` | v1, v2; v3 reuses the loaders |
 | `wave_runner.py` | 288 | v2 execution: snapshot the integrated tree, seed one tree per chain, run chains concurrently, fold back serially, gate the merged tree. `wave_plan` decides *what*; this decides *how*. | `run_waves`, `chains`, `chain_id` | v2 |
-| `run_patcher_v3.py` | 373 | **entry point.** Load, validate, dispatch, checkpoint, audit, report. Separate from `run_patcher.py` on purpose — wiring v3 in would mean editing the file that runs v1 and v2. | `main`, `load_config`, `preflight` | v3 |
-| `v3/dispatcher.py` | 1276 | the dispatcher, and deliberately the least intelligent component in the system: spawn one agent per chunk with the same generic prompt, hand it its slice, monitor liveness/timeout/cost, own the merge queue, advance the phase. Runs no patcher gate. | `Dispatcher`, `assignments`, `ChunkResult`, `disposition_counts` | v3 |
+| `run_patcher_v3.py` | 377 | **entry point.** Load, validate, dispatch, checkpoint, audit, report. Separate from `run_patcher.py` on purpose — wiring v3 in would mean editing the file that runs v1 and v2. | `main`, `load_config`, `preflight` | v3 |
+| `v3/dispatcher.py` | 1944 | the dispatcher, and deliberately the least intelligent component in the system: spawn one agent per chunk with the same generic prompt, hand it its slice, monitor liveness/timeout/cost, drive the fix loop's round boundary through `task_loop.run_fix_loop`, own the merge queue, advance the phase. It measures at the round boundary; it does not write code, choose the fix, or self-verify in the agent's place. | `Dispatcher`, `assignments`, `ChunkResult`, `disposition_counts` | v3 |
 
 ### L4 · Measurement — the gates the orchestrator runs itself
 
@@ -127,9 +127,9 @@ collected separately as an attestation and scored as calibration.
 
 | File | Lines | Owns | Entry points | Tracks |
 |---|---|---|---|---|
-| `verify.py` | 306 | V1 typecheck, V2 workflow, V3 probe, V4 regression, V5 blast radius. Gate order is not cosmetic: a tree that will not compile makes every later gate meaningless, so V1 short-circuits. | `verify`, `typecheck`, `run_probe`, `run_test_file`, `collect_outcomes`, `compare_outcomes`, `run_full_suite` | v1, v2; v3 uses `typecheck` and `run_full_suite` only |
+| `verify.py` | 306 | V1 typecheck, V2 workflow, V3 probe, V4 regression, V5 blast radius. Gate order is not cosmetic: a tree that will not compile makes every later gate meaningless, so V1 short-circuits. | `verify`, `typecheck`, `run_probe`, `run_test_file`, `collect_outcomes`, `compare_outcomes`, `run_full_suite` | all; v3 runs `verify` per round via `run_fix_loop`, `collect_outcomes` for the pre-fix baseline, `typecheck` as the merge queue's build gate, `run_full_suite` at the end |
 | `testmap.py` | 126 | the per-task regression net: which existing tests exercise the code a task touched. Two sources unioned — what the agent named in its characterisation, and a static scan of the test corpus. | `select`, `scan`, `list_test_files`, `env_for` | all |
-| `antioracle.py` | 115 | tests that assert an attack payload was *acted upon*, and therefore cannot survive a correct fix. Left in the regression net they charge a correct fix with damage and the orchestrator reverts it. Not a hypothesis — measured on a real run. | `detect`, `filter_regressions` | v1, v2 (via `verify`) |
+| `antioracle.py` | 115 | tests that assert an attack payload was *acted upon*, and therefore cannot survive a correct fix. Left in the regression net they charge a correct fix with damage and the orchestrator reverts it. Not a hypothesis — measured on a real run. | `detect`, `filter_regressions` | all (via `verify`) |
 
 ### L5 · The work tree — and where two agents' edits meet
 
@@ -137,7 +137,7 @@ collected separately as an attestation and scored as calibration.
 |---|---|---|---|---|
 | `workspace.py` | 421 | build, snapshot, revert, diff, hash. One cumulative tree: task N works on what task N−1 left behind. The tree is the run's only durable product, so this module is deliberately boring and deliberately defensive. | `prepare`, `snapshot`, `restore`, `tree_digest`, `changed_files`, `diff_against_snapshot`, `diff_stats`, `harvest_scratch` | all |
 | `integrator.py` | 476 | v2's fold: combine a wave's unit trees into one. The only place in a parallel run where two agents' work meets, and therefore the only honest place to attribute a collision. | `integrate`, `post_wave_gate`, `changed_by_unit`, `claims`, `out_of_assignment`, `gate_concurrency` | v2; v3's merge queue reuses it |
-| `v3/merge_queue.py` | 292 | the one serial point in a v3 run, and the only test the orchestrator may run. Asks exactly the three questions merging raises — does it apply, does it build, does it conflict — and nothing else, because re-judging the patch would put the verifier back in the loop. | `MergeQueue`, `Submission`, `typecheck_gate` | v3 |
+| `v3/merge_queue.py` | 292 | the one serial point in a v3 run. Asks exactly the three questions merging raises — does it apply, does it build, does it conflict — and nothing else, because re-judging the patch here would grade a chunk's work a second time, against a tree its agent never saw. The per-task gates are the fix loop's, at the round boundary; the queue's single gate is the build. | `MergeQueue`, `Submission`, `typecheck_gate` | v3 |
 
 ### L6 · The blind boundary
 
@@ -146,8 +146,8 @@ Prompt text asking the agent not to look is the fourth and weakest layer.
 
 | File | Lines | Owns | Entry points | Tracks |
 |---|---|---|---|---|
-| `blind_guard.py` | 660 | the bookends. **Before:** validate and scrub the bug report and playbook — an input carrying a reference fix hands over the thing the run exists to measure, in the prompt, where no runtime hook will ever see it. **After:** replay every guard decision and tool call, emit `blind-audit.json`; one answer-key denial marks the run contaminated. | `load_bug_report`, `load_playbook`, `validate_bug_report`, `validate_playbook`, `scrub`, `select_entry`, `audit_run`, `seed_denylisted` | all |
-| `hooks/sandbox_guard.py` | 647 | **during:** a `PreToolUse` hook returning a hard `deny`. Blocks any path resolving outside the work tree, any write under the frozen test paths, all network egress, and the answer-key pattern set. Loaded by path, not imported — the CLI invokes it as an external hook. | `evaluate`, `check_path`, `check_bash`, `deny`, `Decision`, `main` | all |
+| `blind_guard.py` | 678 | the bookends. **Before:** validate and scrub the bug report and playbook — an input carrying a reference fix hands over the thing the run exists to measure, in the prompt, where no runtime hook will ever see it. **After:** replay every guard decision and tool call, emit `blind-audit.json`; one answer-key denial marks the run contaminated. | `load_bug_report`, `load_playbook`, `validate_bug_report`, `validate_playbook`, `scrub`, `select_entry`, `audit_run`, `seed_denylisted` | all |
+| `hooks/sandbox_guard.py` | 893 | **during:** a `PreToolUse` hook returning a hard `deny`. Blocks any path resolving outside the work tree, any write under the frozen test paths, all network egress, and the answer-key pattern set. Loaded by path, not imported — the CLI invokes it as an external hook. | `evaluate`, `check_path`, `check_bash`, `deny`, `Decision`, `main` | all |
 
 ### L7 · Durability, records and outputs
 
@@ -155,8 +155,8 @@ Prompt text asking the agent not to look is the fourth and weakest layer.
 |---|---|---|---|---|
 | `state.py` | 95 | run state, flushed after every task, atomic write with `fsync`. Strict on resume: a resumed run against a drifted tree would silently attribute someone else's edits to the patcher. | `RunState` (`flush`, `load`) | v1, v2 |
 | `v3/run_store.py` | 306 | the same guarantee for v3, per chunk. `Dispatcher` holding results in a returned dict is fine for a unit test and catastrophic for a paid run — one run was scored and then lost exactly that way. | `RunStore` | v3 |
-| `report.py` | 280 | task records → `patcher-report.json`. Encodes the reporting rules rather than leaving them to the reader: `fixed` and `fixed_workflow_only` are never summed, every rate carries its denominator, `rounds_to_green` is a distribution and not a mean. | `aggregate`, `write`, `render_summary`, `DISPOSITIONS` | all |
-| `archive_run.py` | 429 | archives a finished run: **aggregate** row to `results/eval-history/patcher.jsonl`, **located detail** to the private store. Refuses a row containing a bug id, a challenge key, a `file:line` or a source path. Invoked by the `archive-patch-run` skill. | `main`, `build_row`, `assert_publishable`, `append_row`, `copy_run` | all |
+| `report.py` | 292 | task records → `patcher-report.json`. Encodes the reporting rules rather than leaving them to the reader: `fixed` and `fixed_workflow_only` are never summed, every rate carries its denominator, `rounds_to_green` is a distribution and not a mean. | `aggregate`, `write`, `render_summary`, `DISPOSITIONS` | all |
+| `archive_run.py` | 444 | archives a finished run: **aggregate** row to `results/eval-history/patcher.jsonl`, **located detail** to the private store. Refuses a row containing a bug id, a challenge key, a `file:line` or a source path. Invoked by the `archive-patch-run` skill. | `main`, `build_row`, `assert_publishable`, `append_row`, `copy_run` | all |
 
 ---
 
@@ -169,7 +169,7 @@ Prompt text asking the agent not to look is the fourth and weakest layer.
 | `inputs/` | `bug-report.json` + `playbook.json` are the master set; `subset3/`, `subset4/`, `subset5/` are the per-run slices. The master pair is read by `plan/`, and three tests pin it. | generated upstream |
 | `plan/` | `build_chunk_map.py` (437 lines) is the offline generator; it imports `wave_plan.import_graph()` rather than reimplementing it, because two copies of "what imports what" would drift invisibly. `chunk-map.json` is the full map; `subsets/` holds the per-run maps v3 consumes. | generator + output |
 | `docs/PARALLELISATION.md` | the v2 design note: per-file units, deterministic division, wave serialisation, and the measured numbers behind each. | authored |
-| `tests/` | 24 files. `FakeRunner`-driven — no network, no model, no money. `conftest.py` puts `src/` and `hooks/` on `sys.path`, which is what makes the flat imports work. | authored |
+| `tests/` | 30 files. `FakeRunner`-driven — no network, no model, no money. `conftest.py` puts `src/` and `hooks/` on `sys.path`, which is what makes the flat imports work. | authored |
 
 ---
 
@@ -192,7 +192,8 @@ The reason no track can be deleted. Arrows point at what a module imports.
   integrator ───> verify, workspace
   verify ───────> antioracle
 
-  v3/dispatcher ──> blind_guard, prompts, task_loop, testmap, verify, workspace
+  v3/dispatcher ──> antioracle, blind_guard, prompts, task_loop, testmap, verify,
+                    workspace
   v3/merge_queue ─> integrator, verify, workspace
 
   plan/build_chunk_map.py ──> wave_plan
@@ -260,7 +261,7 @@ roughly twenty references across `docs/`.
 
 | Name | Reads as | Actually is |
 |---|---|---|
-| `run_patcher.py` | *the* entry point | the **v1/v2** entry point. v3 runs from `run_patcher_v3.py`, and a v3 config passed here is refused |
+| `run_patcher.py` | *the* entry point | the **v1/v2** entry point. v3 runs from `run_patcher_v3.py`, and a v3 config passed here is **not** refused — it runs as a v1 sequential run with the plan ignored. See §9 |
 | `verify.py` | the verifier agent | the **orchestrator's own gates**. No agent runs in it; it is the module written specifically so the agent is never believed |
 | `integrator.py` vs `v3/merge_queue.py` | unrelated | the **v2 and v3 answers to the same question** — how two agents' edits are combined. `merge_queue` reuses `integrator`'s primitives |
 | `state.py` vs `v3/run_store.py` | unrelated | the **v1/v2 and v3 checkpoint stores**. Same purpose, different granularity (per task vs per chunk) |

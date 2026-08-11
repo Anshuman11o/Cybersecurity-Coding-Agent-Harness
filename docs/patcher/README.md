@@ -9,7 +9,8 @@ including agents that build or run the patcher.
 | `DATASET-READINESS-AND-HANDOFF.md` | Whether the target app can be patched today (it cannot — three blockers), and the scanner→patcher data structure |
 | `VERIFICATION-TECHNIQUES.md` | Candidate in-sandbox self-checks, both axes. **Unvalidated** — the adopted set must be chosen empirically |
 | `GPT-SUBAGENT-PATCHER-PLAN.md` | Plan for using GPT-backed phase subagents while preserving the model-agnostic patcher loop |
-| `ARCHITECTURE-V3.md` | **v3**: planning moves offline to a checked-in chunk map and the orchestrator becomes a dispatcher that only merges. Implemented in `tools/patcher/src/v3/`, never yet run against a model; states plainly what it gives up versus v2 |
+| `ARCHITECTURE-V3.md` | **v3**: planning moves offline to a checked-in chunk map and the orchestrator becomes a dispatcher that plans nothing, measures V1–V4 at each round boundary and merges serially. Implemented in `tools/patcher/src/v3/`; run three times, all of them before the fix loop was wired up, so no v3 baseline exists yet. States plainly what it gives up versus v2 |
+| `V3-RUNBOOK.md` | **how a v3 run actually executes**, in order, with the code that does it — plus the driver contract, the subset-5 run plan and the known defects to weigh before spending |
 | `contracts/` | Mirrored JSON Schemas for what the patcher and verifier emit |
 
 ## The agent itself

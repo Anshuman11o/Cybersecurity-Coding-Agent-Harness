@@ -249,14 +249,14 @@ tools/patcher/
 │   └── v3/                       THE DISPATCHER TRACK — imports the modules above
 │       ├── chunk_map.py          Load + validate the checked-in offline plan.
 │       ├── boundary.py           Owned / shared-extension / never-writable / read-denied.
-│       ├── dispatcher.py         Spawn, monitor, merge, advance. Runs no patcher gate.
+│       ├── dispatcher.py         Spawn, monitor, merge, advance. Drives the fix loop's rounds.
 │       ├── merge_queue.py        The one serial point: apply, build, conflict-check.
 │       └── run_store.py          Durable per-chunk run store.
 │
 ├── hooks/
 │   └── sandbox_guard.py          PreToolUse hard denial. Invoked by the CLI.
 │
-└── tests/                        24 files. Fake agent, no model, no cost, ~19s.
+└── tests/                        30 files. Fake agent, no model, no cost, ~45s.
 ```
 
 **v1 and v2 are not superseded.** `v3/dispatcher.py` imports `task_loop`,

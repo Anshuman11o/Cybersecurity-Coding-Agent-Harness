@@ -152,10 +152,15 @@ which round, and what the agent claimed about it.
 **The revert set differs between tracks, and the difference is not a policy
 choice.** v1 and v2 revert `{abandoned, agent_failed, blocked}`
 (`task_loop.REVERT_DISPOSITIONS`). v3 reverts `{agent_failed, blocked}` only
-(`v3/dispatcher.REVERT_DISPOSITIONS`), because v3's orchestrator runs no gate:
-there, `abandoned` can only mean the task changed nothing, or its chunk was
-rolled back whole at the merge queue. In both cases there is nothing left to
-revert. The seven dispositions themselves are identical.
+(`v3/dispatcher.REVERT_DISPOSITIONS`). Both tracks measure the same gates every
+round; what differs is where a red-gate exhaustion lands. In v1 it can become
+`abandoned` under `policy.on_exhausted`, and that disposition carries a revert.
+v3 has no per-task revert to offer — a chunk is submitted whole, so dropping one
+task's work would also drop the tasks around it — so an exhausted v3 task keeps
+its best round and is recorded `partial` or `fixed_workflow_red`. `abandoned` in
+v3 therefore only ever means the task changed nothing, or its chunk was rolled
+back whole at the merge queue, and in both cases there is nothing left to revert.
+The seven dispositions themselves are identical.
 
 ---
 
@@ -313,9 +318,10 @@ back, so a record that reached `state.json` is a record whose tree state is
 already final. A crash mid-close-out costs the task and leaves no record of it.
 
 Scratch is harvested and removed, not left in the tree, so the submitted diff
-never contains agent-authored test files. `workspace.tree_diff()` also excludes
-the scratch path unconditionally, so even a harvest failure cannot leak it into
-the deliverable.
+never contains agent-authored test files. `workspace.iter_source_files()` — which
+every diff, hash and snapshot walks — skips the scratch path unconditionally
+(`DIGEST_SKIP_DIRS`), so even a harvest failure cannot leak it into the
+deliverable.
 
 ---
 
@@ -397,8 +403,10 @@ Reconciles dominate. `rounds_to_green` in the report is therefore both a quality
 signal and the main cost lever, which is why it is recorded per task rather than
 averaged.
 
-This shape is v1's, and it does not transfer. v3 folds ②③④ into a single
-invocation in which the agent runs the gate commands itself, so the invocation
-count stops being the cost lever and `rounds_to_green` is `null` rather than
-measured — `docs/patcher/ARCHITECTURE-V3.md` §0.4 lists what that costs the eval
-and §6 states the cost regression.
+This shape is v3's too, since ②③④ run through the same loop: 1 characterise
+(+ up to 1 retry) + 1 fix + up to 4 reconciles. `rounds_to_green` is measured in
+both tracks and is the cost lever in both. Two v3-specific terms sit on top of
+it — characterisation reuse can remove the characterise invocation entirely for
+the second and later bugs in a file, and bug-wise tasks multiply the task count
+against v2's file-wise units. `docs/patcher/ARCHITECTURE-V3.md` §6 states that
+cost regression and §0.4 the price of the per-round gate suites.

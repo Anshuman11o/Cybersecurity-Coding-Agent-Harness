@@ -7,10 +7,11 @@ does it.
 
 Blind-safe. No challenge identifier and no found/not-found status appears here.
 
-**Status.** Every component named below exists and is unit-tested. What does not
-exist is a **driver** — the ~100 lines that load the inputs, construct a
-`Dispatcher`, call `run()` and write the result down. §8 specifies it exactly.
-Until it exists, no v3 run can start; once it does, nothing else is missing.
+**Status.** Every component named below exists and is unit-tested, the driver
+included: `src/run_patcher_v3.py` loads the inputs, validates the map, constructs
+a `Dispatcher` with a real build gate and a durable `RunStore`, calls `run()`,
+audits the guard logs and writes `patcher-report.json`. §8 is the contract it
+satisfies, kept because it is what a second driver would have to satisfy too.
 
 ---
 
@@ -58,7 +59,7 @@ A chunk is not a directory — it is the set of files one agent owns.
 
 ## 3. The run, top down
 
-### `Dispatcher.run(phases=None)` — `dispatcher.py:1112`
+### `Dispatcher.run(phases=None)` — `dispatcher.py:1773`
 
 Walks `cmap.phase_order()` in order, calling `run_phase` on each. After the last
 one — and **only** if every phase ran — it calls `_run_final_suite()`. Passing an
@@ -69,7 +70,7 @@ Returns one dict carrying `mode: 'v3-dispatch'`, every phase record, the
 disposition histogram, the `disposition_basis` split, spend, wall time and the
 trunk's `tree_digest`.
 
-### `Dispatcher.run_phase(phase_no)` — `dispatcher.py:1007`
+### `Dispatcher.run_phase(phase_no)` — `dispatcher.py:1610`
 
 Four steps, in order:
 
@@ -87,7 +88,7 @@ Four steps, in order:
    deterministic order over the whole phase.
 4. **Apply merge verdicts** and discard the base snapshot.
 
-### `Dispatcher.run_chunk(a)` — `dispatcher.py:655`
+### `Dispatcher.run_chunk(a)` — `dispatcher.py:972`
 
 Seeds the chunk's own tree from the trunk, then runs its tasks **strictly in
 sequence**. The docstring is explicit about why:
@@ -159,7 +160,7 @@ Two consequences follow, both deliberate:
 
 - A reused oracle was authored for a *different* defect in the same file, so its
   `PROVEN` says nothing about this one. `probe_proven_pre_fix` is forced to
-  `False` with a note naming the origin bug (`dispatcher.py:761-765`).
+  `False` with a note naming the origin bug (`dispatcher.py:1120-1124`).
 - Because the probe cannot demonstrate *this* defect, a successful fix on a
   reused characterisation lands as **`fixed_workflow_only`**, never `fixed`.
 
@@ -279,7 +280,17 @@ in `disposition_before_merge`.
 
 ## 8. Running any subset under v3 — the driver contract
 
-Everything below exists. The driver is the wiring.
+The driver is `src/run_patcher_v3.py`. It is a separate entry point on purpose:
+wiring v3 into `run_patcher.py` means editing the file that runs v1 and v2, and
+both are load-bearing. Everything below is what it does; it is written as a
+contract rather than a description because a second driver would have to satisfy
+the same list.
+
+```bash
+python3 tools/patcher/src/run_patcher_v3.py --config <cfg> --check   # spends nothing
+setsid nohup python3 tools/patcher/src/run_patcher_v3.py --config <cfg> > run.log 2>&1 &
+python3 tools/patcher/src/run_patcher_v3.py --config <cfg> --resume  # after a death
+```
 
 ### 8.1 Inputs
 
@@ -288,65 +299,85 @@ Everything below exists. The driver is the wiring.
 | Bug report | `blind_guard.load_bug_report(path)` — refuses a report carrying withheld keys |
 | Playbook | `blind_guard.load_playbook(path)` |
 | Chunk map | `v3.chunk_map.load(path)` → `validate(cmap)` → `validate_against_report(cmap, bugs)` |
-| Config | `run_patcher.load_config(path)` |
+| Config | `run_patcher_v3.load_config(path)` — `run_patcher.load_config` plus resolving `inputs.chunk_map`, which has no v1/v2 counterpart and would otherwise resolve against the caller's cwd |
 
 ### 8.2 The sequence
 
+`run_patcher_v3.main()`, in order:
+
 ```python
-cfg      = load_config(args.config)
-report,_ = blind_guard.load_bug_report(cfg['inputs']['bug_report'])
-playbook,_ = blind_guard.load_playbook(cfg['inputs']['playbook'])
+cfg = load_config(args.config)
+problems, notes, report, playbook, cmap = preflight(cfg, runner_kind)   # §8.4
+# --check exits here, having spent nothing
 
-cmap = chunk_map.load(cfg['inputs']['chunk_map'])
-chunk_map.validate(cmap)
-chunk_map.validate_against_report(cmap, report['bugs'])   # every bug assigned or excluded
-
-workspace.prepare(cfg['target']['base_tree'], cfg['target']['work_tree'],
-                  cfg['target'].get('node_modules'), force=args.force)
+store = RunStore.load(run_dir) if args.resume else RunStore(run_dir, meta={...})
+if not args.resume:
+    workspace.prepare(cfg['target']['base_tree'], trunk,
+                      cfg['target'].get('node_modules'), force=args.force)
+store.begin()
 
 runner = agent.build_runner(cfg, os.path.join(run_dir, 'sandbox'), runner_kind)
+reuse  = bool(cfg['loop'].get('reuse_characterisation', True))   # --no-reuse-characterisation overrides
 
 d = v3.Dispatcher(
     cmap, bugs=report['bugs'], playbook=playbook, runner=runner,
-    trunk=cfg['target']['work_tree'], run_dir=run_dir, cfg=cfg,
+    trunk=trunk, run_dir=run_dir, cfg=cfg, store=store,
     build_gate=merge_queue.typecheck_gate(cfg),          # NOT optional
-    reuse_characterisation=<decide, see §9.3>,
+    reuse_characterisation=reuse,
 )
-result = d.run()
+result = d.run(phases=phases)
+
+audit = blind_guard.audit_run(store.merge_guard_logs(), scrub_reports, ...)
+store.write_report(report_mod...)                        # patcher-report.json
 ```
 
 `chunk_timeout_s` and `cost_ceiling_usd` need no argument — the constructor
-reads them from `cfg['loop']` (`dispatcher.py:613-617`). `reuse_characterisation`
-is **constructor-only and cannot be set from a config file**; a driver that wants
-it off must pass it.
+reads them from `cfg['loop']` (`dispatcher.py:923-928`). `reuse_characterisation`
+is constructor-only on `Dispatcher`, but the driver reads it from
+`loop.reuse_characterisation` (`run_patcher_v3.py:265`), so a config can set it;
+`--no-reuse-characterisation` overrides the config downward and says so in the
+log. Preflight notes when the key is unset, because the default is `True` and
+that makes `already_remediated` unreachable.
 
-### 8.3 What the driver must do that the Dispatcher does not
+### 8.3 What the driver does that the Dispatcher does not
 
 `Dispatcher` writes only the per-chunk guard logs and the runner's transcripts.
-Everything else lives in the returned dict. The driver therefore **must**:
+Everything else lives in the returned dict, so a driver **must** do all four of
+these; `run_patcher_v3.py` does:
 
 1. **Persist task records after every chunk**, not at the end. A ~3 h run that
    loses its session otherwise loses everything — the failure that already cost
-   subset 2 its entire record.
+   subset 2 its entire record. Done by passing `store=RunStore(run_dir, …)`: every
+   task is streamed as it ends and every phase is written before the next starts,
+   and `--resume` picks up at the first phase that never completed. A resume
+   re-checks `workspace.tree_digest(trunk)` against the recorded digest and
+   **refuses** rather than continuing against a drifted tree.
 2. **Concatenate the per-chunk guard logs** (`run_dir/guard/*.jsonl`) before
    calling `blind_guard.audit_run`, which takes a single path. An unconcatenated
-   audit reads absent chunks as clean-because-empty.
+   audit reads absent chunks as clean-because-empty. `store.merge_guard_logs()`.
 3. **Write `patcher-report.json`** into the run dir — `archive_run.py` expects it
-   and nothing on the v3 path produces it.
-4. **Run `blind_guard.audit_run`** and record the verdict.
+   and nothing inside `Dispatcher` produces it. `store.write_report()`.
+4. **Run `blind_guard.audit_run`** and record the verdict — re-loading both
+   inputs to recover their `ScrubReport`s, because the default `scrub_reports=()`
+   makes the audit's `input_scrub` block assert clean unconditionally.
 
 ### 8.4 Preflight
 
 `run_patcher.preflight` is v2-shaped: `EXECUTION_MODES = ('sequential', 'waves')`
 and it hard-couples `waves` to `task_granularity: file`. A v3 config cannot pass
-it as written. Either give the v3 driver its own preflight reusing the input,
-tree and toolchain checks, or add a mode — but note `ARCHITECTURE-V3.md:513`
-deliberately keeps v3 out of `run_patcher.py`, which the change-safety rule
-protects.
+it as written, and `ARCHITECTURE-V3.md` §8 deliberately keeps v3 out of
+`run_patcher.py`, which the change-safety rule protects. So
+`run_patcher_v3.preflight` calls it, **drops the two `loop.execution` /
+`loop.task_granularity` problems that do not apply to v3**, and adds v3's own:
+the chunk map loads and validates, it covers every bug in the report, it assigns
+no read-denylisted file, `commands.typecheck` exists (without it the merge queue's
+build gate cannot run), and notes for an unset cost ceiling, chunk timeout or
+`reuse_characterisation`.
 
-Reusable as-is: the bug-report/playbook load, the base-tree and `node_modules`
-checks, and the built-artefacts check (`build/server.js`,
-`frontend/dist/frontend/index.html`) — that last one cost a full 2-task run once.
+Reused as-is from `run_patcher.preflight`: the bug-report/playbook load, the
+base-tree and `node_modules` checks, and the built-artefacts check
+(`build/server.js`, `frontend/dist/frontend/index.html`) — that last one cost a
+full 2-task run once.
 
 ### 8.5 After the run
 
@@ -405,16 +436,26 @@ an interpretable result.
 
 ### 9.4 Cost and wall clock
 
-`ARCHITECTURE-V3.md:437` forbids quoting a figure: *"Nobody has measured this. Do
+`ARCHITECTURE-V3.md` §6.1 forbids quoting a figure: *"Nobody has measured this. Do
 not quote a number for it until a v3 run and a v2 run have been scored with the
 same scorer on the same denominator."* Treat the following as shape, not
 estimate.
 
 The only anchor is subset 4: **$41.61 over 15 invocations, 2 h 29 m**, under v2
-waves. Subset 5 under v3 with reuse off is 10 characterise + 10 fix = 20
-invocations, and a v3 fix invocation carries the whole internal reconcile loop,
-so it is dearer than a v2 round. Set `loop.cost_ceiling_usd` and
-`loop.chunk_timeout_s` in the config and let the ceiling be the answer.
+waves. Subset 5 under v3 with reuse off is 10 characterise invocations plus **one
+fix invocation per round** — between 10 and `10 × (reconcile_rounds + 1)` = 50,
+not the flat 10 an unenforced fix phase would have spent. The floor is the same 20
+invocations as before; the ceiling is five times that, and where a run lands
+inside it is exactly what `rounds_to_green` will report for the first time.
+
+**Wall clock has a second term that did not exist before.** Each round also costs
+a gate suite — typecheck, workflow test, probe, and the regression net — run by
+the orchestrator against the tree. Subset 4's gates were 79 s across the whole
+run because they ran once per unit; here they run once per round per task. Set
+`loop.cost_ceiling_usd` and `loop.chunk_timeout_s` in the config, **re-checking
+`chunk_timeout_s` against the round budget rather than against a prior run** —
+the current value was sized when the fix phase spent one invocation and ran no
+gates — and let the ceiling be the answer.
 
 ### 9.5 What this run can and cannot establish
 
@@ -440,23 +481,33 @@ so NEFR moves in steps of 0.5. The metric has resolution 2 on this subset, not
 ## 10. Known defects to weigh before spending
 
 1. **`build_gate` defaults to `always_ok`.** Pass `typecheck_gate(cfg)` or every
-   chunk merges uncompiled.
-2. **No persistence in `Dispatcher`.** The driver must checkpoint per chunk.
+   chunk merges uncompiled. `run_patcher_v3.py` passes it; a second driver must.
+2. **`chunk_timeout_s` was sized for an ungated fix phase.** The gate suite now
+   runs once per round per task, so wall time per task rises by that much and a
+   timeout carried over from an earlier config will stop chunks between tasks
+   that would otherwise have finished. Re-check it against the round budget
+   before every run — §9.4.
 3. **Shared `task_id` on reused characterisations** — one `attestation.json`
    path for every task that reuses one oracle, so a fix invocation that writes
    none can be read against the previous task's. (The log collision is gone: the
    fix loop writes to `logs/{chunk_id}-{bug_id}/`.) Avoided entirely by
    `reuse_characterisation=False`.
-4. **No antioracle handling in v3** — `grep antioracle src/v3/` is empty.
-   `src/antioracle.py` is v1/v2 only, and the fix loop is passed
-   `antioracles=None` deliberately: `verify` excuses a net row from the tests'
-   own text or not at all, and a second excusal path decided elsewhere is the
-   thing this design refuses. Consequence, now that V4 is measured per round: a
-   net row a correct fix cannot satisfy goes red, the label is `vuln_only`, and
-   the task is `fixed_workflow_red` rather than `fixed`. The measured precedent
-   is an attack-dependent test reverting a correct fix, so this bucket must be
-   read, not summed away. **Wiring `antioracle.detect` into v3 is the first
-   candidate for the next change.**
+4. ~~**No antioracle handling in v3**~~ — wired 2026-08. `antioracle.detect` runs
+   over the task's net before the fix loop, exactly as v1 does it, and the result
+   is passed to `run_fix_loop`; `measured.characterisation.antioracle_tests` and
+   `antioracle_detector_available` record what it found. This is *the* excusal
+   path, not a second one — `verify` excuses a net row through
+   `antioracle.filter_regressions` or not at all, from the test files' own text,
+   which are already in the work tree and already readable by the agent. The
+   second excusal path this design refuses is the **agent's attestation**, and
+   that refusal lives in `run_fix_loop`'s exit conditions regardless.
+   **Still open, and it is the residue that matters:** the detector recognises a
+   test carrying an attack payload in its own text. The rows that killed a
+   correct fix on the subset-4 run carried none — they request an ordinary-looking
+   URL — so no text classifier can see them. Such a row still goes red, the label
+   is `vuln_only`, the task is `fixed_workflow_red`, and with the gates measured
+   every round the loop cannot reach green over it and spends its whole budget
+   first. Read that bucket; never sum it away.
 5. **No per-task regression net *at the chunk barrier*.** The per-task net now
    runs every round inside the fix loop (V4); what is still absent is v2's
    post-wave re-measurement, so a sibling reopening another chunk's fix surfaces
@@ -471,7 +522,9 @@ so NEFR moves in steps of 0.5. The metric has resolution 2 on this subset, not
    populated and `probe_coverage` is the only metric still reading a v3 null as
    falsey (`probe_proven_pre_fix` stays attested). Check the rendered summary
    before archiving.
-8. **No resume.** `run(phases=[n])` is the only checkpoint, and it re-seeds trees
-   from trunk each time.
+8. **Resume is per phase, not per chunk.** `--resume` restarts at the first phase
+   that never completed, so a death partway through a phase re-pays for every
+   chunk in it. Task and chunk records are streamed as they complete, so nothing
+   is *lost*; what is lost is the money already spent on that phase's chunks.
 
 Items 1, 2 and 7 are the ones that turn a paid run into an uninterpretable one.
