@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 850" width="1280" height="850" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif">
+<rect width="1280" height="850" rx="20" fill="#ffffff"/>
+<text x="640" y="97" text-anchor="middle" font-size="40" font-weight="800" fill="#111111">Vulnerability scan recall by cost</text>
+<text x="640" y="146" text-anchor="middle" font-size="23" fill="#555555">OWASP scan</text>
+<line x1="302.0" y1="205" x2="302.0" y2="578" stroke="#e3e3e3" stroke-width="1.2"/>
+<text x="302.0" y="610" text-anchor="middle" font-size="17" fill="#555555">$5</text>
+<line x1="493.0" y1="205" x2="493.0" y2="578" stroke="#e3e3e3" stroke-width="1.2"/>
+<text x="493.0" y="610" text-anchor="middle" font-size="17" fill="#555555">$10</text>
+<line x1="684.0" y1="205" x2="684.0" y2="578" stroke="#e3e3e3" stroke-width="1.2"/>
+<text x="684.0" y="610" text-anchor="middle" font-size="17" fill="#555555">$20</text>
+<line x1="936.6" y1="205" x2="936.6" y2="578" stroke="#e3e3e3" stroke-width="1.2"/>
+<text x="936.6" y="610" text-anchor="middle" font-size="17" fill="#555555">$50</text>
+<line x1="1127.6" y1="205" x2="1127.6" y2="578" stroke="#e3e3e3" stroke-width="1.2"/>
+<text x="1127.6" y="610" text-anchor="middle" font-size="17" fill="#555555">$100</text>
+<text x="146" y="583.0" text-anchor="end" font-size="17" fill="#555555">70</text>
+<text x="146" y="505.3" text-anchor="end" font-size="17" fill="#555555">75</text>
+<text x="146" y="427.6" text-anchor="end" font-size="17" fill="#555555">80</text>
+<text x="146" y="349.9" text-anchor="end" font-size="17" fill="#555555">85</text>
+<text x="146" y="272.2" text-anchor="end" font-size="17" fill="#555555">90</text>
+<line x1="163" y1="578" x2="1178" y2="578" stroke="#222222" stroke-width="2.5"/>
+<text transform="translate(84,420) rotate(-90)" text-anchor="middle" font-size="19" font-weight="700" fill="#111111">Recall score (%)</text>
+<text x="670" y="649" text-anchor="middle" font-size="21" font-weight="700" fill="#111111">Total evaluation cost (USD, log scale)</text>
+<text x="670" y="672" text-anchor="middle" font-size="15" fill="#777777">all models ran on high effort</text>
+<circle cx="264.8" cy="286.4" r="11.5" fill="#3b82f6"/>
+<text x="285" y="240" text-anchor="start" font-size="20" font-weight="700" fill="#111111">GPT-5.6 Luna</text>
+<text x="285" y="266" text-anchor="start" font-size="18" fill="#666666">88.7% &#183; $4.37</text>
+<circle cx="407.4" cy="334.6" r="11.5" fill="#f2682a"/>
+<text x="430" y="371" text-anchor="start" font-size="20" font-weight="700" fill="#111111">GLM-5.2</text>
+<text x="430" y="397" text-anchor="start" font-size="18" fill="#666666">85.6% &#183; $7.33*</text>
+<circle cx="743.9" cy="494.6" r="11.5" fill="#14b07a"/>
+<text x="723" y="448" text-anchor="end" font-size="20" font-weight="700" fill="#111111">Gemini 3.6 Flash</text>
+<text x="723" y="474" text-anchor="end" font-size="18" fill="#666666">75.3% &#183; $24.85</text>
+<circle cx="1079.7" cy="319.0" r="11.5" fill="#b23fa9"/>
+<text x="1057" y="272" text-anchor="end" font-size="20" font-weight="700" fill="#111111">Claude Sonnet 5</text>
+<text x="1057" y="298" text-anchor="end" font-size="18" fill="#666666">86.6% &#183; $84.04</text>
+<text x="60" y="721" font-size="15" fill="#666666">*Estimated model cost for self hosting at a large organization.</text>
+<text x="60" y="754" font-size="15" fill="#666666">The results are of an AI scanner agent harness run on a web application</text>
+<text x="60" y="776" font-size="15" fill="#666666">codebase (OWASP Juice Shop). The harness was designed to scan and identify</text>
+<text x="60" y="798" font-size="15" fill="#666666">the top 30 OWASP vulnerabilities.</text>
+</svg>

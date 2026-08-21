@@ -3,8 +3,19 @@
 **An AI agent harness that scans a codebase for an entire class of
 OWASP-categorized vulnerabilities and reports it.**
 
-On OWASP Juice Shop (865-file corpus, 541 per-file hunt lanes, a fixed 97-entry
-ground truth held in a separate private repository):
+## Benchmark
+
+<p align="center">
+  <img src="docs/assets/benchmark-recall-vs-cost.svg"
+       alt="Vulnerability scan recall by cost: GPT-5.6 Luna 88.7% at $4.37, GLM-5.2 85.6% at $7.33, Claude Sonnet 5 86.6% at $84.04, Gemini 3.6 Flash 75.3% at $24.85."
+       width="100%">
+</p>
+
+Full tables, per-class breakdowns and run parameters:
+[`docs/benchmarking-results.md`](docs/benchmarking-results.md).
+
+The best run in detail, on OWASP Juice Shop (865-file corpus, 541 per-file hunt
+lanes, a fixed 97-entry ground truth held in a separate private repository):
 
 | | Result |
 |---|---|
