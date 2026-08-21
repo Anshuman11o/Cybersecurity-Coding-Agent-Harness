@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 620" width="1060" height="620" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif">
+<rect width="1060" height="620" rx="14" fill="#ffffff"/>
+<text x="530.0" y="52" text-anchor="middle" font-size="30" font-weight="700" fill="#111827">Detection quality by cost</text>
+<text x="530.0" y="82" text-anchor="middle" font-size="17" fill="#6b7280">Four models, one pipeline, byte-identical prompts and lanes</text>
+<line x1="199.5" y1="104" x2="199.5" y2="492" stroke="#e5e7eb" stroke-width="1"/>
+<text x="199.5" y="522" text-anchor="middle" font-size="15" fill="#6b7280">$5</text>
+<line x1="371.2" y1="104" x2="371.2" y2="492" stroke="#e5e7eb" stroke-width="1"/>
+<text x="371.2" y="522" text-anchor="middle" font-size="15" fill="#6b7280">$10</text>
+<line x1="543.0" y1="104" x2="543.0" y2="492" stroke="#e5e7eb" stroke-width="1"/>
+<text x="543.0" y="522" text-anchor="middle" font-size="15" fill="#6b7280">$20</text>
+<line x1="769.9" y1="104" x2="769.9" y2="492" stroke="#e5e7eb" stroke-width="1"/>
+<text x="769.9" y="522" text-anchor="middle" font-size="15" fill="#6b7280">$50</text>
+<line x1="941.7" y1="104" x2="941.7" y2="492" stroke="#e5e7eb" stroke-width="1"/>
+<text x="941.7" y="522" text-anchor="middle" font-size="15" fill="#6b7280">$100</text>
+<text x="88" y="439.5" text-anchor="end" font-size="15" fill="#6b7280">60</text>
+<text x="88" y="343.6" text-anchor="end" font-size="15" fill="#6b7280">70</text>
+<text x="88" y="247.7" text-anchor="end" font-size="15" fill="#6b7280">80</text>
+<text x="88" y="151.8" text-anchor="end" font-size="15" fill="#6b7280">90</text>
+<line x1="104" y1="492" x2="1016" y2="492" stroke="#374151" stroke-width="2"/>
+<text x="560.0" y="560" text-anchor="middle" font-size="17" font-weight="600" fill="#111827">Total run cost (USD, log scale)</text>
+<text x="560.0" y="584" text-anchor="middle" font-size="14" fill="#6b7280">541 lanes over an 865-file corpus, reasoning_effort: high, HUNT_LOOP=trace</text>
+<text transform="translate(32,305.0) rotate(-90)" text-anchor="middle" font-size="17" font-weight="600" fill="#111827">Score against 97 ground-truth entries (%)</text>
+<line x1="166.2" y1="159.2" x2="166.2" y2="328.0" stroke="#2563eb" stroke-width="2" opacity="0.35"/>
+<circle cx="166.2" cy="159.2" r="9" fill="#ffffff" stroke="#2563eb" stroke-width="3"/>
+<circle cx="166.2" cy="328.0" r="9" fill="#2563eb"/>
+<text x="180.2" y="125.2" text-anchor="start" font-size="17" font-weight="700" fill="#111827">GPT-5.6 Luna</text>
+<text x="180.2" y="146.2" text-anchor="start" font-size="14" fill="#6b7280">$4.37 · recall 71.1% · loc 88.7%</text>
+<line x1="502.8" y1="189.0" x2="502.8" y2="367.3" stroke="#ea580c" stroke-width="2" opacity="0.35"/>
+<circle cx="502.8" cy="189.0" r="9" fill="#ffffff" stroke="#ea580c" stroke-width="3"/>
+<circle cx="502.8" cy="367.3" r="9" fill="#ea580c"/>
+<text x="516.8" y="219.0" text-anchor="start" font-size="17" font-weight="700" fill="#111827">GLM-5.2</text>
+<text x="516.8" y="240.0" text-anchor="start" font-size="14" fill="#6b7280">$17.01 · recall 67.0% · loc 85.6%</text>
+<line x1="596.7" y1="287.7" x2="596.7" y2="446.0" stroke="#059669" stroke-width="2" opacity="0.35"/>
+<circle cx="596.7" cy="287.7" r="9" fill="#ffffff" stroke="#059669" stroke-width="3"/>
+<circle cx="596.7" cy="446.0" r="9" fill="#059669"/>
+<text x="610.7" y="317.7" text-anchor="start" font-size="17" font-weight="700" fill="#111827">Gemini 3.6 Flash</text>
+<text x="610.7" y="338.7" text-anchor="start" font-size="14" fill="#6b7280">$24.85 · recall 58.8% · loc 75.3%</text>
+<line x1="898.6" y1="179.4" x2="898.6" y2="376.9" stroke="#9333ea" stroke-width="2" opacity="0.35"/>
+<circle cx="898.6" cy="179.4" r="9" fill="#ffffff" stroke="#9333ea" stroke-width="3"/>
+<circle cx="898.6" cy="376.9" r="9" fill="#9333ea"/>
+<text x="884.6" y="145.4" text-anchor="end" font-size="17" font-weight="700" fill="#111827">Claude Sonnet 5</text>
+<text x="884.6" y="166.4" text-anchor="end" font-size="14" fill="#6b7280">$84.04 · recall 66.0% · loc 86.6%</text>
+<circle cx="128" cy="432" r="8" fill="#374151"/>
+<text x="146" y="437" font-size="15" fill="#374151">Recall (exact line + class)</text>
+<circle cx="128" cy="460" r="8" fill="#ffffff" stroke="#374151" stroke-width="3"/>
+<text x="146" y="465" font-size="15" fill="#374151">Localization (within 15 lines)</text>
+</svg>
