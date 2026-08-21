@@ -3,19 +3,16 @@
 **An AI agent harness that scans a codebase for an entire class of
 OWASP-categorized vulnerabilities and reports it.**
 
+## Benchmark
+
 <p align="center">
-  <img src="docs/assets/benchmark-quality-vs-cost.svg"
-       alt="Detection quality by cost: four models scored on the same 97 ground-truth entries. GPT-5.6 Luna 71.1% recall / 88.7% localization at $4.37; GLM-5.2 67.0% / 85.6% at $17.01; Claude Sonnet 5 66.0% / 86.6% at $84.04; Gemini 3.6 Flash 58.8% / 75.3% at $24.85."
+  <img src="docs/assets/benchmark-recall-vs-cost.svg"
+       alt="Vulnerability scan recall by cost: GPT-5.6 Luna 88.7% at $4.37, GLM-5.2 85.6% at $7.33, Claude Sonnet 5 86.6% at $84.04, Gemini 3.6 Flash 75.3% at $24.85."
        width="100%">
 </p>
 
-Four models, one pipeline, byte-identical prompts, lanes and corpus. Cost spans
-**19x** while the top three land within 5 points of each other on recall and
-within 3 on localization, so what separates them is largely *labelling* rather
-than detection. Every figure is reproduced from
-[`docs/benchmarking-results.md`](docs/benchmarking-results.md), the append-only
-ledger each run writes into. Full tables and the qualifications that travel with
-them are in §5.
+Full tables, per-class breakdowns and run parameters:
+[`docs/benchmarking-results.md`](docs/benchmarking-results.md).
 
 The best run in detail, on OWASP Juice Shop (865-file corpus, 541 per-file hunt
 lanes, a fixed 97-entry ground truth held in a separate private repository):
