@@ -6,12 +6,13 @@
  * - architecture-summary.json
  * - category-applicability.json
  *
- * Now parameterized: TARGET_DIR comes from CLI arg --target or env var
- * SCANNER_TARGET, defaulting to target-apps/juice-shop-blind for backward
- * compatibility. Framework-specific passes (Express AST, Angular/React/Vue
- * escape-hatch grep) are gated behind auto-detected framework signals so
- * the scanner no longer silently fails against non-Express / non-Angular
- * targets.
+ * TARGET_DIR is the run context's target root (shared/run-context.ts), which
+ * honours --target <path>, --target=<path> and SCANNER_TARGET and defaults to
+ * target-apps/juice-shop-blind — the benchmark. Recon resolves nothing itself,
+ * so every stage of a run agrees on what is being scanned. Framework-specific
+ * passes (Express AST, Angular/React/Vue escape-hatch grep) are gated behind
+ * auto-detected framework signals so the scanner no longer silently fails
+ * against non-Express / non-Angular targets.
  *
  * Additionally performs a full-repository file inventory walk, producing
  * an unclassified_surface list (files never touched by framework-specific
@@ -28,34 +29,15 @@ import { detectAllSignalsFromList, collectRouteHandlerNames } from './signal-det
 import { runPath } from '../../shared/run-paths.js'
 import { resolveProvider, modelFor } from '../../shared/provider.js'
 import { writeMeta, failIfDegraded } from '../../shared/meta.js'
+import { getRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
 
 // ---------------------------------------------------------------------------
-// Target resolution: CLI arg > env var > hardcoded default
+// Target resolution: delegated to the run context (CLI arg > env var > default)
 // ---------------------------------------------------------------------------
 
-function resolveTargetDir(): string {
-  // CLI arg: --target=<path>
-  const targetArgIdx = process.argv.indexOf('--target')
-  if (targetArgIdx >= 0 && targetArgIdx + 1 < process.argv.length) {
-    return process.argv[targetArgIdx + 1]
-  }
-  // Also support --target=<path> (single-arg form)
-  for (const arg of process.argv) {
-    if (arg.startsWith('--target=')) {
-      return arg.slice('--target='.length)
-    }
-  }
-  // Env var
-  if (process.env.SCANNER_TARGET) {
-    return process.env.SCANNER_TARGET
-  }
-  // Backward-compatible default
-  const PROJECT_ROOT = path.resolve(import.meta.dirname, '../../../../')
-  return path.join(PROJECT_ROOT, 'target-apps', 'juice-shop-blind')
-}
-
-const TARGET_DIR = resolveTargetDir()
-const PROJECT_ROOT = path.resolve(TARGET_DIR, '../../../..')
+// Absolute and symlink-resolved. Stage 0.5 reads it back from file-signals.json
+// and refuses to proceed if it names a different target than its own context.
+const TARGET_DIR = getRunContext().targetRoot
 const OUTPUT_DIR = runPath(resolveProvider('stage0'), 'stage0-recon')
 
 // Derived paths (relative to TARGET_DIR, not hardcoded absolute)
@@ -111,12 +93,14 @@ function detectExpress(targetDir: string): { isExpress: boolean; entryFile: stri
 // ---------------------------------------------------------------------------
 
 /**
- * Directories to exclude from the inventory walk (build artifacts, deps, VCS).
+ * Directories to exclude from the inventory walk (build artifacts, deps, VCS,
+ * and the scanner's own product-run artifacts, which live inside the target).
  */
 const EXCLUDED_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', 'coverage',
   '.next', '.nuxt', '.output', '.angular', '.cache',
   'out', '.turbo', '.vercel',
+  PRODUCT_DIRNAME,
 ])
 
 /**

@@ -15,6 +15,7 @@ import { join } from 'path'
 import { runPath, REPO_ROOT, type Provider, type Stage } from './run-paths.js'
 import { isDegraded, degradedReasons } from './degraded.js'
 import { isProviderExplicit } from './provider.js'
+import { describeRunContext } from './run-context.js'
 
 export interface RunMeta {
   provider: Provider
@@ -49,6 +50,15 @@ export interface RunMeta {
   loop_passes?: number
   /** Classes per group in sweep mode. Absent for every other mode. */
   sweep_group_size?: number
+  /**
+   * What the run scanned and where its artifacts went: profile, target root,
+   * runs root, run id, resume flag (run-context.ts describeRunContext()).
+   * Like `loop_mode`, all of it is chosen by env var, so neither `git_sha` nor
+   * the artifact path alone says whether a meta.json came from the benchmark or
+   * from a product scan of some other tree. Optional only so that meta.json
+   * files written before it existed still type-check when read back.
+   */
+  run_context?: Record<string, unknown>
 }
 
 function gitSha(): string {
@@ -87,6 +97,8 @@ export function writeMeta(
     degraded: isDegraded(),
     ...(isDegraded() ? { degraded_reasons: degradedReasons() } : {}),
     ...extra,
+    // Last, so existing meta.json files diff by one appended key.
+    run_context: describeRunContext(),
   }
   writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
 }

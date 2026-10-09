@@ -396,6 +396,169 @@ console.log('\n-- claude-cli transport: the sandbox IS the blind-development bou
   }
 }
 
+console.log('\n-- run context: benchmark stays the lab, product is confined to its target --')
+// Before run-context.ts, both what a run scans and where it writes were
+// hardcoded to the benchmark. Pointed at any other repo, every lane was blocked
+// by the read guard and the run still exited 0 looking clean. The product
+// profile fixes that by making the target the corpus — which is only safe if
+// the guard stays exactly as tight as it was everywhere else: the benchmark
+// unchanged, and a product run unable to reach this repo, its own prior
+// artifacts, .git, or anything a symlink in the user's tree points at.
+//
+// Every context here is built from an explicit env and an empty argv, so the
+// section is independent of how the test process itself was launched. The
+// product fixture is a throwaway directory outside the repo.
+{
+  const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, realpathSync } = await import('fs')
+  const { join, relative, resolve } = await import('path')
+  const { tmpdir } = await import('os')
+  const {
+    resolveRunContext, BENCHMARK_RUNS_ROOT, BENCHMARK_TARGET, REPO_ROOT: CONTEXT_REPO_ROOT,
+  } = await import('./run-context.js')
+  const { makeReadGuard, activeDenylist, corpusRoots, SEED_DENYLIST } = await import('./read-guard.js')
+  const { REPO_ROOT } = await import('./run-paths.js')
+
+  const NO_ARGV: string[] = []
+  const throws = (f: () => unknown) => { try { f(); return false } catch { return true } }
+  const ctxFor = (env: Record<string, string>) => resolveRunContext(env, NO_ARGV, REPO_ROOT)
+
+  // ── benchmark: the default, and byte-for-byte the lab it always was ──
+  const bench = ctxFor({})
+  check('no target -> benchmark profile', bench.profile === 'benchmark')
+  check('benchmark runsRoot is the lab run tree', bench.runsRoot === BENCHMARK_RUNS_ROOT)
+  check('benchmark run tree is tools/scanner/runs',
+    BENCHMARK_RUNS_ROOT === join(REPO_ROOT, 'tools/scanner/runs'))
+  check('benchmark target defaults to juice-shop-blind',
+    bench.targetRoot === realpathSync(join(REPO_ROOT, 'target-apps/juice-shop-blind')) &&
+    bench.targetRoot === realpathSync(BENCHMARK_TARGET))
+  check('benchmark has no run id', bench.runId === null)
+  check('run-paths REPO_ROOT is the run-context REPO_ROOT', REPO_ROOT === CONTEXT_REPO_ROOT)
+  check('RUNS_ROOT in the default env is the lab run tree', RUNS_ROOT === BENCHMARK_RUNS_ROOT)
+
+  const juiceShop = ctxFor({ SCANNER_TARGET: 'target-apps/juice-shop' })
+  check('target inside target-apps/ -> benchmark', juiceShop.profile === 'benchmark')
+  check('target inside target-apps/ still writes to the lab run tree',
+    juiceShop.runsRoot === BENCHMARK_RUNS_ROOT)
+  check('--target on argv is honoured',
+    resolveRunContext({}, ['--target', 'target-apps/juice-shop'], REPO_ROOT).targetRoot ===
+      realpathSync(join(REPO_ROOT, 'target-apps/juice-shop')))
+  // Stage 2 resuming from its checkpoint is the benchmark's long-standing
+  // behaviour and is not governed by this flag; the flag is product-only.
+  check('SCANNER_RESUME=1 does not set resume in benchmark', !ctxFor({ SCANNER_RESUME: '1' }).resume)
+
+  check('benchmark corpus roots are the two Juice Shop trees',
+    JSON.stringify(corpusRoots(bench)) === JSON.stringify([
+      resolve(REPO_ROOT, 'target-apps/juice-shop'),
+      resolve(REPO_ROOT, 'target-apps/juice-shop-blind'),
+    ]))
+  check('benchmark denylist is SEED_DENYLIST itself', activeDenylist(bench) === SEED_DENYLIST)
+  check('process guard is the benchmark guard in the default env',
+    JSON.stringify(corpusRoots()) === JSON.stringify(corpusRoots(bench)) &&
+    activeDenylist() === SEED_DENYLIST)
+  {
+    const g = makeReadGuard(bench)
+    check('explicit benchmark guard reads server.ts',
+      (g.readCorpusFile('target-apps/juice-shop-blind/server.ts') ?? '').length > 0)
+    check('explicit benchmark guard denies every denylisted file',
+      SEED_DENYLIST.every((p) => g.readCorpusFile(p) === null && !g.isCorpusReadable(p)))
+    check('explicit benchmark guard denies prior-run artifacts',
+      g.readCorpusFile('tools/scanner/runs/qwen/stage3-validate/validated-findings.json') === null)
+  }
+
+  // ── product: a target outside the repo ──
+  const fixture = mkdtempSync(join(tmpdir(), 'secscan-guard-test-'))
+  try {
+    const target = join(fixture, 'user-repo')
+    mkdirSync(join(target, 'src'), { recursive: true })
+    writeFileSync(join(target, 'src/app.js'), 'module.exports = 1\n')
+    mkdirSync(join(target, '.secscan/runs/prior'), { recursive: true })
+    writeFileSync(join(target, '.secscan/x.json'), '{"findings":[]}\n')
+    mkdirSync(join(target, '.git'))
+    writeFileSync(join(target, '.git/config'), '[core]\n')
+    writeFileSync(join(fixture, 'outside.txt'), 'not part of the target\n')
+    symlinkSync(join(fixture, 'outside.txt'), join(target, 'src/escape.txt'))
+    symlinkSync(join(target, '.git/config'), join(target, 'src/git-config-link'))
+    const realTarget = realpathSync(target)
+
+    const env = { SCANNER_TARGET: target, SCANNER_RUN_ID: 'abc' }
+    const prod = ctxFor(env)
+    check('target outside the repo -> product', prod.profile === 'product')
+    check('product targetRoot is the realpath of the target', prod.targetRoot === realTarget)
+    check('product runsRoot is <target>/.secscan/runs/<run-id>',
+      prod.runsRoot === join(realTarget, '.secscan', 'runs', 'abc'))
+    check('product records its run id', prod.runId === 'abc')
+    check('product does not resume unless asked', !prod.resume)
+    check('SCANNER_RESUME=1 sets resume in product', ctxFor({ ...env, SCANNER_RESUME: '1' }).resume)
+    check('product without a run id or runs root throws',
+      throws(() => ctxFor({ SCANNER_TARGET: target })))
+    check('SCANNER_RUNS_ROOT stands in for a run id',
+      ctxFor({ SCANNER_TARGET: target, SCANNER_RUNS_ROOT: join(fixture, 'out') }).runsRoot ===
+        join(fixture, 'out'))
+    check('unsafe run id (../x) throws', throws(() => ctxFor({ ...env, SCANNER_RUN_ID: '../x' })))
+    check('unsafe run id (a/b) throws', throws(() => ctxFor({ ...env, SCANNER_RUN_ID: 'a/b' })))
+    check('invalid SCANNER_PROFILE throws', throws(() => ctxFor({ ...env, SCANNER_PROFILE: 'lab' })))
+    check('non-existent target throws',
+      throws(() => ctxFor({ SCANNER_TARGET: join(fixture, 'no-such-dir'), SCANNER_RUN_ID: 'abc' })))
+    check('a file as the target throws',
+      throws(() => ctxFor({ SCANNER_TARGET: join(target, 'src/app.js'), SCANNER_RUN_ID: 'abc' })))
+
+    check('product corpus root is the target alone',
+      JSON.stringify(corpusRoots(prod)) === JSON.stringify([realTarget]))
+    check('product has no seed denylist', activeDenylist(prod).length === 0)
+
+    const g = makeReadGuard(prod)
+    const appAbs = join(realTarget, 'src/app.js')
+    check('product guard reads a target file by absolute path',
+      g.readCorpusFile(appAbs) === 'module.exports = 1\n')
+    // Stage 2 calls readCorpusFile(relative(REPO_ROOT, join(targetDir, file))),
+    // which for a target outside the repo is a '../../..'-style path.
+    check('product guard reads a target file by repo-relative path (Stage 2 form)',
+      g.readCorpusFile(relative(REPO_ROOT, appAbs)) === 'module.exports = 1\n')
+    check('product isCorpusReadable agrees', g.isCorpusReadable(appAbs))
+
+    check('product guard denies the benchmark corpus',
+      g.readCorpusFile('target-apps/juice-shop-blind/server.ts') === null)
+    check('product guard denies scanner source',
+      g.readCorpusFile('tools/scanner/shared/read-guard.ts') === null)
+    check('product guard denies the lab run tree',
+      g.readCorpusFile('tools/scanner/runs/qwen/stage3-validate/validated-findings.json') === null)
+    check('product guard denies its own prior run artifacts (.secscan)',
+      g.readCorpusFile(join(realTarget, '.secscan/x.json')) === null &&
+      !g.isCorpusReadable(join(realTarget, '.secscan/x.json')))
+    check('product guard denies .git',
+      g.readCorpusFile(join(realTarget, '.git/config')) === null &&
+      !g.isCorpusReadable(join(realTarget, '.git/config')))
+    check('product guard denies .git by a different case',
+      g.readCorpusFile(join(realTarget, '.GIT/config')) === null)
+    // A literal '..' string, not join(), which would normalise it away first.
+    check('product guard denies .. traversal out of the target',
+      g.readCorpusFile(`${realTarget}/src/../../outside.txt`) === null)
+    check('product guard denies a symlink pointing outside the target',
+      g.readCorpusFile(join(realTarget, 'src/escape.txt')) === null &&
+      !g.isCorpusReadable(join(realTarget, 'src/escape.txt')))
+    check('product guard denies a symlink pointing into .git',
+      g.readCorpusFile(join(realTarget, 'src/git-config-link')) === null)
+    check('product guard denies a directory without throwing',
+      g.readCorpusFile(join(realTarget, 'src')) === null)
+    check('product guard denies a missing file', g.readCorpusFile(join(realTarget, 'src/nope.js')) === null)
+
+    // SCANNER_RUNS_ROOT can move the artifact tree; if it moves it inside the
+    // target, it is still not corpus.
+    mkdirSync(join(realTarget, 'scan-out'))
+    writeFileSync(join(realTarget, 'scan-out/f.json'), '{}\n')
+    const moved = makeReadGuard(ctxFor({ SCANNER_TARGET: target, SCANNER_RUNS_ROOT: join(realTarget, 'scan-out') }))
+    check('a runs root moved inside the target is denied',
+      moved.readCorpusFile(join(realTarget, 'scan-out/f.json')) === null)
+    check('...without denying the rest of the target', moved.readCorpusFile(appAbs) !== null)
+    // A runs root ABOVE the target holds artifacts beside it, not in it; it
+    // must not swallow the whole corpus.
+    const above = makeReadGuard(ctxFor({ SCANNER_TARGET: target, SCANNER_RUNS_ROOT: fixture }))
+    check('a runs root above the target does not deny the target', above.readCorpusFile(appAbs) !== null)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)
