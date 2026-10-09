@@ -10,18 +10,26 @@ precedence over both.
 
 ## Roles
 
-**Claude** is the architect, reviewer, verifier and dispatcher. Claude does not
-write or edit scanner source code, and does not run the scanner's heavy test
-workloads directly.
+**Claude** is the architect, reviewer, verifier and dispatcher, and — since
+2026-10-09, by the owner's direction for the productization plan
+(`docs/architecture/productization-plan.md`) — also the implementer. The
+orchestrating Claude session writes a work spec in `prompts/dispatch/`, hands
+disjoint parts of it to Claude subagents that edit the source, then verifies
+their output itself before anything is committed.
 
-**Qwen Code** (via `acpx qwen`) is the implementer. It writes the code and runs
-the scans.
+**Qwen Code** (via `acpx qwen`) was the implementer for everything before that
+date. The dispatch briefs it worked from stay in `prompts/dispatch/` as the
+record of what was asked for.
 
-The split is deliberate: the party that verifies a result should not be the
-party that produced it.
+The principle behind the old split still holds: the party that verifies a result
+should not be the party that produced it. Under the new arrangement that means a
+subagent's report is never the evidence. The orchestrator reads the diff, runs
+the tests and the deterministic before/after checks, and every quality number
+comes from the scorer in a separate step — never from the session that wrote the
+code.
 
-**This is not the same axis as the scanner's inference model.** Qwen Code is a
-*coding agent* that edits files in this repo. The model the scanner *calls*
+**This is not the same axis as the scanner's inference model.** The coding agent
+(Claude, previously Qwen Code) edits files in this repo. The model the scanner *calls*
 while scanning is a runtime parameter selected from
 `tools/scanner/shared/models.json` — currently `luna` (`gpt-5.6-luna`) by
 default. Changing one has no bearing on the other. See
