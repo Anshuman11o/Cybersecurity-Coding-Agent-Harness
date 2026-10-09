@@ -11,6 +11,7 @@
  */
 import * as fs from 'fs'
 import * as path from 'path'
+import { getRunContext, isBenchmark } from '../../shared/run-context.js'
 
 export type FrameworkType = 'angular' | 'react' | 'vue'
 
@@ -193,8 +194,20 @@ function scanDirRecursive(dir: string, findings: EscapeHatchFinding[], patternSe
   }
 }
 
+/**
+ * Benchmark: repo-relative ('target-apps/juice-shop-blind/frontend/...'), as
+ * every committed artifact records it. Product: relative to the target root —
+ * the target can live anywhere, so there is no repo prefix to anchor on.
+ */
 function makeRelativePath(absPath: string): string {
-  const idx = absPath.indexOf('target-apps/')
-  if (idx >= 0) return absPath.substring(idx)
-  return absPath
+  const ctx = getRunContext()
+  if (isBenchmark(ctx)) {
+    const idx = absPath.indexOf('target-apps/')
+    if (idx >= 0) return absPath.substring(idx)
+    return absPath
+  }
+  if (!path.isAbsolute(absPath)) return absPath
+  const rel = path.relative(ctx.targetRoot, absPath)
+  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return absPath
+  return rel.split(path.sep).join('/')
 }

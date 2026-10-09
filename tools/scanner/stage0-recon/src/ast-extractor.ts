@@ -5,6 +5,8 @@
  */
 import { Project, Node, CallExpression, SyntaxKind, Expression } from 'ts-morph'
 import * as fs from 'fs'
+import * as path from 'path'
+import { getRunContext, isBenchmark } from '../../shared/run-context.js'
 
 export interface RouteEntry {
   method: string
@@ -450,10 +452,23 @@ function extractPersistenceInfo(sourceFile: any, serverTsPath: string): Persiste
   return { orm, database, models, rawQueries, rawQueryFiles: [...new Set(rawQueryFiles)] }
 }
 
+/**
+ * Benchmark: repo-relative ('target-apps/juice-shop-blind/server.ts'), as every
+ * committed artifact records it. Product: relative to the target root
+ * ('src/server.ts') — the target can live anywhere, so there is no repo prefix
+ * to anchor on. Stage 2 matches either form by suffix.
+ */
 function makeRelativePath(absPath: string): string {
-  const idx = absPath.indexOf('target-apps/')
-  if (idx >= 0) return absPath.substring(idx)
-  return absPath
+  const ctx = getRunContext()
+  if (isBenchmark(ctx)) {
+    const idx = absPath.indexOf('target-apps/')
+    if (idx >= 0) return absPath.substring(idx)
+    return absPath
+  }
+  if (!path.isAbsolute(absPath)) return absPath
+  const rel = path.relative(ctx.targetRoot, absPath)
+  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return absPath
+  return rel.split(path.sep).join('/')
 }
 
 /**
