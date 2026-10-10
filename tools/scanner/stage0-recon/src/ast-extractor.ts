@@ -1,9 +1,18 @@
 /**
- * Deterministic AST-based static extraction via ts-morph.
- * Extracts route registrations (app.<method>(...)) and auto-CRUD routes
- * from a given server.ts entry point.
+ * Express framework enricher: deterministic AST extraction via ts-morph.
+ *
+ * Optional in recon v3 — it runs only when detectExpress() finds an express
+ * dependency and an entry file. Extracts route registrations
+ * (<receiver>.<method>(...), <receiver>.use(...), <receiver>.route(...)) and
+ * finale auto-CRUD routes from that one entry file.
+ *
+ * Routes come out with `auth: null`. Which middleware counts as authentication
+ * is not something this file decides any more: it used to carry a fixed list of
+ * one application's guard names, which tagged nothing in any other codebase.
+ * The architecture call names the target's own auth identifiers, validation
+ * keeps the ones that exist, and tagRouteAuth() applies them.
  */
-import { Project, Node, CallExpression, SyntaxKind, Expression } from 'ts-morph'
+import { Project, Node, SyntaxKind, Expression, PropertyAccessExpression, PropertyAssignment, SourceFile } from 'ts-morph'
 import * as fs from 'fs'
 import * as path from 'path'
 import { getRunContext, isBenchmark } from '../../shared/run-context.js'
@@ -13,7 +22,7 @@ export interface RouteEntry {
   routePath: string
   handler: string | null        // imported handler name or null
   middleware: string[]           // middleware function names found in the call chain
-  auth: string | null           // auth middleware indicator
+  auth: string | null           // auth middleware, set by tagRouteAuth(); null from extract()
   file: string                   // source file (repo-relative)
   line: number
 }
@@ -47,7 +56,195 @@ export interface AstExtractionResult {
   autoCrudRoutes: AutoCrudEntry[]
   persistence: PersistenceLayerInfo
   dependencies: DependencyInfo[]
+  /** Identifiers whose method calls were read as route registrations. */
+  receivers: string[]
 }
+
+// ---------------------------------------------------------------------------
+// Detection
+// ---------------------------------------------------------------------------
+
+export interface ExpressDetection {
+  isExpress: boolean
+  /** Absolute path of the entry file, or null. */
+  entryFile: string | null
+  reason: string
+}
+
+/** Conventional entry-file stems, in the order they are tried, at the root and then in src/. */
+const ENTRY_STEMS = ['server', 'app', 'index', 'main']
+const ENTRY_DIRS = ['', 'src/']
+/** .ts first: the order before recon v3 was .ts only, so a TypeScript entry still wins. */
+const ENTRY_EXTENSIONS = ['.ts', '.js', '.mjs', '.cjs']
+
+/** Target-relative entry-file candidates, in priority order. */
+export function expressEntryCandidates(): string[] {
+  const out: string[] = []
+  for (const dir of ENTRY_DIRS) {
+    for (const stem of ENTRY_STEMS) {
+      for (const ext of ENTRY_EXTENSIONS) out.push(`${dir}${stem}${ext}`)
+    }
+  }
+  return out
+}
+
+/**
+ * Detect whether the target looks like an Express application: an `express`
+ * dependency in the root package.json plus an entry file. The entry file is
+ * the first conventional name that exists, else the package.json `main`
+ * target. `isSelected`, when given, must accept the candidate — recon passes
+ * inventory membership so an ignored or build-output file is never parsed.
+ */
+export function detectExpress(
+  targetDir: string,
+  isSelected: (relPath: string) => boolean = () => true,
+): ExpressDetection {
+  const pkgPath = path.join(targetDir, 'package.json')
+  let pkg: any
+
+  try {
+    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+  } catch {
+    return { isExpress: false, entryFile: null, reason: 'No package.json found in target directory' }
+  }
+
+  const allDeps = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})]
+  if (!allDeps.includes('express')) {
+    return { isExpress: false, entryFile: null, reason: 'No "express" dependency in package.json' }
+  }
+
+  const exists = (rel: string) => {
+    try { return fs.statSync(path.join(targetDir, rel)).isFile() } catch { return false }
+  }
+
+  for (const candidate of expressEntryCandidates()) {
+    if (exists(candidate) && isSelected(candidate)) {
+      return { isExpress: true, entryFile: path.join(targetDir, candidate), reason: `Express dependency + entry file "${candidate}" found` }
+    }
+  }
+
+  // The declared entry, when none of the conventional names exist. An
+  // extensionless main ("main": "lib/server") resolves the way Node would.
+  if (typeof pkg.main === 'string' && pkg.main.trim()) {
+    const main = path.posix.normalize(pkg.main.trim().replace(/\\/g, '/')).replace(/^\.\//, '')
+    if (!main.startsWith('../') && !path.posix.isAbsolute(main)) {
+      const variants = path.posix.extname(main) ? [main] : [main, ...ENTRY_EXTENSIONS.map(e => main + e)]
+      for (const candidate of variants) {
+        if (exists(candidate) && isSelected(candidate)) {
+          return { isExpress: true, entryFile: path.join(targetDir, candidate), reason: `Express dependency + package.json main "${candidate}" found` }
+        }
+      }
+    }
+  }
+
+  return {
+    isExpress: false,
+    entryFile: null,
+    reason: 'Express dependency found but no entry file: none of server/app/index/main (.ts/.js/.mjs/.cjs, at the root or in src/) exists, and package.json "main" does not name one',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Route receivers
+// ---------------------------------------------------------------------------
+
+/** Calls whose result is something routes are registered on. */
+const ROUTER_FACTORIES = new Set(['express', 'express.Router', 'Router'])
+
+/** `express() as Express`, `(express())`, `express()!` — look through the wrapper. */
+function unwrapExpression(node: Node): Node {
+  let n = node
+  while (
+    Node.isAsExpression(n) || Node.isParenthesizedExpression(n) ||
+    Node.isNonNullExpression(n) || Node.isSatisfiesExpression(n) || Node.isTypeAssertion(n)
+  ) {
+    n = n.getExpression()
+  }
+  return n
+}
+
+/**
+ * The identifiers routes are registered on: every variable initialised from
+ * express(), express.Router() or Router() in the file, in declaration order.
+ * Falls back to `app` — the name nearly every Express tutorial uses — when the
+ * file creates none itself (an app handed in from another module).
+ */
+export function findRouteReceivers(sourceFile: SourceFile): string[] {
+  const names: string[] = []
+  for (const vd of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const init = vd.getInitializer()
+    if (!init) continue
+    const call = unwrapExpression(init)
+    if (!Node.isCallExpression(call)) continue
+    if (!ROUTER_FACTORIES.has(call.getExpression().getText())) continue
+    const nameNode = vd.getNameNode()
+    if (!Node.isIdentifier(nameNode)) continue
+    const name = nameNode.getText()
+    if (!names.includes(name)) names.push(name)
+  }
+  return names.length > 0 ? names : ['app']
+}
+
+// ---------------------------------------------------------------------------
+// Auth tagging
+// ---------------------------------------------------------------------------
+
+const IDENT_CHAR = 'A-Za-z0-9_$'
+
+/**
+ * The part of an auth identifier that appears at a call site: the last dotted
+ * segment, without decorator/attribute syntax or arguments.
+ *   auth.requireUser        -> requireUser
+ *   @login_required         -> login_required
+ *   [Authorize(Roles="A")]  -> Authorize
+ * Null when nothing identifier-shaped is left.
+ */
+export function identifierKey(identifier: string): string | null {
+  let s = identifier.trim().replace(/^@+/, '')
+  const bracketed = s.match(/^\[(.*)\]$/s)
+  if (bracketed) s = bracketed[1].trim()
+  s = s.replace(/\(.*\)$/s, '').trim()
+  const parts = s.split(/\.|::|->|#/).filter(Boolean)
+  const last = parts[parts.length - 1]
+  return last && new RegExp(`^[A-Za-z_$][${IDENT_CHAR}]*$`).test(last) ? last : null
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * True when `word` occurs in `text` as a whole identifier: `requireUser` is in
+ * `auth.requireUser()`, `login` is not in `loginRateLimit`. `$` counts as
+ * an identifier character, as it does in JavaScript.
+ */
+export function containsWholeWord(text: string, word: string): boolean {
+  return new RegExp(`(?<![${IDENT_CHAR}])${escapeRegExp(word)}(?![${IDENT_CHAR}])`).test(text)
+}
+
+/**
+ * Set each route's `auth` to the first middleware text containing a whole-word
+ * match of an identifier's last dotted segment, else null. Returns new route
+ * objects; the input is not modified. With no identifiers every route is null —
+ * "auth unknown" and "no auth" are the same thing to a reader of the table, so
+ * nothing is tagged on a guess.
+ */
+export function tagRouteAuth<T extends { middleware: string[]; auth?: string | null }>(
+  routes: readonly T[],
+  identifiers: readonly string[],
+): T[] {
+  const keys = [...new Set(identifiers.map(identifierKey).filter((k): k is string => k !== null))]
+  return routes.map(r => {
+    const auth = keys.length === 0
+      ? null
+      : (r.middleware ?? []).find(mw => keys.some(k => containsWholeWord(mw, k))) ?? null
+    return { ...r, auth }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Extraction
+// ---------------------------------------------------------------------------
 
 /**
  * Extract a string literal from a ts-morph expression.
@@ -66,7 +263,8 @@ function extractStringLiteral(expr: Expression | undefined): string | null {
 }
 
 /**
- * Given a server.ts file path, extract all route registrations and auto-CRUD definitions.
+ * Given an Express entry file, extract all route registrations and auto-CRUD
+ * definitions. Every route's `auth` is null; see tagRouteAuth().
  */
 export function extract(serverTsPath: string): AstExtractionResult {
   const project = new Project({
@@ -91,33 +289,38 @@ export function extract(serverTsPath: string): AstExtractionResult {
   // ---- Extract autoModels array first (needed for auto-CRUD resolution) ----
   const autoModelsData = extractAutoModelsArray(sourceFile)
 
-  // 1. Extract all route registrations: app.<method>(...) or app.use(...)
+  // Which identifiers are routers. Before recon v3 this was the literal `app`.
+  // A second express() instance that is only configured (.set(), passed to a
+  // helper) adds nothing: only HTTP-method, .use() and .route() calls are read.
+  const receivers = findRouteReceivers(sourceFile)
+  const isReceiver = (text: string) => receivers.includes(text)
+
+  // 1. Extract all route registrations: <receiver>.<method>(...) or <receiver>.use(...)
   const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)
 
   for (const call of callExpressions) {
     const expr = call.getExpression()
 
-    // Match app.<method>('path', ...) pattern
+    // Match <receiver>.<method>('path', ...) pattern
     if (Node.isPropertyAccessExpression(expr)) {
       const propName = expr.getName()
       const objText = expr.getExpression().getText()
 
       // Direct route methods: app.get, app.post, app.put, app.delete, app.patch, app.use
       const httpMethods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options']
-      if (objText === 'app' && httpMethods.includes(propName)) {
+      if (isReceiver(objText) && httpMethods.includes(propName)) {
         const args = call.getArguments()
         if (args.length >= 1) {
-          const routePath = extractStringLiteral(args[0])
+          const routePath = extractStringLiteral(args[0] as Expression)
           if (routePath) {
             const middlewares = args.slice(1).map(a => a.getText())
-            const authMiddleware = detectAuthMiddleware(middlewares)
-            const handler = extractHandlerName(args[args.length - 1])
+            const handler = extractHandlerName(args[args.length - 1] as Expression)
             routes.push({
               method: propName.toUpperCase(),
               routePath,
               handler,
               middleware: middlewares,
-              auth: authMiddleware,
+              auth: null,
               file: relPath,
               line: call.getStartLineNumber(),
             })
@@ -125,26 +328,27 @@ export function extract(serverTsPath: string): AstExtractionResult {
         }
       }
 
-      // app.route('/path').get/post/etc(...) pattern
-      if (objText.startsWith('app.route(') ||
-          (Node.isCallExpression(expr.getExpression()) &&
-           expr.getExpression().getExpression().getText() === 'app' &&
-           expr.getExpression().getName() === 'route')) {
+      // <receiver>.route('/path').get/post/etc(...) pattern
+      const inner = expr.getExpression()
+      if (receivers.some(r => objText.startsWith(`${r}.route(`)) ||
+          (Node.isCallExpression(inner) &&
+           Node.isPropertyAccessExpression(inner.getExpression()) &&
+           isReceiver((inner.getExpression() as PropertyAccessExpression).getExpression().getText()) &&
+           (inner.getExpression() as PropertyAccessExpression).getName() === 'route')) {
         const routeCall = expr.getExpression()
         if (Node.isCallExpression(routeCall)) {
           const routeArgs = routeCall.getArguments()
-          const routePath = extractStringLiteral(routeArgs[0])
+          const routePath = extractStringLiteral(routeArgs[0] as Expression)
           if (routePath) {
             const methodArgs = call.getArguments()
             const middlewares = methodArgs.map(a => a.getText())
-            const authMiddleware = detectAuthMiddleware(middlewares)
-            const handler = extractHandlerName(methodArgs[methodArgs.length - 1])
+            const handler = extractHandlerName(methodArgs[methodArgs.length - 1] as Expression)
             routes.push({
               method: propName.toUpperCase(),
               routePath,
               handler,
               middleware: middlewares,
-              auth: authMiddleware,
+              auth: null,
               file: relPath,
               line: call.getStartLineNumber(),
             })
@@ -164,12 +368,13 @@ export function extract(serverTsPath: string): AstExtractionResult {
 
           // The model property is likely a loop variable reference (e.g. 'model' from for...of loop)
           // We need to resolve it from the autoModels array
-          const modelText = modelProp ? modelProp.getInitializer()?.getText() : null
+          // Type-only casts below: the property may be shorthand (`{ model }`); runtime is as before.
+          const modelText = modelProp ? (modelProp as PropertyAssignment).getInitializer()?.getText() : null
 
           // Check if endpoints is a template expression (it is in this app)
           // If so, we'll resolve it from autoModels instead
           let endpoints: string[] = []
-          const endpointsInit = endpointsProp ? endpointsProp.getInitializer() : null
+          const endpointsInit = endpointsProp ? (endpointsProp as PropertyAssignment).getInitializer() : null
           if (endpointsInit && Node.isArrayLiteralExpression(endpointsInit)) {
             const els = endpointsInit.getElements()
             for (const el of els) {
@@ -216,7 +421,7 @@ export function extract(serverTsPath: string): AstExtractionResult {
             }
 
             const hasPagination = paginationProp
-              ? paginationProp.getInitializer()?.getText() !== 'false'
+              ? (paginationProp as PropertyAssignment).getInitializer()?.getText() !== 'false'
               : true
 
             for (const ep of endpoints) {
@@ -236,10 +441,10 @@ export function extract(serverTsPath: string): AstExtractionResult {
       }
     }
 
-    // Also handle app.use('/path', ...) as a catch-all for middleware
+    // Also handle <receiver>.use('/path', ...) as a catch-all for middleware
     if (Node.isPropertyAccessExpression(expr) &&
         expr.getName() === 'use' &&
-        expr.getExpression().getText() === 'app') {
+        isReceiver(expr.getExpression().getText())) {
       const args = call.getArguments()
       if (args.length >= 1) {
         const firstArg = args[0]
@@ -266,13 +471,12 @@ export function extract(serverTsPath: string): AstExtractionResult {
 
         if (routePath && startIndex < args.length) {
           const middlewares = args.slice(startIndex).map(a => a.getText())
-          const authMiddleware = detectAuthMiddleware(middlewares)
           routes.push({
             method: 'USE',
             routePath,
             handler: null,
             middleware: middlewares,
-            auth: authMiddleware,
+            auth: null,
             file: relPath,
             line: call.getStartLineNumber(),
           })
@@ -302,7 +506,7 @@ export function extract(serverTsPath: string): AstExtractionResult {
   // 4. Dependencies filled by caller
   const dependencies: DependencyInfo[] = []
 
-  return { routes, autoCrudRoutes, persistence, dependencies }
+  return { routes, autoCrudRoutes, persistence, dependencies, receivers }
 }
 
 /**
@@ -380,17 +584,6 @@ function extractHandlerName(arg: Expression): string | null {
   if (simpleCall) return simpleCall[1]
   // Handle a named reference
   if (/^\w+$/.test(text)) return text
-  return null
-}
-
-function detectAuthMiddleware(middlewares: string[]): string | null {
-  const authPatterns = ['isAuthorized', 'isAccounting', 'appendUserId', 'jwtChallenges',
-    'denyAll', 'updateAuthenticatedUsers']
-  for (const m of middlewares) {
-    for (const pattern of authPatterns) {
-      if (m.includes(pattern)) return m
-    }
-  }
   return null
 }
 
@@ -479,10 +672,10 @@ export function extractDependencies(packageJsonPath: string): DependencyInfo[] {
   const pkg = JSON.parse(content)
   const deps: DependencyInfo[] = []
   for (const [name, version] of Object.entries(pkg.dependencies || {})) {
-    deps.push({ name, version })
+    deps.push({ name, version: version as string | null })
   }
   for (const [name, version] of Object.entries(pkg.devDependencies || {})) {
-    deps.push({ name, version })
+    deps.push({ name, version: version as string | null })
   }
   return deps
 }

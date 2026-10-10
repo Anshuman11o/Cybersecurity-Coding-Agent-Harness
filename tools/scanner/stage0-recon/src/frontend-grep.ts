@@ -8,6 +8,11 @@
  *
  * Auto-detects framework from package.json dependencies / config files,
  * or can be called directly with a framework type.
+ *
+ * Recon v3: the files scanned are a list the caller provides — the non-test
+ * inventory files with a frontend-capable extension — rather than one fixed
+ * directory. A frontend that does not live at frontend/src/app (most of them)
+ * used to be skipped whole.
  */
 import * as fs from 'fs'
 import * as path from 'path'
@@ -128,66 +133,80 @@ function getPatternsForFrameworks(frameworks: FrameworkType[]): FrameworkPattern
   return FRAMEWORK_PATTERNS.filter(ps => frameworks.includes(ps.framework))
 }
 
+/** Extensions a template, component or script carrying an escape hatch can have. */
+export const ESCAPE_HATCH_EXTENSIONS: readonly string[] = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.html', '.vue']
+
 /**
- * Recursively scan a directory for escape-hatch API usage across
- * the specified frontend frameworks.
+ * The files worth grepping, from the inventory: not tests, not oversize (whose
+ * content Stage 0 never reads), with an ESCAPE_HATCH_EXTENSIONS extension.
+ * Returned in inventory order.
  */
-export function scan(frontendSrcDir: string, frameworks?: FrameworkType[]): EscapeHatchFinding[] {
+export function escapeHatchCandidates(
+  entries: readonly { path: string; test: boolean; oversize: boolean }[],
+): string[] {
+  return entries
+    .filter(e => !e.test && !e.oversize && ESCAPE_HATCH_EXTENSIONS.includes(path.extname(e.path).toLowerCase()))
+    .map(e => e.path)
+}
+
+/**
+ * Scan the given target-relative files for escape-hatch API usage across the
+ * specified frontend frameworks. Findings are sorted by file, then line;
+ * within a line they keep pattern order.
+ */
+export function scan(targetDir: string, relPaths: readonly string[], frameworks?: FrameworkType[]): EscapeHatchFinding[] {
   const findings: EscapeHatchFinding[] = []
 
   const patternSets = frameworks
     ? getPatternsForFrameworks(frameworks)
     : FRAMEWORK_PATTERNS
 
-  scanDirRecursive(frontendSrcDir, findings, patternSets)
+  for (const relPath of relPaths) scanFile(path.join(targetDir, relPath), findings, patternSets)
+
+  // Stable sort, so equal (file, line) keys keep the order they were found in.
+  findings.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line))
   return findings
 }
 
 /**
  * Legacy single-framework scan (backward-compatible, Angular-only).
- * @deprecated Use `scan(dir, frameworks)` with explicit framework list.
+ * @deprecated Use `scan(targetDir, files, frameworks)` with explicit framework list.
  */
-export function scanLegacy(frontendSrcDir: string): EscapeHatchFinding[] {
-  return scan(frontendSrcDir, ['angular'])
+export function scanLegacy(targetDir: string, relPaths: readonly string[]): EscapeHatchFinding[] {
+  return scan(targetDir, relPaths, ['angular'])
 }
 
-function scanDirRecursive(dir: string, findings: EscapeHatchFinding[], patternSets: FrameworkPatternSet[]): void {
-  let entries: fs.Dirent[]
+function scanFile(fullPath: string, findings: EscapeHatchFinding[], patternSets: FrameworkPatternSet[]): void {
+  const name = path.basename(fullPath)
+  // Kept from the directory walk this replaced: the inventory flags *.spec.*
+  // as tests already, but not when tests are included on purpose.
+  if (name.endsWith('.spec.ts')) return
+  if (!ESCAPE_HATCH_EXTENSIONS.includes(path.extname(name).toLowerCase())) return
+
+  let content: string
   try {
-    entries = fs.readdirSync(dir, { withFileTypes: true })
+    content = fs.readFileSync(fullPath, 'utf-8')
   } catch {
     return
   }
+  const lines = content.split('\n')
+  const relPath = makeRelativePath(fullPath)
 
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      scanDirRecursive(fullPath, findings, patternSets)
-    } else if (entry.isFile()) {
-      if (entry.name.endsWith('.spec.ts')) continue
-      if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.html') && !entry.name.endsWith('.tsx') && !entry.name.endsWith('.vue')) continue
-
-      const content = fs.readFileSync(fullPath, 'utf-8')
-      const lines = content.split('\n')
-      const relPath = makeRelativePath(fullPath)
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        for (const ps of patternSets) {
-          for (const pattern of ps.patterns) {
-            if (pattern.regex.test(line)) {
-              if (pattern.type === 'bypassSecurityTrust*' && line.includes('.bypassSecurityTrustHtml(')) {
-                continue
-              }
-              findings.push({
-                file: relPath,
-                line: i + 1,
-                type: pattern.type,
-                snippet: line.trim().substring(0, 200),
-                framework: ps.framework,
-              })
-            }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    for (const ps of patternSets) {
+      for (const pattern of ps.patterns) {
+        if (pattern.regex.test(line)) {
+          if (pattern.type === 'bypassSecurityTrust*' && line.includes('.bypassSecurityTrustHtml(')) {
+            continue
           }
+          findings.push({
+            file: relPath,
+            line: i + 1,
+            type: pattern.type,
+            snippet: line.trim().substring(0, 200),
+            framework: ps.framework,
+          })
         }
       }
     }
