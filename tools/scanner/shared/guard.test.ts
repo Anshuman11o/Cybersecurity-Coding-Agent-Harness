@@ -559,6 +559,45 @@ console.log('\n-- run context: benchmark stays the lab, product is confined to i
   }
 }
 
+// ── Report stage (productization plan §2.9) ───────────────────────────────
+//
+// The report is the one stage that prints source code back out, so it carries
+// the same two guarantees as Stage 2: it reads the scanned repository only
+// through the read guard, and it writes only inside its provider's run tree.
+// It also ships a file of benchmark figures inside this repository, which must
+// stay aggregate under the blind-development rule.
+console.log('\n-- report stage: guarded reads, isolated output, aggregate-only reference --')
+{
+  const { readFileSync, readdirSync } = await import('fs')
+  const { join } = await import('path')
+  const { reportDir } = await import('../report/src/report.js')
+  const { REPO_ROOT: root } = await import('./run-paths.js')
+  const src = join(root, 'tools/scanner/report/src')
+
+  for (const p of listProviders()) {
+    check(`${p} report dir is inside its own run tree`, reportDir(p) === join(RUNS_ROOT, p, 'report'))
+  }
+
+  // Excerpts can only come from the reader report.ts hands the builder, and
+  // that reader is the read guard. A module that imported fs could bypass it.
+  const pure = readdirSync(src).filter((f) => f.endsWith('.ts') && f !== 'report.ts' && !f.endsWith('.test.ts'))
+  const withFs = pure.filter((f) => /from ['"](node:)?fs['"]/.test(readFileSync(join(src, f), 'utf-8')))
+  check(`report modules other than the entry point do not import fs (${pure.length} checked)`, withFs.length === 0)
+  for (const f of withFs) console.log(`        IMPORTS fs: ${f}`)
+  const entry = readFileSync(join(src, 'report.ts'), 'utf-8')
+  check('report reads target files through readCorpusFile', /readTargetFile:\s*\(rel\)\s*=>\s*readCorpusFile\(/.test(entry))
+
+  // Aggregates only: a figure per model, nothing located. A path with a line
+  // number, or a key outside the documented shape, fails here.
+  const refText = readFileSync(join(root, 'tools/scanner/report/benchmark-reference.json'), 'utf-8')
+  const ref = JSON.parse(refText)
+  check('benchmark reference names no file:line', !/[\w/.-]+\.(ts|js|py|html|json|yml|sol):\d+/.test(refText))
+  const shape = ['label', 'run', 'recall', 'localization', 'file_level', 'precision_proxy', 'cost_usd', 'measured_languages']
+  const bad = Object.entries(ref.models as Record<string, object>)
+    .filter(([k, v]) => !listProviders().includes(k) || Object.keys(v).some((f) => !shape.includes(f)))
+  check('benchmark reference holds only per-model aggregates for registered providers', bad.length === 0)
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

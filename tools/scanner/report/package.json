@@ -1,0 +1,14 @@
+{
+  "name": "scanner-report",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "tsx src/report.ts",
+    "test": "tsx src/report.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.19.0"
+  }
+}
