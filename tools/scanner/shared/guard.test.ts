@@ -559,6 +559,165 @@ console.log('\n-- run context: benchmark stays the lab, product is confined to i
   }
 }
 
+console.log('\n-- productization 1c: measured models match the benchmark ledger --')
+// `secscan models` and the confirmation screen label a model MEASURED from its
+// models.json `benchmark` block. That label is a claim about a paid run, so it
+// must agree with docs/benchmarking-results.md, the record — in both
+// directions: a block whose figures drift from the ledger, or a ledger column
+// whose model is shipped unlabelled, fails here.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync } = await import('fs')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/models.json'), 'utf8'))
+  const ledger = readFileSync(join(REPO_ROOT, 'docs/benchmarking-results.md'), 'utf8')
+  const section = ledger.slice(ledger.indexOf('## 1. Results'), ledger.indexOf('## 2.'))
+  const rows = section.split('\n').filter(l => l.startsWith('|'))
+  const cells = (l: string) => l.split('|').slice(1, -1).map(c => c.trim().replace(/\*\*/g, ''))
+  const header = cells(rows[0] ?? '')
+  const keys = header.slice(1).map(h => (/`([^`]+)`/.exec(h) ?? [])[1])
+  const row = (label: string) => cells(rows.find(r => cells(r)[0].startsWith(label)) ?? '|')
+  const recall = row('Recall (file + exact line')
+  const loc = row('Localization (±15')
+  const cost = row('Total cost')
+  check('ledger §1 table parsed (keys, recall, localization, cost rows)',
+    keys.length > 0 && keys.every(Boolean) && recall.length > 1 && loc.length > 1 && cost.length > 1)
+
+  const measured = Object.entries(reg.targets as Record<string, any>).filter(([, t]) => t.benchmark)
+  for (const k of keys) {
+    check(`ledger model ${k} is labelled measured in models.json`, Boolean(reg.targets[k]?.benchmark))
+  }
+  for (const [k, t] of measured) {
+    const col = keys.indexOf(k) + 1
+    check(`models.json ${k}: benchmark has a ledger column`, col > 0)
+    if (col <= 0) continue
+    check(`models.json ${k}: recall ${t.benchmark.recall} matches the ledger`,
+      recall[col]?.startsWith(`${t.benchmark.recall} `) === true)
+    check(`models.json ${k}: localization ${t.benchmark.localization} matches the ledger`,
+      loc[col]?.startsWith(`${t.benchmark.localization} `) === true)
+    check(`models.json ${k}: cost $${t.benchmark.cost_usd} matches the ledger`,
+      cost[col] === `$${t.benchmark.cost_usd.toFixed(2)}`)
+  }
+}
+
+console.log('\n-- productization 1c: user models stay unmeasured and cannot replace shipped ones --')
+{
+  const { loadRegistry } = await import('./models.js')
+  const { mkdtempSync, writeFileSync, rmSync } = await import('fs')
+  const { tmpdir } = await import('os')
+  const { join } = await import('path')
+  const dir = mkdtempSync(join(tmpdir(), 'secscan-overlay-'))
+  const overlay = (o: unknown) => {
+    const p = join(dir, `o${Math.random().toString(36).slice(2)}.json`)
+    writeFileSync(p, JSON.stringify(o))
+    return { SCANNER_MODELS_FILE: p }
+  }
+  const entry = {
+    label: 'Mine', model: 'my-model', model_env: 'MY_MODEL', api_key_env: 'MY_KEY',
+    base_url: null, base_url_env: 'MY_BASE', token_limit_param: 'max_tokens', sampling: {},
+  }
+  const refuses = (env: Record<string, string>) => { try { loadRegistry(env); return false } catch { return true } }
+  try {
+    const r = loadRegistry(overlay({ targets: { mine: entry }, aliases: { me: 'mine' } }))
+    check('an overlay adds a target', r.targets.mine?.model === 'my-model' && r.origins.mine === 'overlay')
+    check('...with its own alias', r.aliases.me === 'mine')
+    check('...and never carries a benchmark', r.targets.mine.benchmark === undefined)
+    check('an overlay cannot redefine a shipped key', refuses(overlay({ targets: { [defaultProvider()]: entry } })))
+    check('an overlay cannot claim a benchmark result',
+      refuses(overlay({ targets: { mine: { ...entry, benchmark: { corpus: 'x', languages: [], recall: '1/1', localization: '1/1', cost_usd: 0, run: 'r', source: 's' } } } })))
+    check('an overlay cannot use a lab transport', refuses(overlay({ targets: { mine: { ...entry, transport: 'claude-cli' } } })))
+    check('an overlay alias cannot point at a shipped target', refuses(overlay({ targets: { mine: entry }, aliases: { x: defaultProvider() } })))
+    check('a malformed overlay entry is refused', refuses(overlay({ targets: { mine: { ...entry, token_limit_param: 'tokens' } } })))
+    check('an unknown overlay field is refused', refuses(overlay({ targets: {}, models: {} })))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+
+  const shipped = loadRegistry({})
+  const g = shipped.generic!
+  check('the generic endpoint template exists', g != null)
+  check('no generic target without its env vars', !shipped.targets[g.key])
+  const gen = loadRegistry({ [g.model_env]: 'local-model', [g.base_url_env]: 'http://127.0.0.1:1/v1', [g.price_env]: '0.5/1.5' })
+  check('the generic endpoint materialises from the environment', gen.targets[g.key]?.model === 'local-model' && gen.origins[g.key] === 'generic')
+  check('...priced from its price variable', gen.targets[g.key]?.price_per_mtok?.input === 0.5 && gen.targets[g.key]?.price_per_mtok?.output === 1.5)
+  check('...and unmeasured', gen.targets[g.key]?.benchmark === undefined)
+  // Defaulting to a vendor's variable would send that vendor's key to whatever
+  // host --base-url names.
+  const vendorKeyVars = new Set(Object.values(shipped.targets).map(t => t.api_key_env))
+  check('the generic endpoint does not default to any shipped credential variable', !vendorKeyVars.has(g.api_key_env_default))
+  check('a malformed generic price is refused', refuses({ [g.model_env]: 'm', [g.base_url_env]: 'u', [g.price_env]: 'cheap' }))
+}
+
+console.log('\n-- productization 1c: no model id, endpoint or credential variable in the new code --')
+// The registry is the only place these may live (CLAUDE.md, change safety). The
+// CLI and the limit/gate modules are new and the likeliest place for one to
+// creep in, so their sources are checked for every value the registry holds.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync, readdirSync } = await import('fs')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/models.json'), 'utf8'))
+  const values = new Set<string>()
+  for (const t of Object.values(reg.targets as Record<string, any>)) {
+    for (const v of [t.model, t.base_url, t.api_key_env, t.model_env, t.base_url_env]) if (v) values.add(v)
+  }
+  const g = reg.generic_openai_compatible
+  for (const v of [g.model_env, g.base_url_env, g.api_key_env_env, g.api_key_env_default, g.price_env]) values.add(v)
+  const scanner = join(REPO_ROOT, 'tools/scanner')
+  const files = [
+    ...readdirSync(join(scanner, 'cli/src')).filter(f => f.endsWith('.ts')).map(f => join(scanner, 'cli/src', f)),
+    ...['limits.ts', 'spend-gate.ts', 'scan-plan.ts', 'run-status.ts'].map(f => join(scanner, 'stage1-budget-governor/src', f)),
+  ]
+  const hits: string[] = []
+  for (const f of files) {
+    if (f.endsWith('.test.ts')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const v of values) {
+      if (src.includes(`'${v}'`) || src.includes(`"${v}"`) || src.includes(`\`${v}\``) || src.includes(` ${v} `) || src.includes(`(${v})`)) {
+        hits.push(`${f.slice(scanner.length + 1)}: ${v}`)
+      }
+    }
+    if (/provider\s*===\s*['"`]/.test(src)) hits.push(`${f.slice(scanner.length + 1)}: a provider-name branch`)
+  }
+  check(`new CLI and limit code names no registry value${hits.length ? ` (found: ${hits.join('; ')})` : ''}`, hits.length === 0)
+}
+
+console.log('\n-- productization 1c: a committed secscan.config.json cannot redirect the scan --')
+// The file is repository content, so on a pull request anyone can change it.
+// If it could name an endpoint or a credential variable, a PR could send the
+// code and the maintainer's key to a host of its choosing on the next CI run.
+{
+  const { validateConfig } = await import('../cli/src/config.js')
+  for (const k of ['base_url', 'api_key_env', 'api_key', 'models_file']) {
+    let refused = false
+    try { validateConfig({ [k]: 'x' }) } catch { refused = true }
+    check(`secscan.config.json refuses "${k}"`, refused)
+  }
+  let unknownRefused = false
+  try { validateConfig({ endpoint: 'x' }) } catch { unknownRefused = true }
+  check('secscan.config.json refuses unknown fields', unknownRefused)
+}
+
+console.log('\n-- productization 1c: Stage 2 asks the spend gate before every lane --')
+// A structural pin, not a behaviour test (stage1-budget-governor/src/limits.test.ts
+// covers the gate itself): the hard cap exists only if Stage 2 actually asks the
+// gate before starting a lane and refuses to run unplanned lanes in a product run.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync } = await import('fs')
+  const src = readFileSync(join(REPO_ROOT, 'tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts'), 'utf8')
+  check('Stage 2 imports the spend gate', src.includes("from '../../stage1-budget-governor/src/spend-gate.js'"))
+  check('Stage 2 decides before it begins a lane',
+    src.indexOf('gate.decide(') > 0 && src.indexOf('gate.decide(') < src.indexOf('gate.begin('))
+  check('Stage 2 requires a matching scan plan for product runs', /const required = product \|\| limited/.test(src))
+  // Once lanes are scheduled, both ways out — the normal end and the abort —
+  // record a status; a crash before that leaves none, which the CLI records as
+  // a failed stage rather than a clean run.
+  check('Stage 2 writes run-status.json when it finishes and when it aborts',
+    /writeRunStatus\(true\)/.test(src) && /const runStatus = writeRunStatus\(\)/.test(src))
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)
