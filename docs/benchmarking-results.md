@@ -217,3 +217,37 @@ Also record, from `usage-v2.json` and the stage `meta.json` files: `lane_count`,
 **Every metric in §1 must be filled.** A metric that could not be obtained is
 recorded as the reason it could not be — as `model size` is recorded as
 "no public record on model size" — never left blank and never estimated.
+
+---
+
+## 4. Regression checks (appended; not new benchmark entries)
+
+A re-run of an already-recorded model to check that a non-prompt change left
+recall intact. Same scorer, same answer key, rebased to 97.
+
+### 4.1 `luna` · 2026-10-10 · productization Task 1a (run context, PR #54)
+
+| | |
+|---|---|
+| Tree | `7072dfb` (merged main) |
+| Concurrency / loop / effort / cap | 32 / `trace` / `high` / 64000 |
+| Stages | Stage 0 carried over from `tools/scanner/runs/luna/`; 0.5 and 1 regenerated (content-identical to the committed ones); Stage 2 ran fresh |
+| Artifacts | private run store `runs/2026-10-10T22-36Z__stage2-v2-perfile__7072dfb`; not committed here so run 6's committed artifacts stay in place. Eval-history row `scanner-2026-10-10-luna-task1a` |
+
+| Metric | This run | Run 6 |
+|---|---|---|
+| Recall | 69/97 = 71.1% | 69/97 = 71.1% |
+| Localization (±15) | 85/97 = 87.6% | 86/97 = 88.7% |
+| File-level | 97/97 = 100% | 97/97 = 100% |
+| Recall / localization, category-blind | 79.4% / 97.9% | 79.4% / 95.9% |
+| Precision proxy, category-aware / blind | 12.2% / 21.2% | 12.5% / 22.4% |
+| Hedging | 1.386 | 1.418 |
+| Findings | 533 | 553 |
+| Tokens / cost | 9,385,314 / $3.68 | 9,618,943 / $4.37 |
+| Wall clock | 13m25s | 13m04s |
+| Lanes / retries / fatal / blocked reads | 541/541 / 0 / 0 / 0 | 541/541 / 0 / 0 / 0 |
+
+Every delta is inside the ±7-entry nondeterminism floor. **Qualification:** not
+single-variable against run 6. Besides Task 1a, the tree carries post-run-6
+Stage 2 and registry commits (output cap 24000 to 64000, chunk bounds,
+failed-lane reporting, checkpoint fix).
