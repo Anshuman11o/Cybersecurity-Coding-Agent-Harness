@@ -8,9 +8,12 @@
   },
   "dependencies": {
     "https-proxy-agent": "^9.1.0",
+    "ignore": "7.0.10",
     "js-yaml": "^4.1.0",
     "openai": "^6.49.0",
-    "ts-morph": "^24.0.0"
+    "tree-sitter-wasms": "0.1.13",
+    "ts-morph": "^24.0.0",
+    "web-tree-sitter": "0.25.10"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
