@@ -36,10 +36,19 @@
  */
 import { spawn } from 'child_process'
 import { randomUUID, createHash } from 'crypto'
-import { appendFileSync } from 'fs'
+import { appendFileSync, existsSync } from 'fs'
 
-/** Resolved binary. Overridable for testing; defaults to the installed path. */
-const CLI_BIN = process.env.CLAUDE_CLI_PATH ?? '/opt/claude-code/bin/claude'
+/**
+ * Resolved binary. CLAUDE_CLI_PATH overrides (testing, non-standard install). Otherwise
+ * the path the lab container installs to, and failing that `claude` on PATH —
+ * a product run on a user's machine has the CLI wherever their installer put
+ * it, and a hardcoded container path there is an ENOENT on every call.
+ * Changing which binary runs does not change the sandbox: SANDBOX_FLAGS is
+ * passed on every invocation whichever binary it is.
+ */
+const CLI_BIN =
+  process.env.CLAUDE_CLI_PATH ??
+  (existsSync('/opt/claude-code/bin/claude') ? '/opt/claude-code/bin/claude' : 'claude')
 
 /**
  * The flags that constitute the sandbox. Exported so the guard test asserts

@@ -27,7 +27,8 @@
  * Checkpointing: after EACH lane completes, results are written to disk
  * immediately. On startup, existing partial results are detected and the
  * run RESUMES from where it stopped, skipping already-completed lanes.
- * Partial files are always valid, parseable JSON.
+ * Partial files are always valid, parseable JSON. In the product profile the
+ * resume happens only when asked for (run.sh --resume); see main().
  */
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'fs'
@@ -40,6 +41,7 @@ import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputToken
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
+import { getRunContext } from '../../shared/run-context.js'
 import type {
   LaneAssignmentEntry,
   LaneAssignments,
@@ -2055,6 +2057,12 @@ async function main() {
   const assignments: LaneAssignments = JSON.parse(readFileSync(assignmentsPath, 'utf-8'))
   console.log(`Loaded ${assignments.lanes.length} lane assignments`)
   console.log(`Target directory: ${assignments.target_dir}`)
+  const runCtx = getRunContext()
+  console.log(
+    `Run context: ${runCtx.profile} | target ${runCtx.targetRoot} | artifacts ${runCtx.runsRoot}` +
+      (runCtx.runId ? ` | run ${runCtx.runId}` : '') +
+      (runCtx.profile === 'product' ? ` | resume ${runCtx.resume ? 'on' : 'off'}` : ''),
+  )
 
   const ledger = assignments.coverage_ledger
   if (ledger.unaccounted !== 0) {
@@ -2132,6 +2140,32 @@ async function main() {
   const laneRecordsV2: LaneTokenRecordV2[] = []
 
   const checkpoint = loadCheckpoint(outDir)
+
+  // A product run resumes only when asked. Resuming implicitly is how a re-run
+  // against a user's repo used to continue silently from stale output, so an
+  // existing checkpoint stops the run unless SCANNER_RESUME=1 (run.sh
+  // --resume). Output that is on disk but unreadable as a checkpoint stops it
+  // too: without the flag it would otherwise be overwritten without a word.
+  //
+  // The benchmark keeps implicit resume exactly as before. The lab runbook
+  // relaunches Stage 2 after a stop or a chunked pass and depends on it picking
+  // up where it left off.
+  if (runCtx.profile === 'product' && !runCtx.resume) {
+    const existing = ['candidate-findings.json', 'budget-consumption.json']
+      .filter(f => existsSync(join(outDir, f)))
+    if (checkpoint || existing.length > 0) {
+      console.error(`\nERROR: this run directory already holds Stage 2 output: ${outDir}`)
+      if (checkpoint) {
+        console.error(`  Checkpoint: ${checkpoint.completedLaneIds.size} lane(s) done, ${checkpoint.findings.length} finding(s).`)
+      } else {
+        console.error(`  Found ${existing.join(', ')}, not readable as a checkpoint.`)
+      }
+      console.error(`  To continue it, re-run with --resume (SCANNER_RESUME=1 when launching by hand).`)
+      console.error(`  To scan from scratch, start a new run from Stage 0 — run.sh generates a fresh run id.`)
+      process.exit(1)
+    }
+  }
+
   if (checkpoint) {
     allFindings = checkpoint.findings
     // Drop the previous failure records: those lanes are about to be retried,

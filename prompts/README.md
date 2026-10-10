@@ -4,7 +4,8 @@ Two kinds, deliberately separated.
 
 ## `dispatch/`
 
-Task prompts sent to the implementing agent (Qwen Code) to build or run
+Task prompts sent to the implementing agent (Claude subagents since 2026-10-09,
+Qwen Code before that) to build or run
 something. Named `<YYYY-MM-DD>__<short-description>.md`.
 
 These are kept because they are the record of *what was asked for*. When a

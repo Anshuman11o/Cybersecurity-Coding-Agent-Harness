@@ -13,7 +13,7 @@
  * Input:
  *   - runs/<provider>/stage0-recon/architecture-summary.json
  *   - runs/<provider>/stage0-recon/category-applicability.json
- *   - runs/<provider>/stage0-recon/file-signals.json
+ *   - runs/<provider>/stage0-recon/file-signals.json   (also: target_dir)
  *   - tools/scanner/shared/signal-classes.json
  *   - tools/scanner/shared/vuln-classes.json
  * Output:
@@ -25,7 +25,8 @@ import { fileURLToPath } from 'node:url'
 import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
-import { SEED_DENYLIST, guardStats } from '../../shared/read-guard.js'
+import { activeDenylist, guardStats } from '../../shared/read-guard.js'
+import { getRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -130,7 +131,7 @@ interface ArchitectureSummary {
 
 interface FileSignals {
   generated_at: string
-  target_dir: string
+  target_dir?: string
   files: Record<string, string[]>
 }
 
@@ -246,6 +247,15 @@ function measureFile(absolutePath: string): FileMetrics {
 
 function estimatePromptTokens(fileBytes: number): number {
   return Math.ceil(fileBytes / 4)
+}
+
+/** Symlink-resolved absolute path; a path that does not exist is just resolved. */
+function canonicalPath(p: string): string {
+  try {
+    return fs.realpathSync(p)
+  } catch {
+    return path.resolve(p)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,17 +430,25 @@ async function main() {
   // -----------------------------------------------------------------------
   // Determine target directory
   // -----------------------------------------------------------------------
-  const sampleRoute = arch.route_table?.hand_written_routes?.[0]
+  // Stage 0 records the target it inventoried, and every path in its artifacts
+  // is relative to that. Inferring it from a route file (as this stage once
+  // did) only worked for a target under the repo, and fell back to
+  // juice-shop-blind otherwise — silently measuring a different codebase.
+  // Stage 0 artifacts that predate the field fall back to this run's context.
+  const contextTarget = getRunContext().targetRoot
   let targetDir: string
-  if (sampleRoute?.file) {
-    const match = sampleRoute.file.match(/^(.+?)\/[^/]+$/)
-    if (match) {
-      targetDir = path.resolve(projectRoot, match[1])
-    } else {
-      targetDir = path.join(projectRoot, 'target-apps', 'juice-shop-blind')
+  if (fileSignals.target_dir) {
+    targetDir = fileSignals.target_dir
+    if (canonicalPath(targetDir) !== canonicalPath(contextTarget)) {
+      console.error('[FATAL] Stage 0 artifacts were produced for a different target.')
+      console.error('  file-signals.json target_dir: ' + targetDir)
+      console.error('  this run\'s target:           ' + contextTarget)
+      console.error('  Re-run Stage 0 for this target, or point SCANNER_TARGET at the one Stage 0 scanned.')
+      process.exit(1)
     }
   } else {
-    targetDir = path.join(projectRoot, 'target-apps', 'juice-shop-blind')
+    targetDir = contextTarget
+    console.warn('[Stage 0.5 v3] file-signals.json has no target_dir — using the run context target')
   }
   console.log('[Stage 0.5 v3] Target directory: ' + targetDir)
 
@@ -504,7 +522,7 @@ async function main() {
     const results: { path: string; language: string }[] = []
     if (!fs.existsSync(dir)) return results
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (['node_modules', '.git', '.qwen', 'dist', 'build', 'out'].includes(entry.name)) continue
+      if (['node_modules', '.git', '.qwen', 'dist', 'build', 'out', PRODUCT_DIRNAME].includes(entry.name)) continue
       if (entry.isDirectory()) {
         results.push(...walkDir(path.join(dir, entry.name), path.join(relativeBase, entry.name)))
       } else if (entry.isFile()) {
@@ -536,6 +554,9 @@ async function main() {
   const lanes: Lane[] = []
   let laneCounter = 0
   const denylistedSkips: string[] = []
+  // Repo-relative paths. The benchmark's seed denylist; empty for a product
+  // run, which has no answer key to protect, so both checks below are no-ops.
+  const denylist = activeDenylist()
 
   for (const fileInfo of allFiles) {
     laneCounter++
@@ -557,7 +578,7 @@ async function main() {
     // straight into the prompt. v1's selector has always applied this list;
     // v2 was forked before it moved into shared/ and never picked it up.
     const repoRelative = path.relative(projectRoot, path.join(targetDir, targetFile))
-    if (SEED_DENYLIST.includes(repoRelative)) {
+    if (denylist.includes(repoRelative)) {
       disposition = 'skip'
       skipReason = 'Denylisted: references challenge identifiers — must never reach a hunting lane'
       denylistedSkips.push(targetFile)
@@ -629,7 +650,7 @@ async function main() {
   // number has to be read against.
   console.log('[Stage 0.5 v3] Denylisted (never hunted): ' + denylistedSkips.length +
     (denylistedSkips.length ? ' — ' + denylistedSkips.join(', ') : ''))
-  const missedDenylist = SEED_DENYLIST
+  const missedDenylist = denylist
     .map(p => path.relative(targetDir, path.join(projectRoot, p)))
     .filter(rel => !rel.startsWith('..'))
     .filter(rel => {

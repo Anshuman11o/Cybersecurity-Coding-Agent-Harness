@@ -12,6 +12,7 @@
  */
 import * as fs from 'fs'
 import * as path from 'path'
+import { getRunContext, isBenchmark } from '../../shared/run-context.js'
 
 export type Signal =
   | 'route_handler' | 'db_query' | 'model_schema' | 'model_write'
@@ -60,11 +61,26 @@ export function collectRouteHandlerNames(
 }
 
 function normalizeRouteFile(rawPath: string, _targetDir: string): string | null {
+  const ctx = getRunContext()
   let p = rawPath
-  // Strip target-apps/<name>/ prefix if present
-  const m = p.match(/^target-apps\/[^/]+\//)
-  if (m) p = p.slice(m[0].length)
+  if (isBenchmark(ctx)) {
+    // Strip target-apps/<name>/ prefix if present
+    const m = p.match(/^target-apps\/[^/]+\//)
+    if (m) p = p.slice(m[0].length)
+  } else {
+    // Product route files are already target-relative; an absolute path inside
+    // the target is made so, anything else is left as it came.
+    p = targetRelative(p, ctx.targetRoot)
+  }
   return p || null
+}
+
+/** Absolute path inside root -> root-relative with forward slashes; else unchanged. */
+function targetRelative(p: string, root: string): string {
+  if (!path.isAbsolute(p)) return p
+  const rel = path.relative(root, p)
+  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return p
+  return rel.split(path.sep).join('/')
 }
 
 // ---------------------------------------------------------------------------
