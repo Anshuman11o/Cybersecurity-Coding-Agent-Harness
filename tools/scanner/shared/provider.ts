@@ -21,12 +21,16 @@ import {
   targetFor,
   listProviders,
   listProviderSpellings,
+  benchmarkFor,
+  targetOrigin,
   type Provider,
   type ModelTarget,
+  type BenchmarkRecord,
+  type TargetOrigin,
 } from './models.js'
 
-export type { Provider, ModelTarget }
-export { listProviders, listProviderSpellings, defaultProvider, targetFor }
+export type { Provider, ModelTarget, BenchmarkRecord, TargetOrigin }
+export { listProviders, listProviderSpellings, defaultProvider, targetFor, benchmarkFor, targetOrigin }
 
 /**
  * @param stageKey short key for the per-stage override env var,
@@ -227,4 +231,18 @@ export function outputTokenCap(provider: Provider, fallback: number): number {
     return Number(raw.trim())
   }
   return targetFor(provider).max_output_tokens ?? fallback
+}
+
+/**
+ * The vendor's documented ceiling on concurrent requests for this target, or
+ * null when the registry records none. Concurrency is derived under it; see
+ * deriveConcurrency() in stage1-budget-governor/src/limits.ts.
+ */
+export function maxConcurrencyFor(provider: Provider): number | null {
+  return targetFor(provider).max_concurrency ?? null
+}
+
+/** True when a lab benchmark result exists for this target (models.json `benchmark`). */
+export function isMeasured(provider: Provider): boolean {
+  return benchmarkFor(provider) !== null
 }
