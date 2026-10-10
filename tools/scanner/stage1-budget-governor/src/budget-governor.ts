@@ -1,14 +1,19 @@
 // Stage 1 — Budget Governor
 // Task A: Pre-run cost estimator (arithmetic, no model call)
 // Task B: BudgetTracker enforcement class
+// v2: budget-plan-v2.json (every hunt lane, unchanged) plus scan-plan.json — the
+//     lanes this run's limits admit, each priced, which Stage 2's spend gate
+//     (spend-gate.ts) enforces and the CLI's confirmation screen shows.
 
-import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSync } from "fs";
+import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSync, renameSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
 import {
-  resolveProvider, modelFor, costUsd, pricingFor, priceAsOf, samplingParams,
+  resolveProvider, modelFor, costUsd, pricingFor, priceAsOf, samplingParams, maxConcurrencyFor,
 } from "../../shared/provider.js";
+import { resolveLimits } from "./limits.js";
+import { computeScanPlan, SCAN_PLAN_FILE, type ScanPlan } from "./scan-plan.js";
 import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
 
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
@@ -756,6 +761,61 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
   }
 }
 
+// ── v2: Scan plan (limits applied, lane by lane) ──────────────────────────
+
+/**
+ * The lanes this run's limits admit, priced from the plan just computed.
+ * Throws when a cost cap is set on an unpriced model: a cap that cannot be
+ * evaluated is no cap, and running under it would be the silent failure the
+ * cap exists to prevent.
+ */
+function computeScanPlanV2(plan: BudgetPlanV2): ScanPlan {
+  const limits = resolveLimits()
+  if (limits.max_cost_usd != null && !pricingFor(PROVIDER)) {
+    throw new Error(
+      `a cost cap ($${limits.max_cost_usd}) is set but "${PROVIDER}" has no price in the registry, ` +
+        `so the cap cannot be enforced. Add price_per_mtok (overlay) or a price for the custom endpoint, or drop the cap.`,
+    )
+  }
+  const assignmentsPath = join(runPath(PROVIDER, 'stage05-lane-selector-perfile'), 'lane-assignments.json')
+  const assignments = JSON.parse(readFileSync(assignmentsPath, 'utf-8'))
+  return computeScanPlan({
+    provider: PROVIDER,
+    model: modelFor(PROVIDER),
+    assignmentsPath,
+    assignmentsGeneratedAt: assignments.generated_at,
+    lanes: plan.lanes.map(l => ({
+      lane_id: l.lane_id,
+      target_file: l.target_file,
+      file_bytes: l.file_bytes,
+      projected_calls: l.projected_calls,
+      projected_input_tokens: l.projected_input_tokens,
+      projected_output_tokens: l.projected_output_tokens,
+    })),
+    limits,
+    vendorConcurrencyCeiling: maxConcurrencyFor(PROVIDER),
+    price: pricingFor(PROVIDER),
+    priceAsOf: priceAsOf(PROVIDER),
+    cost: (i, o) => costUsd(PROVIDER, i, o),
+  })
+}
+
+function printScanPlan(sp: ScanPlan): void {
+  const t = sp.totals
+  const excluded = Object.entries(t.excluded_by_reason).map(([r, n]) => `${n} ${r}`).join(', ')
+  console.log(`Scan plan: ${t.admitted_lanes} of ${t.hunt_lanes} hunt lane(s) admitted` +
+    (excluded ? ` (${excluded})` : ''))
+  console.log(`  Projected cost: ` + (t.projected_cost_usd != null ? `$${t.projected_cost_usd.toFixed(2)}` : '(unpriced)') +
+    `, ~${Math.max(1, Math.round(t.projected_wall_seconds / 60))} min at concurrency ${sp.concurrency.value} (${sp.concurrency.basis})`)
+  if (sp.cap.max_cost_usd != null) {
+    console.log(`  Cap: $${sp.cap.max_cost_usd.toFixed(2)}` +
+      (sp.cap.estimate_exceeds_cap
+        ? ` — the estimate EXCEEDS it; about ${sp.cap.lanes_within_cap} of ${t.admitted_lanes} lane(s) fit, the rest will be recorded unscanned`
+        : ' — the estimate fits'))
+  }
+  if (sp.limits.timeout_seconds != null) console.log(`  Timeout: ${sp.limits.timeout_seconds}s of Stage 2 wall clock`)
+}
+
 // ── v2: Post-run usage ────────────────────────────────────────────────────
 
 /**
@@ -889,6 +949,17 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
         (priceAsOf(PROVIDER) ? `, as of ${priceAsOf(PROVIDER)}` : ', date unknown'))
     }
     console.log(`Output projection basis: ${plan.projection_basis.source}`)
+    console.log()
+
+    // The limits are applied here, after the unlimited plan is written, so
+    // budget-plan-v2.json stays comparable across runs whatever the limits.
+    const scanPlan = computeScanPlanV2(plan)
+    const scanPlanPath = join(outDir, SCAN_PLAN_FILE)
+    const scanPlanTmp = scanPlanPath + '.tmp'
+    writeFileSync(scanPlanTmp, JSON.stringify(scanPlan, null, 2) + '\n')
+    renameSync(scanPlanTmp, scanPlanPath)
+    console.log(`Scan plan written to ${scanPlanPath}`)
+    printScanPlan(scanPlan)
     console.log()
 
     // Print top 20 most expensive lanes
