@@ -2,7 +2,7 @@
 # Single entry point for scanner runs.
 #
 #   ./tools/scanner/run.sh [--target DIR] [--profile P] [--run-id ID] [--resume] \
-#                          <provider> <stage|all|all-v2>
+#                          [--out DIR] [--yes] <provider> <stage|all|all-v2>
 #
 # The provider list is not hardcoded here — it comes from shared/models.json
 # via shared/registry-cli.mjs, so adding a model is a registry entry and
@@ -17,9 +17,14 @@
 #   benchmark  The lab, and the default. No flags means exactly what this script
 #              always did: target-apps/juice-shop-blind, artifacts and logs under
 #              runs/<provider>/<stage>/, Stage 2 resuming implicitly.
-#   product    A user's repo, chosen by --target outside target-apps/. Artifacts
-#              and logs go to <target>/.secscan/runs/<run-id>/<provider>/<stage>/,
-#              and Stage 2 resumes only with --resume.
+#   product    A user's repo, chosen by --target outside target-apps/. Results
+#              go to a run store, <target>/.secscan/ (or --out DIR, outside the
+#              target), git-ignored by a .gitignore of `*` inside it:
+#                <store>/runs/<run-id>/            report.*, findings.*, run.json
+#                <store>/runs/<run-id>/work/<provider>/<stage>/   internals, logs
+#                <store>/index.json, <store>/latest    written by the report stage
+#              The store is created only with consent: asked once on a terminal,
+#              or --yes for scripts and CI. Stage 2 resumes only with --resume.
 #
 # A product run started at stage0-recon, all or all-v2 gets a generated run id;
 # a later single stage names the run it belongs to with --run-id. A flag wins
@@ -66,11 +71,13 @@ STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt
 STAGES_V2=(stage0-recon stage05-lane-selector-perfile stage1-budget-governor-perfile stage2-hunt-lanes-perfile reconcile-v2 report)
 
 usage() {
-  echo "usage: $0 [--target DIR] [--profile P] [--run-id ID] [--resume] <provider> <stage|all|all-v2>" >&2
+  echo "usage: $0 [--target DIR] [--profile P] [--run-id ID] [--resume] [--out DIR] [--yes] <provider> <stage|all|all-v2>" >&2
   echo "  --target DIR   repository to scan (default: target-apps/juice-shop-blind)" >&2
   echo "  --profile P    benchmark | product (default: product when --target is outside target-apps/)" >&2
-  echo "  --run-id ID    product: the run, <target>/.secscan/runs/<ID>/ (generated when starting at stage0-recon, all or all-v2)" >&2
+  echo "  --run-id ID    product: the run, <store>/runs/<ID>/ (generated when starting at stage0-recon, all or all-v2)" >&2
   echo "  --resume       product: let Stage 2 continue the checkpoint already in that run" >&2
+  echo "  --out DIR      product: the run store, outside the target (default: <target>/.secscan)" >&2
+  echo "  --yes          product: allow creating the run store without asking (scripts, CI)" >&2
   echo "  providers: $(registry spellings 2>/dev/null || echo '(registry unreadable)')" >&2
   echo "  v1 stages: ${STAGES_V1[*]}" >&2
   echo "  v2 stages: ${STAGES_V2[*]}" >&2
@@ -89,18 +96,21 @@ TARGET_ARG="${SCANNER_TARGET:-}"
 PROFILE_ARG="${SCANNER_PROFILE:-}"
 RUN_ID="${SCANNER_RUN_ID:-}"
 RESUME=0
+YES=0
+OUT_ARG="${SCANNER_OUT:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --target|--profile|--run-id)
+    --target|--profile|--run-id|--out)
       { [ $# -ge 2 ] && [ -n "$2" ]; } || die "$1 needs a value"
       opt="$1"; val="$2"; shift 2
       ;;
-    --target=*|--profile=*|--run-id=*)
+    --target=*|--profile=*|--run-id=*|--out=*)
       opt="${1%%=*}"; val="${1#*=}"; shift
       [ -n "$val" ] || die "$opt needs a value"
       ;;
     --resume)  RESUME=1; shift; continue ;;
+    --yes|-y)  YES=1; shift; continue ;;
     -h|--help) usage ;;
     --)        shift; break ;;
     -*)        echo "error: unknown option '$1'" >&2; usage ;;
@@ -110,6 +120,7 @@ while [ $# -gt 0 ]; do
     --target)  TARGET_ARG="$val" ;;
     --profile) PROFILE_ARG="$val" ;;
     --run-id)  RUN_ID="$val" ;;
+    --out)     OUT_ARG="$val" ;;
   esac
 done
 
@@ -222,11 +233,65 @@ valid_run_id() {
   [ "${#1}" -le 128 ]
 }
 
+# A path with symlinks resolved as far as it exists. The store may not exist
+# yet, but whether it lies inside the target has to be decided physically,
+# exactly as run-context.ts decides it.
+physical() {
+  local p="$1" rest=""
+  while [ ! -d "$p" ]; do
+    rest="/$(basename "$p")$rest"
+    p="$(dirname "$p")"
+  done
+  echo "$(cd "$p" && pwd -P)$rest"
+}
+
+# A run store is a directory whose .gitignore is exactly `*`: the file this
+# script writes when it creates one, and the reason git never sees it.
+is_store() { [ -f "$1/.gitignore" ] && [ "$(cat "$1/.gitignore" 2>/dev/null)" = '*' ]; }
+
+# True when a directory holds nothing but what a run store holds (say, one whose
+# .gitignore was deleted). Such a directory is not someone else's; it only needs
+# consent again before the .gitignore is put back.
+only_store_entries() {
+  local e
+  for e in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    case "$(basename "$e")" in
+      runs|index.json|latest|latest.txt|.gitignore) ;;
+      *) return 1 ;;
+    esac
+  done
+  return 0
+}
+
 RUN_ID_GENERATED=0
+OUT_CUSTOM=0
 if [ "$PROFILE" = product ]; then
   # The product profile scans a repository someone names. Falling back to the
   # benchmark target would write .secscan/ into the lab's working copy.
   [ -n "$TARGET" ] || die "the product profile needs --target DIR"
+
+  # ── Run store ──
+  # Default <target>/.secscan. --out moves it, but only outside the target: a
+  # store inside it would be walked by Stage 0's inventory and scanned as source.
+  OUT_ROOT="$TARGET/.secscan"
+  if [ -n "$OUT_ARG" ]; then
+    OUT_ROOT="$(physical "$(absolute "$OUT_ARG")")"
+    if [ "$OUT_ROOT" != "$TARGET/.secscan" ]; then
+      OUT_CUSTOM=1
+      case "$OUT_ROOT/" in
+        "$TARGET"/*) die "--out must be outside the target (or $TARGET/.secscan itself): $OUT_ROOT would be scanned as source" ;;
+      esac
+    fi
+  fi
+  # Never take over a directory that holds something else. Writing a
+  # .gitignore of `*` into it would quietly hide the owner's own files from git.
+  if [ -e "$OUT_ROOT" ]; then
+    [ -d "$OUT_ROOT" ] || die "run store is not a directory: $OUT_ROOT"
+    if ! is_store "$OUT_ROOT" && ! only_store_entries "$OUT_ROOT"; then
+      die "$OUT_ROOT already holds files and is not a run store; choose a new or empty directory with --out"
+    fi
+  fi
 
   if [ -n "$RUN_ID" ]; then
     valid_run_id "$RUN_ID" ||
@@ -240,7 +305,7 @@ if [ "$PROFILE" = product ]; then
         run_id_base="$(date -u +%Y%m%d-%H%M%S)"
         RUN_ID="$run_id_base"
         n=2
-        while [ -e "$TARGET/.secscan/runs/$RUN_ID" ]; do
+        while [ -e "$OUT_ROOT/runs/$RUN_ID" ]; do
           RUN_ID="$run_id_base-$n"
           n=$((n + 1))
         done
@@ -249,20 +314,49 @@ if [ "$PROFILE" = product ]; then
       *)
         echo "error: a product run needs --run-id to run '$STAGE_ARG' on its own." >&2
         echo "       A run starts at stage0-recon, all or all-v2, which print the id to reuse;" >&2
-        echo "       existing runs are under $TARGET/.secscan/runs/" >&2
+        echo "       existing runs are under $OUT_ROOT/runs/" >&2
         exit 2
         ;;
     esac
   fi
 
-  ARTIFACT_ROOT="$TARGET/.secscan/runs/$RUN_ID"
+  # A later stage belongs to a run that exists. A mistyped id would otherwise
+  # start a fresh, empty run directory and fail one stage later, less clearly.
+  case "$STAGE_ARG" in
+    stage0-recon|all|all-v2) ;;
+    *) [ -d "$OUT_ROOT/runs/$RUN_ID" ] ||
+         die "no run '$RUN_ID' under $OUT_ROOT/runs/$([ "$OUT_CUSTOM" = 1 ] || echo ' (pass the same --out the run started with)')" ;;
+  esac
+
+  # ── Consent ──
+  # The store is the one thing this tool writes into a user's tree, so the
+  # first run asks. On a terminal: a prompt. Anywhere else (scripts, CI): only
+  # --yes allows it, and without it nothing at all is written.
+  if ! is_store "$OUT_ROOT" && [ "$YES" != 1 ]; then
+    if [ -t 0 ] && [ -t 2 ]; then
+      printf '  Results will be written to %s/ (git-ignored by a .gitignore inside it). Create it? [Y/n] ' "$OUT_ROOT" >&2
+      read -r answer || answer=n
+      case "$answer" in
+        ''|y|Y|yes|Yes|YES) ;;
+        *) echo "  Nothing written. Use --out DIR to put results elsewhere." >&2; exit 1 ;;
+      esac
+    else
+      echo "error: results go to $OUT_ROOT/, which is not a run store yet, and there is no terminal to ask." >&2
+      echo "       Re-run with --yes to allow creating it, or --out DIR to put it outside the repository." >&2
+      exit 2
+    fi
+  fi
+
+  RUN_DIR="$OUT_ROOT/runs/$RUN_ID"
+  ARTIFACT_ROOT="$RUN_DIR/work"
   if [ -n "${SCANNER_RUNS_ROOT:-}" ] && [ "$(absolute "$SCANNER_RUNS_ROOT")" != "$ARTIFACT_ROOT" ]; then
-    echo "  [CONTEXT] ignoring inherited SCANNER_RUNS_ROOT — a product run writes under its target" >&2
+    echo "  [CONTEXT] ignoring inherited SCANNER_RUNS_ROOT — a product run writes under its run store" >&2
   fi
   export SCANNER_TARGET="$TARGET"
   export SCANNER_PROFILE=product
   export SCANNER_RUN_ID="$RUN_ID"
   export SCANNER_RUNS_ROOT="$ARTIFACT_ROOT"
+  if [ "$OUT_CUSTOM" = 1 ]; then export SCANNER_OUT="$OUT_ROOT"; else unset SCANNER_OUT; fi
 else
   # The lab layout. An inherited SCANNER_RUNS_ROOT is honoured, because the
   # stages honour it too; the logs must follow the artifacts wherever they go.
@@ -276,6 +370,10 @@ else
     echo "  [CONTEXT] ignoring run id '$RUN_ID' — the benchmark has none; its artifacts overwrite $ARTIFACT_ROOT/<provider>/ in place" >&2
     unset SCANNER_RUN_ID
   fi
+  if [ -n "$OUT_ARG" ]; then
+    echo "  [CONTEXT] ignoring --out '$OUT_ARG' — the benchmark has no run store; its artifacts go to $ARTIFACT_ROOT" >&2
+  fi
+  unset SCANNER_OUT
   if [ -n "$TARGET" ]; then export SCANNER_TARGET="$TARGET"; fi
   export SCANNER_PROFILE=benchmark
 fi
@@ -352,18 +450,19 @@ trap release_lock EXIT INT TERM
 echo "  [CONTEXT] $PROFILE | target: ${TARGET:-$REPO_ROOT/target-apps/juice-shop-blind (default)} | artifacts: $ARTIFACT_ROOT/$PROVIDER" >&2
 
 if [ "$PROFILE" = product ]; then
-  # Nothing is written into the user's repo until here. The .gitignore of `*`
-  # matches itself too, so git never sees .secscan/ and run artifacts cannot
-  # be committed into the repository being scanned.
-  if [ ! -e "$TARGET/.secscan/.gitignore" ]; then
-    mkdir -p "$TARGET/.secscan" && printf '*\n' > "$TARGET/.secscan/.gitignore" ||
-      { echo "error: cannot create $TARGET/.secscan/ — is the target writable?" >&2; exit 1; }
+  # Nothing is written until here, after consent and the lock. The .gitignore
+  # of `*` matches itself too, so git never sees the store and run artifacts
+  # cannot be committed into the repository being scanned.
+  if ! is_store "$OUT_ROOT"; then
+    mkdir -p "$OUT_ROOT" && printf '*\n' > "$OUT_ROOT/.gitignore" ||
+      { echo "error: cannot create the run store $OUT_ROOT/ — is it writable?" >&2; exit 1; }
   fi
+  echo "  [STORE] $OUT_ROOT/runs/$RUN_ID/  (report lands here; internals in work/)" >&2
 
   if [ "$RUN_ID_GENERATED" = 1 ]; then
     # Quoted with %q so the commands paste back correctly even when the target
     # path has spaces in it.
-    again="$(printf '%q' "$0") --target $(printf '%q' "$TARGET") --run-id $RUN_ID"
+    again="$(printf '%q' "$0") --target $(printf '%q' "$TARGET")$([ "$OUT_CUSTOM" = 1 ] && printf ' --out %q' "$OUT_ROOT") --run-id $RUN_ID"
     echo "  ============================================================================" >&2
     echo "  [RUN ID] $RUN_ID" >&2
     echo "    run a later stage of this run:" >&2

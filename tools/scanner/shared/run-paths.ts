@@ -12,9 +12,10 @@
  *              The lab's historical tree, exactly the path it was before
  *              run profiles existed — committed artifacts stay where they are.
  *
- *   product    <target>/.secscan/runs/<run-id>/<provider>/<stage>/
+ *   product    <target>/.secscan/runs/<run-id>/work/<provider>/<stage>/
  *              Inside the user's repo, one directory per run, so a second scan
- *              never overwrites the first and nothing lands in this repo.
+ *              never overwrites the first and nothing lands in this repo. The
+ *              run directory itself holds the report; `work/` holds these.
  *
  * SCANNER_RUNS_ROOT overrides either. RUNS_ROOT is resolved once, at import:
  * each stage is its own process, and a misconfigured context should stop the
@@ -63,7 +64,7 @@ export type Stage = (typeof STAGES)[number]
  * Directory holding one stage's artifacts for one provider.
  *   runPath('luna', 'stage2-hunt-lanes-perfile')
  *     -> <repo>/tools/scanner/runs/luna/stage2-hunt-lanes-perfile           (benchmark)
- *     -> <target>/.secscan/runs/<run-id>/luna/stage2-hunt-lanes-perfile     (product)
+ *     -> <target>/.secscan/runs/<run-id>/work/luna/stage2-hunt-lanes-perfile (product)
  *
  * The provider key is validated here rather than trusted. Path centralisation
  * only prevents a mix-up if an unknown key is a crash instead of a new,

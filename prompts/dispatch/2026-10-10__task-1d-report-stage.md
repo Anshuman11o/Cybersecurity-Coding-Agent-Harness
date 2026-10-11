@@ -67,3 +67,38 @@ full `all-v2` luna run on the benchmark, scored blind by the scorer in a
 separate step, compared with run 6 (recall 69/97, localization 86/97). Expect
 higher output tokens: each finding now carries five more fields, re-emitted by
 the trace loop's second turn; Stage 1's projection basis does not model that.
+
+## Amendment 2026-10-11 — product run store (owner-approved), SARIF deferred
+
+Added to this task at the owner's request, after review of the first version.
+
+**Run store.** A product run's results move from
+`<target>/.secscan/runs/<id>/<provider>/report/` to a designed layout:
+
+```
+<store>/                        <target>/.secscan, or --out DIR outside the target
+├── .gitignore                  "*"
+├── index.json                  one row per run, rebuilt from disk by the report stage
+├── latest                      symlink to the newest reported run (latest.txt fallback)
+└── runs/<run-id>/
+    ├── report.html report.md findings.json findings.sarif run.json
+    └── work/<provider>/<stage>/   stage internals (was: runs/<run-id>/<provider>/<stage>/)
+```
+
+- `run.sh` gains `--out DIR` and `--yes`. The store is created only after
+  consent: a prompt on a terminal, `--yes` elsewhere, otherwise nothing is
+  written. `--out` must lie outside the target and must be new, empty or already
+  a store. A later stage of a run that does not exist is refused.
+- `shared/run-context.ts` gains `outRoot`, `runDir` and `SCANNER_OUT`; product
+  `runsRoot` becomes `<runDir>/work`. Benchmark unchanged, including the keys of
+  `run_context` in its meta.json.
+- One existing `guard.test.ts` assertion changes (product runsRoot path), plus
+  appended checks.
+- `report/src/runs-store.ts` and `report/src/runs.ts`: index, latest, list and
+  prune (dry run without `--yes`; the newest run is never touched).
+- `--out` inside the target was ruled out rather than supported, so Stage 0 and
+  Stage 0.5 (task 1b's files) need no exclusion change.
+
+**SARIF field alignment: deferred** until the architecture is complete and the
+eval runs are done, because some fields may be model-emitted. The analysis is in
+`docs/architecture/report-sarif-alignment.md`; nothing in it is implemented.

@@ -16,9 +16,17 @@
  *              it always has. Every lab guarantee is unchanged.
  *
  *   product    A user's repo. Target is wherever SCANNER_TARGET points, reads
- *              are confined to it, artifacts go to
- *              <target>/.secscan/runs/<run-id>/<provider>/<stage>/, and Stage 2
- *              resumes only when SCANNER_RESUME=1 says so explicitly.
+ *              are confined to it, and Stage 2 resumes only when
+ *              SCANNER_RESUME=1 says so explicitly. Results go to the run
+ *              store, <target>/.secscan/ unless SCANNER_OUT moves it:
+ *
+ *                <out>/.gitignore            "*" — git never sees the store
+ *                <out>/index.json            one row per run (report stage)
+ *                <out>/latest                newest reported run (report stage)
+ *                <out>/runs/<run-id>/        what the user opens: report.*,
+ *                                            findings.*, run.json
+ *                <out>/runs/<run-id>/work/<provider>/<stage>/
+ *                                            stage internals, checkpoints, logs
  *
  * Each stage is its own process (run.sh launches them one by one), so the
  * context is resolved from the environment rather than passed in memory.
@@ -29,6 +37,9 @@
  *   SCANNER_PROFILE    benchmark | product. Optional — inferred below.
  *   SCANNER_RUNS_ROOT  override for the artifact root. Optional.
  *   SCANNER_RUN_ID     product only: names the run directory.
+ *   SCANNER_OUT        product only: the run store, instead of <target>/.secscan.
+ *                      Must lie outside the target: a store inside it would be
+ *                      walked by Stage 0's inventory and scanned as source.
  *   SCANNER_RESUME     product only: '1' allows Stage 2 to resume.
  *
  * Profile inference: no target, or a target inside <repo>/target-apps/, is the
@@ -58,6 +69,9 @@ export const BENCHMARK_RUNS_ROOT = join(REPO_ROOT, 'tools/scanner/runs')
 /** Directory created inside a user's repo to hold product run artifacts. */
 export const PRODUCT_DIRNAME = '.secscan'
 
+/** Inside a product run directory, where stage internals live, apart from the report. */
+export const WORK_DIRNAME = 'work'
+
 /** A run id becomes a path segment, so it is restricted to safe characters. */
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 
@@ -69,6 +83,10 @@ export interface RunContext {
   runsRoot: string
   /** Product run id; null in the benchmark profile. */
   runId: string | null
+  /** Product: the run store (<target>/.secscan or SCANNER_OUT). Null in the benchmark. */
+  outRoot: string | null
+  /** Product: <outRoot>/runs/<run-id>, where the report lands. Null without a run id. */
+  runDir: string | null
   /** Product only: Stage 2 may resume from an existing checkpoint. */
   resume: boolean
 }
@@ -119,16 +137,27 @@ export function resolveRunContext(
   }
 
   let runId: string | null = null
+  let outRoot: string | null = null
+  let runDir: string | null = null
   let runsRoot: string
   if (profile === 'product') {
     runId = env.SCANNER_RUN_ID || null
     if (runId !== null && !RUN_ID_RE.test(runId)) {
       throw new Error(`[run-context] SCANNER_RUN_ID has unsafe characters: '${runId}'`)
     }
+    const defaultOut = join(targetRoot, PRODUCT_DIRNAME)
+    outRoot = env.SCANNER_OUT ? physical(resolve(cwd, env.SCANNER_OUT)) : defaultOut
+    if (outRoot !== defaultOut && isWithin(outRoot, targetRoot)) {
+      throw new Error(
+        `[run-context] SCANNER_OUT must be outside the target (or ${defaultOut} itself): ${outRoot} ` +
+          'would be inventoried and scanned as source',
+      )
+    }
+    if (runId) runDir = join(outRoot, 'runs', runId)
     if (env.SCANNER_RUNS_ROOT) {
       runsRoot = resolve(cwd, env.SCANNER_RUNS_ROOT)
-    } else if (runId) {
-      runsRoot = join(targetRoot, PRODUCT_DIRNAME, 'runs', runId)
+    } else if (runDir) {
+      runsRoot = join(runDir, WORK_DIRNAME)
     } else {
       throw new Error(
         '[run-context] a product run needs SCANNER_RUN_ID (run.sh generates one) or SCANNER_RUNS_ROOT',
@@ -143,8 +172,21 @@ export function resolveRunContext(
     targetRoot,
     runsRoot,
     runId,
+    outRoot,
+    runDir,
     resume: profile === 'product' && env.SCANNER_RESUME === '1',
   }
+}
+
+/**
+ * A path with symlinks resolved as far as it exists: the store may not have
+ * been created yet, but its parent has to be compared physically, exactly as
+ * the target is, or a symlinked parent hides a store inside the target.
+ */
+function physical(p: string): string {
+  if (existsSync(p)) return realpathSync(p)
+  const parent = dirname(p)
+  return parent === p ? p : join(physical(parent), p.slice(parent.length + 1))
 }
 
 let cached: RunContext | null = null
@@ -167,5 +209,7 @@ export function describeRunContext(ctx: RunContext = getRunContext()): Record<st
     runs_root: ctx.runsRoot,
     run_id: ctx.runId,
     resume: ctx.resume,
+    // Product only, so a benchmark meta.json keeps exactly the keys it had.
+    ...(ctx.profile === 'product' ? { out_root: ctx.outRoot, run_dir: ctx.runDir } : {}),
   }
 }

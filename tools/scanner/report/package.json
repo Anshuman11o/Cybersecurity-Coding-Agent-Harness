@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "run": "tsx src/report.ts",
+    "runs": "tsx src/runs.ts",
     "test": "tsx src/report.test.ts"
   },
   "devDependencies": {

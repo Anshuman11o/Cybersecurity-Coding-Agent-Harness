@@ -11,7 +11,7 @@
  * Run: npx tsx src/report.test.ts
  */
 import { execFileSync, spawnSync } from 'child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
@@ -20,6 +20,8 @@ import { parseGithubRemote, permalink, repoInfo } from './git.js'
 import { renderHtml } from './render-html.js'
 import { renderMarkdown } from './render-md.js'
 import { SARIF_FINGERPRINT_KEY, toSarif } from './sarif.js'
+import { listRunIds, planPrune, refreshStore } from './runs-store.js'
+import { main as runsMain } from './runs.js'
 import type { BuildEnv, InFinding, ReportInputs } from './types.js'
 
 let pass = 0, fail = 0
@@ -388,52 +390,151 @@ try {
 
   console.log('\n-- end to end: report.ts on a product run --')
   {
-    // Lay the artifacts out exactly as run.sh would for a product run.
-    const runs = join(target, '.secscan/runs/r1')
-    const put = (stage: string, file: string, data: unknown) => {
-      mkdirSync(join(runs, 'luna', stage), { recursive: true })
-      writeFileSync(join(runs, 'luna', stage, file), JSON.stringify(data))
+    // Lay the artifacts out exactly as run.sh does for a product run: stage
+    // internals under <store>/runs/<id>/work/<provider>/<stage>/.
+    const store = join(target, '.secscan')
+    const runDir = join(store, 'runs/r1')
+    const work = join(runDir, 'work')
+    const put = (stage: string, file: string, data: unknown, base = work) => {
+      mkdirSync(join(base, 'luna', stage), { recursive: true })
+      writeFileSync(join(base, 'luna', stage, file), JSON.stringify(data))
     }
     const inputs = baseInputs([OLD, NEW, LOW])
-    const meta = (stage: string) => ({ provider: 'luna', model: 'deterministic', stage, exit_code: 0 })
-    put('stage2-hunt-lanes-perfile', 'candidate-findings.json', inputs.findings)
-    put('stage2-hunt-lanes-perfile', 'budget-consumption.json', inputs.consumption)
-    put('stage2-hunt-lanes-perfile', 'meta.json', inputs.stage2Meta)
-    put('stage05-lane-selector-perfile', 'lane-assignments.json', inputs.assignments)
-    put('stage05-lane-selector-perfile', 'meta.json', meta('stage05-lane-selector-perfile'))
-    put('stage0-recon', 'architecture-summary.json', inputs.architecture)
-    put('stage0-recon', 'file-signals.json', inputs.fileSignals)
+    const meta = (stage: string) => ({ provider: 'luna', model: 'deterministic', stage, exit_code: 0, started: '2026-10-10T08:00:00Z', ended: '2026-10-10T08:01:00Z' })
+    const layRun = (base: string) => {
+      put('stage2-hunt-lanes-perfile', 'budget-consumption.json', inputs.consumption, base)
+      put('stage2-hunt-lanes-perfile', 'meta.json', inputs.stage2Meta, base)
+      put('stage05-lane-selector-perfile', 'meta.json', meta('stage05-lane-selector-perfile'), base)
+      put('stage0-recon', 'architecture-summary.json', inputs.architecture, base)
+      put('stage0-recon', 'file-signals.json', inputs.fileSignals, base)
+    }
+    layRun(work)
+    writeFileSync(join(store, '.gitignore'), '*\n')
     // A lane naming a file inside .secscan/ must be refused by the guard.
-    writeFileSync(join(target, '.secscan/runs/r1/secret.js'), 'leak\n')
+    writeFileSync(join(runDir, 'secret.js'), 'leak\n')
     const sneaky = { ...LOW, finding_id: 'FIND-0005', lane_id: 'file-0005', title: 'reads run artifacts' }
     inputs.assignments.lanes.push(lane('file-0005', '.secscan/runs/r1/secret.js', 'hunt', 2, ['injection']))
     inputs.assignments.coverage_ledger = { total_files_in_inventory: 5, assigned_hunt: 4, assigned_skip: 1, unaccounted: 0 }
     put('stage05-lane-selector-perfile', 'lane-assignments.json', inputs.assignments)
     put('stage2-hunt-lanes-perfile', 'candidate-findings.json', [...inputs.findings, sneaky])
+    // An older run with no report, and one from before work/ existed: the index lists both.
+    mkdirSync(join(store, 'runs/r0-noreport/work/luna/stage0-recon'), { recursive: true })
 
-    const res = spawnSync('npx', ['tsx', 'src/report.ts'], {
+    const runReport = () => spawnSync('npx', ['tsx', 'src/report.ts'], {
       cwd: PKG, encoding: 'utf-8',
-      env: { ...process.env, SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: 'r1', SCANNER_PROVIDER: 'luna', SCANNER_RUNS_ROOT: '', SOURCE_DATE_EPOCH: '1791633600' },
+      env: { ...process.env, SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: 'r1', SCANNER_PROVIDER: 'luna', SCANNER_RUNS_ROOT: '', SCANNER_OUT: '', SOURCE_DATE_EPOCH: '1791633600' },
     })
+    const res = runReport()
     check('report.ts exits 0', res.status === 0)
     if (res.status !== 0) console.log(res.stdout, res.stderr)
-    const out = join(runs, 'luna/report')
-    for (const f of ['report.html', 'report.md', 'findings.json', 'findings.sarif', 'meta.json']) {
-      check(`writes ${f}`, existsSync(join(out, f)))
+    for (const f of ['report.html', 'report.md', 'findings.json', 'findings.sarif', 'run.json']) {
+      check(`writes ${f} at the top of the run directory`, existsSync(join(runDir, f)))
     }
-    const fj = JSON.parse(readFileSync(join(out, 'findings.json'), 'utf-8'))
+    check('meta.json stays with the internals', existsSync(join(work, 'luna/report/meta.json')) && !existsSync(join(runDir, 'meta.json')))
+    const fj = JSON.parse(readFileSync(join(runDir, 'findings.json'), 'utf-8'))
     check('SOURCE_DATE_EPOCH pins generated_at', fj.generated_at === '2026-10-10T12:00:00.000Z')
     check('terminal summary prints clickable path:line', res.stdout.includes('src/keys.js:6'))
     const leaked = fj.findings.find((f: any) => f.title === 'reads run artifacts')
     check('a file under .secscan/ is never excerpted', !!leaked && !leaked.location.resolves &&
-      !readFileSync(join(out, 'report.md'), 'utf-8').includes('leak'))
-    check('meta.json records the blocked read', JSON.parse(readFileSync(join(out, 'meta.json'), 'utf-8')).blocked_reads >= 1)
-    const again = spawnSync('npx', ['tsx', 'src/report.ts'], {
-      cwd: PKG, encoding: 'utf-8',
-      env: { ...process.env, SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: 'r1', SCANNER_PROVIDER: 'luna', SCANNER_RUNS_ROOT: '', SOURCE_DATE_EPOCH: '1791633600' },
-    })
-    check('deterministic: a second run writes byte-identical outputs',
-      again.status === 0 && readFileSync(join(out, 'findings.json'), 'utf-8') === JSON.stringify(fj, null, 2) + '\n')
+      !readFileSync(join(runDir, 'report.md'), 'utf-8').includes('leak'))
+    check('meta.json records the blocked read', JSON.parse(readFileSync(join(work, 'luna/report/meta.json'), 'utf-8')).blocked_reads >= 1)
+
+    const run = JSON.parse(readFileSync(join(runDir, 'run.json'), 'utf-8'))
+    check('run.json names the run, commit and status', run.run_id === 'r1' && run.repo.commit === SHA && run.status === fj.status.state)
+    check('run.json lists the stages that ran, from their meta.json',
+      run.stages.some((x: any) => x.stage === 'stage2-hunt-lanes-perfile') && !run.stages.some((x: any) => x.stage === 'report'))
+    check('run.json hashes inputs and outputs by run-relative path',
+      /^[0-9a-f]{64}$/.test(run.inputs['work/luna/stage2-hunt-lanes-perfile/candidate-findings.json']) &&
+      /^[0-9a-f]{64}$/.test(run.outputs['findings.sarif']))
+    check('run.json summary matches the report', run.summary.findings === fj.summary.total)
+
+    const index = JSON.parse(readFileSync(join(store, 'index.json'), 'utf-8'))
+    check('index lists every run, newest first', JSON.stringify(index.runs.map((r: any) => r.run_id)) === JSON.stringify(['r1', 'r0-noreport']))
+    check('index row carries status, counts and the report path',
+      index.runs[0].status === fj.status.state && index.runs[0].findings === fj.summary.total && index.runs[0].report === 'runs/r1/report.html')
+    check('a run without a report is listed as such', index.runs[1].status === 'no report' && index.runs[1].report === null)
+    check('latest points at the newest reported run', index.latest === 'r1' &&
+      realpathSync(join(store, 'latest')) === realpathSync(runDir))
+    check('nothing outside the store was written', !existsSync(join(target, 'index.json')) && !existsSync(join(target, 'report.html')))
+
+    const again = runReport()
+    check('deterministic: a second run writes byte-identical outputs and manifest',
+      again.status === 0 && readFileSync(join(runDir, 'findings.json'), 'utf-8') === JSON.stringify(fj, null, 2) + '\n' &&
+      readFileSync(join(runDir, 'run.json'), 'utf-8') === JSON.stringify(run, null, 2) + '\n')
+
+    console.log('\n-- run store: list and prune --')
+    {
+      // Three more runs, older than r1, two with reports.
+      for (const id of ['20261001-000000', '20261002-000000']) {
+        mkdirSync(join(store, 'runs', id, 'work/luna/stage0-recon'), { recursive: true })
+        writeFileSync(join(store, 'runs', id, 'work/luna/stage0-recon/big.json'), 'x'.repeat(5000))
+        writeFileSync(join(store, 'runs', id, 'report.html'), '<html></html>')
+        writeFileSync(join(store, 'runs', id, 'run.json'), JSON.stringify({ status: 'COMPLETE', summary: { findings: 1 } }))
+      }
+      mkdirSync(join(root, 'elsewhere'))
+      symlinkSync(join(root, 'elsewhere'), join(store, 'runs', '20260101-000000'))
+      const ids = listRunIds(store)
+      check('run ids sort newest first, symlinked entries ignored',
+        JSON.stringify(ids) === JSON.stringify(['r1', 'r0-noreport', '20261002-000000', '20261001-000000']))
+      const plan = planPrune(store, { keep: 2, work: true })
+      check('--keep 2 deletes everything beyond the newest two', JSON.stringify(plan.deleteRuns) === JSON.stringify(['20261002-000000', '20261001-000000']))
+      check('--work never touches the newest run', !plan.dropWork.includes('r1') && plan.dropWork.includes('r0-noreport'))
+      check('keep is at least 1', !planPrune(store, { keep: 0 }).deleteRuns.includes('r1'))
+      const quiet = (f: () => number) => { const log = console.log; console.log = () => {}; try { return f() } finally { console.log = log } }
+      check('prune without --yes is a dry run', quiet(() => runsMain(['--target', target, 'prune', '--keep', '2'])) === 0 &&
+        existsSync(join(store, 'runs/20261001-000000')))
+      check('prune with --yes removes, and refreshes the index',
+        quiet(() => runsMain(['--target', target, 'prune', '--keep', '2', '--work', '--yes'])) === 0 &&
+        !existsSync(join(store, 'runs/20261001-000000')) && !existsSync(join(store, 'runs/r0-noreport/work')) &&
+        existsSync(join(store, 'runs/r1/work')) && existsSync(join(root, 'elsewhere')) &&
+        JSON.parse(readFileSync(join(store, 'index.json'), 'utf-8')).runs.length === 2)
+      check('list exits 0', quiet(() => runsMain(['--target', target, 'list'])) === 0)
+      check('prune with no option is refused', (() => { const e = console.error; console.error = () => {}; try { return runsMain(['--target', target, 'prune']) } finally { console.error = e } })() === 2)
+      const fresh = refreshStore(store, '2026-10-11T00:00:00Z')
+      check('a run with work pruned is marked', fresh.runs.find((r) => r.run_id === 'r0-noreport')?.has_work === false)
+    }
+
+    console.log('\n-- run.sh: consent, --out, run store layout --')
+    {
+      const RUN_SH = join(PKG, '../run.sh')
+      const sh = (args: string[], extra: Record<string, string> = {}) => spawnSync(RUN_SH, args, {
+        encoding: 'utf-8', input: '',
+        env: { ...process.env, SCANNER_RUNS_ROOT: '', SCANNER_OUT: '', SCANNER_RUN_ID: '', SCANNER_TARGET: '', SCANNER_PROFILE: '', SOURCE_DATE_EPOCH: '1791633600', ...extra },
+      })
+      const fresh = join(root, 'fresh-repo')
+      mkdirSync(join(fresh, 'src'), { recursive: true })
+      writeFileSync(join(fresh, 'src/a.js'), 'x\n')
+      const noTty = sh(['--target', fresh, 'luna', 'stage0-recon'])
+      check('first run with no terminal and no --yes is refused', noTty.status === 2 && /--yes/.test(noTty.stderr))
+      check('...and writes nothing', !existsSync(join(fresh, '.secscan')))
+      const inside = sh(['--target', fresh, '--out', join(fresh, 'reports'), '--yes', 'luna', 'stage0-recon'])
+      check('--out inside the target is refused', inside.status === 2 && /outside the target/.test(inside.stderr) && !existsSync(join(fresh, 'reports')))
+      const occupied = join(root, 'occupied')
+      mkdirSync(occupied)
+      writeFileSync(join(occupied, 'notes.txt'), 'mine\n')
+      const taken = sh(['--target', fresh, '--out', occupied, '--yes', 'luna', 'stage0-recon'])
+      check('--out on a directory holding other files is refused', taken.status === 2 && !existsSync(join(occupied, '.gitignore')))
+      const missing = sh(['--target', fresh, '--yes', '--run-id', 'nope', 'luna', 'report'])
+      check('a later stage of a run that does not exist is refused', missing.status === 2 && /no run 'nope'/.test(missing.stderr))
+
+      // A complete run laid out in a store outside the target, with consent by --yes.
+      const outside = join(root, 'scan-results')
+      const w = join(outside, 'runs/r9/work')
+      layRun(w)
+      put('stage05-lane-selector-perfile', 'lane-assignments.json', { ...baseInputs([]).assignments, target_dir: target }, w)
+      put('stage2-hunt-lanes-perfile', 'candidate-findings.json', [OLD], w)
+      const refused = sh(['--target', target, '--out', outside, '--run-id', 'r9', 'luna', 'report'])
+      check('a store missing its .gitignore needs consent again, with no terminal refused',
+        refused.status === 2 && /--yes/.test(refused.stderr) && !existsSync(join(outside, '.gitignore')))
+      const ok = sh(['--target', target, '--out', outside, '--run-id', 'r9', '--yes', 'luna', 'report'])
+      check('run.sh report with --yes and --out exits 0', ok.status === 0)
+      if (ok.status !== 0) console.log(ok.stdout, ok.stderr)
+      check('the store gets its .gitignore of *', readFileSync(join(outside, '.gitignore'), 'utf-8') === '*\n')
+      check('the report lands at the top of the run', existsSync(join(outside, 'runs/r9/report.html')) && existsSync(join(outside, 'runs/r9/run.json')))
+      check('logs land with the internals', existsSync(join(w, 'luna/report/logs/report.stdout.log')))
+      check('the store index and latest are written', existsSync(join(outside, 'index.json')) && existsSync(join(outside, 'latest')))
+      check('nothing is written into the target', !existsSync(join(target, '.secscan/runs/r9')))
+    }
   }
 } finally {
   rmSync(root, { recursive: true, force: true })

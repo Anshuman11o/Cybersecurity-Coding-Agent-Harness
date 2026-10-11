@@ -3,14 +3,15 @@
 Productization plan §2.9 and Part 4. Deterministic: no model call, no network.
 It turns a finished (or stopped) v2 run into the Option A outputs.
 
-    ./tools/scanner/run.sh <provider> report                      # benchmark
-    ./tools/scanner/run.sh --target DIR --run-id ID <provider> report   # product
+    ./tools/scanner/run.sh <provider> report                                  # benchmark
+    ./tools/scanner/run.sh --target DIR [--out DIR] --run-id ID <provider> report   # product
 
 `all-v2` runs it last, after `reconcile-v2`.
 
 ## Inputs
 
-All under `<runs root>/<provider>/`, read by fixed name:
+All under `<runs root>/<provider>/` (in a product run,
+`<store>/runs/<run-id>/work/<provider>/`), read by fixed name:
 
 | File | Used for | If missing |
 |---|---|---|
@@ -33,23 +34,64 @@ denylisted file.
 
 ## Outputs
 
-In `<runs root>/<provider>/report/` (in a product run,
-`<target>/.secscan/runs/<run-id>/<provider>/report/`):
-
 | File | What |
 |---|---|
 | `report.html` | one self-contained page, no script, light and dark |
 | `report.md` | same sections; the GitHub job summary in Option B |
 | `findings.json` | the report model; every other output is rendered from it |
 | `findings.sarif` | SARIF 2.1.0, validated against the OASIS schema |
-| `meta.json` | provenance, as every stage writes |
+| `run.json` | product only: the run's manifest (see below) |
+| `meta.json` | provenance, as every stage writes; always in `<runs root>/<provider>/report/` |
 
-plus a summary on stdout. `SOURCE_DATE_EPOCH` pins `generated_at`; with it, two
+plus a summary on stdout. `SOURCE_DATE_EPOCH` pins the timestamps; with it, two
 runs over the same artifacts and working copy write byte-identical files.
 
-In the benchmark profile the directory carries a `.gitignore` of `*`: the
-report is derived from committed artifacts and runs to tens of megabytes on a
-full run. `archive-run` copies it with the rest of `runs/<provider>/`.
+**Benchmark profile:** everything goes to `<runs root>/<provider>/report/`,
+beside the stages, which carries a `.gitignore` of `*`: the report is derived
+from committed artifacts and runs to tens of megabytes on a full run.
+`archive-run` copies it with the rest of `runs/<provider>/`.
+
+**Product profile:** the run store.
+
+## The run store (product)
+
+```
+<repo>/
+└── .secscan/                  the run store; git-ignored by its own .gitignore of *
+    ├── .gitignore             "*", written by run.sh after consent
+    ├── index.json             one row per run, rebuilt from disk by every report
+    ├── latest                 symlink to the newest reported run (latest.txt where symlinks fail)
+    └── runs/<run-id>/         <run-id> is a UTC timestamp, YYYYMMDD-HHMMSS
+        ├── report.html  report.md  findings.json  findings.sarif    what the user opens
+        ├── run.json           manifest: status, commit, tool, model, config hash,
+        │                      each stage's timing and exit code, sha256 of inputs and outputs
+        └── work/<provider>/<stage>/   stage internals, checkpoints, logs
+```
+
+- **Consent.** `run.sh` creates the store only after asking once on a terminal
+  ("Create it? [Y/n]"), or with `--yes` in scripts and CI. With neither,
+  nothing is written. The repository's own `.gitignore` is never touched; the
+  store ignores itself, as pytest's `.pytest_cache` does.
+- **`--out DIR`** moves the whole store, for example outside the repository.
+  It must lie outside the target (a store inside it would be inventoried and
+  scanned as source) and must be new, empty, or already a store: `run.sh` never
+  writes a `.gitignore` of `*` into a directory holding someone's files. A later
+  stage of the same run needs the same `--out`.
+- **Index and latest.** Rebuilt from the run directories each time, so a run
+  that died before its report shows as `no report` instead of going missing.
+- **Committed vs ignored.** Run output contains the repository's vulnerabilities
+  and code excerpts, so it stays in the ignored store. Team decisions (scan
+  config, ignore lists, and later dismissed findings) belong in committed files
+  at the repository root.
+
+List and prune runs (prune is a dry run without `--yes`; the newest run is never
+touched):
+
+    npm --prefix tools/scanner/report run runs -- --target . list
+    npm --prefix tools/scanner/report run runs -- --target . prune --keep 10
+    npm --prefix tools/scanner/report run runs -- --target . prune --work --yes   # drop internals, keep reports
+
+`--work` makes those runs impossible to resume or re-report.
 
 ## Rules the report keeps
 
@@ -92,6 +134,12 @@ Read if present, so later tasks need not change this stage:
 Not yet produced anywhere, and shown as such: diff/paths scope (always `full`),
 recon-guided playbooks and their sources (always none), a user config file in
 the config hash.
+
+## SARIF alignment (deferred)
+
+Bringing `findings.sarif` closer to industry conventions (rule metadata,
+taxonomies, invocations, baseline state, suppressions) is analysed but not
+decided: `docs/architecture/report-sarif-alignment.md`.
 
 ## Benchmark reference
 
