@@ -10,7 +10,19 @@
     "",
     "A target's KEY is also its run-artifact namespace: runs/<key>/<stage>/.",
     "Key on the model, not the vendor — api.openai.com serves luna, terra and sol,",
-    "and each needs its own isolated run tree to be comparable."
+    "and each needs its own isolated run tree to be comparable.",
+    "",
+    "Optional per-target fields beyond the API dialect (see models.ts for the full",
+    "schema): `max_concurrency` is a vendor-documented in-flight ceiling the",
+    "auto-derived concurrency never exceeds; `benchmark` marks a target MEASURED and",
+    "carries its lab result, copied from docs/benchmarking-results.md and pinned to",
+    "it by guard.test.ts. A target without `benchmark` is unmeasured, and so is every",
+    "entry a user adds through an overlay or the generic endpoint below.",
+    "",
+    "`generic_openai_compatible` is not a target. It is the template the CLI's",
+    "--base-url/--model/--api-key-env flags fill in at runtime (OpenRouter, other",
+    "vendors, a local Ollama or LM Studio). The model id, endpoint and credential",
+    "variable come from the environment variables it names, never from code."
   ],
 
   "default_provider": "luna",
@@ -32,6 +44,20 @@
     "qwen3.7-plus": "qwen37"
   },
 
+  "generic_openai_compatible": {
+    "key": "custom",
+    "label": "Custom OpenAI-compatible endpoint",
+    "model_env": "SCANNER_CUSTOM_MODEL",
+    "base_url_env": "SCANNER_CUSTOM_BASE_URL",
+    "api_key_env_env": "SCANNER_CUSTOM_API_KEY_ENV",
+    "api_key_env_default": "SCANNER_CUSTOM_API_KEY",
+    "price_env": "SCANNER_CUSTOM_PRICE",
+    "token_limit_param": "max_tokens",
+    "sampling": {},
+    "max_output_tokens": 16000,
+    "notes": "Filled in from the environment by models.ts when both model_env and base_url_env are set. api_key_env_env names the variable that in turn names the credential variable, so the key itself never passes through a flag or a config file. The default is a dedicated variable rather than any vendor's: defaulting to OPENAI_API_KEY would send an OpenAI key to whatever third-party endpoint --base-url names. A local server that ignores keys still needs a non-empty value (the SDK refuses an empty one), e.g. SCANNER_CUSTOM_API_KEY=local. price_env takes 'input/output' USD per MTok; without it the target is unpriced and --max-cost refuses to run. max_tokens is the dialect most OpenAI-compatible servers accept (Ollama, LM Studio, OpenRouter); a server that needs max_completion_tokens belongs in a models.json overlay instead."
+  },
+
   "targets": {
     "luna": {
       "label": "GPT-5.6 Luna",
@@ -48,6 +74,7 @@
       "price_per_mtok": { "input": 0.2, "cached_input": 0.02, "cache_write": 0.25, "output": 1.2 },
       "price_asof": "2026-08-01",
       "price_tier": "standard service tier, short context (prompt <=272K)",
+      "benchmark": { "corpus": "OWASP Juice Shop, 97 reachable entries", "languages": ["typescript"], "recall": "69/97", "localization": "86/97", "cost_usd": 4.37, "run": "run 6, 2026-08-01", "source": "docs/benchmarking-results.md §2.1" },
       "notes": "Long-context (>272K prompt) rates are 0.4/1.8 and are NOT modelled: the registry carries one rate pair, so a long-context run under-reports. GPT-5.x reasoning models reject max_tokens with a 400, and reject any temperature but the default, so steering happens through the prompt and through reasoning_effort. reasoning_effort was added 2026-07-31: runs 1-5 sent none at all and therefore ran at the endpoint's default, so four rounds of playbook work were tuned against the cheapest tier of the family at that tier's own cheapest effort. Re-measured 2026-08-01 on the 40-lane platform against a matched control: high effort alone is recall 53.6% -> 63.9%, 10 entries gained and 0 lost. Paired with Stage 2's default trace loop it is 67.0% recall and 85.6% localization, the shipped arm — see docs/run-history.md 2026-08-01 and docs/architecture/stage2-lane-loop.md. max_output_tokens must move with the effort: reasoning tokens are billed as output AND counted against the cap, and at this effort 42% of calls exceed 8000, where a truncated body is unparseable JSON that Stage 2 records as a lane that found nothing — measured recall 63.9% -> 37.1% at an 8000 cap. Raised 24000 -> 64000 on 2026-08-01. The 14584 figure was the highest completion on run 6's workload only; a deliberately output-maximising lane-shaped probe on the same model returned 29682 completion tokens, so 24000 truncates a harder-but-legitimate lane and the earlier claim that 16000 would do was wrong. 64000 is ~2.2x that measured worst case and half the model's 128000 hard ceiling (established by API rejection, not documentation). The cap is a ceiling, not a spend — billing is per token generated — so headroom is free, while a low cap truncates JSON into what Stage 2 records as a lane that found nothing. All six benchmark targets share 64000 so no cross-model comparison is confounded by differing room to answer. 'medium' is untested. To reproduce runs 1-5 exactly, set SCANNER_REASONING_EFFORT= and SCANNER_MAX_OUTPUT_TOKENS=8000 and HUNT_LOOP=none rather than editing this entry. base_url null means the SDK default, https://api.openai.com/v1. Requires api.openai.com on the environment's egress allowlist."
     },
 
@@ -137,6 +164,7 @@
       "price_per_mtok": { "input": 1.5, "cached_input": 0.15, "output": 7.5 },
       "price_asof": "2026-08-02",
       "price_tier": "standard, flat-rate — the vendor publishes no context tier for this model",
+      "benchmark": { "corpus": "OWASP Juice Shop, 97 reachable entries", "languages": ["typescript"], "recall": "57/97", "localization": "73/97", "cost_usd": 24.85, "run": "2026-08-02", "source": "docs/benchmarking-results.md §2.3" },
       "notes": "Added 2026-08-02. Reached through Google's OpenAI-compatibility layer, same endpoint and credential as gemini31pro, so it runs the existing SDK client with no code change. Output price includes thinking tokens. Cache storage ($1.00 per MTok-hour) is not modelled. Shares GEMINI_MODEL with gemini31pro, so setting that env var overrides BOTH targets at once and would collapse a pro-vs-flash comparison into one model — leave it unset. max_output_tokens 64000 matches the other benchmark targets so no model has less room to answer than another; it is not a measured ceiling for this model. Note gemini31pro was observed declining an exhaustive-enumeration task (862 output tokens where peers emitted 25k-31k); whether this model shares that behaviour is unmeasured, and it matters because recall is monotone in trace length."
     },
 
@@ -169,6 +197,8 @@
       "price_per_mtok": { "input": 1.4, "cached_input": 0.26, "output": 4.4 },
       "price_asof": "2026-08-01",
       "price_tier": "standard, flat-rate (no context tier)",
+      "max_concurrency": 10,
+      "benchmark": { "corpus": "OWASP Juice Shop, 97 reachable entries", "languages": ["typescript"], "recall": "65/97", "localization": "83/97", "cost_usd": 17.01, "run": "2026-08-02", "source": "docs/benchmarking-results.md §2.2" },
       "notes": "CONCURRENCY: Z.ai documents a hard in-flight limit of 10 concurrent requests for GLM-5.2 — a per-model cap, distinct from RPM/TPM and exposed in no response header, so it is discoverable only from the vendor's docs. HUNT_CONCURRENCY must be <= 10. The 2026-08-02 benchmark run used 32 before this was known: it completed correctly because the backoff absorbed every 429 and no lane was lost, but 10% of calls were throttled and its ~18.5 min wall clock is therefore not a runtime this model can deliver within its limits (C=10 projects to ~50 min). Recall, tokens and cost are unaffected — a 429 is rejected before generation. EFFORT: reasoning_effort=high is set and the endpoint honours the parameter — reasoning_effort=minimal drives reasoning_tokens to 0, proving it is not ignored — but it is NOT established that high exceeds this endpoint's default: three samples each gave baseline 935/924/652 and high 1042/540/586, fully overlapping. Set for consistency across benchmark targets; do not cite as a measured uplift for this model. Cache storage is free for a limited period and is not modelled. Added 2026-08-01. Z.ai's OpenAI-compatible endpoint, so it runs the existing SDK client with no code change. Credential env var is ZAI_API_KEY, not a GLM_-prefixed name. Verified 2026-08-01: plain completion 200, json_schema strict honoured. A first attempt on 2026-08-01 returned HTTP 429 code 1113 'Insufficient balance' — auth had already succeeded at that point, so read a 1113 as an unfunded account rather than a bad key. The same model is also resold through DashScope at the same list price; this entry uses the vendor endpoint directly."
     },
 
@@ -219,6 +249,7 @@
       "price_per_mtok": { "input": 2.0, "cached_input": 0.2, "cache_write": 2.5, "output": 10.0 },
       "price_asof": "2026-08-02",
       "price_tier": "standard first-party API, global inference_geo, 5m cache writes, INTRODUCTORY",
+      "benchmark": { "corpus": "OWASP Juice Shop, 97 reachable entries", "languages": ["typescript"], "recall": "64/97", "localization": "84/97", "cost_usd": 84.04, "run": "2026-08-03", "source": "docs/benchmarking-results.md §2.4" },
       "notes": "Claude Sonnet 5 measured through the local Claude Code binary in headless mode (`claude -p`) rather than over HTTP, so the run draws on a Max subscription instead of a metered key. Same weights and same model id as `sonnet5`; a SEPARATE key because the transport is not neutral and the two must never share a results row. Added 2026-08-02. TRANSPORT DELTAS, all measured on 2026-08-02 and all of which must travel with any number from this target: (1) ~170 tokens per call of irreducible CLI framing survive `--system-prompt ''` (175 input tokens on a 5-token prompt), about 184k tokens across a 1,082-call run; (2) structured output is a forced tool call via `--json-schema`, not `response_format: json_schema strict`; (3) `--effort high` is Claude Code's thinking budget and IS applied, whereas `sonnet5`'s `reasoning_effort` over the OpenAI-compat layer is accepted with no reasoning tokens ever observed — since recall is monotone in trace length this biases THIS target upward, and a sonnet5cli-vs-sonnet5 gap is not a capability result; (4) the trace loop's second turn is a `--resume`, which the CLI serves partly from prompt cache, so input bills cheaper here than the uncached compat path. SANDBOX: the transport passes `--tools \"\" --strict-mcp-config --disable-slash-commands` on EVERY invocation including resumes. Measured: a session resumed WITHOUT re-passing `--tools \"\"` regains the full tool set and will read an arbitrary file off disk — which for this project means the answer key one directory above the corpus. guard.test.ts asserts both paths. COST: computed downstream from the CLI's reported per-model token counts against the rates above. Do NOT use the CLI's own costUSD field — it prices this model at 3.0/15.0, the post-2026-08-31 rate, and disagrees with this entry. The rates here are the August 2026 introductory rates and are the ones this benchmark reports. api_key_env and model_env are placeholders that are deliberately never read: this transport authenticates through the CLI's own session and takes its model id from `model`. base_url is null for the same reason — there is no HTTP endpoint."
     }
   }

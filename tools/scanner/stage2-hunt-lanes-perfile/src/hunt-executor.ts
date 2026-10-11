@@ -11,10 +11,19 @@
  * - Full file coverage via chunking; no silent truncation
  * - Line numbers are REAL file line numbers in every chunk
  * - Per-finding categories: model names the class actually found
- * - Budget tracking is measurement-only (no enforcement, no cutoff)
- * - **Bounded concurrency**: lanes run in parallel up to a configurable
- *   ceiling (default 8, env HUNT_CONCURRENCY). Each lane is isolated
- *   with its own error boundary so one failure does not abort the pool.
+ * - Budget enforcement at lane boundaries: Stage 1's scan plan decides which
+ *   lanes the run's limits admit and what each is projected to cost, and a
+ *   spend gate (stage1-budget-governor/src/spend-gate.ts) refuses to START a
+ *   lane once projected spend would pass --max-cost or --timeout has passed.
+ *   A lane in flight is never cut off — its calls are already billed.
+ * - **Bounded concurrency**: lanes run in parallel up to a ceiling derived in
+ *   stage1-budget-governor/src/limits.ts (HUNT_CONCURRENCY, else 8 held under
+ *   the vendor's documented ceiling). Each lane is isolated with its own error
+ *   boundary so one failure does not abort the pool.
+ * - A limit, Ctrl-C/SIGTERM or the CLI's stop request ends the run cleanly:
+ *   no new lane starts, the in-flight ones finish, and run-status.json records
+ *   INCOMPLETE with every lane that was not scanned. Live progress is written
+ *   to progress.json for the CLI.
  *
  * Provider-scoped: model, endpoint, credential and API parameter dialect all
  * come from the model registry via the resolved provider, and every artifact
@@ -23,6 +32,8 @@
  *
  * Outputs: runs/<provider>/stage2-hunt-lanes-perfile/candidate-findings.json
  *          runs/<provider>/stage2-hunt-lanes-perfile/budget-consumption.json
+ *          runs/<provider>/stage2-hunt-lanes-perfile/run-status.json
+ *          runs/<provider>/stage2-hunt-lanes-perfile/progress.json  (live)
  *
  * Checkpointing: after EACH lane completes, results are written to disk
  * immediately. On startup, existing partial results are detected and the
@@ -31,17 +42,29 @@
  * resume happens only when asked for (run.sh --resume); see main().
  */
 import OpenAI from 'openai'
-import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs'
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createClient, extractJson } from './llm-client.js'
 import { resolveLoopConfig, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
 import { setUsageLedgerPath } from '../../shared/claude-cli-client.js'
-import { resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap } from '../../shared/provider.js'
+import {
+  resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap,
+  costUsd, pricingFor, maxConcurrencyFor,
+} from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+// Lane scheduling under the run's limits. These live with the budget governor,
+// which plans what the gate enforces; Stage 2 only asks before starting a lane.
+import { resolveLimits, admissionKey, deriveConcurrency, NO_LIMITS, type RunLimits } from '../../stage1-budget-governor/src/limits.js'
+import { SpendGate, type GateDecision } from '../../stage1-budget-governor/src/spend-gate.js'
+import { SCAN_PLAN_FILE, SCAN_PLAN_SCHEMA, type ScanPlan } from '../../stage1-budget-governor/src/scan-plan.js'
+import {
+  PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE,
+  type Stage2Progress, type Stage2RunStatus, type StopReason, type UnscannedLane, type ScopeExcludedLane,
+} from '../../stage1-budget-governor/src/run-status.js'
 import type {
   LaneAssignmentEntry,
   LaneAssignments,
@@ -142,50 +165,15 @@ const LOOP_STRICT_TRACE = LOOP.strictTrace
 export const SINGLE_PASS_LINE_BUDGET = 2000
 
 // ── Bounded concurrency ───────────────────────────────────────────────────
-// Cap on how many lanes run concurrently.  Default 8; override via env var
-// HUNT_CONCURRENCY.  Running too many simultaneous calls against the same
-// upstream endpoint increases 429 risk — keep this modest.
+// How many lanes run at once is derived in main() by deriveConcurrency()
+// (stage1-budget-governor/src/limits.ts), the same function Stage 1 uses to
+// estimate wall clock: HUNT_CONCURRENCY when set, otherwise 8, held under the
+// vendor's documented in-flight ceiling where models.json records one.
 //
 // Measured: 8 was too high for gpt-5.6-luna on 2026-07-28 — 52 of 541 lanes
 // died on tokens-per-minute limits, and a retry pass at 3 completed all 52 with
 // zero retries. Pass HUNT_CONCURRENCY explicitly for a full run rather than
 // relying on this default.
-const DEFAULT_MAX_CONCURRENT_LANES = 8
-const MAX_CONCURRENT_LANES = (() => {
-  const env = process.env.HUNT_CONCURRENCY
-  if (env) {
-    const n = parseInt(env, 10)
-    if (Number.isFinite(n) && n > 0) return n
-    console.warn(`  [WARN] HUNT_CONCURRENCY=${env} not a positive integer, using default ${DEFAULT_MAX_CONCURRENT_LANES}`)
-  }
-  return DEFAULT_MAX_CONCURRENT_LANES
-})()
-
-class Semaphore {
-  private permits: number
-  private queue: (() => void)[] = []
-
-  constructor(max: number) {
-    this.permits = max
-  }
-
-  async acquire(): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--
-      return
-    }
-    return new Promise(resolve => this.queue.push(resolve))
-  }
-
-  release(): void {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift()!
-      next()
-    } else {
-      this.permits++
-    }
-  }
-}
 
 // ── Vulnerability class registry ─────────────────────────────────────────
 
@@ -1880,6 +1868,76 @@ function loadCheckpoint(outDir: string): {
   }
 }
 
+// ── Scan plan, lane cost and progress helpers ─────────────────────────────
+
+/**
+ * Stage 1's scan plan for this run, or null when the run may go without one.
+ *
+ * Required — a missing or stale plan stops the stage — in the product profile
+ * and whenever a limit is set: those runs must execute exactly the lanes that
+ * were planned and shown. An unlimited benchmark run without a usable plan
+ * runs every hunt lane, as Stage 2 always has.
+ */
+function loadScanPlan(assignments: LaneAssignments, limits: RunLimits, product: boolean): ScanPlan | null {
+  const path = join(runPath(PROVIDER, 'stage1-budget-governor-perfile'), SCAN_PLAN_FILE)
+  const limited = admissionKey(limits) !== admissionKey(NO_LIMITS) || limits.max_cost_usd != null
+  const required = product || limited
+  const refuse = (why: string): null => {
+    if (required) {
+      console.error(`\nERROR: ${why}`)
+      console.error(`  ${product ? 'A product run' : 'A run with limits set'} executes only the lanes Stage 1 planned.`)
+      console.error(`  Run Stage 1 (stage1-budget-governor-perfile) for this run under the same limits, then Stage 2 again.`)
+      process.exit(1)
+    }
+    console.warn(`[WARN] ${why} — ignoring it; every hunt lane runs, as before scan plans existed`)
+    return null
+  }
+  if (!existsSync(path)) return required ? refuse(`no scan plan at ${path}`) : null
+  let plan: ScanPlan
+  try {
+    plan = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err: any) {
+    return refuse(`scan plan ${path} is unreadable (${err?.message ?? err})`)
+  }
+  if (plan.schema !== SCAN_PLAN_SCHEMA) return refuse(`scan plan ${path} has schema "${plan.schema}", expected "${SCAN_PLAN_SCHEMA}"`)
+  if (plan.provider !== PROVIDER) return refuse(`scan plan ${path} was computed for "${plan.provider}", not "${PROVIDER}"`)
+  if (plan.source_assignments?.generated_at !== assignments.generated_at) {
+    return refuse(`scan plan ${path} was computed from different lane assignments (Stage 0.5 re-ran since)`)
+  }
+  if (plan.admission_key !== admissionKey(limits)) {
+    return refuse(`scan plan ${path} was computed under different scope limits (--paths, --include, --exclude, --max-files, --max-file-size)`)
+  }
+  return plan
+}
+
+/** Measured USD cost of one lane, or null when unpriced or any call went unmeasured. */
+function laneCostUsd(record: LaneTokenRecordV2 | undefined): number | null {
+  if (!record || !pricingFor(PROVIDER) || record.chunks.length === 0) return null
+  let prompt = 0, completion = 0, cached = 0, written = 0
+  for (const c of record.chunks) {
+    if (c.measured.prompt_tokens == null || c.measured.completion_tokens == null) return null
+    prompt += c.measured.prompt_tokens
+    completion += c.measured.completion_tokens
+    cached += c.measured.cached_prompt_tokens ?? 0
+    written += c.measured.cache_write_prompt_tokens ?? 0
+  }
+  return costUsd(PROVIDER, prompt, completion, cached, written)
+}
+
+/** What the lanes carried forward from earlier passes cost; null when unpriced. */
+function sumLaneCosts(records: LaneTokenRecordV2[]): number | null {
+  if (!pricingFor(PROVIDER)) return null
+  return records.reduce((s, r) => s + (laneCostUsd(r) ?? 0), 0)
+}
+
+function formatSeconds(sec: number): string {
+  const s = Math.max(0, Math.round(sec))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m${String(s % 60).padStart(2, '0')}s`
+  return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m`
+}
+
 // ── v2 budget consumption writer ─────────────────────────────────────────
 
 /**
@@ -2035,6 +2093,11 @@ function buildRunLevelRollup(
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
+  // When the log tee in front of this process dies first (Ctrl-C reaches the
+  // whole process group), a write to the closed pipe would crash the stage
+  // before it records what it finished. Losing a log line is the lesser harm.
+  for (const stream of [process.stdout, process.stderr]) stream.on('error', () => {})
+
   console.log('=== Stage 2 (Per-File v2): Hunt Lanes ===')
   console.log()
 
@@ -2192,6 +2255,40 @@ async function main() {
     console.log(`[RESUME] Skipping ${beforeCount - huntLanes.length} completed lanes, ${huntLanes.length} lanes remaining`)
   }
 
+  // ── Scan plan: the lanes this run's limits admit ────────────────────────
+  // Stage 1 applied --paths/--include/--exclude/--max-file-size/--max-files and
+  // priced each admitted lane. Running anything else would scan files nobody
+  // confirmed, so a product run, or any run with a limit set, refuses to start
+  // without a plan computed for these lanes under these limits.
+  const limits = resolveLimits()
+  const huntTotal = assignments.lanes.filter(l => l.disposition === 'hunt').length
+  const scanPlan = loadScanPlan(assignments, limits, runCtx.profile === 'product')
+  const admittedIds = new Set(
+    scanPlan ? scanPlan.admitted.map(l => l.lane_id) : assignments.lanes.filter(l => l.disposition === 'hunt').map(l => l.lane_id),
+  )
+  const projectedCost = new Map<string, number | null>(
+    (scanPlan?.admitted ?? []).map(l => [l.lane_id, l.projected_cost_usd]),
+  )
+  const unscanned: UnscannedLane[] = []
+  const scopeExcluded: ScopeExcludedLane[] = []
+  for (const e of scanPlan?.excluded ?? []) {
+    if (e.reason === 'over-max-files') {
+      unscanned.push({ lane_id: e.lane_id, target_file: e.target_file, reason: 'over-max-files', detail: e.detail })
+    } else {
+      scopeExcluded.push({ lane_id: e.lane_id, target_file: e.target_file, reason: e.reason, detail: e.detail })
+    }
+  }
+  if (scanPlan) {
+    huntLanes = huntLanes.filter(l => admittedIds.has(l.lane_id))
+    const cut = Object.entries(scanPlan.totals.excluded_by_reason).map(([r, n]) => `${n} ${r}`).join(', ')
+    console.log(`\n[SCAN PLAN] ${scanPlan.admitted.length} of ${huntTotal} hunt lane(s) admitted` + (cut ? ` (${cut})` : ''))
+  }
+  // Lanes finished in an earlier pass count toward this run's progress and spend.
+  const carriedDone = checkpoint
+    ? [...checkpoint.completedLaneIds].filter(id => admittedIds.has(id)).length
+    : 0
+  const carriedSpend = sumLaneCosts(laneRecordsV2)
+
   // ── Chunk bound ─────────────────────────────────────────────────────────
   // HUNT_MAX_LANES stops this pass after N *newly executed* lanes and exits
   // cleanly, leaving the checkpoint complete and resumable. It exists so a run
@@ -2209,13 +2306,22 @@ async function main() {
     const bound = positiveEnvInt('HUNT_MAX_LANES', 0)
     if (huntLanes.length > bound) {
       console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — running ${bound} of ${huntLanes.length} remaining lanes this pass`)
+      for (const l of huntLanes.slice(bound)) {
+        unscanned.push({ lane_id: l.lane_id, target_file: l.target_file, reason: 'chunk_bound', detail: `past HUNT_MAX_LANES=${bound} for this pass` })
+      }
       huntLanes = huntLanes.slice(0, bound)
     } else {
       console.log(`[CHUNK] HUNT_MAX_LANES=${bound} — ${huntLanes.length} lanes remain, all run this pass`)
     }
   }
 
-  console.log(`\n[CONCURRENCY] Running up to ${MAX_CONCURRENT_LANES} lanes in parallel`)
+  const concurrency = deriveConcurrency(limits.concurrency, maxConcurrencyFor(PROVIDER), huntLanes.length)
+  console.log(`\n[CONCURRENCY] Running up to ${concurrency.value} lanes in parallel (${concurrency.basis})`)
+  if (limits.max_cost_usd != null) {
+    console.log(`[LIMITS] cost cap $${limits.max_cost_usd.toFixed(2)}` +
+      (carriedSpend ? ` ($${carriedSpend.toFixed(4)} already spent by earlier passes)` : ''))
+  }
+  if (limits.timeout_seconds != null) console.log(`[LIMITS] timeout ${limits.timeout_seconds}s — no lane starts after it`)
 
   // ── Class resolution path banner ────────────────────────────────────────
   let lanesWithClasses = 0
@@ -2226,98 +2332,370 @@ async function main() {
   }
   console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
 
-  // ── Bounded concurrency executor ────────────────────────────────────────
-  const sem = new Semaphore(MAX_CONCURRENT_LANES)
-  const lanePromises: Promise<void>[] = []
+  // ── Lane scheduler: bounded concurrency behind the spend gate ───────────
+  // Lanes start in assignment order, as they always have; the only new
+  // question asked before each one is whether the gate lets it start. The
+  // gate never stops a lane already running — see spend-gate.ts.
+  const stageStart = Date.now()
+  const gate = new SpendGate(
+    {
+      capUsd: limits.max_cost_usd,
+      deadlineMs: limits.timeout_seconds != null ? stageStart + limits.timeout_seconds * 1000 : null,
+    },
+    carriedSpend ?? 0,
+  )
+  const priced = pricingFor(PROVIDER) != null
+  const admittedTotal = admittedIds.size
+  const progressPath = join(outDir, PROGRESS_FILE)
+  const stopPath = join(outDir, STOP_REQUEST_FILE)
+  // A stop request left over from an earlier invocation must not stop this one.
+  rmSync(stopPath, { force: true })
 
-  for (const lane of huntLanes) {
-    const p = (async () => {
-      await sem.acquire()
-      try {
-        // Class resolution: prefer lane.classes (signal-based) when present,
-        // otherwise fall back to collapsing lane.categories through the code→class index
-        let laneClasses: string[]
-        if (lane.classes && lane.classes.length > 0) {
-          laneClasses = lane.classes
-        } else {
-          const assignedCodes = lane.categories.map(c => c.code)
-          laneClasses = codesToClasses(assignedCodes)
-        }
-        console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Classes: ${laneClasses.join(', ')}`)
-        console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
-        console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
+  const inFlightLanes = new Map<string, LaneAssignmentEntry>()
+  const settled = new Set<string>()
+  let doneThisPass = 0
+  let failedThisPass = 0
+  let stop: { reason: StopReason; detail: string } | null = null
+  let phase: Stage2Progress['status'] = 'running'
+  let notStarted: LaneAssignmentEntry[] = []
 
-        const playbooks = await loadPlaybooksForClasses(laneClasses)
-        console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
-
-        const t0 = Date.now()
-        const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet, archSummaryFull)
-        const elapsed = (Date.now() - t0) / 1000
-
-        allFindings.push(...result.findings)
-
-        consumptionReport.push({
-          lane_id: lane.lane_id,
-          tokens_used: result.tokensUsed,
-          seconds_elapsed: elapsed,
-          ceiling_hit: false,
-        })
-
-        // Build per-lane v2 record
-        const laneTotalsPrompt = result.chunkRecords.reduce(
-          (s, c) => s + (c.measured.prompt_tokens ?? 0), 0)
-        const laneTotalsCompletion = result.chunkRecords.reduce(
-          (s, c) => s + (c.measured.completion_tokens ?? 0), 0)
-        const laneTotalsTotal = result.chunkRecords.reduce(
-          (s, c) => s + (c.measured.total_tokens ?? 0), 0)
-        const hasAllMeasured = result.chunkRecords.length > 0 &&
-          result.chunkRecords.every(c => c.measured.prompt_tokens != null && c.measured.completion_tokens != null && c.measured.total_tokens != null)
-
-        laneRecordsV2.push({
-          lane_id: lane.lane_id,
-          target_file: lane.target_file,
-          file_bytes: lane.file_bytes,
-          // Chunks, not calls. A loop mode writes one record per TURN, so
-          // counting records here would report every single-chunk lane as
-          // multi-chunk and would make buildRunLevelRollup bill each extra turn
-          // as "boilerplate re-sent across a multi-chunk lane" — which is
-          // exactly what a conversational follow-up does NOT do.
-          chunk_count: new Set(result.chunkRecords.map(c => c.chunk_index)).size,
-          chunks: result.chunkRecords,
-          lane_totals: {
-            prompt_tokens: hasAllMeasured ? laneTotalsPrompt : null,
-            completion_tokens: hasAllMeasured ? laneTotalsCompletion : null,
-            total_tokens: hasAllMeasured ? laneTotalsTotal : null,
-          },
-        })
-
-        console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
-
-        // ── Checkpoint: write results immediately after each lane ─────────
-        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
-      } catch (err: any) {
-        console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
-        // Marked failed, not merely zero-token. Without the flag this entry is
-        // indistinguishable from a skip lane, and loadCheckpoint would treat
-        // the lane as done — so a resume would skip it for good and the run
-        // would report success while missing it.
-        consumptionReport.push({
-          lane_id: lane.lane_id,
-          tokens_used: 0,
-          seconds_elapsed: 0,
-          ceiling_hit: false,
-          failed: true,
-          failure_reason: String(err?.message ?? err).slice(0, 300),
-        })
-        writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
-      } finally {
-        sem.release()
-      }
-    })()
-    lanePromises.push(p)
+  const findingsBySeverity = () => {
+    const by = { critical: 0, high: 0, medium: 0, low: 0 }
+    for (const f of allFindings) {
+      const sev = f.severity_estimate as keyof typeof by
+      if (sev in by) by[sev]++
+    }
+    return by
   }
 
-  await Promise.all(lanePromises)
+  const writeProgress = () => {
+    const snap: Stage2Progress = {
+      schema: 'secscan.progress/1',
+      updated_at: new Date().toISOString(),
+      started_at: new Date(stageStart).toISOString(),
+      status: phase,
+      stop,
+      lanes: {
+        total: admittedTotal,
+        done: carriedDone + doneThisPass,
+        carried: carriedDone,
+        failed: failedThisPass,
+        in_flight: inFlightLanes.size,
+      },
+      spend: {
+        spent_usd: priced ? gate.spentUsd() : null,
+        estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
+        cap_usd: limits.max_cost_usd,
+      },
+      findings: { total: allFindings.length, by_severity: findingsBySeverity() },
+    }
+    try {
+      const tmp = progressPath + '.tmp'
+      writeFileSync(tmp, JSON.stringify(snap, null, 2) + '\n')
+      renameSync(tmp, progressPath)
+    } catch (err: any) {
+      // Progress is a display aid; failing to write it must never cost a lane.
+      console.warn(`  [WARN] could not write ${PROGRESS_FILE}: ${err?.message ?? err}`)
+    }
+  }
+
+  const printProgress = () => {
+    const elapsed = (Date.now() - stageStart) / 1000
+    const done = carriedDone + doneThisPass
+    const finished = doneThisPass + failedThisPass
+    const remaining = Math.max(0, admittedTotal - done - failedThisPass)
+    const eta = finished > 0 && remaining > 0 ? formatSeconds((elapsed / finished) * remaining) : '-'
+    const sev = findingsBySeverity()
+    const est = scanPlan?.totals.projected_cost_usd
+    console.log(
+      `[PROGRESS] ${done}/${admittedTotal} lanes` + (failedThisPass ? `, ${failedThisPass} failed` : '') +
+      ` | spent ` + (priced ? `$${gate.spentUsd().toFixed(2)}` : 'unpriced') +
+      (est != null ? ` of ~$${est.toFixed(2)} est` : '') +
+      (limits.max_cost_usd != null ? `, cap $${limits.max_cost_usd.toFixed(2)}` : '') +
+      ` | ${formatSeconds(elapsed)} elapsed, ETA ${eta}` +
+      ` | findings ${allFindings.length} (${sev.critical} critical, ${sev.high} high, ${sev.medium} medium, ${sev.low} low)`,
+    )
+  }
+
+  // Exactly once per lane, whichever path it ends on.
+  const settle = (laneId: string, actualUsd: number | null, failed: boolean) => {
+    if (settled.has(laneId)) return
+    settled.add(laneId)
+    gate.finish(laneId, actualUsd)
+    if (failed) failedThisPass++
+    else doneThisPass++
+  }
+
+  const writeRunStatus = (aborted = false): Stage2RunStatus => {
+    const failedLanes = consumptionReport.filter(c => c.failed)
+    const unscannedAll: UnscannedLane[] = [...unscanned]
+    const listed = new Set(unscannedAll.map(u => u.lane_id))
+    for (const f of failedLanes) {
+      if (listed.has(f.lane_id)) continue
+      const l = assignments.lanes.find(x => x.lane_id === f.lane_id)
+      unscannedAll.push({
+        lane_id: f.lane_id,
+        target_file: l?.target_file ?? '',
+        reason: 'failed',
+        detail: String(f.failure_reason ?? 'unknown').slice(0, 200),
+      })
+    }
+    const count = (r: string) => unscannedAll.filter(u => u.reason === r).length
+    const reasons: Stage2RunStatus['reasons'] = []
+    if (stop) reasons.push({ reason: stop.reason, detail: stop.detail })
+    if (count('over-max-files')) {
+      reasons.push({ reason: 'over-max-files', detail: `${count('over-max-files')} file(s) past --max-files ${limits.max_files}` })
+    }
+    if (count('chunk_bound')) {
+      reasons.push({ reason: 'chunk_bound', detail: `${count('chunk_bound')} lane(s) left for the next HUNT_MAX_LANES pass` })
+    }
+    if (failedLanes.length) {
+      reasons.push({ reason: 'failed_lanes', detail: `${failedLanes.length} lane(s) failed; a resumed run retries them` })
+    }
+    const blocked = guardStats().blocked
+    if (blocked > 0) reasons.push({ reason: 'blocked_reads', detail: `${blocked} read(s) refused by the read guard` })
+
+    const complete = unscannedAll.length === 0 && blocked === 0 && !aborted
+    // Lanes cut by --max-files come back only once the limit is raised and
+    // Stage 1 re-plans; everything else continues with a plain resume.
+    const resumable = unscannedAll.some(u => u.reason !== 'over-max-files')
+    const status: Stage2RunStatus = {
+      schema: 'secscan.stage2-status/1',
+      generated_at: new Date().toISOString(),
+      started_at: new Date(stageStart).toISOString(),
+      ended_at: new Date().toISOString(),
+      status: complete ? 'COMPLETE' : 'INCOMPLETE',
+      reasons,
+      lanes: {
+        hunt: huntTotal,
+        admitted: admittedTotal,
+        completed: carriedDone + doneThisPass,
+        failed: failedLanes.length,
+        not_started: unscannedAll.filter(u =>
+          u.reason !== 'failed' && u.reason !== 'aborted_in_flight' && u.reason !== 'over-max-files').length,
+      },
+      unscanned: unscannedAll,
+      scope_excluded: scopeExcluded,
+      spend: {
+        spent_usd: priced ? gate.spentUsd() : null,
+        estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
+        cap_usd: limits.max_cost_usd,
+        calibration: gate.calibration(),
+      },
+      findings_total: allFindings.length,
+      blocked_reads: blocked,
+      limits,
+      resume_hint: resumable
+        ? (runCtx.profile === 'product'
+            ? `run.sh --target ${runCtx.targetRoot} --run-id ${runCtx.runId} --resume ${PROVIDER} stage2-hunt-lanes-perfile`
+            : `run.sh ${PROVIDER} stage2-hunt-lanes-perfile`)
+        : null,
+    }
+    const path = join(outDir, RUN_STATUS_FILE)
+    const tmp = path + '.tmp'
+    writeFileSync(tmp, JSON.stringify(status, null, 2) + '\n')
+    renameSync(tmp, path)
+    return status
+  }
+
+  // ── Stopping: limits, Ctrl-C, SIGTERM, the CLI's stop request ───────────
+  // The first request stops new lanes and lets the in-flight ones finish —
+  // they are already billed. A second, deliberate one aborts at once; the
+  // checkpoint is current as of the last finished lane, so only the lanes in
+  // flight are lost, and run-status.json names them.
+  const requestStop = (detail: string) => {
+    if (stop) return
+    stop = { reason: 'interrupted', detail }
+    phase = 'stopping'
+    console.log(`\n[STOP] ${detail} — starting no new lanes; ${inFlightLanes.size} in flight will finish. ` +
+      `Interrupt again to abort them.`)
+    writeProgress()
+  }
+  const abort = (detail: string): never => {
+    console.log(`\n[ABORT] ${detail} — ${inFlightLanes.size} in-flight lane(s) abandoned; ` +
+      `the checkpoint holds every finished lane.`)
+    stop = stop ?? { reason: 'interrupted', detail }
+    for (const l of inFlightLanes.values()) {
+      unscanned.push({ lane_id: l.lane_id, target_file: l.target_file, reason: 'aborted_in_flight', detail })
+      // Its calls may already be billed and their usage dies with the process,
+      // so the recorded spend carries its projection rather than nothing.
+      gate.finish(l.lane_id, null)
+    }
+    // Lanes the loop had not reached yet, or had already set aside — those keep
+    // the reason that set them aside (a cap reached before the abort, say).
+    const setAside = notStarted.length > 0
+    const pending = setAside ? notStarted : huntLanes.filter(l => !settled.has(l.lane_id) && !inFlightLanes.has(l.lane_id))
+    const s = stop as { reason: StopReason; detail: string }
+    for (const l of pending) {
+      unscanned.push({
+        lane_id: l.lane_id,
+        target_file: l.target_file,
+        reason: setAside ? s.reason : 'interrupted',
+        detail: setAside ? s.detail : detail,
+      })
+    }
+    phase = 'incomplete'
+    writeProgress()
+    writeRunStatus(true)
+    process.exit(130)
+  }
+  let firstSignalAt = 0
+  const onSignal = (sig: NodeJS.Signals) => {
+    const now = Date.now()
+    if (!firstSignalAt) {
+      firstSignalAt = now
+      requestStop(`${sig} received`)
+      return
+    }
+    // One keypress can arrive twice: the terminal signals the whole process
+    // group, and npm and tsx relay it to this process as well.
+    if (now - firstSignalAt < 1500) return
+    abort(`second ${sig}`)
+  }
+  process.on('SIGINT', onSignal)
+  process.on('SIGTERM', onSignal)
+  // The CLI runs this stage in its own process group and asks through a file,
+  // so one keypress is one request: "stop", then "abort" on the second.
+  const stopPoll = setInterval(() => {
+    if (!existsSync(stopPath)) return
+    let req = ''
+    try { req = readFileSync(stopPath, 'utf-8').trim() } catch { /* mid-write; next tick */ }
+    if (req === 'abort') abort('abort requested by the CLI')
+    else requestStop('stop requested by the CLI')
+  }, 500)
+  stopPoll.unref()
+
+  const runLane = async (lane: LaneAssignmentEntry): Promise<void> => {
+    try {
+      // Class resolution: prefer lane.classes (signal-based) when present,
+      // otherwise fall back to collapsing lane.categories through the code→class index
+      let laneClasses: string[]
+      if (lane.classes && lane.classes.length > 0) {
+        laneClasses = lane.classes
+      } else {
+        const assignedCodes = lane.categories.map(c => c.code)
+        laneClasses = codesToClasses(assignedCodes)
+      }
+      console.log(`\n[HUNT] Lane: ${lane.lane_id} | File: ${lane.target_file} | Classes: ${laneClasses.join(', ')}`)
+      console.log(`  [${lane.lane_id}] ${lane.file_lines} lines, ${lane.file_bytes.toLocaleString()} bytes`)
+      console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
+
+      const playbooks = await loadPlaybooksForClasses(laneClasses)
+      console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
+
+      const t0 = Date.now()
+      const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet, archSummaryFull)
+      const elapsed = (Date.now() - t0) / 1000
+
+      allFindings.push(...result.findings)
+
+      consumptionReport.push({
+        lane_id: lane.lane_id,
+        tokens_used: result.tokensUsed,
+        seconds_elapsed: elapsed,
+        ceiling_hit: false,
+      })
+
+      // Build per-lane v2 record
+      const laneTotalsPrompt = result.chunkRecords.reduce(
+        (s, c) => s + (c.measured.prompt_tokens ?? 0), 0)
+      const laneTotalsCompletion = result.chunkRecords.reduce(
+        (s, c) => s + (c.measured.completion_tokens ?? 0), 0)
+      const laneTotalsTotal = result.chunkRecords.reduce(
+        (s, c) => s + (c.measured.total_tokens ?? 0), 0)
+      const hasAllMeasured = result.chunkRecords.length > 0 &&
+        result.chunkRecords.every(c => c.measured.prompt_tokens != null && c.measured.completion_tokens != null && c.measured.total_tokens != null)
+
+      laneRecordsV2.push({
+        lane_id: lane.lane_id,
+        target_file: lane.target_file,
+        file_bytes: lane.file_bytes,
+        // Chunks, not calls. A loop mode writes one record per TURN, so
+        // counting records here would report every single-chunk lane as
+        // multi-chunk and would make buildRunLevelRollup bill each extra turn
+        // as "boilerplate re-sent across a multi-chunk lane" — which is
+        // exactly what a conversational follow-up does NOT do.
+        chunk_count: new Set(result.chunkRecords.map(c => c.chunk_index)).size,
+        chunks: result.chunkRecords,
+        lane_totals: {
+          prompt_tokens: hasAllMeasured ? laneTotalsPrompt : null,
+          completion_tokens: hasAllMeasured ? laneTotalsCompletion : null,
+          total_tokens: hasAllMeasured ? laneTotalsTotal : null,
+        },
+      })
+
+      console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
+
+      // Measured cost of this lane, booked against the cap. Null when the
+      // provider returned no usage; the gate then books the projection.
+      settle(lane.lane_id, laneCostUsd(laneRecordsV2[laneRecordsV2.length - 1]), false)
+
+      // ── Checkpoint: write results immediately after each lane ─────────
+      writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
+    } catch (err: any) {
+      console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
+      // Marked failed, not merely zero-token. Without the flag this entry is
+      // indistinguishable from a skip lane, and loadCheckpoint would treat
+      // the lane as done — so a resume would skip it for good and the run
+      // would report success while missing it.
+      consumptionReport.push({
+        lane_id: lane.lane_id,
+        tokens_used: 0,
+        seconds_elapsed: 0,
+        ceiling_hit: false,
+        failed: true,
+        failure_reason: String(err?.message ?? err).slice(0, 300),
+      })
+      // A lane that threw may already have been billed for some calls; its
+      // usage is lost with the exception, so the gate books its projection.
+      settle(lane.lane_id, null, true)
+      writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
+    } finally {
+      inFlightLanes.delete(lane.lane_id)
+      writeProgress()
+      printProgress()
+    }
+  }
+
+  const running = new Set<Promise<void>>()
+  writeProgress()
+  for (let i = 0; i < huntLanes.length; i++) {
+    const lane = huntLanes[i]
+    while (running.size >= concurrency.value) await Promise.race(running)
+
+    let decision: GateDecision | null = stop ? null : gate.decide(projectedCost.get(lane.lane_id) ?? null)
+    while (!stop && decision?.action === 'wait') {
+      // Over the cap only because of lanes still in flight: their measured
+      // cost may come in under projection, so wait for one rather than stop.
+      await Promise.race(running)
+      decision = stop ? null : gate.decide(projectedCost.get(lane.lane_id) ?? null)
+    }
+    if (!stop && decision?.action === 'stop') {
+      stop = { reason: decision.reason, detail: decision.detail }
+      phase = 'stopping'
+      console.log(`\n[STOP] ${decision.reason === 'max_cost' ? 'cost cap' : 'timeout'}: ${decision.detail} — ` +
+        `starting no new lanes; ${running.size} in flight will finish.`)
+    }
+    if (stop) {
+      notStarted = huntLanes.slice(i)
+      break
+    }
+
+    gate.begin(lane.lane_id, projectedCost.get(lane.lane_id) ?? null)
+    inFlightLanes.set(lane.lane_id, lane)
+    writeProgress()
+    const p: Promise<void> = runLane(lane).finally(() => { running.delete(p) })
+    running.add(p)
+  }
+
+  await Promise.all(running)
+  clearInterval(stopPoll)
+  {
+    const s = stop as { reason: StopReason; detail: string } | null
+    for (const l of notStarted) {
+      unscanned.push({ lane_id: l.lane_id, target_file: l.target_file, reason: s!.reason, detail: s!.detail })
+    }
+  }
 
   // Also report skip lanes with zero consumption — but only once. On a resume
   // the carried-forward checkpoint already holds them, and pushing again gave
@@ -2380,7 +2758,8 @@ async function main() {
   console.log('\n=== Stage 2 (Per-File v2) Complete ===')
   console.log(`Provider/model: ${PROVIDER} / ${MODEL}`)
   console.log(`Total candidate findings: ${allFindings.length}`)
-  console.log(`Lanes processed: ${huntLanes.length} hunt, ${skipLanes.length} skip`)
+  console.log(`Lanes processed: ${huntLanes.length - notStarted.length} hunt, ${skipLanes.length} skip` +
+    (notStarted.length ? ` (${notStarted.length} admitted lane(s) not started)` : ''))
   if (failedLanes.length > 0) {
     const reasons = new Map<string, number>()
     for (const f of failedLanes) {
@@ -2397,6 +2776,28 @@ async function main() {
   console.log(`Total tokens: ${consumptionReport.reduce((s, r) => s + r.tokens_used, 0).toLocaleString()}`)
   console.log(`Output: ${join(outDir, 'candidate-findings.json')}`)
   console.log(`Output: ${join(outDir, 'budget-consumption.json')}`)
+
+  // ── Run status: COMPLETE, or INCOMPLETE with what was not scanned ────────
+  const runStatus = writeRunStatus()
+  phase = runStatus.status === 'COMPLETE' ? 'complete' : 'incomplete'
+  writeProgress()
+  console.log(`Output: ${join(outDir, RUN_STATUS_FILE)}`)
+  if (runStatus.status === 'COMPLETE') {
+    console.log(`\nStatus: COMPLETE — all ${runStatus.lanes.admitted} admitted lane(s) scanned`)
+  } else {
+    console.log(`\nStatus: INCOMPLETE — ${runStatus.unscanned.length} lane(s) not scanned`)
+    for (const r of runStatus.reasons) console.log(`  - ${r.reason}: ${r.detail}`)
+    if (runStatus.resume_hint) console.log(`  Continue it: ${runStatus.resume_hint}`)
+  }
+  if (runStatus.spend.spent_usd != null) {
+    console.log(`Spend: $${runStatus.spend.spent_usd.toFixed(4)}` +
+      (runStatus.spend.estimate_usd != null ? ` (estimate $${runStatus.spend.estimate_usd.toFixed(4)})` : '') +
+      (runStatus.spend.cap_usd != null ? `, cap $${runStatus.spend.cap_usd.toFixed(2)}` : ''))
+  }
+  // Interrupted is the one stop that is signalled: whoever pressed Ctrl-C asked
+  // for the pipeline to end, so run.sh must not chain the next stage onto it.
+  // A limit is an expected end and keeps exit 0, like a bounded chunk.
+  if ((stop as { reason: StopReason } | null)?.reason === 'interrupted') process.exitCode = 130
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

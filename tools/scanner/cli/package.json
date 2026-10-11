@@ -1,0 +1,16 @@
+{
+  "name": "secscan-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "secscan command line: model selection, run limits, run-start confirmation and live progress (productization plan §2.5-§2.7). Packaging is Task 1e.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "secscan": "tsx src/secscan.ts",
+    "test": "tsx --test src/cli.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.19.0"
+  }
+}
