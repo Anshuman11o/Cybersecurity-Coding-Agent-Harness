@@ -258,10 +258,17 @@ export type ExtractSymbolTable = (
   entries: readonly InventoryEntry[],
 ) => Promise<SymbolTableArtifact>
 
-/** Names a file makes visible to other files, per the symbol table. */
+/**
+ * Kinds that exist only at compile time. A route registration or an auto-CRUD
+ * model can never name one, and matching on them gave data/types.ts eighteen
+ * routes it does not serve, because its interfaces share the models' names.
+ */
+const TYPE_ONLY_KINDS: ReadonlySet<SymbolKind> = new Set(['interface', 'type'])
+
+/** Runtime names a file makes visible to other files, per the symbol table. */
 export function exportedNames(file: FileSymbols | undefined): Set<string> {
   const out = new Set<string>()
-  for (const s of file?.symbols ?? []) if (s.exported) out.add(s.name)
+  for (const s of file?.symbols ?? []) if (s.exported && !TYPE_ONLY_KINDS.has(s.kind)) out.add(s.name)
   return out
 }
 

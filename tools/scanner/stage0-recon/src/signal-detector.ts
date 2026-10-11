@@ -9,10 +9,22 @@
  *   route_handler, db_query, model_schema, model_write, http_outbound,
  *   auth_check, crypto_op, html_sink, dynamic_exec, deserialize,
  *   file_io, llm_call, logging, config_file, dep_manifest
+ *
+ * Two content paths. Python, Java, Go, Ruby, PHP and C# files are matched
+ * against their language's sink_patterns in shared/signal-classes.json; every
+ * other language (JS/TS above all) keeps the original detectors below,
+ * unchanged, so the benchmark's signals do not move.
  */
 import * as fs from 'fs'
 import * as path from 'path'
-import { getRunContext, isBenchmark } from '../../shared/run-context.js'
+import { fileURLToPath } from 'url'
+import {
+  exportedNames,
+  isDependencyManifest,
+  isLockfile,
+  type InventoryEntry,
+  type SymbolTableArtifact,
+} from './recon-contract.js'
 
 export type Signal =
   | 'route_handler' | 'db_query' | 'model_schema' | 'model_write'
@@ -58,29 +70,6 @@ export function collectRouteHandlerNames(
   }
 
   return names
-}
-
-function normalizeRouteFile(rawPath: string, _targetDir: string): string | null {
-  const ctx = getRunContext()
-  let p = rawPath
-  if (isBenchmark(ctx)) {
-    // Strip target-apps/<name>/ prefix if present
-    const m = p.match(/^target-apps\/[^/]+\//)
-    if (m) p = p.slice(m[0].length)
-  } else {
-    // Product route files are already target-relative; an absolute path inside
-    // the target is made so, anything else is left as it came.
-    p = targetRelative(p, ctx.targetRoot)
-  }
-  return p || null
-}
-
-/** Absolute path inside root -> root-relative with forward slashes; else unchanged. */
-function targetRelative(p: string, root: string): string {
-  if (!path.isAbsolute(p)) return p
-  const rel = path.relative(root, p)
-  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return p
-  return rel.split(path.sep).join('/')
 }
 
 // ---------------------------------------------------------------------------
@@ -355,19 +344,13 @@ function detectConfigFile(relPath: string, source: string): boolean {
   return false
 }
 
-/** Dependency manifest or lockfile. */
+/**
+ * Dependency manifest or lockfile, by the contract's tables. The list this
+ * replaced compared lower-cased basenames against mixed-case names, so
+ * Cargo.toml, Gemfile and Pipfile never matched.
+ */
 function detectDepManifest(relPath: string): boolean {
-  const lowerPath = relPath.toLowerCase()
-  const manifestNames = [
-    'package.json', 'package-lock.json', 'yarn.lock',
-    'Cargo.toml', 'Cargo.lock', 'Gemfile', 'Gemfile.lock',
-    'pom.xml', 'build.gradle', 'build.gradle.kts',
-    'go.mod', 'go.sum', 'requirements.txt', 'Pipfile', 'Pipfile.lock',
-    'composer.json', 'composer.lock',
-    'pyproject.toml', 'poetry.lock',
-  ]
-  const baseName = path.basename(lowerPath)
-  return manifestNames.includes(baseName)
+  return isDependencyManifest(relPath) || isLockfile(relPath)
 }
 
 // ---------------------------------------------------------------------------
@@ -400,45 +383,116 @@ function extractExportedSymbols(source: string): Set<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Main detector: scan one file and return its signals
+// Language-scoped sink patterns (shared/signal-classes.json -> sink_patterns)
+// ---------------------------------------------------------------------------
+// The detectors above were written against Express/Sequelize/Angular code;
+// run over a Flask or Spring file they mostly answer "no". Files in these
+// languages take their content signals from the patterns instead, and only
+// from them, so a Python file is never judged by a JavaScript heuristic.
+
+/** Content signals in the order a file's list has always been emitted. */
+const SIGNAL_ORDER: readonly Signal[] = [
+  'route_handler', 'db_query', 'model_schema', 'model_write', 'http_outbound', 'auth_check',
+  'crypto_op', 'html_sink', 'dynamic_exec', 'deserialize', 'file_io', 'llm_call', 'logging',
+]
+
+const SIGNAL_CLASSES_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../shared/signal-classes.json')
+
+type SinkPatternTable = Record<string, Partial<Record<Signal, string[]>>>
+
+/** Compiled once at import; a pattern that does not compile fails the stage at startup, naming itself. */
+function loadSinkPatterns(): ReadonlyMap<string, ReadonlyMap<Signal, RegExp[]>> {
+  const table = (JSON.parse(fs.readFileSync(SIGNAL_CLASSES_PATH, 'utf-8')).sink_patterns ?? {}) as SinkPatternTable
+  const out = new Map<string, Map<Signal, RegExp[]>>()
+  for (const [language, signals] of Object.entries(table)) {
+    const bySignal = new Map<Signal, RegExp[]>()
+    for (const [signal, sources] of Object.entries(signals)) {
+      if (!SIGNAL_ORDER.includes(signal as Signal)) {
+        throw new Error(`[signal-detector] sink_patterns.${language}.${signal}: not a content signal`)
+      }
+      bySignal.set(signal as Signal, (sources ?? []).map((src, i) => {
+        try {
+          return new RegExp(src, 'm')
+        } catch (err) {
+          throw new Error(`[signal-detector] sink_patterns.${language}.${signal}[${i}] does not compile: ${(err as Error).message}`)
+        }
+      }))
+    }
+    out.set(language, bySignal)
+  }
+  return out
+}
+
+const SINK_PATTERNS = loadSinkPatterns()
+
+/** Languages whose content signals come from sink_patterns rather than the detectors above. */
+export const SINK_PATTERN_LANGUAGES: ReadonlySet<string> = new Set(SINK_PATTERNS.keys())
+
+/** Content signals of one file in a sink-pattern language, in SIGNAL_ORDER. */
+export function detectSinkSignals(language: string, source: string): Signal[] {
+  const bySignal = SINK_PATTERNS.get(language)
+  if (!bySignal) return []
+  return SIGNAL_ORDER.filter((s) => (bySignal.get(s) ?? []).some((re) => re.test(source)))
+}
+
+// ---------------------------------------------------------------------------
+// Main detector: one inventory entry -> its signals
 // ---------------------------------------------------------------------------
 
-export function detectSignals(
-  relPath: string,
-  absPath: string,
-  routeHandlerNames: Set<string>,
-): Signal[] {
-  const signals: Signal[] = []
+type SignalEntry = Pick<InventoryEntry, 'path' | 'language' | 'oversize' | 'empty'>
 
-  // Read file content
+function isJsOrTs(language: string): boolean {
+  return language === 'javascript' || language === 'typescript'
+}
+
+function detectFileSignals(
+  targetDir: string,
+  entry: SignalEntry,
+  routeHandlerNames: Set<string>,
+  symbols: SymbolTableArtifact | undefined,
+): Signal[] {
+  const relPath = entry.path
+  if (entry.empty) return []
+
+  // Structural signals (path-based) — check first, and they end the list.
+  if (detectDepManifest(relPath)) return ['dep_manifest']
+  if (detectConfigFile(relPath, '')) return ['config_file']
+  // Over the byte cap: the content is never read.
+  if (entry.oversize) return []
+
   let source: string
   try {
-    source = fs.readFileSync(absPath, 'utf-8')
+    source = fs.readFileSync(path.join(targetDir, relPath), 'utf-8')
   } catch {
     // Cannot read file — return empty signals (real answer, not failure)
-    return signals
+    return []
   }
 
-  // Structural signals (path-based) — check first
-  if (detectDepManifest(relPath)) {
-    signals.push('dep_manifest')
-    return signals
-  }
-  if (detectConfigFile(relPath, source)) {
-    signals.push('config_file')
-    return signals
-  }
-
-  // route_handler — check if this file's exported symbols appear in the route table
+  // route_handler: does this file export a name the route table calls? The
+  // regex is the pre-v3 detector, kept for JS/TS so no file loses the signal;
+  // the symbol table adds CommonJS exports, `export default function`, and
+  // every other language. exportedNames() is runtime names only: an
+  // interface or type alias that shares a handler's name is not a handler.
+  let routeHandler = false
   if (routeHandlerNames.size > 0) {
-    const exportedSymbols = extractExportedSymbols(source)
-    for (const sym of exportedSymbols) {
-      if (routeHandlerNames.has(sym)) {
-        signals.push('route_handler')
+    const exported = exportedNames(symbols?.files[relPath])
+    if (isJsOrTs(entry.language)) for (const name of extractExportedSymbols(source)) exported.add(name)
+    for (const name of exported) {
+      if (routeHandlerNames.has(name)) {
+        routeHandler = true
         break
       }
     }
   }
+
+  if (SINK_PATTERN_LANGUAGES.has(entry.language)) {
+    const content = detectSinkSignals(entry.language, source)
+    if (routeHandler && !content.includes('route_handler')) content.unshift('route_handler')
+    return content
+  }
+
+  const signals: Signal[] = []
+  if (routeHandler) signals.push('route_handler')
 
   // Content-based signals
   if (detectDbQuery(source)) signals.push('db_query')
@@ -468,124 +522,26 @@ export interface FileSignalsResult {
 }
 
 /**
- * Scan a known list of target-relative file paths and return their signals.
- * This variant matches the inventory count exactly (all 918 files).
+ * Signals for every inventory entry; every entry gets a key, even when its
+ * list is empty. `symbols` (symbols.json) supplies exported runtime names for
+ * the route_handler signal; without it, only the JS/TS regex and the
+ * route_handler sink patterns can set that signal.
  */
 export function detectAllSignalsFromList(
   targetDir: string,
-  relPaths: string[],
+  entries: Pick<InventoryEntry, 'path' | 'language' | 'oversize' | 'empty'>[],
   routeHandlerNames: Set<string>,
+  symbols?: SymbolTableArtifact,
 ): FileSignalsResult {
   const files: Record<string, Signal[]> = {}
-  for (const relPath of relPaths) {
-    const absPath = path.join(targetDir, relPath)
+  for (const entry of entries) {
     try {
-      const signals = detectSignals(relPath, absPath, routeHandlerNames)
-      files[relPath] = signals
-    } catch {
-      files[relPath] = []
-    }
-  }
-  return {
-    generated_at: new Date().toISOString(),
-    target_dir: targetDir,
-    files,
-  }
-}
-
-export function detectAllSignals(
-  targetDir: string,
-  fileInventory: {
-    unclassified_surface: { language: string; count: number; files: string[] }[],
-    by_language: Record<string, { count: number; sample_paths: string[] }>,
-  },
-  routeHandlerFiles: Set<string>,
-): FileSignalsResult {
-  const files: Record<string, Signal[]> = {}
-
-  // Collect all files from the inventory
-  const allFileSet = new Set<string>()
-  for (const group of fileInventory.unclassified_surface) {
-    for (const f of group.files) {
-      allFileSet.add(f)
-    }
-  }
-  // Also add files from route table evidence that might have been classified
-  for (const f of routeHandlerFiles) {
-    allFileSet.add(f)
-  }
-  // Walk the directory to catch any files counted in by_language but not
-  // listed in unclassified_surface (files that were "classified" by framework extraction)
-  const allFilesByLang = new Set<string>()
-  for (const [, info] of Object.entries(fileInventory.by_language)) {
-    for (const f of info.sample_paths ?? []) {
-      allFilesByLang.add(f)
-    }
-  }
-  for (const f of allFilesByLang) {
-    allFileSet.add(f)
-  }
-
-  // We need ALL files from the inventory, not just samples.
-  // Walk the target directory to get every file.
-  const EXT_TO_SOURCE: Record<string, boolean> = {
-    '.ts': true, '.tsx': true, '.js': true, '.jsx': true, '.mjs': true,
-    '.py': true, '.rb': true, '.java': true, '.go': true, '.rs': true,
-    '.c': true, '.h': true, '.cpp': true, '.hpp': true, '.cc': true,
-    '.cs': true, '.php': true, '.kt': true, '.swift': true,
-    '.scala': true, '.sol': true, '.dart': true, '.r': true,
-    '.pl': true, '.lua': true, '.sh': true, '.bash': true,
-    '.json': true, '.yaml': true, '.yml': true, '.toml': true,
-    '.html': true, '.htm': true, '.css': true, '.scss': true,
-    '.sass': true, '.less': true, '.sql': true, '.xml': true,
-    '.ini': true, '.properties': true, '.proto': true,
-    '.graphql': true, '.gql': true, '.vue': true, '.svelte': true,
-  }
-
-  const EXCLUDED_DIRS = new Set([
-    'node_modules', '.git', 'dist', 'build', 'coverage',
-    '.next', '.nuxt', '.output', '.angular', '.cache',
-    'out', '.turbo', '.vercel',
-  ])
-
-  function walkDir(dir: string, relBase: string) {
-    let entries: fs.Dirent[]
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      if (EXCLUDED_DIRS.has(entry.name)) continue
-      const fullPath = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        walkDir(fullPath, path.join(relBase, entry.name))
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase()
-        const basename = entry.name.toLowerCase()
-        const isSource = EXT_TO_SOURCE[ext] || basename === 'dockerfile' ||
-          basename === '.env' || basename.startsWith('.env.')
-        if (!isSource) continue
-        const relPath = path.join(relBase, entry.name).replace(/\\/g, '/')
-        allFileSet.add(relPath)
-      }
-    }
-  }
-
-  walkDir(targetDir, '')
-
-  // Now detect signals for every file
-  for (const relPath of [...allFileSet].sort()) {
-    const absPath = path.join(targetDir, relPath)
-    try {
-      const signals = detectSignals(relPath, absPath, routeHandlerFiles)
-      files[relPath] = signals
+      files[entry.path] = detectFileSignals(targetDir, entry, routeHandlerNames, symbols)
     } catch {
       // Never drop a file — empty array is a real answer
-      files[relPath] = []
+      files[entry.path] = []
     }
   }
-
   return {
     generated_at: new Date().toISOString(),
     target_dir: targetDir,

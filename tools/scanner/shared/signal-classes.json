@@ -16,5 +16,604 @@
     "logging":        ["logging-monitoring"],
     "config_file":    ["misconfiguration", "vulnerable-components"],
     "dep_manifest":   ["vulnerable-components"]
+  },
+  "_doc": "sink_patterns: content signals for files in these six languages, which do not use the JS/TS detectors in stage0-recon/src/signal-detector.ts. Each value is a list of JavaScript RegExp sources compiled with flag \"m\"; a signal fires when any of its patterns matches the file. Only signal names from \"signals\" above. route_handler also fires when the file exports a route-table handler name (symbols.json).",
+  "sink_patterns": {
+    "python": {
+      "route_handler": [
+        "^[ \\t]*@[\\w.]+\\.(?:route|get|post|put|patch|delete|head|options|api_route|websocket)\\(",
+        "^[ \\t]*@(?:api_view|action|require_http_methods|require_GET|require_POST|require_safe|view_config)\\b",
+        "(?<![.\\w])(?:re_)?path\\(\\s*r?['\"]",
+        "(?<![.\\w])url\\(\\s*r?['\"]\\^",
+        "^[ \\t]*class\\s+\\w+\\([^)\\n]*\\b(?:View|APIView|GenericAPIView|ViewSet|ModelViewSet|GenericViewSet|ReadOnlyModelViewSet|MethodView|Resource|TemplateView|FormView|ListView|DetailView|CreateView|UpdateView|DeleteView|RedirectView|HTTPEndpoint|RequestHandler)\\b",
+        "\\.(?:add_url_rule|add_api_route|add_route|register_blueprint|include_router)\\("
+      ],
+      "db_query": [
+        "\\.execute(?:many|script)?\\(",
+        "\\.cursor\\(\\)",
+        "(?<![.\\w])text\\(\\s*f?['\"]",
+        "\\.(?:raw|extra)\\(|\\bRawSQL\\(",
+        "\\.objects\\.(?:filter|get|exclude|all|annotate|aggregate|values|values_list|order_by|raw|extra|first|last)\\(",
+        "\\.(?:query|filter_by)\\(",
+        "\\.(?:find_one|find_one_and_update|find_one_and_delete|count_documents|aggregate|distinct)\\(",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "^[ \\t]*class\\s+\\w+\\([^)\\n]*\\b(?:models\\.Model|db\\.Model|Base|DeclarativeBase|SQLModel|BaseModel|Document|EmbeddedDocument|Schema|SQLAlchemyAutoSchema|ModelSerializer|HyperlinkedModelSerializer|Serializer)\\b",
+        "^[ \\t]*__tablename__\\s*=",
+        "\\b(?:Column|mapped_column|relationship|ForeignKey)\\(",
+        "\\b(?:models|serializers)\\.\\w+(?:Field|Key)\\("
+      ],
+      "model_write": [
+        "\\.save\\(",
+        "\\.objects\\.(?:create|update|update_or_create|get_or_create|bulk_create|bulk_update)\\(",
+        "\\bsession\\.(?:add|add_all|merge|bulk_save_objects|bulk_insert_mappings|bulk_update_mappings)\\(",
+        "\\.(?:insert_one|insert_many|update_one|update_many|replace_one|find_one_and_update|bulk_write)\\(",
+        "(?<![.\\w])setattr\\(",
+        "\\.update\\(\\s*\\*\\*",
+        "(?<![.\\w])(?:insert|update)\\(\\s*\\w+\\s*\\)\\.values\\("
+      ],
+      "http_outbound": [
+        "\\brequests\\.(?:get|post|put|patch|delete|head|options|request|Session)\\(",
+        "\\bhttpx\\.(?:get|post|put|patch|delete|head|request|stream|Client|AsyncClient)\\(",
+        "\\burlopen\\(|\\burllib\\.request\\.Request\\(|\\burlretrieve\\(",
+        "\\bClientSession\\(|\\bHTTPS?Connection\\(|\\bPoolManager\\(|\\bpycurl\\.Curl\\(",
+        "\\bsocket\\.create_connection\\("
+      ],
+      "auth_check": [
+        "^[ \\t]*@[\\w.]*(?:login_required|permission_required|user_passes_test|staff_member_required|jwt_required|token_required|auth_required|requires_auth|roles_required|roles_accepted|user_loader|verify_password|verify_token)\\b",
+        "\\b(?:permission_classes|authentication_classes)\\s*=",
+        "\\bDepends\\(\\s*\\w*(?:auth|user|token|security|scheme|oauth|verify|permission)",
+        "\\bSecurity\\(",
+        "\\brequest\\.user\\b|\\bcurrent_user\\b|\\bg\\.user\\b|\\brequest\\.session\\b|\\bsession\\[",
+        "\\b(?:is_authenticated|is_superuser|is_staff)\\b|\\.has_perms?\\(",
+        "(?<![.\\w])(?:authenticate|login|logout|login_user|logout_user)\\(",
+        "\\bjwt\\.(?:encode|decode)\\(|\\b(?:create_access_token|get_jwt_identity|verify_jwt_in_request)\\(",
+        "\\b(?:check_password|check_password_hash|verify_password)\\(",
+        "\\b(?:OAuth2PasswordBearer|OAuth2AuthorizationCodeBearer|HTTPBearer|HTTPBasic|APIKeyHeader|LoginManager)\\b"
+      ],
+      "crypto_op": [
+        "\\bhashlib\\.\\w+",
+        "\\bhmac\\.(?:new|compare_digest|digest)\\(",
+        "\\bbcrypt\\.\\w+\\(",
+        "\\b(?:argon2|scrypt|pbkdf2_hmac|PBKDF2HMAC|Scrypt)\\b",
+        "^[ \\t]*(?:from|import)\\s+(?:Crypto|Cryptodome|cryptography|nacl|passlib)\\b",
+        "\\b(?:AES|DES|DES3|ChaCha20|PKCS1_OAEP)\\.new\\(|\\bFernet\\(",
+        "\\b(?:make_password|generate_password_hash|check_password_hash)\\(",
+        "\\bsecrets\\.(?:token_\\w+|choice|randbelow|compare_digest)\\(",
+        "\\bjwt\\.(?:encode|decode)\\(",
+        "\\bssl\\.(?:create_default_context|wrap_socket|SSLContext|_create_unverified_context)\\b|\\bverify\\s*=\\s*False\\b",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "\\b(?:mark_safe|SafeString|SafeText|Markup)\\(",
+        "\\|\\s*safe\\b",
+        "\\brender_template_string\\(",
+        "\\bautoescape\\s*=\\s*False\\b|\\{%-?\\s*autoescape\\s+(?:off|false)\\b",
+        "\\bHTMLResponse\\(",
+        "\\bjinja2\\.(?:Template|Environment)\\(|\\.from_string\\(",
+        "\\b(?:content_type|mimetype|media_type)\\s*=\\s*['\"]text/html"
+      ],
+      "dynamic_exec": [
+        "(?<![.\\w])(?:eval|exec|compile)\\(",
+        "\\bos\\.(?:system|popen|exec[lv]p?e?|spawn[lv]p?e?|startfile)\\(",
+        "\\bsubprocess\\.(?:run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\\(",
+        "\\bcommands\\.getoutput\\(|\\bpty\\.spawn\\(|\\basyncio\\.create_subprocess_(?:shell|exec)\\(",
+        "(?<![.\\w])__import__\\(|\\bimportlib\\.import_module\\(",
+        "\\bshell\\s*=\\s*True\\b"
+      ],
+      "deserialize": [
+        "\\b(?:pickle|cPickle|_pickle|dill|cloudpickle)\\.(?:loads?|Unpickler)\\(",
+        "\\byaml\\.\\w*load\\w*\\(",
+        "\\bjsonpickle\\.decode\\(|\\bmarshal\\.loads?\\(|\\bshelve\\.open\\(",
+        "\\b(?:joblib|torch|numpy|np)\\.load\\(|\\.read_pickle\\(",
+        "\\b(?:json|ujson|orjson|simplejson)\\.loads?\\(",
+        "\\b(?:ET|etree|ElementTree|minidom|pulldom|sax|xmltodict)\\.(?:parse|parseString|fromstring|XML|XMLParser|iterparse|make_parser)\\("
+      ],
+      "file_io": [
+        "(?<![.\\w])open\\(",
+        "\\b(?:io|codecs|aiofiles)\\.open\\(",
+        "\\bos\\.(?:remove|unlink|rename|replace|listdir|scandir|makedirs|mkdir|rmdir|walk|chmod|chown|symlink|open)\\(",
+        "\\bos\\.path\\.(?:join|abspath|realpath|normpath|expanduser)\\(",
+        "\\bshutil\\.\\w+\\(|\\btempfile\\.\\w+\\(",
+        "(?<![.\\w])Path\\(|\\.(?:read_text|read_bytes|write_text|write_bytes|iterdir|rglob)\\(",
+        "\\b(?:send_file|send_from_directory|FileResponse|FileWrapper)\\(",
+        "\\b(?:zipfile\\.ZipFile|tarfile\\.open)\\(|\\.extractall\\(",
+        "\\brequest\\.files\\b|\\bUploadFile\\b|\\bFileStorage\\b|\\bdefault_storage\\.\\w+\\("
+      ],
+      "llm_call": [
+        "^[ \\t]*(?:from|import)\\s+(?:openai|anthropic|langchain\\w*|llama_index|litellm|ollama|cohere|mistralai|groq|vertexai|instructor|dspy|crewai|autogen|semantic_kernel|google\\.generativeai|google\\.genai)\\b",
+        "^[ \\t]*from\\s+google\\s+import\\s+genai\\b",
+        "\\b(?:OpenAI|AsyncOpenAI|AzureOpenAI|Anthropic|AsyncAnthropic|ChatOpenAI|ChatAnthropic|ChatOllama|ChatGoogleGenerativeAI|GenerativeModel)\\(",
+        "\\.(?:chat\\.completions|completions|messages|responses)\\.create\\(",
+        "\\bbind_tools\\(|^[ \\t]*@tool\\b|\\btool_choice\\b|\\btool_calls\\b",
+        "\\blitellm\\.a?completion\\(",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\blogging\\.(?:warning|warn|error|exception|critical|fatal|getLogger|basicConfig)\\(",
+        "\\b_?(?:logger|log|LOGGER|LOG|Logger|Log)\\.(?:warning|warn|error|exception|critical|fatal)\\(",
+        "\\b(?:structlog|loguru|logbook)\\b|\\bsentry_sdk\\.\\w+"
+      ]
+    },
+    "java": {
+      "route_handler": [
+        "@(?:Get|Post|Put|Delete|Patch|Request)Mapping\\b",
+        "@(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\\b|@Path\\(",
+        "@(?:RestController|Controller|WebServlet|WebFilter|MessageMapping|RepositoryRestResource)\\b",
+        "\\bextends\\s+(?:HttpServlet|GenericServlet|HttpFilter|OncePerRequestFilter)\\b",
+        "\\bvoid\\s+do(?:Get|Post|Put|Delete|Patch|Head|Options|Filter)\\s*\\(",
+        "\\b(?:get|post|put|delete|patch)\\(\\s*\"/",
+        "\\bRouterFunctions\\.route\\(|\\bRouterFunction<"
+      ],
+      "db_query": [
+        "\\.(?:createStatement|prepareStatement|prepareCall)\\(",
+        "\\.execute(?:Query|Update|LargeUpdate|Batch)?\\(",
+        "\\.(?:createQuery|createNativeQuery|createSQLQuery|createCriteria|createNamedQuery)\\(",
+        "@(?:Query|NamedQuery|NamedNativeQuery|Select|Insert|Update|Delete)\\(",
+        "\\b(?:JdbcTemplate|jdbcTemplate|NamedParameterJdbcTemplate|JdbcClient|MongoTemplate|mongoTemplate)\\b",
+        "\\bextends\\s+(?:Jpa|Crud|ListCrud|PagingAndSorting|Mongo|Reactive\\w*)Repository\\b",
+        "\\bDriverManager\\.getConnection\\(",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "@(?:Entity|Table|Document|Embeddable|MappedSuperclass|Column|Id|GeneratedValue|OneToMany|ManyToOne|ManyToMany|OneToOne|JoinColumn|JsonIgnore|JsonProperty)\\b"
+      ],
+      "model_write": [
+        "\\b\\w*(?:Repository|repository|Repo|repo|Dao|dao|DAO|entityManager|em|session|mongoTemplate)\\.(?:save\\w*|persist|merge|delete\\w*|insert\\w*|update\\w*|upsert)\\(",
+        "\\.(?:executeUpdate|executeBatch)\\(",
+        "\\bBeanUtils\\.copyProperties\\(|\\bModelMapper\\b"
+      ],
+      "http_outbound": [
+        "\\bnew\\s+URL\\(|\\bURI\\.create\\(",
+        "\\.(?:openConnection|openStream)\\(",
+        "\\b(?:HttpURLConnection|HttpsURLConnection|HttpClient|CloseableHttpClient|RestTemplate|RestClient|WebClient|OkHttpClient|AsyncHttpClient)\\b",
+        "\\bHttpClients\\.\\w+\\(|\\bHttpRequest\\.newBuilder\\(",
+        "\\.(?:getForObject|getForEntity|postForObject|postForEntity|postForLocation|exchange)\\(",
+        "\\bJsoup\\.connect\\(|@FeignClient\\b|\\bnew\\s+Socket\\("
+      ],
+      "auth_check": [
+        "@(?:PreAuthorize|PostAuthorize|PreFilter|PostFilter|Secured|RolesAllowed|PermitAll|DenyAll|AuthenticationPrincipal|EnableWebSecurity|EnableMethodSecurity|EnableGlobalMethodSecurity|RequiresPermissions|RequiresRoles)\\b",
+        "\\bSecurityContextHolder\\b|\\bSecurityUtils\\.getSubject\\(",
+        "\\.(?:hasRole|hasAnyRole|hasAuthority|hasAnyAuthority|authenticated|permitAll|denyAll|requestMatchers|antMatchers|mvcMatchers|authorizeRequests|authorizeHttpRequests)\\(",
+        "\\b(?:AuthenticationManager|AuthenticationProvider|UserDetailsService|UserDetails|SecurityFilterChain|HttpSecurity|WebSecurityConfigurerAdapter|PasswordEncoder|JwtDecoder|JwtEncoder|OAuth2User|Principal)\\b",
+        "\\.(?:getUserPrincipal|isUserInRole|getRemoteUser|getAuthType|getSession|login|logout|authenticate)\\(",
+        "\\bJwts\\.\\w+\\(|\\bJWT\\.(?:create|require|decode)\\(|\\bJWTVerifier\\b"
+      ],
+      "crypto_op": [
+        "\\b(?:MessageDigest|Cipher|Mac|Signature|KeyGenerator|KeyPairGenerator|SecretKeyFactory|KeyFactory|KeyAgreement|SecureRandom|KeyStore|SSLContext)\\.getInstance\\(",
+        "\\bnew\\s+(?:SecretKeySpec|IvParameterSpec|GCMParameterSpec|PBEKeySpec|SecureRandom)\\(",
+        "\\b(?:BCrypt|BCryptPasswordEncoder|SCryptPasswordEncoder|Argon2PasswordEncoder|Pbkdf2PasswordEncoder)\\b",
+        "\\bDigestUtils\\.\\w+\\(|\\bHashing\\.\\w+\\(",
+        "\\b(?:X509TrustManager|TrustManager|HostnameVerifier)\\b",
+        "^[ \\t]*import\\s+(?:javax\\.crypto|java\\.security|org\\.bouncycastle)\\.",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "\\bth:utext\\b|<%=",
+        "\\.getWriter\\(\\)\\s*\\.(?:print|println|write|printf|append)\\(",
+        "\\bescapeXml\\s*=\\s*\"?false\\b",
+        "MediaType\\.TEXT_HTML(?:_VALUE)?\\b|\"text/html",
+        "\\b(?:StringEscapeUtils\\.unescapeHtml\\d?|HtmlUtils\\.htmlUnescape)\\("
+      ],
+      "dynamic_exec": [
+        "\\bRuntime\\.getRuntime\\(\\)\\.exec\\(|\\bProcessBuilder\\b",
+        "\\b(?:ScriptEngineManager|ScriptEngine|GroovyShell|GroovyClassLoader|JShell)\\b|\\.eval\\(",
+        "\\b(?:SpelExpressionParser|StandardEvaluationContext)\\b|\\.parseExpression\\(",
+        "\\bOgnl\\.\\w+\\(|\\bMVEL\\.\\w+\\(|\\bELProcessor\\b|\\bVelocity\\.evaluate\\(",
+        "\\bClass\\.forName\\(|\\.getDeclaredMethod\\(|\\.getMethod\\(|\\bURLClassLoader\\b|\\.defineClass\\("
+      ],
+      "deserialize": [
+        "\\b(?:ObjectInputStream|XMLDecoder|XStream|Kryo|HessianInput|Hessian2Input|SerializationUtils)\\b",
+        "\\.(?:readObject|readUnshared)\\(",
+        "\\bnew\\s+Yaml\\(|\\b[Yy]aml\\.load\\w*\\(",
+        "\\.(?:enableDefaultTyping|activateDefaultTyping|readValue|readTree|fromJson)\\(|@JsonTypeInfo\\b|\\bJSON\\.parse(?:Object)?\\(",
+        "\\b(?:DocumentBuilderFactory|SAXParserFactory|XMLInputFactory|TransformerFactory|SchemaFactory|SAXReader|SAXBuilder|XMLReader|Unmarshaller)\\b|\\.unmarshal\\("
+      ],
+      "file_io": [
+        "\\bnew\\s+(?:File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)\\(",
+        "\\bFiles\\.(?:read\\w*|write\\w*|new\\w*|copy|move|delete\\w*|lines|list|walk|find|exists|create\\w*)\\(",
+        "\\bPaths\\.get\\(|\\bPath\\.of\\(",
+        "\\bMultipartFile\\b|\\.(?:getPart|transferTo|getResourceAsStream|getResource)\\(",
+        "\\b(?:ZipInputStream|ZipFile|JarFile|FileSystemResource|UrlResource|FileCopyUtils|FileUtils)\\b"
+      ],
+      "llm_call": [
+        "^[ \\t]*import\\s+(?:dev\\.langchain4j|com\\.openai|com\\.theokanning\\.openai|com\\.azure\\.ai\\.openai|com\\.anthropic|org\\.springframework\\.ai|com\\.google\\.cloud\\.vertexai)\\.",
+        "\\b(?:OpenAiService|OpenAIClient|OpenAIOkHttpClient|AnthropicClient|AnthropicOkHttpClient|ChatClient|ChatLanguageModel|OpenAiChatModel|StreamingChatLanguageModel|GenerativeModel|AiServices)\\b",
+        "@Tool\\b|\\bChatCompletionCreateParams\\b|\\bMessageCreateParams\\b",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\b_?(?:log|logger|LOG|LOGGER|Log|Logger)\\.(?:warn|error|fatal|severe|warning)\\(",
+        "\\b(?:LoggerFactory|LogManager|LogFactory)\\.get(?:Logger|Log)\\(|\\bLogger\\.getLogger\\(",
+        "@(?:Slf4j|Log4j2?|CommonsLog|JBossLog|Flogger|XSlf4j)\\b",
+        "\\.printStackTrace\\(|\\bSystem\\.err\\.print|\\bMDC\\.put\\("
+      ]
+    },
+    "go": {
+      "route_handler": [
+        "\\bhttp\\.(?:HandleFunc|Handle)\\(",
+        "\\.(?:HandleFunc|Handle|HandlerFunc|Methods)\\(\\s*\"",
+        "\\.(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Any|Match|Get|Post|Put|Delete|Patch|Head|Options|All|Route|Mount|Group|Method|MethodFunc)\\(\\s*\"/",
+        "\\b\\w+\\s+http\\.ResponseWriter,\\s*\\w+\\s+\\*http\\.Request\\b",
+        "\\b\\w+\\s+(?:\\*gin\\.Context|echo\\.Context|\\*fiber\\.Ctx|\\*fasthttp\\.RequestCtx|iris\\.Context)\\b",
+        "\\b(?:mux|chi|httprouter)\\.(?:NewRouter|New)\\(|\\bhttp\\.NewServeMux\\(|\\bgin\\.(?:Default|New)\\(|\\becho\\.New\\(|\\bfiber\\.New\\("
+      ],
+      "db_query": [
+        "\\.(?:Query|QueryRow|QueryContext|QueryRowContext|Exec|ExecContext|Prepare|PrepareContext|Queryx|QueryRowx|NamedExec|NamedQuery|MustExec)\\(",
+        "\\bsql\\.Open\\(|\\bsqlx\\.(?:Open|Connect|MustConnect)\\(|\\bgorm\\.Open\\(|\\bpgx(?:pool)?\\.(?:Connect|New)\\(",
+        "\\.(?:Raw|Where|Order|Having|Joins|Group)\\(\\s*(?:\"|\\x60|fmt\\.Sprintf)",
+        "\\.(?:Find|First|Last|Take|Scan|Pluck|Count)\\(\\s*&",
+        "\\.(?:FindOne|Aggregate|CountDocuments)\\(",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "\\x60[^\\x60\\n]*\\b(?:gorm|db|bson|sql|pg|bun):\"",
+        "\\bgorm\\.Model\\b|\\.AutoMigrate\\(|\\bent\\.Schema\\b"
+      ],
+      "model_write": [
+        "(?<!\\bos)\\.(?:Create|Save|Updates|UpdateColumn|UpdateColumns|InsertOne|InsertMany|UpdateOne|UpdateMany|ReplaceOne|BulkWrite|FindOneAndUpdate)\\(",
+        "\\.Delete\\(\\s*&|\\.Model\\([^)\\n]*\\)\\.Updates?\\("
+      ],
+      "http_outbound": [
+        "\\bhttp\\.(?:Get|Post|PostForm|Head|NewRequest|NewRequestWithContext)\\(",
+        "\\bhttp\\.(?:Client|DefaultClient|Transport)\\b",
+        "\\.Do\\(\\s*\\w*[Rr]eq\\w*\\s*\\)",
+        "\\bresty\\.New\\(|\\bfasthttp\\.(?:Do|Get|Post)\\w*\\(",
+        "\\bnet\\.Dial\\w*\\(|\\btls\\.Dial\\(|\\bgrpc\\.(?:Dial|DialContext|NewClient)\\(|\\bwebsocket\\.(?:Dial|DefaultDialer)\\b",
+        "\\bhttputil\\.(?:NewSingleHostReverseProxy|ReverseProxy)\\b"
+      ],
+      "auth_check": [
+        "\\bjwt\\.(?:Parse|ParseWithClaims|New|NewWithClaims|SigningMethod\\w*)\\b|\"github\\.com/(?:golang-jwt|dgrijalva)/jwt",
+        "\"Authorization\"",
+        "\\.BasicAuth\\(\\)|\\bgin\\.BasicAuth\\(|\\bmiddleware\\.(?:JWT|BasicAuth|KeyAuth|CSRF)\\w*\\(",
+        "\\b(?:[Rr]equire|[Cc]heck|[Ee]nsure|[Vv]erify|[Ii]s|[Hh]as)(?:Auth\\w*|Admin|Role\\w*|Permission\\w*|Login|LoggedIn|Token)\\(",
+        "\\b[Aa]uth(?:enticate|orize|Middleware|Required|Handler)\\w*\\(",
+        "\\bsessions?\\.(?:Get|Start|Default|New)\\(|\\bsession\\.Values\\b|\\bsecurecookie\\.\\w+",
+        "\\bbcrypt\\.CompareHashAndPassword\\(|\\.Enforce\\(|\\boauth2\\.(?:Config|Token|NewClient|StaticTokenSource)\\b"
+      ],
+      "crypto_op": [
+        "\"crypto/[\\w/]+\"|\"golang\\.org/x/crypto/[\\w/]+\"",
+        "\\b(?:md5|sha1|sha256|sha512|hmac|aes|des|rsa|ecdsa|ed25519|cipher|subtle|bcrypt|scrypt|argon2|pbkdf2|hkdf|chacha20poly1305)\\.\\w+\\(",
+        "\\btls\\.Config\\b|\\bInsecureSkipVerify\\b|\\bx509\\.\\w+",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "\\btemplate\\.(?:HTML|JS|URL|CSS|HTMLAttr|JSStr|Srcset)\\(",
+        "\"text/template\"",
+        "\\bfmt\\.Fprint(?:f|ln)?\\(\\s*w\\b|\\bio\\.WriteString\\(\\s*w\\b|\\bw\\.Write\\(\\s*\\[\\]byte\\(",
+        "\\.(?:HTML|HTMLBlob)\\(\\s*(?:http\\.Status\\w+|\\d{3})\\s*,",
+        "\"text/html\\b"
+      ],
+      "dynamic_exec": [
+        "\\bexec\\.Command(?:Context)?\\(",
+        "\\bsyscall\\.(?:Exec|ForkExec|StartProcess)\\(|\\bos\\.StartProcess\\(",
+        "\\bplugin\\.Open\\(|\\.MethodByName\\(",
+        "\\b(?:goja|otto|govaluate|starlark)\\.\\w+\\(|\\binterp\\.New\\(|\\bexpr\\.(?:Compile|Eval|Run)\\("
+      ],
+      "deserialize": [
+        "\\bgob\\.(?:NewDecoder|Decode)\\w*\\(",
+        "\\b(?:json|xml|yaml|toml|bson|msgpack|proto|protojson)\\.(?:Unmarshal|NewDecoder)\\(",
+        "\\.(?:Bind|BindJSON|BindXML|BindYAML|ShouldBind|ShouldBindJSON|ShouldBindXML|ShouldBindYAML|ShouldBindQuery|BodyParser)\\("
+      ],
+      "file_io": [
+        "\\bos\\.(?:Open|OpenFile|Create|ReadFile|WriteFile|Remove|RemoveAll|Rename|Mkdir|MkdirAll|MkdirTemp|CreateTemp|ReadDir|Stat|Lstat|Chmod|Chown|Symlink|Truncate|DirFS)\\(",
+        "\\bioutil\\.(?:ReadFile|WriteFile|ReadDir|TempFile|TempDir)\\(",
+        "\\bfilepath\\.(?:Join|Clean|Abs|Rel|Walk|WalkDir|Glob|EvalSymlinks)\\(",
+        "\\bhttp\\.(?:ServeFile|ServeContent|FileServer|Dir|FS)\\(",
+        "\\.(?:FormFile|SaveUploadedFile|File|Attachment|SendFile|Static|StaticFile|StaticFS|Download)\\(",
+        "\\b(?:zip\\.OpenReader|zip\\.NewReader|tar\\.NewReader)\\("
+      ],
+      "llm_call": [
+        "\"github\\.com/(?:sashabaranov/go-openai|openai/openai-go|anthropics/anthropic-sdk-go|tmc/langchaingo|google/generative-ai-go|ollama/ollama|cloudwego/eino)[\\w/.-]*\"|\"google\\.golang\\.org/genai\"",
+        "\\.CreateChatCompletion\\w*\\(|\\.Messages\\.New\\(|\\.Chat\\.Completions\\.New\\(|\\.GenerateContent\\(|\\bllms\\.GenerateFromSinglePrompt\\(",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\blog\\.(?:Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)\\(",
+        "\\b(?:logger|log|l|lg|zap|logrus|zerolog|slog|klog|glog)\\.(?:Error|Errorf|Errorw|Warn|Warnf|Warnw|Warning|Warningf|Fatal|Fatalf|Panic|Panicf|DPanic)\\(",
+        "\"go\\.uber\\.org/zap\"|\"github\\.com/sirupsen/logrus\"|\"github\\.com/rs/zerolog[\\w/]*\"|\"log/slog\"|\"log\""
+      ]
+    },
+    "ruby": {
+      "route_handler": [
+        "^[ \\t]*(?:get|post|put|patch|delete|head|options|match)[ \\t(]+['\"/:]",
+        "^[ \\t]*(?:resources?|namespace|scope|mount|devise_for|concern)[ \\t(]+[:'\"A-Z]",
+        "^[ \\t]*root[ \\t(]+(?:to:|['\"])|\\bRails\\.application\\.routes\\.draw\\b",
+        "<\\s*(?:[\\w:]*Controller(?:::(?:Base|API))?|Sinatra::(?:Base|Application)|Grape::API(?:::Instance)?|Roda|Hanami::Action)\\b",
+        "^[ \\t]*(?:before|after|around|skip_before)_action\\b"
+      ],
+      "db_query": [
+        "\\.(?:find_by_sql|count_by_sql|select_all|select_one|select_value|select_values|select_rows|exec_query|exec_update|exec_delete|exec_insert|exec_params)\\(",
+        "\\bconnection\\.(?:execute|exec_query|select_all|select_value|query)\\b",
+        "\\b[A-Z]\\w*\\.(?:where|find|find_by|find_each|find_in_batches|all|first|last|take|order|joins|includes|left_joins|eager_load|preload|pluck|select|group|having|limit|offset|count|sum|exists\\?|lock|from|unscoped|calculate)\\b",
+        "\\.(?:where|order|group|having|joins|select|pluck|find_by|from|lock|reorder|reselect|not)\\(?\\s*[\"'%]",
+        "\\bSequel\\.(?:connect|lit)\\(|\\bDB\\[|\\bDB\\.(?:run|fetch|execute)\\b",
+        "\\b(?:PG|Mysql2|SQLite3)::\\w+|\\.exec\\(\\s*[\"']",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "^[ \\t]*class\\s+[\\w:]+\\s*<\\s*(?:ApplicationRecord|ActiveRecord::Base|Sequel::Model|ActiveModel::\\w+|Dry::Struct)\\b",
+        "^[ \\t]*include\\s+(?:Mongoid::Document|ActiveModel::Model|ActiveModel::Attributes|DataMapper::Resource)\\b",
+        "^[ \\t]*(?:has_many|has_one|belongs_to|has_and_belongs_to_many|validates?|validates_\\w+|attr_accessible|attr_protected|serialize|store_accessor|field|embeds_\\w+)\\s+:",
+        "\\bActiveRecord::(?:Schema|Migration)\\b|^[ \\t]*create_table\\s+[:'\"]|^[ \\t]*(?:add_column|add_reference)\\s+:"
+      ],
+      "model_write": [
+        "\\.(?:save|update|update_attributes|update_attribute|update_column|update_columns|update_all|insert_all|upsert|upsert_all|destroy|destroy_all|delete_all|increment|decrement|toggle|touch)(?:!|\\b)",
+        "\\b[A-Z]\\w*\\.(?:create|insert|insert_all|upsert|find_or_create_by|first_or_create)(?:!|\\b)",
+        "\\.new\\(\\s*(?:params|\\w+_params)\\b",
+        "\\.permit(?:!|\\()"
+      ],
+      "http_outbound": [
+        "\\bNet::(?:HTTP|FTP)\\b",
+        "\\bURI\\.(?:open|parse)\\(|\\bOpenURI\\b|^[ \\t]*require\\s+['\"]open-uri['\"]",
+        "\\b(?:HTTParty|Faraday|RestClient|HTTPClient|Typhoeus|Excon|HTTPX|Patron)\\b|\\bHTTP\\.(?:get|post|put|patch|delete|headers|auth|follow|timeout)\\b",
+        "\\bTCPSocket\\.(?:new|open)\\b"
+      ],
+      "auth_check": [
+        "\\b(?:before_action|before_filter|prepend_before_action)\\s+:(?:authenticate\\w*|authorize\\w*|require_\\w+|check_\\w+|ensure_\\w+|verify_\\w+|login_required|admin_required|logged_in\\w*|signed_in\\w*)",
+        "\\bskip_(?:before_action|before_filter)\\s+:\\w+",
+        "\\b(?:authenticate_\\w+|authorize|authorize_resource|load_and_authorize_resource|policy_scope|verify_authorized|current_user|user_signed_in\\?|signed_in\\?|logged_in\\?)",
+        "\\bcan(?:not)?\\?\\s*[(:]",
+        "\\b(?:Pundit|CanCan(?:Can)?|Devise|Warden|Doorkeeper|Rodauth|Sorcery|Clearance)\\b|^[ \\t]*devise\\s+:|\\bwarden\\.",
+        "\\bhas_secure_password\\b|\\.authenticate\\(",
+        "\\bsession\\[|\\breset_session\\b|\\bcookies\\.(?:signed|encrypted)\\b",
+        "\\bJWT\\.(?:encode|decode)\\b",
+        "\\bhttp_basic_authenticate_with\\b|\\bauthenticate_(?:or_request_)?with_http_\\w+|\\bprotect_from_forgery\\b|\\bverify_authenticity_token\\b"
+      ],
+      "crypto_op": [
+        "\\bDigest::(?:MD5|SHA1|SHA256|SHA384|SHA512|SHA2|RMD160)\\b",
+        "\\bOpenSSL::\\w+",
+        "\\bBCrypt::(?:Password|Engine)\\b|\\bSCrypt::\\w+|\\bArgon2::\\w+|\\bRbNaCl::\\w+",
+        "\\bSecureRandom\\.\\w+",
+        "\\bActiveSupport::(?:MessageEncryptor|MessageVerifier|KeyGenerator)\\b|\\bRails\\.application\\.(?:message_verifier|key_generator)\\b|^[ \\t]*encrypts\\s+:",
+        "\\bJWT\\.(?:encode|decode)\\b|\\bhas_secure_password\\b",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "\\.html_safe\\b",
+        "(?<![.\\w])raw[ \\t]*\\(|(?<![.\\w])raw[ \\t]+[@\\w]|<%==",
+        "\\bsafe_concat\\b",
+        "\\brender\\s*\\(?\\s*(?:inline|html):",
+        "\\bERB\\.new\\(|\\bLiquid::Template\\.parse\\(|\\bHaml::Engine\\.new\\(|\\bSlim::Template\\.new\\(",
+        "\\bcontent_type\\s*[:=]\\s*['\"]text/html"
+      ],
+      "dynamic_exec": [
+        "(?<![.\\w])eval\\b|\\b(?:instance_eval|class_eval|module_eval|instance_exec|class_exec)\\b",
+        "\\.(?:send|public_send|__send__)\\(",
+        "(?<![.\\w:])(?:system|exec|spawn)[ \\t]*\\(|(?<![.\\w:])(?:system|exec|spawn)[ \\t]+['\"%\\w]",
+        "\\x60[^\\x60\\n]*#\\{|%x[({\\[|]",
+        "\\bOpen3\\.\\w+|\\bIO\\.popen\\b|\\bPTY\\.spawn\\b|\\bKernel\\.(?:system|exec|spawn|open|eval)\\b",
+        "\\.(?:constantize|safe_constantize)\\b|\\bconst_get\\("
+      ],
+      "deserialize": [
+        "\\bMarshal\\.(?:load|restore)\\b",
+        "\\b(?:YAML|Psych)\\.\\w*load\\w*\\b",
+        "\\bOj\\.(?:load|object_load|compat_load|strict_load)\\b|\\bJSON\\.(?:parse|load|restore)\\b|\\bMultiJson\\.load\\b|\\bActiveSupport::JSON\\.decode\\b",
+        "\\bNokogiri::(?:XML|HTML\\d?)\\b|\\bREXML::Document\\.new\\b|\\bLibXML::XML::\\w+|\\bOx\\.(?:parse|load|parse_obj)\\b",
+        "^[ \\t]*serialize\\s+:"
+      ],
+      "file_io": [
+        "\\bFile\\.(?:open|read|write|readlines|foreach|new|delete|unlink|rename|join|expand_path|exist\\?|exists\\?|binread|binwrite|basename|dirname|chmod|symlink|readlink|realpath|absolute_path)\\b",
+        "\\bIO\\.(?:read|write|readlines|foreach|binread|binwrite|copy_stream|sysopen)\\b",
+        "\\bFileUtils\\.\\w+|\\bDir\\.(?:glob|entries|children|each_child|mkdir|rmdir|exist\\?|foreach|chdir|tmpdir)\\b|\\bDir\\[",
+        "(?<![.\\w])open\\(",
+        "\\b(?:send_file|send_data)\\b|\\bPathname\\.new\\b|\\bTempfile\\.\\w+",
+        "\\bZip::(?:File|InputStream)\\b|\\bGem::Package::TarReader\\b",
+        "\\b(?:ActiveStorage|CarrierWave|Paperclip|Shrine|has_one_attached|has_many_attached|mount_uploader)\\b"
+      ],
+      "llm_call": [
+        "\\bOpenAI::Client\\b|\\bAnthropic::Client\\b|\\bLangchain::\\w+|\\bRubyLLM\\b|\\bOmniAI::\\w+",
+        "^[ \\t]*require\\s+['\"](?:openai|ruby/openai|anthropic|langchain|ruby_llm|omniai|gemini-ai|ollama-ai)['\"]",
+        "\\.chat\\(\\s*parameters:|\\.messages\\.create\\(|\\.chat\\.completions\\.create\\(",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\b(?:log|LOG|LOGGER|logger|Logger)\\.(?:warn|error|fatal|unknown)\\b",
+        "\\bLogger\\.new\\b|\\bActiveSupport::(?:Logger|TaggedLogging)\\b|\\bSemanticLogger\\b|\\bLograge\\b|\\bfilter_parameters\\b",
+        "\\b(?:Sentry|Honeybadger|Bugsnag|Rollbar|Airbrake)\\.\\w+"
+      ]
+    },
+    "php": {
+      "route_handler": [
+        "\\bRoute::(?:get|post|put|patch|delete|options|any|match|resource|apiResource|resources|apiResources|group|middleware|prefix|controller|view|redirect|domain|name|fallback)\\(",
+        "#\\[Route\\(|@Route\\(|#\\[(?:Get|Post|Put|Patch|Delete)\\(",
+        "\\$(?:app|router|r|route|routes|group|api|collector)->(?:get|post|put|patch|delete|options|any|map|group|addRoute|match)\\(",
+        "\\bextends\\s+\\\\?(?:[\\w\\\\]*\\\\)?(?:Controller|AbstractController|BaseController|ResourceController|ApiController|CI_Controller|AbstractActionController)\\b",
+        "\\$_(?:GET|POST|REQUEST|FILES|COOKIE)\\b",
+        "\\bpublic\\s+function\\s+\\w+Action\\("
+      ],
+      "db_query": [
+        "->(?:query|exec|prepare|execute|multi_query|real_query|rawQuery|executeQuery|executeStatement|fetchAllAssociative|fetchAssociative|fetchOne)\\(",
+        "(?<![\\w>:$\\\\])(?:mysqli_(?:query|real_query|multi_query|prepare|stmt_prepare)|mysql_query|mysql_db_query|pg_(?:query|query_params|prepare|execute|send_query)|sqlite_query|odbc_exec|sqlsrv_query|oci_parse)\\(",
+        "\\bnew\\s+\\\\?(?:PDO|mysqli|SQLite3)\\(",
+        "\\bDB::(?:select|insert|update|delete|statement|unprepared|raw|table|connection)\\(",
+        "->(?:whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|selectRaw|groupByRaw|fromRaw|joinRaw)\\(",
+        "\\b[A-Z]\\w*::(?:where|whereIn|whereRaw|selectRaw|orderByRaw|havingRaw|find|findOrFail|firstWhere|query|orderBy|paginate|pluck|cursor)\\(",
+        "->(?:createQuery|createQueryBuilder|createNativeQuery|getRepository|findBy|findOneBy|findAll)\\(",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "\\bextends\\s+\\\\?(?:[\\w\\\\]*\\\\)?(?:Model|Eloquent|Authenticatable|Pivot)\\b",
+        "#\\[ORM\\\\\\w+|@ORM\\\\\\w+",
+        "\\b(?:protected|public|private)\\s+(?:array\\s+)?\\$(?:fillable|guarded|hidden|visible|casts|table|primaryKey|appends)\\b",
+        "\\bSchema::(?:create|table)\\(|\\$table->\\w+\\("
+      ],
+      "model_write": [
+        "->(?:save|update|delete|forceDelete|push|fill|forceFill|insert|insertGetId|upsert|updateOrCreate|firstOrCreate|updateOrInsert|create|increment|decrement|restore|sync|attach|detach|persist|flush|remove)\\(",
+        "\\b[A-Z]\\w*::(?:create|insert|update|updateOrCreate|firstOrCreate|firstOrNew|upsert|destroy|forceCreate|unguard)\\("
+      ],
+      "http_outbound": [
+        "(?<![\\w>:$\\\\])curl_(?:init|exec|setopt|setopt_array|multi_exec)\\(",
+        "(?<![\\w>:$\\\\])(?:file_get_contents|fopen|readfile|get_headers|getimagesize|simplexml_load_file)\\(\\s*(?:\\$|['\"]https?:)",
+        "\\bHttp::(?:get|post|put|patch|delete|head|withHeaders|withToken|withBasicAuth|asForm|acceptJson|timeout|retry|send|pool|baseUrl|withOptions)\\(",
+        "\\bGuzzleHttp\\\\|\\bnew\\s+\\\\?Client\\(\\s*\\[|\\bHttpClient::create\\(|\\bHttpClientInterface\\b",
+        "->(?:request|requestAsync)\\(\\s*['\"](?:GET|POST|PUT|PATCH|DELETE|HEAD)['\"]",
+        "(?<![\\w>:$\\\\])(?:fsockopen|pfsockopen|stream_socket_client|socket_connect)\\(|\\bnew\\s+\\\\?SoapClient\\("
+      ],
+      "auth_check": [
+        "\\bAuth::(?:user|check|id|attempt|guard|login|loginUsingId|logout|once|viaRemember|guest|validate)\\(",
+        "(?<![\\w>:$\\\\])auth\\(\\)",
+        "->middleware\\(\\s*\\[?\\s*['\"](?:auth|can|role|permission|verified|admin|abilities|ability|signed)\\b",
+        "\\bGate::(?:allows|denies|authorize|define|check|any|none|forUser|inspect|before)\\(",
+        "->(?:authorize|can|cannot|cant|authorizeResource|denyAccessUnlessGranted|isGranted)\\(",
+        "#\\[IsGranted\\b|@IsGranted\\b|@Security\\(|#\\[Security\\b",
+        "\\$_SESSION\\b|(?<![\\w>:$\\\\])session_(?:start|regenerate_id|destroy)\\(",
+        "(?<![\\w>:$\\\\])password_(?:verify|hash|needs_rehash)\\(|\\bHash::check\\(",
+        "\\bJWT::(?:encode|decode)\\(|\\bJWTAuth::\\w+\\(",
+        "\\$_SERVER\\[\\s*['\"](?:PHP_AUTH_USER|PHP_AUTH_PW|HTTP_AUTHORIZATION|REMOTE_USER)['\"]",
+        "\\b(?:Sanctum|Passport|Fortify|Sentinel|Socialite)\\b|(?<![\\w>:$\\\\])setcookie\\("
+      ],
+      "crypto_op": [
+        "(?<![\\w>:$\\\\])(?:md5|sha1|crc32|hash|hash_hmac|hash_pbkdf2|hash_equals|crypt|password_hash|password_verify|random_bytes|random_int|openssl_\\w+|sodium_\\w+|mcrypt_\\w+)\\(",
+        "\\bHash::(?:make|check|needsRehash)\\(|\\bCrypt::(?:encrypt|decrypt|encryptString|decryptString)\\(",
+        "\\bDefuse\\\\Crypto\\b|\\bParagonIE\\\\\\w+|\\bphpseclib\\d?\\\\\\w+|\\bFirebase\\\\JWT\\b",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "^[ \\t]*(?:echo|print)\\b[^;\\n]*\\$",
+        "<\\?=\\s*\\$",
+        "\\{!!",
+        "\\|\\s*raw\\b",
+        "\\bnew\\s+\\\\?(?:Illuminate\\\\Support\\\\)?HtmlString\\(",
+        "(?<![\\w>:$\\\\])v?printf\\(\\s*\\$"
+      ],
+      "dynamic_exec": [
+        "(?<![\\w>:$\\\\])(?:eval|assert|create_function)\\(",
+        "(?<![\\w>:$\\\\])(?:exec|shell_exec|system|passthru|popen|proc_open|pcntl_exec)\\(",
+        "\\x60[^\\x60\\n]*\\$",
+        "(?<![\\w>:$\\\\])(?:call_user_func|call_user_func_array|forward_static_call|forward_static_call_array)\\(",
+        "(?<![\\w>:$\\\\])(?:include|include_once|require|require_once)\\b[ \\t(]*\\$",
+        "(?<![\\w>:$\\\\])extract\\(\\s*\\$_"
+      ],
+      "deserialize": [
+        "(?<![\\w>:$\\\\])(?:unserialize|maybe_unserialize)\\(",
+        "(?<![\\w>:$\\\\])json_decode\\(",
+        "(?<![\\w>:$\\\\])(?:simplexml_load_string|simplexml_load_file|xml_parse|xml_parse_into_struct|xmlrpc_decode)\\(|\\bnew\\s+\\\\?(?:SimpleXMLElement|DOMDocument|XMLReader)\\(|->load(?:XML|HTML)\\(",
+        "(?<![\\w>:$\\\\])yaml_parse\\w*\\(|\\bYaml::parse(?:File)?\\(",
+        "\\bphar://|\\bnew\\s+\\\\?Phar(?:Data)?\\(",
+        "(?<![\\w>:$\\\\])(?:igbinary_unserialize|msgpack_unpack)\\(|->(?:deserialize|denormalize)\\("
+      ],
+      "file_io": [
+        "(?<![\\w>:$\\\\])(?:fopen|file_get_contents|file_put_contents|readfile|file|fread|fwrite|fputs|unlink|rename|copy|mkdir|rmdir|scandir|glob|opendir|is_file|is_dir|file_exists|move_uploaded_file|tempnam|tmpfile|realpath|parse_ini_file|highlight_file|show_source|chmod|symlink)\\(",
+        "\\$_FILES\\b",
+        "\\b(?:Storage|File)::\\w+\\(",
+        "->(?:storeAs|storePublicly|download|getClientOriginalName|getClientOriginalExtension)\\(",
+        "\\bnew\\s+\\\\?(?:SplFileObject|SplFileInfo|ZipArchive|PharData|DirectoryIterator|RecursiveDirectoryIterator|FilesystemIterator)\\(",
+        "\\bBinaryFileResponse\\b|\\bresponse\\(\\)->(?:download|file|streamDownload)\\("
+      ],
+      "llm_call": [
+        "\\bOpenAI::(?:client|factory)\\(|\\bOpenAI\\\\\\w+|\\bAnthropic\\\\\\w+|\\bAnthropic::\\w+\\(",
+        "\\bLLPhant\\\\\\w+|\\bPrism\\\\Prism\\b|\\bPrism::(?:text|structured|embeddings)\\(",
+        "->chat\\(\\)->create\\(|->completions\\(\\)->create\\(|->messages\\(\\)->create\\(",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\bLog::(?:warning|error|critical|alert|emergency|channel|stack)\\(",
+        "(?<![\\w>:$\\\\])(?:error_log|syslog|trigger_error|openlog)\\(",
+        "->(?:warning|error|critical|alert|emergency)\\(",
+        "(?<![\\w>:$\\\\])logger\\(\\)|\\bMonolog\\\\\\w+|\\bLoggerInterface\\b|\\bLoggerAwareTrait\\b"
+      ]
+    },
+    "csharp": {
+      "route_handler": [
+        "\\[(?:Http(?:Get|Post|Put|Delete|Patch|Head|Options)|Route|AcceptVerbs|ApiController)\\b",
+        ":\\s*(?:Controller|ControllerBase|ApiController|PageModel|Hub)\\b",
+        "\\.Map(?:Get|Post|Put|Delete|Patch|Methods|Group|Fallback|ControllerRoute|DefaultControllerRoute|Controllers|Hub|RazorPages)\\(",
+        "\\bpublic\\s+(?:(?:async|virtual|override)\\s+)*(?:Task<)?(?:IActionResult|ActionResult|IResult|JsonResult|ViewResult|ContentResult|FileResult|RedirectResult)\\b",
+        "\\bOn(?:Get|Post|Put|Delete|Patch)(?:Async)?\\("
+      ],
+      "db_query": [
+        "\\bnew\\s+(?:Sql|Npgsql|MySql|Sqlite|SQLite|OleDb|Odbc|Oracle)Command\\(",
+        "\\.(?:ExecuteReader|ExecuteNonQuery|ExecuteScalar|ExecuteXmlReader)(?:Async)?\\(",
+        "\\.(?:FromSqlRaw|FromSqlInterpolated|FromSql|ExecuteSqlRaw|ExecuteSqlInterpolated|ExecuteSqlCommand|ExecuteSql|SqlQuery|SqlQueryRaw)(?:Async)?\\(",
+        "\\.(?:Query|QueryFirst|QueryFirstOrDefault|QuerySingle|QuerySingleOrDefault|QueryMultiple|Execute)(?:Async)?(?:<[^>\\n]+>)?\\(",
+        "\\bCommandText\\s*=",
+        "\\b(?:SqlConnection|NpgsqlConnection|MySqlConnection|SqliteConnection|OracleConnection|IDbConnection|MongoClient|IMongoCollection)\\b",
+        "\\b_?(?:db|context|dbContext|ctx)\\.\\w+\\.(?:Where|Find|FindAsync|First\\w*|Single\\w*|Any\\w*|ToList\\w*|Include|AsNoTracking|Count\\w*)\\(",
+        "\\b(?:SELECT\\s[^;]{0,200}?\\bFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+      ],
+      "model_schema": [
+        "\\bDbSet<\\w+>",
+        "\\[(?:Table|Key|Column|Required|MaxLength|StringLength|ForeignKey|DatabaseGenerated|NotMapped|Bind|BindNever|BindRequired|JsonIgnore|JsonPropertyName)\\b",
+        ":\\s*(?:DbContext|IdentityDbContext\\w*)\\b|\\bmodelBuilder\\.Entity<|\\bOnModelCreating\\b|\\bIEntityTypeConfiguration<"
+      ],
+      "model_write": [
+        "\\.SaveChanges(?:Async)?\\(",
+        "\\b_?(?:db|context|dbContext|ctx)\\.(?:\\w+\\.)?(?:Add|AddAsync|AddRange|AddRangeAsync|Update|UpdateRange|Remove|RemoveRange|Attach)\\(",
+        "\\b(?:TryUpdateModelAsync|TryUpdateModel|UpdateModel)\\(",
+        "\\.Entry\\([^)\\n]*\\)\\.State\\s*=|\\.(?:InsertOne|InsertMany|UpdateOne|UpdateMany|ReplaceOne|ExecuteUpdate|ExecuteDelete)(?:Async)?\\("
+      ],
+      "http_outbound": [
+        "\\bHttpClient\\b",
+        "\\.(?:GetAsync|PostAsync|PutAsync|DeleteAsync|PatchAsync|SendAsync|GetStringAsync|GetStreamAsync|GetByteArrayAsync|GetFromJsonAsync|PostAsJsonAsync|PutAsJsonAsync)\\(",
+        "\\b(?:WebRequest|HttpWebRequest)\\.Create(?:Http)?\\(|\\bWebClient\\b",
+        "\\bIHttpClientFactory\\b|\\.CreateClient\\(",
+        "\\bnew\\s+(?:RestClient|RestRequest|TcpClient|ClientWebSocket)\\(|\\bFlurl\\b"
+      ],
+      "auth_check": [
+        "\\[(?:Authorize|AllowAnonymous|ValidateAntiForgeryToken|IgnoreAntiforgeryToken)\\b",
+        "\\bUser\\.(?:Identity|IsInRole|Claims|FindFirst\\w*|HasClaim)\\b|\\bHttpContext\\.User\\b",
+        "\\b(?:ClaimsPrincipal|ClaimsIdentity|ClaimTypes)\\b",
+        "\\.(?:RequireAuthorization|AllowAnonymous|RequireRole|RequireClaim|AddPolicy)\\(",
+        "\\b(?:AddAuthentication|AddAuthorization|UseAuthentication|UseAuthorization|AddJwtBearer|AddCookie|AddIdentity\\w*|AddOpenIdConnect|AddMicrosoftIdentityWebApi)\\b",
+        "\\b(?:SignInManager|UserManager|RoleManager|IAuthorizationService|AuthorizationHandler|IAuthorizationRequirement)\\b",
+        "\\.(?:PasswordSignInAsync|CheckPasswordAsync|SignInAsync|SignOutAsync|AuthorizeAsync|AuthenticateAsync|ChallengeAsync|IsInRoleAsync)\\(",
+        "\\b(?:JwtSecurityToken\\w*|SecurityTokenDescriptor|TokenValidationParameters|JwtBearerDefaults|CookieAuthenticationDefaults)\\b",
+        "\\bHttpContext\\.Session\\b|\\bSession\\.(?:GetString|SetString|GetInt32|SetInt32|Clear)\\("
+      ],
+      "crypto_op": [
+        "\\bSystem\\.Security\\.Cryptography\\b",
+        "\\b(?:MD5|SHA1|SHA256|SHA384|SHA512|HMACSHA1|HMACSHA256|HMACSHA384|HMACSHA512|HMACMD5|Aes|AesGcm|DES|TripleDES|RC2|RSA|DSA|ECDsa|ECDiffieHellman|Rijndael|RandomNumberGenerator)\\.(?:Create|HashData|Fill|GetBytes|GetInt32)\\(",
+        "\\bnew\\s+(?:HMACSHA\\d+|HMACMD5|Rfc2898DeriveBytes|RNGCryptoServiceProvider|AesManaged|AesCryptoServiceProvider|RijndaelManaged|DESCryptoServiceProvider|TripleDESCryptoServiceProvider|MD5CryptoServiceProvider|SHA1Managed|SHA256Managed|RSACryptoServiceProvider)\\(",
+        "\\bBCrypt\\.(?:Net|HashPassword|Verify|EnhancedHashPassword)\\b|\\bI?PasswordHasher\\b|\\bKeyDerivation\\.Pbkdf2\\(",
+        "\\b(?:IDataProtector|IDataProtectionProvider|ProtectedData)\\b",
+        "\\b(?:X509Certificate2?|ServerCertificateCustomValidationCallback|RemoteCertificateValidationCallback|SymmetricSecurityKey|SigningCredentials|SecurityAlgorithms)\\b",
+        "\\b\\w*(?:[Ee]ncrypt|[Dd]ecrypt)\\w*\\("
+      ],
+      "html_sink": [
+        "\\bHtml\\.Raw\\(",
+        "\\bnew\\s+(?:HtmlString|MarkupString)\\(|\\(MarkupString\\)",
+        "\\bResponse\\.Write(?:Async)?\\(",
+        "\\.InnerHtml\\s*\\+?=|\\bnew\\s+LiteralControl\\(",
+        "\"text/html\"",
+        "\\bValidateInput\\(\\s*false\\s*\\)|\\[AllowHtml\\]"
+      ],
+      "dynamic_exec": [
+        "\\bProcess\\.Start\\(|\\bProcessStartInfo\\b",
+        "\\bAssembly\\.(?:Load|LoadFrom|LoadFile|UnsafeLoadFrom)\\(",
+        "\\bActivator\\.CreateInstance\\(|\\bType\\.GetType\\(|\\.InvokeMember\\(|\\.GetMethod\\(",
+        "\\b(?:CSharpScript|CSharpCodeProvider|CodeDomProvider|DynamicExpressionParser|PowerShell)\\b|\\.CompileAssemblyFromSource\\(|\\bSystem\\.Linq\\.Dynamic\\b"
+      ],
+      "deserialize": [
+        "\\b(?:BinaryFormatter|SoapFormatter|NetDataContractSerializer|LosFormatter|ObjectStateFormatter|JavaScriptSerializer|SimpleTypeResolver|XamlReader)\\b",
+        "\\bTypeNameHandling\\.(?:All|Auto|Objects|Arrays)\\b",
+        "\\bJsonConvert\\.DeserializeObject\\b|\\bJsonSerializer\\.Deserialize(?:Async)?\\b|\\bJObject\\.Parse\\(|\\bJsonDocument\\.Parse\\(",
+        "\\b(?:XmlSerializer|DataContractSerializer|DataContractJsonSerializer|XmlDocument|XPathDocument|XmlTextReader)\\b|\\.LoadXml\\(|\\bXmlReader\\.Create\\(|\\bDtdProcessing\\.Parse\\b|\\bXDocument\\.(?:Load|Parse)\\(",
+        "\\.Deserialize(?:<[^>\\n]+>)?\\(",
+        "\\bYamlDotNet\\b|\\bDeserializerBuilder\\b"
+      ],
+      "file_io": [
+        "\\bFile\\.(?:Open\\w*|Read\\w*|Write\\w*|Append\\w*|Create\\w*|Delete|Copy|Move|Exists|Replace)\\(",
+        "\\bDirectory\\.(?:GetFiles|GetDirectories|EnumerateFiles|EnumerateDirectories|CreateDirectory|Delete|Exists|Move)\\(",
+        "\\bnew\\s+(?:FileStream|StreamReader|StreamWriter|FileInfo|DirectoryInfo)\\(",
+        "\\bPath\\.(?:Combine|GetFullPath|Join|GetTempFileName|GetTempPath)\\(",
+        "\\bIFormFile\\b|\\.CopyToAsync\\(|\\.SaveAs\\(|\\bHttpPostedFile\\w*",
+        "\\b(?:PhysicalFile|VirtualFile)\\(|\\breturn\\s+File\\(",
+        "\\b(?:PhysicalFileProvider|ZipFile|ZipArchive)\\b|\\.ExtractToDirectory\\(|\\bUseStaticFiles\\("
+      ],
+      "llm_call": [
+        "\\b(?:OpenAIClient|AzureOpenAIClient|OpenAIService|AnthropicClient|IChatClient|IChatCompletionService|ChatCompletionAgent)\\b",
+        "^[ \\t]*using\\s+(?:OpenAI|Azure\\.AI\\.OpenAI|Anthropic\\w*|Microsoft\\.SemanticKernel|Microsoft\\.Extensions\\.AI|LLama\\w*|OllamaSharp)\\b",
+        "\\bKernel\\.CreateBuilder\\(|\\[KernelFunction\\b|\\.(?:GetChatMessageContentAsync|GetChatMessageContentsAsync|CompleteChatAsync|CompleteChat|GetChatCompletionsAsync|InvokePromptAsync)\\(",
+        "\\bapi\\.openai\\.com\\b|\\bapi\\.anthropic\\.com\\b|\\bgenerativelanguage\\.googleapis\\.com\\b"
+      ],
+      "logging": [
+        "\\b_?[lL]ogger\\.(?:LogWarning|LogError|LogCritical|Warn|Warning|Error|Fatal)\\(",
+        "\\b_?(?:Log|log)\\.(?:Warning|Error|Fatal|Warn|Critical)\\(",
+        "\\bILogger(?:<\\w+>)?\\b|\\bILoggerFactory\\b|\\b(?:Serilog|NLog|log4net)\\b|\\bLogManager\\.Get\\w*Logger\\(",
+        "\\bConsole\\.Error\\.Write|\\bEventLog\\.WriteEntry\\(|\\bTrace\\.(?:TraceError|TraceWarning)\\("
+      ]
+    }
   }
 }
