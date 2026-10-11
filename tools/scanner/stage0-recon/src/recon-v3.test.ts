@@ -17,11 +17,12 @@ import {
 import {
   validateArchitecture, deterministicArchitecture, rankToolCallingCandidates, buildToolCallingPrompt,
   buildArchitecturePrompt, detectToolCallingDeterministic, probeDeterministic, authPresence,
-  detectToolCalling, TOOL_CALLING_MAX_FILES, type ArchitectureValidationContext,
+  detectToolCalling, probeCategoryApplicability, TOOL_CALLING_MAX_FILES, type ArchitectureValidationContext,
 } from './llm-probe.js'
 import { tagRouteAuth, extract, detectExpress, identifierKey } from './ast-extractor.js'
 import { scan as frontendGrep } from './frontend-grep.js'
 import { BENCHMARK_TARGET } from '../../shared/run-context.js'
+import { isDegraded, degradedReasons, resetDegraded } from '../../shared/degraded.js'
 
 let pass = 0, fail = 0
 function check(name: string, cond: boolean) {
@@ -457,6 +458,29 @@ console.log('\n-- tool-calling probe with no candidates --')
   // No candidate means no model call and no client: safe to run offline.
   const verdict = await detectToolCalling(TMP, [])
   check('no candidates -> not tool-calling, nothing probed', !verdict.hasGenuineToolCalling && verdict.filesProbed.length === 0 && verdict.confidence === 0)
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n-- category probe: a thrown LLM call marks the run degraded --')
+{
+  // A client whose call throws, as a network error or a 5xx would. Nothing
+  // leaves the process: the fake never reaches a transport.
+  let calls = 0
+  const throwingClient = {
+    chat: { completions: { create: async () => { calls++; throw new Error('simulated 503') } } },
+  } as any
+  resetDegraded()
+  const summary = { route_table: { hand_written_routes: [] }, architecture: { auth_mechanisms: [{ name: 'session' }] } }
+  const noTool = { hasGenuineToolCalling: false, evidence: '', toolsDetected: [], confidence: 0 }
+  const verdicts = await probeCategoryApplicability(summary, noTool, [], '', () => throwingClient)
+  check('the injected client was called', calls === 1)
+  check('a throwing client marks the run degraded', isDegraded())
+  check('the reason names the category probe and the error',
+    degradedReasons().some(r => r === 'category probe: LLM call failed (simulated 503) — used deterministic analysis'))
+  check('deterministic verdicts are still returned', verdicts.length >= 10 && verdicts.every(v => ['present', 'absent', 'uncertain'].includes(v.verdict)))
+  check('fallback verdicts match probeDeterministic on the same input',
+    JSON.stringify(verdicts) === JSON.stringify(probeDeterministic(JSON.stringify(summary), authPresence(summary), noTool, [], '')))
+  resetDegraded()
 }
 
 // ---------------------------------------------------------------------------

@@ -841,8 +841,10 @@ export async function probeCategoryApplicability(
   toolCallingVerdict: ToolCallingVerdict,
   escapeHatchFindings: EscapeHatchFinding[],
   swaggerDiffNote: string,
+  /** Injectable so a test can hand in a client that throws; recon passes nothing. */
+  makeClient: () => OpenAI | null = createClient,
 ): Promise<CategoryVerdict[]> {
-  const client = createClient()
+  const client = makeClient()
   if (!client) {
     markDegraded('category probe: no API key for provider — used deterministic analysis')
   }
@@ -852,7 +854,9 @@ export async function probeCategoryApplicability(
       if (result !== null) return result
       markDegraded('category probe: LLM returned unparseable JSON — used deterministic analysis')
     } catch (err: any) {
-      console.error('LLM category probe failed:', err.message)
+      // A thrown call (network, 4xx/5xx, timeout) is a fallback like any other:
+      // without this the stage wrote deterministic verdicts and reported a clean run.
+      markDegraded(`category probe: LLM call failed (${err.message}) — used deterministic analysis`)
     }
   }
   return probeDeterministic(JSON.stringify(architectureSummary), authPresence(architectureSummary), toolCallingVerdict, escapeHatchFindings, swaggerDiffNote)
