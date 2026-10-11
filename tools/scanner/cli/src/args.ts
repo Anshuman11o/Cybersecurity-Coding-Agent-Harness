@@ -25,6 +25,8 @@ export interface ScanArgs extends ModelFlags {
   configPath?: string
   noConfig: boolean
   resume?: string
+  /** The run store, instead of <dir>/.secscan; must lie outside the scanned directory. */
+  out?: string
 }
 
 export interface ModelsArgs extends ModelFlags {
@@ -65,6 +67,7 @@ Run:
   --config <path>           settings file (default: <dir>/secscan.config.json)
   --no-config               ignore secscan.config.json
   --resume <run-id>         continue a stopped run; finished files are not scanned again
+  --out <dir>               keep results here instead of <dir>/.secscan (outside the repository)
 
 A limit or Ctrl-C ends the run cleanly: files in flight finish, the run is
 recorded INCOMPLETE with the list of what was not scanned, and --resume
@@ -90,6 +93,7 @@ export function parseArgs(argv: readonly string[]): Args {
   let configPath: string | undefined
   let noConfig = false
   let resume: string | undefined
+  let out: string | undefined
   const positional: string[] = []
 
   const push = (key: 'paths' | 'include' | 'exclude', vals: string[]) => {
@@ -138,6 +142,7 @@ export function parseArgs(argv: readonly string[]): Args {
       case '--config': configPath = value(); break
       case '--no-config': noConfig = true; break
       case '--resume': resume = value(); break
+      case '--out': out = value(); break
       default:
         if (a.startsWith('-')) throw new UsageError(`unknown option "${a}"`)
         positional.push(a)
@@ -166,6 +171,7 @@ export function parseArgs(argv: readonly string[]): Args {
     configPath,
     noConfig,
     resume,
+    out,
     ...model,
   }
 }

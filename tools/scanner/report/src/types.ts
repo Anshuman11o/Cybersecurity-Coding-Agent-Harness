@@ -45,8 +45,6 @@ export interface InLane {
   target_file: string
   disposition: 'hunt' | 'skip'
   skip_reason: string | null
-  /** Optional, forward-compatible: a machine-readable skip bucket if a later Stage 0.5 writes one. */
-  skip_category?: string
   classes?: string[]
   categories?: { code: string; name: string; framework?: string }[]
   signals?: string[]
@@ -97,8 +95,6 @@ export interface InConsumption {
   lanes?: InLaneRecord[]
   rollup?: unknown
   legacy_entries?: InLegacyEntry[]
-  /** Optional, forward-compatible: why a run stopped early (e.g. a spend cap). */
-  stop_reason?: string
 }
 
 export interface InUsage {
@@ -137,7 +133,6 @@ export interface InMeta {
   loop_passes?: number
   sweep_group_size?: number
   run_context?: Record<string, unknown>
-  stop_reason?: string
 }
 
 export interface InRoute {
@@ -159,6 +154,44 @@ export interface InFileSignals {
   files?: Record<string, string[]>
 }
 
+// ── Task 1c's hand-off (stage1-budget-governor/src/run-status.ts, scan-plan.ts,
+//    cli/src/run-record.ts). Only the fields the report reads. ─────────────────
+
+export interface InReason { reason: string; detail: string }
+export interface InUnscanned { lane_id: string; target_file: string; reason: string; detail: string }
+
+/** Stage 2's own end-of-run verdict: run-status.json. */
+export interface InRunStatus {
+  generated_at?: string
+  ended_at?: string
+  status?: 'COMPLETE' | 'INCOMPLETE'
+  reasons?: InReason[]
+  unscanned?: InUnscanned[]
+  scope_excluded?: InUnscanned[]
+  spend?: { spent_usd?: number | null; estimate_usd?: number | null; cap_usd?: number | null }
+}
+
+/** Stage 1's admission: scan-plan.json. */
+export interface InScanPlan {
+  limits?: Record<string, unknown>
+  excluded?: { lane_id: string; target_file: string; reason: string; detail: string }[]
+  totals?: { projected_cost_usd?: number | null }
+  cap?: { max_cost_usd?: number | null }
+}
+
+/** The CLI's manifest of the whole run: run-record.json. Authoritative on status when present. */
+export interface InRunRecord {
+  updated_at?: string
+  status?: 'COMPLETE' | 'INCOMPLETE'
+  incomplete_reasons?: InReason[]
+  unscanned?: InUnscanned[]
+  scope_excluded?: InUnscanned[]
+  limits?: Record<string, unknown>
+  config_file?: { path: string; sha256: string } | null
+  confirmation?: { by: string; at: string; summary?: { scan?: { dirs?: string[] }; skip?: { dirs?: string[] } } } | null
+  spend?: { estimate_usd?: number | null; spent_usd?: number | null; reconciled_usd?: number | null; cap_usd?: number | null }
+}
+
 /** Everything the report reads, already parsed. Only the first two are required. */
 export interface ReportInputs {
   findings: InFinding[]
@@ -178,6 +211,9 @@ export interface ReportInputs {
   retries: number | null
   /** Whether usage-v2.json was older than the Stage 2 consumption it should describe. */
   usageStale: boolean
+  runStatus: InRunStatus | null
+  scanPlan: InScanPlan | null
+  runRecord: InRunRecord | null
 }
 
 // ── Environment the report is built in ──────────────────────────────────────
@@ -200,19 +236,21 @@ export interface RepoInfo {
   statusKnown: boolean
 }
 
-export interface BenchmarkReference {
+/**
+ * The chosen model's lab result: the registry's `benchmark` block (models.json,
+ * pinned to docs/benchmarking-results.md by guard.test.ts), plus the precision
+ * proxy from this package's benchmark-reference.json, which the registry does
+ * not carry. Null for an unmeasured model.
+ */
+export interface ModelBenchmark {
+  run: string
+  corpus: string
+  recall: string
+  localization: string
+  precision_proxy: string | null
+  /** Languages measured on this model, as the registry names them (lower case). */
+  languages: string[]
   source: string
-  measured_languages_rule: string
-  models: Record<string, {
-    label: string
-    run: string
-    recall: string
-    localization: string
-    file_level: string
-    precision_proxy: string
-    cost_usd: number
-    measured_languages: string[]
-  }>
 }
 
 export interface BuildEnv {
@@ -224,7 +262,7 @@ export interface BuildEnv {
   /** Cost in USD for a token split under this provider's registry price; null when unpriced. */
   costUsd: (input: number, output: number, cached: number, written: number) => number | null
   priceAsOf: string | null
-  benchmark: BenchmarkReference | null
+  benchmark: ModelBenchmark | null
   tool: { name: string; version: string; scannerGitSha: string | null }
   profile: string
   runId: string | null
@@ -342,6 +380,10 @@ export interface Report {
     languages: { language: string; files: number; scanned: number; code: boolean; measured: boolean }[]
     directories_included: string[]
     directories_excluded: string[]
+    /** `confirmed`: from the CLI's confirmation screen; `derived`: from which files were scanned. */
+    directories_basis: 'confirmed' | 'derived'
+    /** Hunt files the user's scope left out (--paths, --include/--exclude, --max-file-size). */
+    files_scope_excluded: number
     classes_hunted: { class: string; source: 'built-in' | 'recon-guided'; playbook: string; owasp: string[]; lanes: number }[]
     guidance_sources: string[]
   }
@@ -357,6 +399,7 @@ export interface Report {
     cost_usd: number | null
     cost_source: string
     estimate_usd: number | null
+    cap_usd: number | null
     price_asof: string | null
     wall_clock_seconds: number | null
     stage2_seconds: number | null
@@ -364,7 +407,7 @@ export interface Report {
     loop_mode: string | null
     reasoning_effort: string | null
   }
-  benchmark_reference: (BenchmarkReference['models'][string] & { provider: string; source: string }) | null
+  benchmark_reference: (ModelBenchmark & { provider: string }) | null
   findings: ReportFinding[]
   appendix: {
     skipped_files: SkippedFile[]

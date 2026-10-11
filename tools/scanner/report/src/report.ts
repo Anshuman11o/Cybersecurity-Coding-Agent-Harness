@@ -12,9 +12,10 @@
  *
  * Where they go depends on the profile:
  *
- *   product    <store>/runs/<run-id>/, the top of the run, beside run.json (the
- *              run's manifest). Internals stay in work/. The store's index.json
- *              and `latest` pointer are refreshed afterwards (runs-store.ts).
+ *   product    <store>/runs/<run-id>/, the top of the run, beside the CLI's
+ *              run-record.json (the run's manifest). Internals stay in work/.
+ *              The store's index.json and `latest` pointer are refreshed
+ *              afterwards (runs-store.ts).
  *   benchmark  <runs root>/<provider>/report/, beside the stages, as before.
  *
  * meta.json and the logs always sit in <runs root>/<provider>/report/, like
@@ -34,15 +35,18 @@
  *   stage1-budget-governor-perfile/usage-v2.json        reconciled cost
  *   stage1-budget-governor-perfile/budget-plan-v2.json  the estimate
  *   stage0-recon/{architecture-summary,file-signals}.json, meta.json
+ *   stage2-hunt-lanes-perfile/run-status.json           Stage 2's verdict (task 1c)
+ *   stage1-budget-governor-perfile/scan-plan.json       scope exclusions, estimate, cap (1c)
+ *   <run dir>/run-record.json                           the CLI's verdict and manifest (1c);
+ *                                                       authoritative on status when present
  *   stage2-hunt-lanes-perfile/logs/*.stdout.log         retry count
  */
-import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { dirname, join, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { RUNS_ROOT, REPO_ROOT, runPath } from '../../shared/run-paths.js'
-import { resolveProvider, labelFor, costUsd, priceAsOf } from '../../shared/provider.js'
+import { resolveProvider, labelFor, costUsd, priceAsOf, targetFor } from '../../shared/provider.js'
 import { assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import { getRunContext, describeRunContext } from '../../shared/run-context.js'
@@ -52,9 +56,9 @@ import { renderHtml } from './render-html.js'
 import { renderMarkdown } from './render-md.js'
 import { toSarif } from './sarif.js'
 import { renderTerminal } from './terminal.js'
-import { RUN_FILES, refreshStore } from './runs-store.js'
+import { RUN_RECORD_FILE, refreshStore } from './runs-store.js'
 import type {
-  BenchmarkReference, InArchitecture, InAssignments, InConsumption, InFileSignals, InFinding, InMeta,
+  ModelBenchmark, InArchitecture, InRunRecord, InRunStatus, InScanPlan, InAssignments, InConsumption, InFileSignals, InFinding, InMeta,
   InPlan, InUsage, ReportInputs,
 } from './types.js'
 
@@ -147,13 +151,32 @@ async function main() {
   const log = join(s2, 'logs', 'stage2-hunt-lanes-perfile.stdout.log')
   if (existsSync(log)) retries = (readFileSync(log, 'utf-8').match(/\[RETRY\]/g) ?? []).length
 
+  // Task 1c's hand-off. Each is trusted only when it describes this Stage 2
+  // pass: a status or record left by an earlier pass would report its verdict
+  // on lanes that have since been re-run.
+  const stage2Meta = readJson<InMeta>(join(s2, 'meta.json'))
+  const s2Started = stage2Meta?.started ? Date.parse(stage2Meta.started) : NaN
+  const s2Ended = stage2Meta?.ended ? Date.parse(stage2Meta.ended) : NaN
+  const notBefore = (t: string | undefined, ref: number) =>
+    !Number.isFinite(ref) || (t !== undefined && Date.parse(t) >= ref - 1000)
+  let runStatus = readJson<InRunStatus>(join(s2, 'run-status.json'))
+  if (runStatus && !notBefore(runStatus.generated_at, s2Started)) {
+    console.warn('  [WARN] run-status.json predates this Stage 2 pass; ignored')
+    runStatus = null
+  }
+  let runRecord = ctx.profile === 'product' && ctx.runDir ? readJson<InRunRecord>(join(ctx.runDir, RUN_RECORD_FILE)) : null
+  if (runRecord && !notBefore(runRecord.updated_at, s2Ended)) {
+    console.warn(`  [WARN] ${RUN_RECORD_FILE} predates this Stage 2 pass; ignored`)
+    runRecord = null
+  }
+
   const inputs: ReportInputs = {
     findings,
     assignments,
     consumption: consumptionObj,
     usage,
     plan: readJson<InPlan>(join(s1, 'budget-plan-v2.json')),
-    stage2Meta: readJson<InMeta>(join(s2, 'meta.json')),
+    stage2Meta,
     stage0Meta: readJson<InMeta>(join(s0, 'meta.json')),
     architecture: readJson<InArchitecture>(join(s0, 'architecture-summary.json')),
     fileSignals: readJson<InFileSignals>(join(s0, 'file-signals.json')),
@@ -161,6 +184,9 @@ async function main() {
     signalClasses: readJson(join(SHARED_DIR, 'signal-classes.json')),
     retries,
     usageStale,
+    runStatus,
+    scanPlan: readJson<InScanPlan>(join(s1, 'scan-plan.json')),
+    runRecord,
   }
 
   // The tree the lanes are relative to is the one Stage 0.5 recorded.
@@ -182,7 +208,7 @@ async function main() {
     readTargetFile: (rel) => readCorpusFile(relative(REPO_ROOT, join(targetDir, rel))),
     costUsd: (i, o, c, w) => costUsd(provider, i, o, c, w),
     priceAsOf: priceAsOf(provider),
-    benchmark: readJson<BenchmarkReference>(join(PACKAGE_DIR, 'benchmark-reference.json')),
+    benchmark: modelBenchmark(provider),
     tool: { name: 'secscan', version: pkg?.version ?? '0.0.0', scannerGitSha: gitShortSha() },
     profile: ctx.profile,
     runId: ctx.runId,
@@ -230,13 +256,11 @@ async function main() {
     run_context: describeRunContext(),
   }, null, 2) + '\n')
 
-  // Product: the run's manifest, then the store's index and latest pointer.
+  // Product: refresh the store's index and latest pointer. The run's manifest
+  // is the CLI's run-record.json, written beside the report.
   const shownExtra: Record<string, string> = {}
   if (ctx.profile === 'product' && ctx.runDir && ctx.outRoot && outDir === ctx.runDir) {
-    writeAtomic(join(outDir, 'run.json'), JSON.stringify(
-      runManifest(report, provider, ctx.runDir, inputs.usageStale), null, 2) + '\n')
     const index = refreshStore(ctx.outRoot, report.generated_at)
-    shownExtra['run.json'] = join(outDir, 'run.json')
     shownExtra['index.json'] = join(ctx.outRoot, 'index.json')
     if (index.latest === ctx.runId) shownExtra['latest'] = join(ctx.outRoot, 'latest')
   }
@@ -252,69 +276,22 @@ async function main() {
   }
 }
 
-const sha256File = (p: string) => createHash('sha256').update(readFileSync(p)).digest('hex')
-
 /**
- * run.json: what this run was and what it produced, readable without opening
- * any stage artifact. Every path in it is relative to the run directory.
- * Built at report time from the stages' own meta.json files, so it records what
- * ran rather than what was asked for.
+ * The chosen model's lab result. Measured status, recall and localization come
+ * from the registry's `benchmark` block, the same source `secscan models` and
+ * the confirmation screen label MEASURED from, so the report can never disagree
+ * with them. The precision proxy is not in the registry and comes from this
+ * package's benchmark-reference.json.
  */
-function runManifest(
-  report: ReturnType<typeof buildReport>, provider: string, runDir: string, usageStale: boolean,
-): Record<string, unknown> {
-  const work = join(RUNS_ROOT, provider)
-  const stages = existsSync(work)
-    // This stage's own meta.json is left out: its timestamps are this process,
-    // and generated_at already records when the report was made.
-    ? readdirSync(work).sort().filter((stage) => stage !== REPORT_STAGE).flatMap((stage) => {
-        const m = readJson<InMeta>(join(work, stage, 'meta.json'))
-        return m ? [{
-          stage, model: m.model ?? null, git_sha: m.git_sha ?? null, started: m.started ?? null,
-          ended: m.ended ?? null, exit_code: m.exit_code ?? null, blocked_reads: m.blocked_reads ?? null,
-        }] : []
-      })
-    : []
-  const hashes = (files: string[]) => Object.fromEntries(files
-    .filter((f) => existsSync(join(runDir, f)))
-    .map((f) => [f, sha256File(join(runDir, f))]))
-  const rel = (p: string) => relative(runDir, p).split('\\').join('/')
-  const started = stages.map((s) => s.started).filter((t): t is string => !!t).sort()[0] ?? null
+function modelBenchmark(provider: string): ModelBenchmark | null {
+  let b
+  try { b = targetFor(provider).benchmark } catch { return null }
+  if (!b) return null
+  const ref = readJson<{ models?: Record<string, { precision_proxy?: string }> }>(join(PACKAGE_DIR, 'benchmark-reference.json'))
   return {
-    schema_version: '1.0',
-    run_id: report.header.run_id,
-    generated_at: report.generated_at,
-    status: report.status.state,
-    status_reasons: report.status.reasons,
-    started,
-    profile: report.header.profile,
-    target_root: report.header.root,
-    repo: { name: report.header.repo, commit: report.header.commit, branch: report.header.branch, github: report.header.github },
-    tool: report.tool,
-    provider,
-    model: report.header.model,
-    scope: report.header.scope,
-    config_hash: report.header.config_hash,
-    config: report.appendix.config,
-    stages,
-    inputs: hashes([
-      'stage2-hunt-lanes-perfile/candidate-findings.json',
-      'stage2-hunt-lanes-perfile/budget-consumption.json',
-      'stage05-lane-selector-perfile/lane-assignments.json',
-      'stage1-budget-governor-perfile/usage-v2.json',
-      'stage1-budget-governor-perfile/budget-plan-v2.json',
-    ].map((f) => rel(join(work, f)))),
-    usage_record_ignored_as_stale: usageStale,
-    outputs: hashes(RUN_FILES.filter((f) => f !== 'run.json')),
-    summary: {
-      findings: report.summary.total,
-      by_severity: report.summary.by_severity,
-      by_confidence_band: report.summary.by_confidence_band,
-      files_scanned: report.coverage.files_scanned,
-      files_total: report.coverage.files_total,
-      cost_usd: report.run_stats.cost_usd,
-      estimate_usd: report.run_stats.estimate_usd,
-    },
+    run: b.run, corpus: b.corpus, recall: b.recall, localization: b.localization,
+    precision_proxy: ref?.models?.[provider]?.precision_proxy ?? null,
+    languages: b.languages, source: b.source,
   }
 }
 

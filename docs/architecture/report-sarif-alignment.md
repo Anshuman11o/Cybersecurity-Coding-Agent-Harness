@@ -101,7 +101,7 @@ specification makes mandatory.
 | Repository | `versionControlProvenance[].repositoryUri` | ✅ GitHub only | keep |
 | Commit | `.revisionId` | ✅ | keep |
 | Branch | `.branch` | ✅ | keep |
-| Scan start/end | `invocations[].startTimeUtc`, `.endTimeUtc` | ❌ | from the stages' meta.json, now gathered in `run.json` |
+| Scan start/end | `invocations[].startTimeUtc`, `.endTimeUtc` | ❌ | from the CLI's `run-record.json` (`stages[]`, `created_at`, `updated_at`) |
 | Completed? | `invocations[].executionSuccessful` | ❌ | false when the report is INCOMPLETE |
 | Problems during the run | `invocations[].toolExecutionNotifications` | ❌ | failed lanes, blocked reads, cap reached |
 | Command / config | `invocations[].commandLine`, `.arguments` | ❌ | arguments only; API keys come from env vars and never appear |
@@ -202,7 +202,7 @@ file on disk, as lines are now.
 ## 5. Dependencies
 
 - **Run store** (added in task 1d, implemented; see `tools/scanner/report/README.md`):
-  `<store>/index.json` and each run's `run.json` make `baselineState` and
+  `<store>/index.json` and each run's `findings.json` and `run-record.json` make `baselineState` and
   first/last detection computable locally, by fingerprint against earlier runs.
 - **Suppressions** need a committed file format (team decisions belong in the
   repository, not in the git-ignored store), plus how GitHub treats SARIF

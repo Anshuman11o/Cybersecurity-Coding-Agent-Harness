@@ -90,7 +90,7 @@ export function renderMarkdown(report: Report): string {
   push('| Files | Count |', '|---|---|')
   push(`| In inventory | ${c.files_total} |`)
   push(`| Scanned | ${c.files_scanned} |`)
-  push(`| Skipped | ${c.files_skipped} |`)
+  push(`| Skipped | ${c.files_skipped}${c.files_scope_excluded ? ` (${c.files_scope_excluded} by your scope)` : ''} |`)
   for (const [k, v] of Object.entries(c.skipped_by_reason)) push(`| &nbsp;&nbsp;${md(k)} | ${v} |`)
   push(`| Failed | ${c.files_failed} |`)
   if (c.files_not_run) push(`| Never ran | ${c.files_not_run} |`)
@@ -99,8 +99,9 @@ export function renderMarkdown(report: Report): string {
   push('| Language | Files | Scanned | Benchmark status |', '|---|---|---|---|')
   for (const l of c.languages) push(`| ${md(l.language)} | ${l.files} | ${l.scanned} | ${l.code ? (l.measured ? 'measured' : 'unmeasured') : 'not code'} |`)
   push('')
-  push(`Directories included: ${c.directories_included.map((d) => `\`${md(d)}\``).join(', ') || 'none'}`, '')
-  push(`Directories excluded (no file scanned): ${c.directories_excluded.map((d) => `\`${md(d)}\``).join(', ') || 'none'}`, '')
+  const basis = c.directories_basis === 'confirmed' ? ' (as confirmed)' : ''
+  push(`Directories included${basis}: ${c.directories_included.map((d) => `\`${md(d)}\``).join(', ') || 'none'}`, '')
+  push(`Directories excluded${basis || ' (no file scanned)'}: ${c.directories_excluded.map((d) => `\`${md(d)}\``).join(', ') || 'none'}`, '')
   push('| Class hunted | Source | OWASP | Files |', '|---|---|---|---|')
   for (const k of c.classes_hunted) push(`| ${md(k.class)} | ${k.source} | ${k.owasp.join(', ')} | ${k.lanes} |`)
   push('')
@@ -120,11 +121,12 @@ export function renderMarkdown(report: Report): string {
   push(`| Model calls | ${fmtInt(r.calls)} |`)
   push(`| Cost | ${fmtUsd(r.cost_usd)} — ${md(r.cost_source)} |`)
   push(`| Estimate | ${fmtUsd(r.estimate_usd)}${r.cost_usd != null && r.estimate_usd ? ` (actual is ${pct(r.cost_usd, r.estimate_usd)} of estimate)` : ''} |`)
+  if (r.cap_usd != null) push(`| Spend cap | ${fmtUsd(r.cap_usd)} |`)
   push(`| Wall clock | ${r.wall_clock_seconds != null ? fmtDuration(r.wall_clock_seconds) + ' (whole run)' : `${fmtDuration(r.stage2_seconds)} (Stage 2)`} |`)
   push(`| Retries | ${r.retries == null ? 'not recorded (no Stage 2 log)' : r.retries} |`, '')
   if (report.benchmark_reference) {
     const b = report.benchmark_reference
-    push(`Benchmark reference for this model (${md(b.source)}, ${md(b.run)}): recall ${b.recall}, localization ${b.localization}, precision proxy ${b.precision_proxy}. These describe the lab benchmark, not this repository.`, '')
+    push(`Benchmark reference for this model (${md(b.corpus)}, ${md(b.run)}; ${md(b.source)}): exact-line recall ${b.recall}, localization ${b.localization}${b.precision_proxy ? `, precision proxy ${b.precision_proxy}` : ''}. These describe the lab benchmark, not this repository.`, '')
   }
 
   // 6. Findings

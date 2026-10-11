@@ -33,7 +33,12 @@ function check(name: string, cond: boolean) {
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY = JSON.parse(readFileSync(join(PKG, '../shared/vuln-classes.json'), 'utf-8'))
 const SIGNALS = JSON.parse(readFileSync(join(PKG, '../shared/signal-classes.json'), 'utf-8'))
-const BENCH = JSON.parse(readFileSync(join(PKG, 'benchmark-reference.json'), 'utf-8'))
+// A measured model whose measured language is the fixture's, so the measured /
+// unmeasured split is exercised. The registry spells languages in lower case.
+const BENCH = {
+  run: 'run 6, 2026-08-01', corpus: 'OWASP Juice Shop, 97 reachable entries', recall: '69/97',
+  localization: '86/97', precision_proxy: '12.5% (69/553)', languages: ['javascript'], source: 'ledger §2.1',
+}
 
 // ── Fixture repository ──────────────────────────────────────────────────────
 
@@ -120,6 +125,9 @@ function baseInputs(findings: InFinding[]): ReportInputs {
     signalClasses: SIGNALS,
     retries: 2,
     usageStale: false,
+    runStatus: null,
+    scanPlan: null,
+    runRecord: null,
   }
 }
 
@@ -320,7 +328,7 @@ try {
     check('COMPLETE when every hunt lane ran', report.status.state === 'COMPLETE')
     check('skip bucketed as non-code', report.coverage.skipped_by_reason['non-code'] === 1)
     check('code lines exclude CSS', report.coverage.code_lines_total === LOGIN.split('\n').length + KEYS.split('\n').length + 3)
-    check('Python is unmeasured, JavaScript measured, for luna',
+    check('Python is unmeasured, JavaScript measured (registry names compared case-insensitively)',
       report.coverage.languages.find((l) => l.language === 'Python')?.measured === false &&
       report.coverage.languages.find((l) => l.language === 'JavaScript')?.measured === true)
     check('unmeasured language is a limitation', report.limitations.some((l) => l.startsWith('Unmeasured language(s): Python')))
@@ -330,14 +338,57 @@ try {
     failed.consumption!.legacy_entries![1] = { lane_id: 'file-0002', tokens_used: 0, failed: true, failure_reason: '429 rate limit' }
     const notRun = baseInputs([OLD])
     notRun.consumption!.legacy_entries = notRun.consumption!.legacy_entries!.filter((e) => e.lane_id !== 'file-0003')
-    notRun.consumption!.stop_reason = 'spend cap $0.01 reached'
+    notRun.runStatus = {
+      generated_at: '2026-10-10T09:10:00Z', status: 'INCOMPLETE',
+      reasons: [{ reason: 'max_cost', detail: 'stopped at the $0.01 spend cap' }],
+      unscanned: [{ lane_id: 'file-0003', target_file: 'src/util.py', reason: 'max_cost', detail: 'not started: the next file would pass the cap' }],
+    }
     const blocked = baseInputs([OLD])
     blocked.consumption!.lanes![1].chunks = []
     blocked.consumption!.legacy_entries![1] = { lane_id: 'file-0002', tokens_used: 0 }
     const rf = buildReport(failed, env()), rn = buildReport(notRun, env()), rb = buildReport(blocked, env())
     check('a failed lane makes it INCOMPLETE', rf.status.state === 'INCOMPLETE' && rf.coverage.files_failed === 1)
-    check('a lane that never ran makes it INCOMPLETE, with the stop reason',
-      rn.status.state === 'INCOMPLETE' && rn.coverage.files_not_run === 1 && rn.status.reasons.some((r) => r.includes('spend cap')))
+    check('a cap stop: INCOMPLETE in Stage 2\'s own words',
+      rn.status.state === 'INCOMPLETE' && rn.coverage.files_not_run === 1 &&
+      JSON.stringify(rn.status.reasons) === JSON.stringify(['stopped at the $0.01 spend cap']))
+    check('...the unscanned file carries its reason', rn.appendix.failed_lanes.some((x) => x.path === 'src/util.py' && x.reason.startsWith('max_cost:')))
+    check('...and the stop is a limitation', rn.limitations.some((l) => l.includes('stopped early: stopped at the $0.01 spend cap')))
+
+    // A file the user's scope left out was never meant to run: skipped, not missing.
+    const scoped = baseInputs([OLD])
+    scoped.consumption!.legacy_entries = scoped.consumption!.legacy_entries!.filter((e) => e.lane_id !== 'file-0003')
+    scoped.scanPlan = {
+      excluded: [{ lane_id: 'file-0003', target_file: 'src/util.py', reason: 'user-excluded', detail: 'outside --paths src/login.js' }],
+      totals: { projected_cost_usd: 0.004 }, cap: { max_cost_usd: 1 },
+    }
+    const rs = buildReport(scoped, env())
+    check('a scope-excluded file does not make the run INCOMPLETE', rs.status.state === 'COMPLETE' && rs.coverage.files_not_run === 0)
+    check('...it is counted as skipped by your scope', rs.coverage.skipped_by_reason['user-excluded'] === 1 &&
+      rs.coverage.files_scope_excluded === 1 && rs.coverage.files_skipped === 2)
+    check('...and the scan plan supplies the estimate and the cap', rs.run_stats.estimate_usd === 0.004 && rs.run_stats.cap_usd === 1)
+
+    // The CLI's record wins on status, and supplies what the user confirmed.
+    const recorded = baseInputs([OLD])
+    recorded.runRecord = {
+      updated_at: '2026-10-10T09:11:00Z', status: 'COMPLETE', incomplete_reasons: [],
+      limits: { max_cost_usd: 2 }, config_file: { path: 'secscan.config.json', sha256: 'ab'.repeat(32) },
+      confirmation: { by: 'prompt', at: '2026-10-10T09:00:00Z', summary: { scan: { dirs: ['src/'] }, skip: { dirs: ['styles/'] } } },
+      spend: { estimate_usd: 0.02, cap_usd: 2 },
+    }
+    const rr = buildReport(recorded, env())
+    check('the run record\'s COMPLETE stands when the report agrees', rr.status.state === 'COMPLETE')
+    check('directories come from the confirmation screen', rr.coverage.directories_basis === 'confirmed' &&
+      JSON.stringify(rr.coverage.directories_included) === '["src/"]' && JSON.stringify(rr.coverage.directories_excluded) === '["styles/"]')
+    check('limits and the config file enter the config hash', rr.header.config_hash !== report.header.config_hash &&
+      (rr.appendix.config as any).limits.max_cost_usd === 2)
+    check('without a record, directories are derived from what ran', report.coverage.directories_basis === 'derived')
+    const disagree = baseInputs([OLD])
+    disagree.runRecord = { ...recorded.runRecord }
+    disagree.consumption!.legacy_entries![1] = { lane_id: 'file-0002', tokens_used: 0, failed: true, failure_reason: 'boom' }
+    const rd = buildReport(disagree, env())
+    check('a COMPLETE record cannot hide a failure the report sees', rd.status.state === 'INCOMPLETE' &&
+      rd.status.reasons.some((r) => r.includes("the report's own check; the run record said COMPLETE")))
+
     check('a guard-blocked lane is failed, not scanned', rb.coverage.files_failed === 1 && rb.coverage.files_scanned === 2)
     const noUsage = baseInputs([OLD]); noUsage.consumption = null
     check('no usage record: INCOMPLETE, not a crash', buildReport(noUsage, env()).status.state === 'INCOMPLETE')
@@ -417,7 +468,13 @@ try {
     inputs.assignments.coverage_ledger = { total_files_in_inventory: 5, assigned_hunt: 4, assigned_skip: 1, unaccounted: 0 }
     put('stage05-lane-selector-perfile', 'lane-assignments.json', inputs.assignments)
     put('stage2-hunt-lanes-perfile', 'candidate-findings.json', [...inputs.findings, sneaky])
-    // An older run with no report, and one from before work/ existed: the index lists both.
+    // The CLI's run record, written after Stage 2 ended, as the CLI does before the report.
+    writeFileSync(join(runDir, 'run-record.json'), JSON.stringify({
+      schema: 'secscan.run-record/1', updated_at: '2026-10-10T09:11:00Z', status: 'INCOMPLETE',
+      incomplete_reasons: [{ reason: 'interrupted', detail: 'stopped: test record' }],
+      confirmation: { by: '--yes', at: '2026-10-10T08:59:00Z', summary: { scan: { dirs: ['src/'] }, skip: { dirs: ['styles/'] } } },
+    }))
+    // An older run with no report: the index lists it.
     mkdirSync(join(store, 'runs/r0-noreport/work/luna/stage0-recon'), { recursive: true })
 
     const runReport = () => spawnSync('npx', ['tsx', 'src/report.ts'], {
@@ -427,7 +484,7 @@ try {
     const res = runReport()
     check('report.ts exits 0', res.status === 0)
     if (res.status !== 0) console.log(res.stdout, res.stderr)
-    for (const f of ['report.html', 'report.md', 'findings.json', 'findings.sarif', 'run.json']) {
+    for (const f of ['report.html', 'report.md', 'findings.json', 'findings.sarif']) {
       check(`writes ${f} at the top of the run directory`, existsSync(join(runDir, f)))
     }
     check('meta.json stays with the internals', existsSync(join(work, 'luna/report/meta.json')) && !existsSync(join(runDir, 'meta.json')))
@@ -439,14 +496,12 @@ try {
       !readFileSync(join(runDir, 'report.md'), 'utf-8').includes('leak'))
     check('meta.json records the blocked read', JSON.parse(readFileSync(join(work, 'luna/report/meta.json'), 'utf-8')).blocked_reads >= 1)
 
-    const run = JSON.parse(readFileSync(join(runDir, 'run.json'), 'utf-8'))
-    check('run.json names the run, commit and status', run.run_id === 'r1' && run.repo.commit === SHA && run.status === fj.status.state)
-    check('run.json lists the stages that ran, from their meta.json',
-      run.stages.some((x: any) => x.stage === 'stage2-hunt-lanes-perfile') && !run.stages.some((x: any) => x.stage === 'report'))
-    check('run.json hashes inputs and outputs by run-relative path',
-      /^[0-9a-f]{64}$/.test(run.inputs['work/luna/stage2-hunt-lanes-perfile/candidate-findings.json']) &&
-      /^[0-9a-f]{64}$/.test(run.outputs['findings.sarif']))
-    check('run.json summary matches the report', run.summary.findings === fj.summary.total)
+    check('no separate manifest: the CLI\'s run-record.json is the run\'s manifest', !existsSync(join(runDir, 'run.json')))
+    check('measured status comes from the registry: luna measures TypeScript, not JavaScript',
+      fj.coverage.languages.find((l: any) => l.language === 'JavaScript')?.measured === false &&
+      fj.benchmark_reference?.recall === '69/97' && fj.benchmark_reference?.precision_proxy === '12.5% (69/553)')
+    check('the CLI\'s run record decides status and supplies the confirmed directories',
+      fj.status.state === 'INCOMPLETE' && fj.status.reasons[0] === 'stopped: test record' && fj.coverage.directories_basis === 'confirmed')
 
     const index = JSON.parse(readFileSync(join(store, 'index.json'), 'utf-8'))
     check('index lists every run, newest first', JSON.stringify(index.runs.map((r: any) => r.run_id)) === JSON.stringify(['r1', 'r0-noreport']))
@@ -460,7 +515,7 @@ try {
     const again = runReport()
     check('deterministic: a second run writes byte-identical outputs and manifest',
       again.status === 0 && readFileSync(join(runDir, 'findings.json'), 'utf-8') === JSON.stringify(fj, null, 2) + '\n' &&
-      readFileSync(join(runDir, 'run.json'), 'utf-8') === JSON.stringify(run, null, 2) + '\n')
+      readFileSync(join(store, 'index.json'), 'utf-8') === JSON.stringify(index, null, 2) + '\n')
 
     console.log('\n-- run store: list and prune --')
     {
@@ -469,7 +524,7 @@ try {
         mkdirSync(join(store, 'runs', id, 'work/luna/stage0-recon'), { recursive: true })
         writeFileSync(join(store, 'runs', id, 'work/luna/stage0-recon/big.json'), 'x'.repeat(5000))
         writeFileSync(join(store, 'runs', id, 'report.html'), '<html></html>')
-        writeFileSync(join(store, 'runs', id, 'run.json'), JSON.stringify({ status: 'COMPLETE', summary: { findings: 1 } }))
+        writeFileSync(join(store, 'runs', id, 'findings.json'), JSON.stringify({ status: { state: 'COMPLETE' }, summary: { total: 1 } }))
       }
       mkdirSync(join(root, 'elsewhere'))
       symlinkSync(join(root, 'elsewhere'), join(store, 'runs', '20260101-000000'))
@@ -530,7 +585,7 @@ try {
       check('run.sh report with --yes and --out exits 0', ok.status === 0)
       if (ok.status !== 0) console.log(ok.stdout, ok.stderr)
       check('the store gets its .gitignore of *', readFileSync(join(outside, '.gitignore'), 'utf-8') === '*\n')
-      check('the report lands at the top of the run', existsSync(join(outside, 'runs/r9/report.html')) && existsSync(join(outside, 'runs/r9/run.json')))
+      check('the report lands at the top of the run', existsSync(join(outside, 'runs/r9/report.html')) && existsSync(join(outside, 'runs/r9/findings.sarif')))
       check('logs land with the internals', existsSync(join(w, 'luna/report/logs/report.stdout.log')))
       check('the store index and latest are written', existsSync(join(outside, 'index.json')) && existsSync(join(outside, 'latest')))
       check('nothing is written into the target', !existsSync(join(target, '.secscan/runs/r9')))

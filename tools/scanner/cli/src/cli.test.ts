@@ -211,3 +211,18 @@ test('run verdict: complete only when the hunt says so and every stage exited 0'
   assert.equal(decideStatus(null, [ok('stage0-recon', 1)], false).status, 'INCOMPLETE')
   assert.deepEqual(decideStatus(null, [], true).reasons.map(r => r.reason), ['cancelled'])
 })
+
+test('--out names the run store; the confirmation says where results go (task 1d)', () => {
+  const a = parseArgs(['scan', './app', '--out', '/tmp/results']) as any
+  assert.equal(a.out, '/tmp/results')
+  assert.equal((parseArgs(['scan']) as any).out, undefined)
+  assert.throws(() => parseArgs(['scan', '--out']), UsageError)
+  const base = {
+    targetDisplay: './app', targetRoot: '/app', commit: 'abc1234', branch: 'main',
+    lanes: assignmentLanes, inventoryFiles: 5, byLanguage: undefined,
+    plan: planFor(NO_LIMITS), model, resume: null,
+  }
+  const withResults = renderSummary(buildSummary({ ...base, resultsDir: '/app/.secscan/runs/r1' }))
+  assert.match(withResults, /^Results: \/app\/\.secscan\/runs\/r1 \(git-ignored\)$/m)
+  assert.doesNotMatch(renderSummary(buildSummary(base)), /^Results:/m)
+})

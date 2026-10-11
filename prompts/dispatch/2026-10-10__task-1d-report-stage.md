@@ -81,7 +81,7 @@ Added to this task at the owner's request, after review of the first version.
 ├── index.json                  one row per run, rebuilt from disk by the report stage
 ├── latest                      symlink to the newest reported run (latest.txt fallback)
 └── runs/<run-id>/
-    ├── report.html report.md findings.json findings.sarif run.json
+    ├── report.html report.md findings.json findings.sarif run-record.json
     └── work/<provider>/<stage>/   stage internals (was: runs/<run-id>/<provider>/<stage>/)
 ```
 
@@ -98,6 +98,25 @@ Added to this task at the owner's request, after review of the first version.
   prune (dry run without `--yes`; the newest run is never touched).
 - `--out` inside the target was ruled out rather than supported, so Stage 0 and
   Stage 0.5 (task 1b's files) need no exclusion change.
+
+**Integration with tasks 1b and 1c**, which merged to main while this task was
+open (merged in, conflicts kept both sides):
+
+- 1c's `run-record.json` is the run's manifest, at the top of the run directory;
+  the report's own `run.json` from the first draft of this amendment was dropped
+  rather than kept as a second manifest.
+- The report reads 1c's hand-off (run record, Stage 2 `run-status.json`, Stage 1
+  `scan-plan.json`): the pipeline's verdict and wording win; scope exclusions are
+  skipped files, not missing ones; the confirmed directories, limits and cap are
+  shown. The report's own derivation can only add an INCOMPLETE.
+- The secscan CLI runs the report stage after the hunt (also on a stopped run),
+  writes the run record to the run directory, gains `--out`, asks before
+  creating the store, and shows where results go on the confirmation screen.
+- Measured status, recall and localization come from the registry's `benchmark`
+  block; `benchmark-reference.json` keeps only the precision proxy, pinned to the
+  ledger by `guard.test.ts`.
+- Fixed in passing: `main`'s `guard.test.ts` did not parse after the 1b/1c merge
+  (an unclosed block), so no guard check ran there.
 
 **SARIF field alignment: deferred** until the architecture is complete and the
 eval runs are done, because some fields may be model-emitted. The analysis is in

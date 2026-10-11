@@ -40,7 +40,6 @@ denylisted file.
 | `report.md` | same sections; the GitHub job summary in Option B |
 | `findings.json` | the report model; every other output is rendered from it |
 | `findings.sarif` | SARIF 2.1.0, validated against the OASIS schema |
-| `run.json` | product only: the run's manifest (see below) |
 | `meta.json` | provenance, as every stage writes; always in `<runs root>/<provider>/report/` |
 
 plus a summary on stdout. `SOURCE_DATE_EPOCH` pins the timestamps; with it, two
@@ -63,14 +62,13 @@ from committed artifacts and runs to tens of megabytes on a full run.
     ├── latest                 symlink to the newest reported run (latest.txt where symlinks fail)
     └── runs/<run-id>/         <run-id> is a UTC timestamp, YYYYMMDD-HHMMSS
         ├── report.html  report.md  findings.json  findings.sarif    what the user opens
-        ├── run.json           manifest: status, commit, tool, model, config hash,
-        │                      each stage's timing and exit code, sha256 of inputs and outputs
+        ├── run-record.json    the run's manifest, written by the secscan CLI (cli/README.md)
         └── work/<provider>/<stage>/   stage internals, checkpoints, logs
 ```
 
-- **Consent.** `run.sh` creates the store only after asking once on a terminal
-  ("Create it? [Y/n]"), or with `--yes` in scripts and CI. With neither,
-  nothing is written. The repository's own `.gitignore` is never touched; the
+- **Consent.** The secscan CLI and `run.sh` create the store only after asking
+  once on a terminal ("Create it? [Y/n]"), or with `--yes` in scripts and CI.
+  With neither, nothing is written. The repository's own `.gitignore` is never touched; the
   store ignores itself, as pytest's `.pytest_cache` does.
 - **`--out DIR`** moves the whole store, for example outside the repository.
   It must lie outside the target (a store inside it would be inventoried and
@@ -121,19 +119,27 @@ touched):
   optional; a finding without them says "not recorded" and lists them under
   `fields_missing`, and the report counts such findings as a limitation.
 
-## Forward-compatible hooks
+## Task 1c's hand-off
 
-Read if present, so later tasks need not change this stage:
+When the secscan CLI ran the scan, the report reads what it and the stages
+recorded, most authoritative first, and does not re-derive it:
 
-- `budget-consumption.json` or Stage 2 `meta.json` → `stop_reason`: the run
-  stopped early (a spend cap, Ctrl-C). Marks the run INCOMPLETE with the reason.
-- a lane's `skip_category`: a machine-readable skip bucket (`user-excluded`,
-  `ignored`, `non-code`, `too large`, `over budget`). Without it, the free-text
-  `skip_reason` is bucketed by wording.
+| File | Gives the report |
+|---|---|
+| `<run dir>/run-record.json` (CLI) | the verdict (COMPLETE/INCOMPLETE) and its reasons, unscanned files with reasons, scope exclusions, the directories the user confirmed, limits, the config file's hash, estimate and cap |
+| `work/<model>/stage2-hunt-lanes-perfile/run-status.json` | the same verdict and lists from Stage 2, for runs driven by `run.sh` |
+| `work/<model>/stage1-budget-governor-perfile/scan-plan.json` | scope exclusions, the confirmed scope's estimate, the cap |
 
-Not yet produced anywhere, and shown as such: diff/paths scope (always `full`),
-recon-guided playbooks and their sources (always none), a user config file in
-the config hash.
+Each is used only when it describes the current Stage 2 pass. Files the scope
+left out (`--paths`, `--include`/`--exclude`, `--max-file-size`) count as
+skipped, not missing. The pipeline's verdict wins and its wording is used as is;
+the report's own derivation from the lane manifest and consumption record is a
+second opinion that can only turn a COMPLETE into an INCOMPLETE, never the
+reverse. A run made before task 1c has none of these files and is reported from
+the derivation alone.
+
+Not yet produced anywhere, and shown as such: diff scope (always `full`) and
+recon-guided playbooks and their sources (always none).
 
 ## SARIF alignment (deferred)
 
@@ -143,10 +149,12 @@ decided: `docs/architecture/report-sarif-alignment.md`.
 
 ## Benchmark reference
 
-`benchmark-reference.json` quotes the lab's aggregate figures per model from
-`docs/benchmarking-results.md` §1, and the languages measured on each (plan
-§3.4). Update it when a row is appended there. `guard.test.ts` asserts it stays
-aggregate.
+Measured status, measured languages, recall and localization come from the
+registry's `benchmark` block (`shared/models.json`), the same source the CLI's
+`secscan models` and confirmation screen use, so the report cannot disagree with
+them. `benchmark-reference.json` adds only the precision proxy, which the
+registry does not carry; `guard.test.ts` pins each figure to
+`docs/benchmarking-results.md`.
 
 ## Tests
 

@@ -164,11 +164,11 @@ function isAuthNone(auth: unknown): boolean {
 
 /**
  * The plan's skip buckets (§4.1.3): user-excluded, ignored, non-code, too
- * large, over budget. Stage 0.5 writes free-text reasons today, so they are
- * bucketed by wording; a lane carrying `skip_category` is taken at its word.
+ * large, over budget. Stage 0.5 writes free-text reasons, so they are bucketed
+ * by wording. Files the user's scope left out come from the scan plan instead
+ * (see SCOPE_BUCKET), with their reason as a code.
  */
-export function skipCategory(lane: Pick<InLane, 'skip_reason' | 'skip_category'>): string {
-  if (lane.skip_category) return lane.skip_category
+export function skipCategory(lane: Pick<InLane, 'skip_reason'>): string {
   const r = (lane.skip_reason ?? '').toLowerCase()
   if (/denylist/.test(r)) return 'excluded (benchmark denylist)'
   if (/user|exclude|--paths|secscanignore/.test(r)) return 'user-excluded'
@@ -178,6 +178,12 @@ export function skipCategory(lane: Pick<InLane, 'skip_reason' | 'skip_category'>
   if (/no executable logic|data\/config|styling|markup|declarative|non-code|binary/.test(r)) return 'non-code'
   return 'other'
 }
+
+/** Task 1c's scope-exclusion codes, in the plan's bucket words. */
+const SCOPE_BUCKET: Record<string, string> = { 'user-excluded': 'user-excluded', 'too-large': 'too large' }
+
+/** Task 1c's stop reasons: a limit or an interrupt ended the run early. */
+const STOP_REASONS = new Set(['max_cost', 'timeout', 'interrupted', 'chunk_bound'])
 
 // ── Build ───────────────────────────────────────────────────────────────────
 
@@ -204,11 +210,30 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
   const huntLanes = assignments.lanes.filter((l) => l.disposition === 'hunt')
   const skipLanes = assignments.lanes.filter((l) => l.disposition === 'skip')
 
+  // Task 1c's hand-off, most authoritative first: the CLI's run record, then
+  // Stage 2's own status, then Stage 1's scan plan. A run made before those
+  // existed has none of them, and everything below falls back to deriving the
+  // same facts from the lane manifest and the consumption record.
+  const verdict = inputs.runRecord?.status
+    ? { status: inputs.runRecord.status, reasons: inputs.runRecord.incomplete_reasons ?? [], source: 'run record' }
+    : inputs.runStatus?.status
+      ? { status: inputs.runStatus.status, reasons: inputs.runStatus.reasons ?? [], source: 'Stage 2 status' }
+      : null
+  const unscannedInfo = new Map(
+    (inputs.runRecord?.unscanned ?? inputs.runStatus?.unscanned ?? []).map((u) => [u.lane_id, u]))
+  // Hunt files the user's scope left out (--paths, --include/--exclude,
+  // --max-file-size) were never meant to run: they are skipped, not missing.
+  const scopeExcluded = new Map(
+    (inputs.runRecord?.scope_excluded ?? inputs.runStatus?.scope_excluded ??
+      (inputs.scanPlan?.excluded ?? []).filter((x) => x.reason !== 'over-max-files'))
+      .map((x) => [x.lane_id, x]))
+
   const scanned = new Set<string>()
   const failed: FailedLane[] = []
   const notRun: InLane[] = []
   let unmeasuredCalls = 0
   for (const lane of huntLanes) {
+    if (scopeExcluded.has(lane.lane_id)) continue
     const e = legacy.get(lane.lane_id)
     if (!e) { notRun.push(lane); continue }
     if (e.failed) {
@@ -438,13 +463,16 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
 
   // ── Coverage ──────────────────────────────────────────────────────────────
   const skippedByReason: Record<string, number> = {}
-  const skippedFiles: SkippedFile[] = skipLanes.map((l) => {
-    const category = skipCategory(l)
-    skippedByReason[category] = (skippedByReason[category] ?? 0) + 1
-    return { path: l.target_file, category, reason: l.skip_reason ?? '' }
-  }).sort((a, b) => a.category.localeCompare(b.category) || a.path.localeCompare(b.path))
+  const skippedFiles: SkippedFile[] = [
+    ...skipLanes.map((l) => ({ path: l.target_file, category: skipCategory(l), reason: l.skip_reason ?? '' })),
+    ...[...scopeExcluded.values()].map((x) => ({
+      path: x.target_file, category: SCOPE_BUCKET[x.reason] ?? x.reason, reason: x.detail,
+    })),
+  ].sort((a, b) => a.category.localeCompare(b.category) || a.path.localeCompare(b.path))
+  for (const f of skippedFiles) skippedByReason[f.category] = (skippedByReason[f.category] ?? 0) + 1
 
-  const measured = new Set(env.benchmark?.models[env.provider]?.measured_languages ?? [])
+  const measured = new Set((env.benchmark?.languages ?? []).map((l) => l.toLowerCase()))
+  const isMeasured = (language: string) => measured.has(language.toLowerCase())
   const langs = new Map<string, { files: number; scanned: number; code: boolean }>()
   let codeTotal = 0
   let codeScanned = 0
@@ -466,26 +494,38 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
     if (isScanned) dirsScanned.add(dir)
   }
 
+  const conf = inputs.runRecord?.confirmation?.summary
+  const confirmedDirs = conf?.scan?.dirs ? { included: [...conf.scan.dirs], excluded: [...(conf.skip?.dirs ?? [])] } : null
+
   const classLanes = new Map<string, number>()
   for (const l of huntLanes) for (const c of laneClasses(l)) classLanes.set(c, (classLanes.get(c) ?? 0) + 1)
 
   // ── Status ────────────────────────────────────────────────────────────────
-  const stopReason = inputs.consumption?.stop_reason ?? inputs.stage2Meta?.stop_reason ?? null
-  const reasons: string[] = []
-  if (!inputs.consumption) reasons.push('no Stage 2 usage record (budget-consumption.json) — lane outcomes unknown')
-  if (stopReason) reasons.push(`run stopped early: ${stopReason}`)
-  if (notRun.length > 0) reasons.push(`${notRun.length} of ${huntLanes.length} hunt lane(s) never ran`)
-  if (failed.length > 0) reasons.push(`${failed.length} hunt lane(s) failed and produced no findings`)
-  if (!inputs.stage2Meta) reasons.push('Stage 2 recorded no completion (meta.json missing)')
+  const stops = (verdict?.reasons ?? []).filter((r) => STOP_REASONS.has(r.reason))
+  const stopReason = stops.length ? stops.map((r) => r.detail).join('; ') : null
+  const derived: string[] = []
+  if (!inputs.consumption) derived.push('no Stage 2 usage record (budget-consumption.json) — lane outcomes unknown')
+  const admittedHunt = huntLanes.length - scopeExcluded.size
+  if (notRun.length > 0) derived.push(`${notRun.length} of ${admittedHunt} hunt lane(s) never ran`)
+  if (failed.length > 0) derived.push(`${failed.length} hunt lane(s) failed and produced no findings`)
+  if (!inputs.stage2Meta) derived.push('Stage 2 recorded no completion (meta.json missing)')
   else if (inputs.stage2Meta.exit_code !== undefined && inputs.stage2Meta.exit_code !== 0) {
-    reasons.push(`Stage 2 exited with code ${inputs.stage2Meta.exit_code}`)
+    derived.push(`Stage 2 exited with code ${inputs.stage2Meta.exit_code}`)
   }
   if (inputs.consumption && inputs.consumption.lanes && !inputs.consumption.rollup) {
-    reasons.push('Stage 2 usage record has no final rollup (the last pass did not finish)')
+    derived.push('Stage 2 usage record has no final rollup (the last pass did not finish)')
   }
   if (assignments.coverage_ledger.unaccounted !== 0) {
-    reasons.push(`coverage ledger has ${assignments.coverage_ledger.unaccounted} unaccounted file(s)`)
+    derived.push(`coverage ledger has ${assignments.coverage_ledger.unaccounted} unaccounted file(s)`)
   }
+  // The pipeline's own verdict wins and its wording is used as is. The report's
+  // derivation is a second opinion that can only ever make a run INCOMPLETE:
+  // a partial run must never be presented as a whole one, whoever missed it.
+  const reasons = verdict?.status === 'INCOMPLETE'
+    ? verdict.reasons.map((r) => r.detail)
+    : verdict?.status === 'COMPLETE' && derived.length
+      ? [...derived.map((d) => `${d} (the report's own check; the ${verdict.source} said COMPLETE)`)]
+      : derived
 
   // ── Run stats ─────────────────────────────────────────────────────────────
   let input: number | null = null, cached: number | null = null, written: number | null = null
@@ -550,28 +590,32 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
     sweep_group_size: s2?.sweep_group_size ?? null,
     playbooks: 'built-in',
     class_registry_sha256: sha256(canonicalJson(registry)),
+    limits: inputs.runRecord?.limits ?? inputs.scanPlan?.limits ?? null,
+    config_file_sha256: inputs.runRecord?.config_file?.sha256 ?? null,
+    confirmed_by: inputs.runRecord?.confirmation?.by ?? null,
   }
 
   // ── Limitations, generated from this run ──────────────────────────────────
   const limitations: string[] = []
   const scannedLangs = [...langs.entries()].filter(([, v]) => v.code && v.scanned > 0).map(([k]) => k)
-  const unmeasured = scannedLangs.filter((l) => !measured.has(l)).sort()
+  const unmeasured = scannedLangs.filter((l) => !isMeasured(l)).sort()
   if (unmeasured.length > 0) {
     limitations.push(`Unmeasured language(s): ${unmeasured.join(', ')}. The scanner has no benchmark result for ${unmeasured.length === 1 ? 'it' : 'them'} on this model, so detection quality there is unknown.`)
   }
   if (skipLanes.length > 0) limitations.push(`${skipLanes.length} file(s) in the inventory were skipped and not examined (reasons in Coverage and the Appendix).`)
   if (failed.length > 0) limitations.push(`${failed.length} file(s) failed to scan and contribute no findings.`)
+  if (scopeExcluded.size > 0) limitations.push(`${scopeExcluded.size} file(s) were left out by the scan's scope (--paths, --include/--exclude or --max-file-size) and were not examined.`)
   if (notRun.length > 0) limitations.push(`${notRun.length} file(s) were planned but never scanned${stopReason ? ` (${stopReason})` : ''}.`)
-  if (stopReason) limitations.push(`The run hit a limit and stopped early: ${stopReason}.`)
+  if (stopReason) limitations.push(`The run stopped early: ${stopReason}.`)
   limitations.push('Files outside the inventory (for example ignored by .gitignore or not recognised as source) are not counted above and were not examined.')
   limitations.push('Static reasoning only: no finding was executed, reproduced or independently verified.')
-  const bench = env.benchmark?.models[env.provider]
-  limitations.push(bench
+  const bench = env.benchmark
+  limitations.push(bench?.precision_proxy
     ? `Expect false positives. On the lab benchmark this model's precision proxy was ${bench.precision_proxy}; that is a floor (real bugs outside the known set count against it), not a prediction for this repo.`
     : 'Expect false positives. On the lab benchmark the precision proxy ranged from 6.4% to 16.5% across models (a floor, not a prediction); this model has no benchmark figure.')
   limitations.push('Re-runs can differ: the model is not deterministic, so findings, wording and confidence vary between runs.')
   limitations.push('Each file is analysed on its own; flows that cross files are seen only through the recon context (routes, architecture summary) given to each lane.')
-  limitations.push(`No recall figure exists for this repository: without known vulnerabilities there is nothing to score against.${bench ? ` For reference, on the lab benchmark this model found ${bench.recall} of known bugs at the exact line and ${bench.localization} within ±15 lines.` : ''}`)
+  limitations.push(`No recall figure exists for this repository: without known vulnerabilities there is nothing to score against.${bench ? ` For reference, on the lab benchmark (${bench.corpus}) this model found ${bench.recall} of known bugs at the exact line and ${bench.localization} within ±15 lines.` : ''}`)
   const changed = findings.filter((f) => f.file_changed_since_scan).length
   if (changed > 0) limitations.push(`${changed} finding(s) are in files whose line count changed since the scan; their locations may have drifted.`)
   const unresolved = findings.filter((f) => !f.location.resolves).length
@@ -586,7 +630,7 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
   if (unmeasuredCalls > 0) limitations.push(`${unmeasuredCalls} model call(s) returned no usage figures (the call failed, or the provider omits usage); token and cost totals undercount by that much.`)
   if (s2?.degraded) limitations.push('Stage 2 recorded a degraded run (a fallback replaced a model call).')
 
-  const benchRef = bench && env.benchmark ? { ...bench, provider: env.provider, source: env.benchmark.source } : null
+  const benchRef = bench ? { ...bench, provider: env.provider } : null
 
   return {
     schema_version: '1.0',
@@ -621,17 +665,20 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
     coverage: {
       files_total: assignments.coverage_ledger.total_files_in_inventory,
       files_scanned: scanned.size,
-      files_skipped: skipLanes.length,
+      files_skipped: skipLanes.length + scopeExcluded.size,
       skipped_by_reason: Object.fromEntries(Object.entries(skippedByReason).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))),
       files_failed: failed.length,
       files_not_run: notRun.length,
       code_lines_scanned: codeScanned,
       code_lines_total: codeTotal,
       code_lines_pct: codeTotal > 0 ? Math.round((codeScanned / codeTotal) * 1000) / 10 : null,
-      languages: [...langs].map(([language, v]) => ({ language, files: v.files, scanned: v.scanned, code: v.code, measured: v.code && measured.has(language) }))
+      languages: [...langs].map(([language, v]) => ({ language, files: v.files, scanned: v.scanned, code: v.code, measured: v.code && isMeasured(language) }))
         .sort((a, b) => b.files - a.files || a.language.localeCompare(b.language)),
-      directories_included: [...dirsScanned].sort(),
-      directories_excluded: [...dirsAll].filter((d) => !dirsScanned.has(d)).sort(),
+      // What the user confirmed, when the CLI recorded it; otherwise what ran.
+      directories_included: confirmedDirs?.included ?? [...dirsScanned].sort(),
+      directories_excluded: confirmedDirs?.excluded ?? [...dirsAll].filter((d) => !dirsScanned.has(d)).sort(),
+      directories_basis: confirmedDirs ? 'confirmed' as const : 'derived' as const,
+      files_scope_excluded: scopeExcluded.size,
       classes_hunted: [...classLanes].map(([cls, n]) => ({
         class: cls,
         source: registry[cls] ? 'built-in' as const : 'recon-guided' as const,
@@ -652,7 +699,10 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
       calls,
       cost_usd: cost,
       cost_source: costSource,
-      estimate_usd: inputs.plan?.total_projected_cost_usd ?? null,
+      // The confirmed scope's estimate (scan plan) over the whole-inventory one.
+      estimate_usd: inputs.runRecord?.spend?.estimate_usd ?? inputs.scanPlan?.totals?.projected_cost_usd ??
+        inputs.plan?.total_projected_cost_usd ?? null,
+      cap_usd: inputs.runRecord?.spend?.cap_usd ?? inputs.scanPlan?.cap?.max_cost_usd ?? inputs.runStatus?.spend?.cap_usd ?? null,
       price_asof: usage?.price_asof ?? env.priceAsOf,
       wall_clock_seconds: wall,
       stage2_seconds: stage2Seconds,
@@ -666,7 +716,10 @@ export function buildReport(inputs: ReportInputs, env: BuildEnv & { repoRoot: st
       skipped_files: skippedFiles,
       failed_lanes: [
         ...failed,
-        ...notRun.map((l) => ({ lane_id: l.lane_id, path: l.target_file, reason: 'never ran' })),
+        ...notRun.map((l) => {
+          const u = unscannedInfo.get(l.lane_id)
+          return { lane_id: l.lane_id, path: l.target_file, reason: u ? `${u.reason}: ${u.detail}` : 'never ran' }
+        }),
       ],
       guidance_sources: [],
       config,

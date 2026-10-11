@@ -33,6 +33,7 @@ secscan help
 | `--paths a,b`, `--include <glob>`, `--exclude <glob>` | scope (repeatable) |
 | `--yes` | skip the confirmation (scripts, CI) |
 | `--resume <run-id>` | continue a stopped run |
+| `--out <dir>` | keep results in this run store instead of `<dir>/.secscan` (must be outside the repository) |
 
 ## Models (§2.5)
 
@@ -132,17 +133,30 @@ request cannot raise the cap by editing the file.
 
 ## What a run leaves behind
 
-Everything goes to `<target>/.secscan/runs/<run-id>/`, which carries a `*`
-`.gitignore`:
+Results go to a run store, `<target>/.secscan/` (or `--out <dir>`, which must
+lie outside the repository). The store carries a `.gitignore` of `*`, so git
+never sees it. The first run asks before creating it (`--yes` is the answer in
+scripts and CI); answering no writes nothing. Layout, and the `runs` command
+that lists and prunes runs: `tools/scanner/report/README.md`.
+
+```
+.secscan/
+├── index.json  latest -> runs/<newest>
+└── runs/<run-id>/
+    ├── report.html  report.md  findings.json  findings.sarif   the report (Task 1d)
+    ├── run-record.json                                         the run's manifest (below)
+    └── work/                                                   internals
+```
 
 | File | Written by | Contents |
 |---|---|---|
-| `run-record.json` | CLI, at every end | the hand-off to the Task 1d report (below) |
-| `secscan.log` | CLI | every stage's full output |
-| `<model>/stage1-budget-governor-perfile/scan-plan.json` | Stage 1 | admitted and excluded files, each priced; limits; concurrency |
-| `<model>/stage2-hunt-lanes-perfile/progress.json` | Stage 2, live | the progress line's source |
-| `<model>/stage2-hunt-lanes-perfile/run-status.json` | Stage 2, at its end | COMPLETE/INCOMPLETE, reasons, unscanned files, spend |
-| `<model>/stage2-hunt-lanes-perfile/candidate-findings.json` | Stage 2 | the findings |
+| `run-record.json` | CLI, at every end | the run's manifest and the hand-off to the report (below) |
+| `report.html`, `report.md`, `findings.json`, `findings.sarif` | report stage, after the hunt | the report, including on a stopped run (marked INCOMPLETE) |
+| `work/secscan.log` | CLI | every stage's full output |
+| `work/<model>/stage1-budget-governor-perfile/scan-plan.json` | Stage 1 | admitted and excluded files, each priced; limits; concurrency |
+| `work/<model>/stage2-hunt-lanes-perfile/progress.json` | Stage 2, live | the progress line's source |
+| `work/<model>/stage2-hunt-lanes-perfile/run-status.json` | Stage 2, at its end | COMPLETE/INCOMPLETE, reasons, unscanned files, spend |
+| `work/<model>/stage2-hunt-lanes-perfile/candidate-findings.json` | Stage 2 | the findings |
 
 ### run-record.json (`secscan.run-record/1`)
 

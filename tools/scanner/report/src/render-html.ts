@@ -107,7 +107,7 @@ export function renderHtml(report: Report): string {
   o.push(`<p>Status: <span class="status ${report.status.state}">${report.status.state}</span>${reasons}</p>`)
   o.push('<div class="wrap"><table><tr><th>Files</th><th>Count</th></tr>')
   o.push(`<tr><td>In inventory</td><td>${c.files_total}</td></tr><tr><td>Scanned</td><td>${c.files_scanned}</td></tr>`)
-  o.push(`<tr><td>Skipped</td><td>${c.files_skipped}</td></tr>`)
+  o.push(`<tr><td>Skipped</td><td>${c.files_skipped}${c.files_scope_excluded ? ` (${c.files_scope_excluded} by your scope)` : ''}</td></tr>`)
   for (const [k, v] of Object.entries(c.skipped_by_reason)) o.push(`<tr><td>&nbsp;&nbsp;&nbsp;${esc(k)}</td><td>${v}</td></tr>`)
   o.push(`<tr><td>Failed</td><td>${c.files_failed}</td></tr>`)
   if (c.files_not_run) o.push(`<tr><td>Never ran</td><td>${c.files_not_run}</td></tr>`)
@@ -116,8 +116,9 @@ export function renderHtml(report: Report): string {
   o.push('<div class="wrap"><table><tr><th>Language</th><th>Files</th><th>Scanned</th><th>Benchmark status</th></tr>')
   for (const l of c.languages) o.push(`<tr><td>${esc(l.language)}</td><td>${l.files}</td><td>${l.scanned}</td><td>${l.code ? (l.measured ? 'measured' : '<b>unmeasured</b>') : 'not code'}</td></tr>`)
   o.push('</table></div>')
-  o.push(`<p>Directories included: ${c.directories_included.map((d) => `<code>${esc(d)}</code>`).join(', ') || 'none'}<br>`)
-  o.push(`Directories excluded (no file scanned): ${c.directories_excluded.map((d) => `<code>${esc(d)}</code>`).join(', ') || 'none'}</p>`)
+  const basis = c.directories_basis === 'confirmed' ? ' (as confirmed)' : ''
+  o.push(`<p>Directories included${basis}: ${c.directories_included.map((d) => `<code>${esc(d)}</code>`).join(', ') || 'none'}<br>`)
+  o.push(`Directories excluded${basis || ' (no file scanned)'}: ${c.directories_excluded.map((d) => `<code>${esc(d)}</code>`).join(', ') || 'none'}</p>`)
   o.push('<div class="wrap"><table><tr><th>Class hunted</th><th>Source</th><th>OWASP</th><th>Files</th></tr>')
   for (const k of c.classes_hunted) o.push(`<tr><td>${esc(k.class)}</td><td>${k.source}</td><td>${esc(k.owasp.join(', '))}</td><td>${k.lanes}</td></tr>`)
   o.push('</table></div>')
@@ -136,12 +137,13 @@ export function renderHtml(report: Report): string {
   row('Model calls', fmtInt(r.calls))
   row('Cost', `${fmtUsd(r.cost_usd)} <span class="muted">${esc(r.cost_source)}</span>`)
   row('Estimate', `${fmtUsd(r.estimate_usd)}${r.cost_usd != null && r.estimate_usd ? ` (actual is ${pct(r.cost_usd, r.estimate_usd)} of estimate)` : ''}`)
+  if (r.cap_usd != null) row('Spend cap', fmtUsd(r.cap_usd))
   row('Wall clock', r.wall_clock_seconds != null ? `${fmtDuration(r.wall_clock_seconds)} (whole run)` : `${fmtDuration(r.stage2_seconds)} (Stage 2)`)
   row('Retries', r.retries == null ? 'not recorded (no Stage 2 log)' : String(r.retries))
   o.push('</table></div>')
   if (report.benchmark_reference) {
     const b = report.benchmark_reference
-    o.push(`<p class="muted">Benchmark reference for this model (${esc(b.source)}, ${esc(b.run)}): recall ${esc(b.recall)}, localization ${esc(b.localization)}, precision proxy ${esc(b.precision_proxy)}. These describe the lab benchmark, not this repository.</p>`)
+    o.push(`<p class="muted">Benchmark reference for this model (${esc(b.corpus)}, ${esc(b.run)}; ${esc(b.source)}): exact-line recall ${esc(b.recall)}, localization ${esc(b.localization)}${b.precision_proxy ? `, precision proxy ${esc(b.precision_proxy)}` : ''}. These describe the lab benchmark, not this repository.</p>`)
   }
 
   // 6. Findings

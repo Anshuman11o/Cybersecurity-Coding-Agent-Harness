@@ -1,47 +1,18 @@
 {
-  "_comment": "The lab's benchmark figures, quoted in reports as reference for the chosen model (plan §2.10, §4.1.4). Aggregates only, copied from docs/benchmarking-results.md §1, which is the record; update this file when a row is appended there. A model absent here is reported as having no benchmark figure. measured_languages follows plan §3.4: a language is measured once a test repo in that language meets the release bar (§3.1, 85% localization) on that model. Juice Shop (TypeScript/JavaScript) is the only test repo scored so far.",
-  "source": "docs/benchmarking-results.md, OWASP Juice Shop, 97 reachable ground-truth entries",
-  "measured_languages_rule": "plan §3.4: measured once a test repo in the language meets the §3.1 release bar (localization >= 85%) on this model",
+  "_comment": "The precision proxy per measured model, quoted in reports as a floor on expected false positives (plan §4.1.4). Aggregates only, copied from docs/benchmarking-results.md §1 (category-aware precision proxy). Everything else about a model's benchmark (measured languages, recall, localization) comes from the registry's `benchmark` block in shared/models.json, which guard.test.ts pins to the same ledger; this file carries only what the registry does not. Update it when a row is appended to the ledger.",
+  "source": "docs/benchmarking-results.md §1, OWASP Juice Shop, category-aware precision proxy",
   "models": {
     "luna": {
-      "label": "GPT-5.6 Luna",
-      "run": "run 6, 2026-08-01",
-      "recall": "71.1% (69/97)",
-      "localization": "88.7% (86/97)",
-      "file_level": "100% (97/97)",
-      "precision_proxy": "12.5% (69/553)",
-      "cost_usd": 4.37,
-      "measured_languages": ["TypeScript", "JavaScript"]
+      "precision_proxy": "12.5% (69/553)"
     },
     "glm52": {
-      "label": "GLM-5.2",
-      "run": "2026-08-02",
-      "recall": "67.0% (65/97)",
-      "localization": "85.6% (83/97)",
-      "file_level": "100% (97/97)",
-      "precision_proxy": "7.8% (70/892)",
-      "cost_usd": 17.01,
-      "measured_languages": ["TypeScript", "JavaScript"]
+      "precision_proxy": "7.8% (70/892)"
     },
     "gemini36flash": {
-      "label": "Gemini 3.6 Flash",
-      "run": "2026-08-02",
-      "recall": "58.8% (57/97)",
-      "localization": "75.3% (73/97)",
-      "file_level": "99.0% (96/97)",
-      "precision_proxy": "16.5% (47/285)",
-      "cost_usd": 24.85,
-      "measured_languages": []
+      "precision_proxy": "16.5% (47/285)"
     },
     "sonnet5cli": {
-      "label": "Claude Sonnet 5 (CLI transport)",
-      "run": "2026-08-03",
-      "recall": "66.0% (64/97)",
-      "localization": "86.6% (84/97)",
-      "file_level": "100% (97/97)",
-      "precision_proxy": "6.4% (81/1270)",
-      "cost_usd": 84.04,
-      "measured_languages": ["TypeScript", "JavaScript"]
+      "precision_proxy": "6.4% (81/1270)"
     }
   }
 }

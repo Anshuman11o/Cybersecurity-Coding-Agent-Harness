@@ -1,12 +1,12 @@
 /**
  * The product run store: <target>/.secscan/ (or wherever --out put it).
  *
- *   <store>/.gitignore            "*" (run.sh writes it, with consent)
+ *   <store>/.gitignore            "*" (the CLI or run.sh writes it, with consent)
  *   <store>/index.json            one row per run, rebuilt from disk
  *   <store>/latest                symlink to the newest reported run
  *                                 (latest.txt holding its id where symlinks fail)
  *   <store>/runs/<run-id>/        report.html, report.md, findings.json,
- *                                 findings.sarif, run.json
+ *                                 findings.sarif, run-record.json (the CLI's manifest)
  *   <store>/runs/<run-id>/work/   stage internals, checkpoints, logs
  *
  * index.json is rebuilt from the run directories every time rather than
@@ -18,7 +18,7 @@
  * repository; excerpts come through the read guard in report.ts.
  */
 import {
-  existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync,
+  existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync,
   unlinkSync, writeFileSync,
 } from 'fs'
 import { join, relative, sep } from 'path'
@@ -26,7 +26,42 @@ import { join, relative, sep } from 'path'
 /** Same rule as run-context.ts: a run id is a safe path segment. */
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 
-export const RUN_FILES = ['report.html', 'report.md', 'findings.json', 'findings.sarif', 'run.json'] as const
+export const REPORT_FILES = ['report.html', 'report.md', 'findings.json', 'findings.sarif'] as const
+
+/** The run's manifest, written by the secscan CLI (cli/src/run-record.ts) at the top of the run. */
+export const RUN_RECORD_FILE = 'run-record.json'
+
+/** What lives in a store besides runs/, so a store whose .gitignore was deleted is still recognised. */
+const STORE_ENTRIES = new Set(['runs', 'index.json', 'latest', 'latest.txt', '.gitignore'])
+
+/**
+ * What is at a would-be store path. Only `absent`, `empty`, `store-like` and
+ * `store` may become (or stay) a store: the tool must never write a .gitignore
+ * of `*` into a directory that holds someone's own files, because that would
+ * quietly hide those files from git. run.sh applies the same rule in bash.
+ *
+ *   store       a directory whose .gitignore is exactly `*`
+ *   store-like  holds nothing but store entries (needs consent again)
+ */
+export type StoreState = 'absent' | 'empty' | 'store' | 'store-like' | 'foreign' | 'not-a-directory'
+
+export function storeState(dir: string): StoreState {
+  let st
+  try { st = lstatSync(dir) } catch { return 'absent' }
+  if (!st.isDirectory()) return 'not-a-directory'
+  try {
+    if (readFileSync(join(dir, '.gitignore'), 'utf-8').trim() === '*') return 'store'
+  } catch { /* no .gitignore */ }
+  const entries = readdirSync(dir)
+  if (entries.length === 0) return 'empty'
+  return entries.every((e) => STORE_ENTRIES.has(e)) ? 'store-like' : 'foreign'
+}
+
+/** Create the store's .gitignore. Call only after consent, and only for a state storeState allows. */
+export function initStore(dir: string): void {
+  mkdirSync(dir, { recursive: true })
+  if (storeState(dir) !== 'store') writeFileSync(join(dir, '.gitignore'), '*\n')
+}
 
 export interface IndexRow {
   run_id: string
@@ -87,21 +122,26 @@ export function listRunIds(store: string): string[] {
 
 export function indexRow(store: string, id: string): IndexRow {
   const dir = join(store, 'runs', id)
-  const run = readJson<Record<string, any>>(join(dir, 'run.json'))
+  // The CLI's run record says how the run ended; the report says what it found.
+  // A run driven by run.sh has no record, and a run that died before its report
+  // has no findings.json; each half is filled from whichever exists.
+  const record = readJson<Record<string, any>>(join(dir, RUN_RECORD_FILE))
+  const report = readJson<Record<string, any>>(join(dir, 'findings.json'))
   const hasReport = existsSync(join(dir, 'report.html'))
+  const status = report?.status?.state ?? record?.status
   return {
     run_id: id,
     path: `runs/${id}/`,
     report: hasReport ? `runs/${id}/report.html` : null,
-    status: run?.status === 'COMPLETE' || run?.status === 'INCOMPLETE' ? run.status : 'no report',
-    generated_at: run?.generated_at ?? null,
-    commit: run?.repo?.commit ?? null,
-    branch: run?.repo?.branch ?? null,
-    provider: run?.provider ?? null,
-    model: run?.model ?? null,
-    findings: run?.summary?.findings ?? null,
-    by_severity: run?.summary?.by_severity ?? null,
-    cost_usd: run?.summary?.cost_usd ?? null,
+    status: hasReport && (status === 'COMPLETE' || status === 'INCOMPLETE') ? status : 'no report',
+    generated_at: report?.generated_at ?? record?.updated_at ?? null,
+    commit: report?.header?.commit ?? record?.target?.commit ?? null,
+    branch: report?.header?.branch ?? record?.target?.branch ?? null,
+    provider: report?.header?.provider ?? record?.model?.key ?? null,
+    model: report?.header?.model ?? record?.model?.model ?? null,
+    findings: report?.summary?.total ?? record?.findings_total ?? null,
+    by_severity: report?.summary?.by_severity ?? null,
+    cost_usd: report?.run_stats?.cost_usd ?? record?.spend?.reconciled_usd ?? record?.spend?.spent_usd ?? null,
     size_bytes: sizeOf(dir),
     work_bytes: sizeOf(join(dir, 'work')),
     has_work: existsSync(join(dir, 'work')),

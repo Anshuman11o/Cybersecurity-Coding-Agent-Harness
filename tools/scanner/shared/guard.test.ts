@@ -599,10 +599,19 @@ console.log('\n-- report stage: guarded reads, isolated output, aggregate-only r
   const refText = readFileSync(join(root, 'tools/scanner/report/benchmark-reference.json'), 'utf-8')
   const ref = JSON.parse(refText)
   check('benchmark reference names no file:line', !/[\w/.-]+\.(ts|js|py|html|json|yml|sol):\d+/.test(refText))
-  const shape = ['label', 'run', 'recall', 'localization', 'file_level', 'precision_proxy', 'cost_usd', 'measured_languages']
+  // Only the precision proxy: measured status, recall and localization come
+  // from the registry's `benchmark` block (task 1c), the single source the CLI
+  // labels MEASURED from.
   const bad = Object.entries(ref.models as Record<string, object>)
-    .filter(([k, v]) => !listProviders().includes(k) || Object.keys(v).some((f) => !shape.includes(f)))
-  check('benchmark reference holds only per-model aggregates for registered providers', bad.length === 0)
+    .filter(([k, v]) => !listProviders().includes(k) || Object.keys(v).some((f) => f !== 'precision_proxy'))
+  check('benchmark reference holds only a precision proxy per registered provider', bad.length === 0)
+  const ledger = readFileSync(join(root, 'docs/benchmarking-results.md'), 'utf-8')
+  const unpinned = Object.entries(ref.models as Record<string, { precision_proxy: string }>).filter(([, v]) => {
+    const m = /^([\d.]+%) \((\d+\/\d+)\)$/.exec(v.precision_proxy)
+    return !m || !ledger.includes(`${m[1]}** (${m[2]})`)
+  })
+  check('every precision proxy matches the benchmarking-results ledger', unpinned.length === 0)
+  for (const [k] of unpinned) console.log(`        NOT IN LEDGER: ${k}`)
 }
 
 // ── Product run store (task 1d) ───────────────────────────────────────────
