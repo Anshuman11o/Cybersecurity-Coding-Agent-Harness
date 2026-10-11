@@ -38,7 +38,8 @@ import { SCAN_PLAN_FILE, type ScanPlan } from '../../stage1-budget-governor/src/
 import {
   PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE, type Stage2RunStatus,
 } from '../../stage1-budget-governor/src/run-status.js'
-import { resolveRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { resolveRunContext } from '../../shared/run-context.js'
+import { storeState, initStore } from '../../report/src/runs-store.js'
 
 const EXIT = { complete: 0, failure: 1, usage: 2, incomplete: 3, interrupted: 130 } as const
 const HUNT = 'stage2-hunt-lanes-perfile'
@@ -70,14 +71,20 @@ function merge(base: RunLimits, over: Partial<RunLimits>): RunLimits {
   return out
 }
 
+/** The product run context for a run id, in this invocation's run store. */
+function contextFor(target: string, runId: string, out: string | undefined) {
+  return resolveRunContext({
+    SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: runId, ...(out ? { SCANNER_OUT: out } : {}),
+  }, [], target)
+}
+
 /** A product run id: the same shape run.sh generates, suffixed when taken. */
-function newRunId(target: string): string {
+function newRunId(target: string, out: string | undefined): string {
   const d = new Date().toISOString()
   const base = `${d.slice(0, 4)}${d.slice(5, 7)}${d.slice(8, 10)}-${d.slice(11, 13)}${d.slice(14, 16)}${d.slice(17, 19)}`
   for (let n = 1; ; n++) {
     const id = n === 1 ? base : `${base}-${n}`
-    const dir = resolveRunContext({ SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: id }, [], target).runsRoot
-    if (!existsSync(dir)) return id
+    if (!existsSync(contextFor(target, id, out).runDir!)) return id
   }
 }
 
@@ -130,6 +137,25 @@ async function scan(args: ScanArgs): Promise<number> {
     return EXIT.usage
   }
 
+  // ── Run store ─────────────────────────────────────────────────────────────
+  // <target>/.secscan, or --out outside the target. Never a directory that holds
+  // someone's own files: its .gitignore of `*` would hide them from git.
+  const out = args.out ? resolve(args.out) : undefined
+  let store: string
+  try {
+    store = contextFor(target, 'probe', out).outRoot!
+  } catch (e: any) {
+    err(e.message.replace(/^\[run-context\] /, '').replace('SCANNER_OUT', '--out'))
+    return EXIT.usage
+  }
+  const state = storeState(store)
+  if (state === 'foreign' || state === 'not-a-directory') {
+    err(`${store} ${state === 'foreign' ? 'already holds files and is not a secscan run store' : 'is not a directory'}; choose a new or empty directory with --out`)
+    return EXIT.usage
+  }
+  if (out) process.env.SCANNER_OUT = store
+  else delete process.env.SCANNER_OUT
+
   // ── Run id and the previous record on --resume ───────────────────────────
   let runId: string
   let previous: RunRecord | null = null
@@ -139,14 +165,14 @@ async function scan(args: ScanArgs): Promise<number> {
       return EXIT.usage
     }
     runId = args.resume
-    const dir = resolveRunContext({ SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: runId }, [], target).runsRoot
+    const dir = contextFor(target, runId, out).runDir!
     previous = readJson<RunRecord>(join(dir, RUN_RECORD_FILE))
     if (!previous || previous.schema !== RUN_RECORD_SCHEMA) {
       err(`no run record for run "${runId}" under ${dir}`)
       return EXIT.usage
     }
   } else {
-    runId = newRunId(target)
+    runId = newRunId(target, out)
   }
 
   // ── Config file ───────────────────────────────────────────────────────────
@@ -230,11 +256,27 @@ async function scan(args: ScanArgs): Promise<number> {
   }
 
   // ── Run directory ─────────────────────────────────────────────────────────
-  // The same rule run.sh applies: `.secscan/` carries a `*` .gitignore before
-  // anything is written, so run artifacts can never be committed by accident.
-  const productDir = join(target, PRODUCT_DIRNAME)
+  // The store is the one thing secscan writes into a user's tree, so the first
+  // run asks before creating it (--yes counts as the answer). It carries a `*`
+  // .gitignore before anything else is written, so run artifacts can never be
+  // committed by accident. The report and the run record go to the top of the
+  // run directory; stage internals and the full log go to its work/.
+  const runDir = contextFor(target, runId, out).runDir!
+  if (storeState(store) !== 'store' && !args.yes) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    let answer = 'n'
+    try {
+      answer = (await rl.question(`Results go to ${store}/ (git-ignored by a .gitignore inside it). Create it? [Y/n] `)).trim().toLowerCase()
+    } catch { /* closed: treat as no */ } finally {
+      rl.close()
+    }
+    if (answer !== '' && answer !== 'y' && answer !== 'yes') {
+      say(`Nothing written. Use --out <dir> to keep results outside the repository.`)
+      return EXIT.complete
+    }
+  }
+  initStore(store)
   mkdirSync(runsRoot, { recursive: true })
-  if (!existsSync(join(productDir, '.gitignore'))) writeFileSync(join(productDir, '.gitignore'), '*\n')
   const logPath = join(runsRoot, 'secscan.log')
   const stageDir = (s: Parameters<typeof paths.runPath>[1]) => paths.runPath(model.key, s)
   const stopPath = join(stageDir(HUNT), STOP_REQUEST_FILE)
@@ -285,11 +327,11 @@ async function scan(args: ScanArgs): Promise<number> {
     return r
   }
 
-  const finish = (cancelled: boolean): number => {
+  const finish = async (cancelled: boolean): Promise<number> => {
     // Quitting at the confirmation of a resumed run changes nothing: the
     // record still describes what the earlier passes did, and must keep doing so.
     if (cancelled && previous) {
-      say(`Run ${runId} left as it was (${previous.status}). Its record: ${join(runsRoot, RUN_RECORD_FILE)}`)
+      say(`Run ${runId} left as it was (${previous.status}). Its record: ${join(runDir, RUN_RECORD_FILE)}`)
       return EXIT.complete
     }
     const stage2 = readJson<Stage2RunStatus>(join(stageDir(HUNT), RUN_STATUS_FILE))
@@ -363,7 +405,27 @@ async function scan(args: ScanArgs): Promise<number> {
         (cut('max_cost') ? ' --max-cost <higher>' : '') +
         (cut('over-max-files') ? ' --max-files <higher>' : '')
       : null
-    writeRunRecord(join(runsRoot, RUN_RECORD_FILE), record)
+    writeRunRecord(join(runDir, RUN_RECORD_FILE), record)
+
+    // ── Report ────────────────────────────────────────────────────────────
+    // Whenever the hunt left findings to report, including on a stopped run:
+    // the report reads the record just written, so it says INCOMPLETE and
+    // lists what was not scanned. A report that fails costs the report, not
+    // the run: the verdict above stands and the record says what happened.
+    let reportPath: string | null = null
+    if (!cancelled && existsSync(join(stageDir(HUNT), 'candidate-findings.json'))) {
+      interrupts = 0
+      const r = await runOne('report')
+      if (r.exit_code === 0 && existsSync(join(runDir, 'report.html'))) {
+        reportPath = join(runDir, 'report.html')
+        record.artifacts.report = reportPath
+      } else if (!interrupted) {
+        err(`the report stage failed; the last lines of ${logPath}:\n${tail(logPath, 15)}`)
+      }
+      record.stages = stages
+      record.updated_at = new Date().toISOString()
+      writeRunRecord(join(runDir, RUN_RECORD_FILE), record)
+    }
 
     // ── Terminal summary ──────────────────────────────────────────────────
     say()
@@ -388,7 +450,8 @@ async function scan(args: ScanArgs): Promise<number> {
         (record.spend.estimate_usd != null ? ` (estimate ${usd(record.spend.estimate_usd)})` : '') +
         (record.spend.cap_usd != null ? `, cap ${usd(record.spend.cap_usd)}` : ''))
     }
-    say(`Run record: ${join(runsRoot, RUN_RECORD_FILE)}`)
+    if (reportPath) say(`Report: ${reportPath}`)
+    say(`Run record: ${join(runDir, RUN_RECORD_FILE)}`)
     if (record.resume_command) say(`Continue: ${record.resume_command}`)
 
     if (record.status === 'COMPLETE') return EXIT.complete
@@ -438,6 +501,7 @@ async function scan(args: ScanArgs): Promise<number> {
     summary = buildSummary({
       targetDisplay,
       targetRoot: target,
+      resultsDir: runDir,
       commit: git(target, 'rev-parse', '--short', 'HEAD'),
       branch: git(target, 'rev-parse', '--abbrev-ref', 'HEAD'),
       lanes: assignments.lanes,

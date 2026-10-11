@@ -49,6 +49,8 @@ export interface ConfirmationSummary {
   concurrency: { value: number; basis: string }
   /** Set on --resume: what earlier passes already finished. */
   resume: { run_id: string; done: number; spent_usd: number | null } | null
+  /** Where this run's report and record go (the run directory in the run store). */
+  results?: string
 }
 
 export interface SummaryInput {
@@ -63,6 +65,8 @@ export interface SummaryInput {
   model: ModelInfo
   /** Lanes already finished on a resumed run, and what they cost. */
   resume: { runId: string; doneLaneIds: Set<string>; spentUsd: number | null } | null
+  /** The run directory, for the Results line. */
+  resultsDir?: string
 }
 
 /** Stage 0.5's skip reasons, folded into a few words for the screen. */
@@ -142,6 +146,7 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
     resume: input.resume
       ? { run_id: input.resume.runId, done: plan.admitted.length - remaining.length, spent_usd: input.resume.spentUsd }
       : null,
+    ...(input.resultsDir ? { results: input.resultsDir } : {}),
   }
 }
 
@@ -181,6 +186,7 @@ export function renderSummary(s: ConfirmationSummary): string {
   const est = `~${usd(s.estimate.usd)}, ~${Math.max(1, Math.round(s.estimate.seconds / 60))} min`
   const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
   out.push(`Estimate: ${est}    Cap: ${cap}`)
+  if (s.results) out.push(`Results: ${s.results} (git-ignored)`)
   if (s.estimate.exceeds_cap) {
     out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
       `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)

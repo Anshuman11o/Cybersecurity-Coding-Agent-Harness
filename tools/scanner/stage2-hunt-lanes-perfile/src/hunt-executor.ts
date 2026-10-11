@@ -84,6 +84,7 @@ import type {
   VulnClassRegistry,
   TraceStep,
   FindingClassRef,
+  ConfidenceReason,
 } from './types.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -252,8 +253,31 @@ function buildHuntSchema(classIds: string[]): Record<string, unknown> {
             },
             severity_estimate: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
             confidence: { type: 'number', minimum: 0, maximum: 1 },
+            // Explanation fields for the report (plan §2.9). Strict mode needs
+            // every property listed in `required`; the report still reads
+            // findings that lack them, because every run before this did.
+            cwe: { type: 'array', items: { type: 'string' } },
+            severity_reason: { type: 'string' },
+            confidence_reason: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                validation: {
+                  type: 'string',
+                  enum: ['looked_for_absent', 'looked_for_insufficient', 'not_looked_for', 'not_applicable'],
+                },
+                assumptions: { type: 'array', items: { type: 'string' } },
+                summary: { type: 'string' },
+              },
+              required: ['validation', 'assumptions', 'summary'],
+            },
+            attack_scenario: { type: 'string' },
+            remediation: { type: 'string' },
           },
-          required: ['finding_classes', 'title', 'description', 'trace', 'severity_estimate', 'confidence'],
+          required: [
+            'finding_classes', 'title', 'description', 'trace', 'severity_estimate', 'confidence',
+            'cwe', 'severity_reason', 'confidence_reason', 'attack_scenario', 'remediation',
+          ],
         },
       },
     },
@@ -511,7 +535,17 @@ Each finding must have:
 - "description": what the vulnerability is, how it works, and why it is exploitable
 - "trace": array of {kind: "entrypoint"|"propagation"|"sink", file: "${targetFile}", line: NUMBER (use the line numbers shown above), description: string}. First step MUST be entrypoint, last MUST be sink.
 - "severity_estimate": "low" | "medium" | "high" | "critical"
-- "confidence": number 0-1`
+- "confidence": number 0-1
+- "cwe": array of CWE ids for this defect, most specific first, written "CWE-<number>" (e.g. "CWE-89"). Empty only if no CWE fits.
+- "severity_reason": one sentence giving the two things the severity is made of: the impact if exploited, and how reachable the code is.
+- "confidence_reason": why the confidence is what it is:
+  - "validation": "looked_for_absent" (you looked for input validation or sanitising on the path and found none), "looked_for_insufficient" (some exists and does not stop it), "not_looked_for", or "not_applicable" (the defect is not about input)
+  - "assumptions": what the finding rests on that this file cannot show — configuration, deployment, the callers. Empty if nothing.
+  - "summary": one sentence
+- "attack_scenario": how an attacker reaches this code and what they need first (an account, a role, a setting, a position on the network).
+- "remediation": the fix approach in one or two sentences, in words. No code.
+
+These last five fields explain a finding; they are not a bar it has to clear. A finding you can only hold at 0.2 still gets them: say in them what is unconfirmed. Do not quote source code in them — refer to line numbers.`
   segments.push({ segment_type: 'file_content', chars: fileContentBlock.length })
   parts.push(fileContentBlock)
 
@@ -727,6 +761,10 @@ export function mergeFindings(
     trace: f.trace.map(s => ({ ...s })),
     finding_classes: f.finding_classes.map(c => ({ ...c })),
     categories: [...f.categories],
+    ...(f.cwe ? { cwe: [...f.cwe] } : {}),
+    ...(f.confidence_reason
+      ? { confidence_reason: { ...f.confidence_reason, assumptions: [...f.confidence_reason.assumptions] } }
+      : {}),
   })
   const out = accumulated.map(clone)
   let added = 0
@@ -822,6 +860,18 @@ export function mergeFindings(
 
     if (g.description.length < f.description.length) g.description = f.description
     g.confidence = Math.max(g.confidence, f.confidence)
+
+    // Explanation fields follow the same rule as everything else here: nothing
+    // is removed. CWE ids are unioned like classes; a prose field the
+    // accumulated finding lacks is taken from the revision, and one it already
+    // has is kept.
+    if (f.cwe) g.cwe = [...(g.cwe ?? []), ...f.cwe.filter(c => !(g.cwe ?? []).includes(c))]
+    if (!g.severity_reason && f.severity_reason) g.severity_reason = f.severity_reason
+    if (!g.confidence_reason && f.confidence_reason) {
+      g.confidence_reason = { ...f.confidence_reason, assumptions: [...f.confidence_reason.assumptions] }
+    }
+    if (!g.attack_scenario && f.attack_scenario) g.attack_scenario = f.attack_scenario
+    if (!g.remediation && f.remediation) g.remediation = f.remediation
   }
 
   return { merged: out, added, revised }
@@ -1334,8 +1384,57 @@ function normalizeTurnFindings(
       trace: f.trace,
       severity_estimate: f.severity_estimate,
       confidence: f.confidence,
+      ...explanationFields(f),
     })
   }
+  return out
+}
+
+const VALIDATION_VALUES = new Set<ConfidenceReason['validation']>(
+  ['looked_for_absent', 'looked_for_insufficient', 'not_looked_for', 'not_applicable'])
+
+/**
+ * The explanation fields of one raw finding (plan §2.9), keeping only what is
+ * well-formed. Each field is independent and optional: a missing or malformed
+ * one is left out rather than failing the finding, because these fields explain
+ * a finding and must never be the reason one is lost. That also covers the
+ * json_object fallback in callLlm, where the schema is not enforced.
+ *
+ * CWE ids are normalized to "CWE-<n>" — the model writes "89", "cwe-89" and
+ * "CWE-89: SQL Injection" interchangeably — and anything without a number is
+ * dropped. Order is kept (most specific first), duplicates are not.
+ */
+export function explanationFields(raw: any): Partial<CandidateFinding> {
+  const out: Partial<CandidateFinding> = {}
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+
+  if (Array.isArray(raw?.cwe)) {
+    const ids: string[] = []
+    for (const c of raw.cwe) {
+      const m = typeof c === 'string'
+        ? (/\bCWE[-\s:]*(\d{1,5})\b/i.exec(c) ?? /^\s*(\d{1,5})\s*$/.exec(c))
+        : null
+      const id = m ? `CWE-${Number(m[1])}` : null
+      if (id && !ids.includes(id)) ids.push(id)
+    }
+    out.cwe = ids
+  }
+  const severityReason = text(raw?.severity_reason)
+  if (severityReason) out.severity_reason = severityReason
+  const cr = raw?.confidence_reason
+  if (cr && typeof cr === 'object' && VALIDATION_VALUES.has(cr.validation)) {
+    out.confidence_reason = {
+      validation: cr.validation,
+      assumptions: Array.isArray(cr.assumptions)
+        ? cr.assumptions.map(text).filter((a: string | undefined): a is string => !!a)
+        : [],
+      summary: text(cr.summary) ?? '',
+    }
+  }
+  const attack = text(raw?.attack_scenario)
+  if (attack) out.attack_scenario = attack
+  const remediation = text(raw?.remediation)
+  if (remediation) out.remediation = remediation
   return out
 }
 

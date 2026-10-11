@@ -1,0 +1,18 @@
+{
+  "_comment": "The precision proxy per measured model, quoted in reports as a floor on expected false positives (plan §4.1.4). Aggregates only, copied from docs/benchmarking-results.md §1 (category-aware precision proxy). Everything else about a model's benchmark (measured languages, recall, localization) comes from the registry's `benchmark` block in shared/models.json, which guard.test.ts pins to the same ledger; this file carries only what the registry does not. Update it when a row is appended to the ledger.",
+  "source": "docs/benchmarking-results.md §1, OWASP Juice Shop, category-aware precision proxy",
+  "models": {
+    "luna": {
+      "precision_proxy": "12.5% (69/553)"
+    },
+    "glm52": {
+      "precision_proxy": "7.8% (70/892)"
+    },
+    "gemini36flash": {
+      "precision_proxy": "16.5% (47/285)"
+    },
+    "sonnet5cli": {
+      "precision_proxy": "6.4% (81/1270)"
+    }
+  }
+}

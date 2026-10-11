@@ -484,8 +484,10 @@ console.log('\n-- run context: benchmark stays the lab, product is confined to i
     const prod = ctxFor(env)
     check('target outside the repo -> product', prod.profile === 'product')
     check('product targetRoot is the realpath of the target', prod.targetRoot === realTarget)
-    check('product runsRoot is <target>/.secscan/runs/<run-id>',
-      prod.runsRoot === join(realTarget, '.secscan', 'runs', 'abc'))
+    // Changed with the run store layout (task 1d): stage internals moved into
+    // work/ so the run directory itself holds the report.
+    check('product runsRoot is <target>/.secscan/runs/<run-id>/work',
+      prod.runsRoot === join(realTarget, '.secscan', 'runs', 'abc', 'work'))
     check('product records its run id', prod.runId === 'abc')
     check('product does not resume unless asked', !prod.resume)
     check('SCANNER_RESUME=1 sets resume in product', ctxFor({ ...env, SCANNER_RESUME: '1' }).resume)
@@ -556,6 +558,101 @@ console.log('\n-- run context: benchmark stays the lab, product is confined to i
     check('a runs root above the target does not deny the target', above.readCorpusFile(appAbs) !== null)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
+  }
+}
+
+// ── Report stage (productization plan §2.9) ───────────────────────────────
+//
+// The report is the one stage that prints source code back out, so it carries
+// the same two guarantees as Stage 2: it reads the scanned repository only
+// through the read guard, and it writes only inside its provider's run tree.
+// It also ships a file of benchmark figures inside this repository, which must
+// stay aggregate under the blind-development rule.
+console.log('\n-- report stage: guarded reads, isolated output, aggregate-only reference --')
+{
+  const { readFileSync, readdirSync } = await import('fs')
+  const { join } = await import('path')
+  const { reportDir } = await import('../report/src/report.js')
+  const { REPO_ROOT: root } = await import('./run-paths.js')
+  const src = join(root, 'tools/scanner/report/src')
+
+  for (const p of listProviders()) {
+    check(`${p} report dir is inside its own run tree`, reportDir(p) === join(RUNS_ROOT, p, 'report'))
+  }
+
+  // Excerpts can only come from the reader report.ts hands the builder, and
+  // that reader is the read guard. A module that imported fs could bypass it.
+  // report.ts reads upstream artifacts by fixed name; runs-store.ts and runs.ts
+  // manage the run store and never open the scanned repository.
+  const FS_ALLOWED = ['report.ts', 'runs-store.ts', 'runs.ts']
+  const pure = readdirSync(src).filter((f) => f.endsWith('.ts') && !FS_ALLOWED.includes(f) && !f.endsWith('.test.ts'))
+  const withFs = pure.filter((f) => /from ['"](node:)?fs['"]/.test(readFileSync(join(src, f), 'utf-8')))
+  check(`report modules other than the entry point do not import fs (${pure.length} checked)`, withFs.length === 0)
+  for (const f of withFs) console.log(`        IMPORTS fs: ${f}`)
+  const entry = readFileSync(join(src, 'report.ts'), 'utf-8')
+  check('report reads target files through readCorpusFile', /readTargetFile:\s*\(rel\)\s*=>\s*readCorpusFile\(/.test(entry))
+  check('the run store modules never call the read guard or read target files',
+    ['runs-store.ts', 'runs.ts'].every((f) => !/readCorpusFile|targetRoot|target_dir/.test(readFileSync(join(src, f), 'utf-8'))))
+
+  // Aggregates only: a figure per model, nothing located. A path with a line
+  // number, or a key outside the documented shape, fails here.
+  const refText = readFileSync(join(root, 'tools/scanner/report/benchmark-reference.json'), 'utf-8')
+  const ref = JSON.parse(refText)
+  check('benchmark reference names no file:line', !/[\w/.-]+\.(ts|js|py|html|json|yml|sol):\d+/.test(refText))
+  // Only the precision proxy: measured status, recall and localization come
+  // from the registry's `benchmark` block (task 1c), the single source the CLI
+  // labels MEASURED from.
+  const bad = Object.entries(ref.models as Record<string, object>)
+    .filter(([k, v]) => !listProviders().includes(k) || Object.keys(v).some((f) => f !== 'precision_proxy'))
+  check('benchmark reference holds only a precision proxy per registered provider', bad.length === 0)
+  const ledger = readFileSync(join(root, 'docs/benchmarking-results.md'), 'utf-8')
+  const unpinned = Object.entries(ref.models as Record<string, { precision_proxy: string }>).filter(([, v]) => {
+    const m = /^([\d.]+%) \((\d+\/\d+)\)$/.exec(v.precision_proxy)
+    return !m || !ledger.includes(`${m[1]}** (${m[2]})`)
+  })
+  check('every precision proxy matches the benchmarking-results ledger', unpinned.length === 0)
+  for (const [k] of unpinned) console.log(`        NOT IN LEDGER: ${k}`)
+}
+
+// ── Product run store (task 1d) ───────────────────────────────────────────
+//
+// A product run's results live in a run store: <target>/.secscan/ by default,
+// or SCANNER_OUT, which must lie outside the target, because Stage 0 would
+// inventory a store inside it and the scan would read its own reports.
+console.log('\n-- product run store: layout and --out --')
+{
+  const { mkdtempSync, mkdirSync, realpathSync, rmSync } = await import('fs')
+  const { tmpdir } = await import('os')
+  const { join } = await import('path')
+  const { resolveRunContext, describeRunContext } = await import('./run-context.js')
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const throws = (f: () => unknown) => { try { f(); return false } catch { return true } }
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'secscan-store-test-')))
+  try {
+    const target = join(base, 'repo')
+    mkdirSync(target)
+    const ctx = (env: Record<string, string>) => resolveRunContext({ SCANNER_TARGET: target, ...env }, [], REPO_ROOT)
+    const d = ctx({ SCANNER_RUN_ID: 'r1' })
+    check('default store is <target>/.secscan', d.outRoot === join(target, '.secscan'))
+    check('run directory is <store>/runs/<run-id>', d.runDir === join(target, '.secscan/runs/r1'))
+    check('stage internals sit in the run directory\'s work/', d.runsRoot === join(d.runDir!, 'work'))
+    const o = ctx({ SCANNER_RUN_ID: 'r1', SCANNER_OUT: join(base, 'results') })
+    check('SCANNER_OUT outside the target moves the whole store',
+      o.outRoot === join(base, 'results') && o.runsRoot === join(base, 'results/runs/r1/work'))
+    check('SCANNER_OUT inside the target is refused', throws(() => ctx({ SCANNER_RUN_ID: 'r1', SCANNER_OUT: join(target, 'reports') })))
+    check('SCANNER_OUT naming <target>/.secscan itself is allowed',
+      ctx({ SCANNER_RUN_ID: 'r1', SCANNER_OUT: join(target, '.secscan') }).outRoot === join(target, '.secscan'))
+    check('benchmark has no store and no run directory', (() => {
+      const b = resolveRunContext({}, [], REPO_ROOT)
+      return b.outRoot === null && b.runDir === null
+    })())
+    check('benchmark meta.json run_context keeps exactly its old keys',
+      JSON.stringify(Object.keys(describeRunContext(resolveRunContext({}, [], REPO_ROOT)))) ===
+        JSON.stringify(['profile', 'target_root', 'runs_root', 'run_id', 'resume']))
+    check('product meta.json run_context names the store and run directory',
+      describeRunContext(d).out_root === d.outRoot && describeRunContext(d).run_dir === d.runDir)
+  } finally {
+    rmSync(base, { recursive: true, force: true })
   }
 }
 
@@ -716,6 +813,8 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   // a failed stage rather than a clean run.
   check('Stage 2 writes run-status.json when it finishes and when it aborts',
     /writeRunStatus\(true\)/.test(src) && /const runStatus = writeRunStatus\(\)/.test(src))
+}
+
 // ── Task 1b: recon v3, file selection and signals ─────────────────────────
 //
 // Productization plan §2.3. Recon stopped assuming Juice Shop's layout and

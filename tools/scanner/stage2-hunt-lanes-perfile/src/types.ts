@@ -78,6 +78,21 @@ export interface TraceStep {
   description: string;
 }
 
+/**
+ * The model's account of why it holds a finding at its confidence
+ * (productization plan §4.3, "model reasoning"). The report pairs it with
+ * scanner signals it computes itself; this half is the part only the model
+ * can supply.
+ */
+export interface ConfidenceReason {
+  /** Whether input validation or sanitising on the path was looked for, and what was found. */
+  validation: "looked_for_absent" | "looked_for_insufficient" | "not_looked_for" | "not_applicable";
+  /** What the finding rests on that the file cannot show: config, deployment, callers. */
+  assumptions: string[];
+  /** One sentence. */
+  summary: string;
+}
+
 export interface CandidateFinding {
   finding_id: string;
   lane_id: string;
@@ -88,6 +103,14 @@ export interface CandidateFinding {
   trace: TraceStep[];
   severity_estimate: "low" | "medium" | "high" | "critical";
   confidence: number;           // 0-1
+  // Explanation fields (plan §2.9). Optional because every finding written
+  // before they existed lacks them, and the report must still read those runs.
+  // They explain a finding; nothing in the pipeline filters on them.
+  cwe?: string[];               // normalized "CWE-<n>", most specific first
+  severity_reason?: string;     // one line: impact × how reachable
+  confidence_reason?: ConfidenceReason;
+  attack_scenario?: string;     // how an attacker reaches it, and the preconditions
+  remediation?: string;         // high-level fix approach, no code
 }
 
 export interface LaneHuntResponse {
