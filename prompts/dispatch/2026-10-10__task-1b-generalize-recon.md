@@ -295,3 +295,28 @@ auth-tagged route.
    Stage 0 → 0.5 → 1 → Stage 2. 0 blocked reads, auth mechanisms named as the
    code names them, tool-calling probe finds the right file, selection receipts
    correct, artifacts under `.secscan/`. Cost reported.
+
+## Owner decisions after review (2026-10-11)
+
+Recorded before merge, at the owner's direction.
+
+- **No cap on classes or playbooks per hunt lane.** A lane keeps the 3 floor
+  classes plus every class whose signal fires, and every assigned playbook goes
+  into its prompt. This stays true when §2.4 adds dynamic playbooks: they are
+  assigned like built-in classes and are not capped per lane or per run.
+- **Dilution is a known risk, watched rather than engineered against.** On the
+  committed Juice Shop plan the median hunt lane already carries about 16k
+  characters of playbooks against about 2k of file content, and the floor alone
+  is about 8.7k. The Stage 2 code records that the model emits about a third of
+  a lane's assigned classes. If recall after §2.4 shows in-class loss, the
+  candidate curbs are, in order: gap-only generation from recon evidence, a
+  closed CWE vocabulary, fixed sources with no browsing, per-lane and per-run
+  caps, deterministic assignment, advisories as a deterministic check rather
+  than playbooks. None of them is part of §2.4; each would be its own measured
+  change.
+- **Order of work:** generalization first, then recall measurement, then action
+  on what the measurement shows. The current harness architecture stays.
+- **No further prompt edits from 1b.** The pre-existing arch-context items noted
+  in review (the same 20-route sample on every lane, and the snippet reading
+  `auto_generated_routes`, which recon never writes, so it always prints 0) are
+  left as they are until a measurement asks for them.

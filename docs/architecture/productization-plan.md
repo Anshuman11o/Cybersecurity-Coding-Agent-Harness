@@ -228,6 +228,12 @@ To avoid finding only OWASP-type issues, add a **guidance step** after recon:
    lists them.
 6. **Opt-out.** `--no-web` uses built-in playbooks only.
 
+**Owner decision (2026-10-11):** no cap on classes or playbooks per hunt lane,
+dynamic ones included. Dilution is watched in the evals after §2.4 rather than
+engineered against in it; the candidate curbs are listed in
+`prompts/dispatch/2026-10-10__task-1b-generalize-recon.md` and are not part of
+§2.4.
+
 ### 2.5 Model selection
 
 - `secscan models` lists the registry entries with price and **measured / unmeasured**
