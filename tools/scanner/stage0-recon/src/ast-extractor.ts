@@ -228,16 +228,26 @@ export function containsWholeWord(text: string, word: string): boolean {
  * objects; the input is not modified. With no identifiers every route is null —
  * "auth unknown" and "no auth" are the same thing to a reader of the table, so
  * nothing is tagged on a guess.
+ *
+ * A route whose `handler` was resolved has that handler as its last argument,
+ * and a handler is never its own guard: the architecture call may rightly list
+ * the login handler as part of authentication, and without this exclusion
+ * `post('/login', loginRateLimit, login)` would read as guarded by `login`.
+ * USE registrations and routes with no resolved handler keep every argument
+ * in play — there a lone guard call such as `requireAdmin()` is the guard,
+ * not a handler.
  */
-export function tagRouteAuth<T extends { middleware: string[]; auth?: string | null }>(
+export function tagRouteAuth<T extends { middleware: string[]; auth?: string | null; handler?: string | null }>(
   routes: readonly T[],
   identifiers: readonly string[],
 ): T[] {
   const keys = [...new Set(identifiers.map(identifierKey).filter((k): k is string => k !== null))]
   return routes.map(r => {
+    const args = r.middleware ?? []
+    const guards = r.handler ? args.slice(0, -1) : args
     const auth = keys.length === 0
       ? null
-      : (r.middleware ?? []).find(mw => keys.some(k => containsWholeWord(mw, k))) ?? null
+      : guards.find(mw => keys.some(k => containsWholeWord(mw, k))) ?? null
     return { ...r, auth }
   })
 }

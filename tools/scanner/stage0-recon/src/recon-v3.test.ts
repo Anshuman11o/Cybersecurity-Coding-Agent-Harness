@@ -282,6 +282,31 @@ console.log('\n-- tagRouteAuth --')
   check('no identifiers -> every route null', tagRouteAuth(routes, []).every(r => r.auth === null))
   check('input routes are not modified', routes.every(r => r.auth === null))
   check('$ counts as an identifier character', tagRouteAuth([{ middleware: ['$auth()'], auth: null }], ['auth'])[0].auth === null)
+
+  // A resolved handler is the route's last argument and never its own guard.
+  // Extracted for real, so `handler` is whatever extractHandlerName resolves.
+  const dir = path.join(TMP, 'handler-not-guard')
+  write(dir, 'routes.ts', `import express from 'express'
+const app = express()
+const api = express.Router()
+const router = express.Router()
+api.post('/login', loginRateLimit, login)
+router.get('/x', requireSession, getNote)
+app.post('/api/Things', security.denyAll())
+app.use('/admin', requireSession)
+`)
+  const extracted = extract(path.join(dir, 'routes.ts')).routes
+  const ids = ['requireSession', 'login', 'security.denyAll']
+  const tagged = tagRouteAuth(extracted, ids)
+  const at = (p: string) => tagged.find(r => r.routePath === p)!
+  check('fixture handlers resolved as expected',
+    at('/login').handler === 'login' && at('/x').handler === 'getNote' && at('/api/Things').handler === null && at('/admin').handler === null)
+  check('login handler is not read as the /login guard (identifiers requireSession, login)', tagRouteAuth(extracted, ['requireSession', 'login']).find(r => r.routePath === '/login')!.auth === null)
+  check('router.get(/x, requireSession, getNote) tagged requireSession', at('/x').auth === 'requireSession')
+  check('handler-null single-argument guard route still tagged', at('/api/Things').auth === 'security.denyAll()')
+  check('USE registration considers every argument', at('/admin').auth === 'requireSession')
+  check('a handler named like an identifier is skipped, a guard before it is not',
+    tagRouteAuth([{ middleware: ['requireSession', 'login'], handler: 'login', auth: null }], ['login', 'requireSession'])[0].auth === 'requireSession')
 }
 
 // ---------------------------------------------------------------------------
