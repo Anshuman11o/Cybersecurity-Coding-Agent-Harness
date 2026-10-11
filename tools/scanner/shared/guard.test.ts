@@ -647,6 +647,338 @@ console.log('\n-- product run store: layout and --out --')
   }
 }
 
+console.log('\n-- productization 1c: measured models match the benchmark ledger --')
+// `secscan models` and the confirmation screen label a model MEASURED from its
+// models.json `benchmark` block. That label is a claim about a paid run, so it
+// must agree with docs/benchmarking-results.md, the record — in both
+// directions: a block whose figures drift from the ledger, or a ledger column
+// whose model is shipped unlabelled, fails here.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync } = await import('fs')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/models.json'), 'utf8'))
+  const ledger = readFileSync(join(REPO_ROOT, 'docs/benchmarking-results.md'), 'utf8')
+  const section = ledger.slice(ledger.indexOf('## 1. Results'), ledger.indexOf('## 2.'))
+  const rows = section.split('\n').filter(l => l.startsWith('|'))
+  const cells = (l: string) => l.split('|').slice(1, -1).map(c => c.trim().replace(/\*\*/g, ''))
+  const header = cells(rows[0] ?? '')
+  const keys = header.slice(1).map(h => (/`([^`]+)`/.exec(h) ?? [])[1])
+  const row = (label: string) => cells(rows.find(r => cells(r)[0].startsWith(label)) ?? '|')
+  const recall = row('Recall (file + exact line')
+  const loc = row('Localization (±15')
+  const cost = row('Total cost')
+  check('ledger §1 table parsed (keys, recall, localization, cost rows)',
+    keys.length > 0 && keys.every(Boolean) && recall.length > 1 && loc.length > 1 && cost.length > 1)
+
+  const measured = Object.entries(reg.targets as Record<string, any>).filter(([, t]) => t.benchmark)
+  for (const k of keys) {
+    check(`ledger model ${k} is labelled measured in models.json`, Boolean(reg.targets[k]?.benchmark))
+  }
+  for (const [k, t] of measured) {
+    const col = keys.indexOf(k) + 1
+    check(`models.json ${k}: benchmark has a ledger column`, col > 0)
+    if (col <= 0) continue
+    check(`models.json ${k}: recall ${t.benchmark.recall} matches the ledger`,
+      recall[col]?.startsWith(`${t.benchmark.recall} `) === true)
+    check(`models.json ${k}: localization ${t.benchmark.localization} matches the ledger`,
+      loc[col]?.startsWith(`${t.benchmark.localization} `) === true)
+    check(`models.json ${k}: cost $${t.benchmark.cost_usd} matches the ledger`,
+      cost[col] === `$${t.benchmark.cost_usd.toFixed(2)}`)
+  }
+}
+
+console.log('\n-- productization 1c: user models stay unmeasured and cannot replace shipped ones --')
+{
+  const { loadRegistry } = await import('./models.js')
+  const { mkdtempSync, writeFileSync, rmSync } = await import('fs')
+  const { tmpdir } = await import('os')
+  const { join } = await import('path')
+  const dir = mkdtempSync(join(tmpdir(), 'secscan-overlay-'))
+  const overlay = (o: unknown) => {
+    const p = join(dir, `o${Math.random().toString(36).slice(2)}.json`)
+    writeFileSync(p, JSON.stringify(o))
+    return { SCANNER_MODELS_FILE: p }
+  }
+  const entry = {
+    label: 'Mine', model: 'my-model', model_env: 'MY_MODEL', api_key_env: 'MY_KEY',
+    base_url: null, base_url_env: 'MY_BASE', token_limit_param: 'max_tokens', sampling: {},
+  }
+  const refuses = (env: Record<string, string>) => { try { loadRegistry(env); return false } catch { return true } }
+  try {
+    const r = loadRegistry(overlay({ targets: { mine: entry }, aliases: { me: 'mine' } }))
+    check('an overlay adds a target', r.targets.mine?.model === 'my-model' && r.origins.mine === 'overlay')
+    check('...with its own alias', r.aliases.me === 'mine')
+    check('...and never carries a benchmark', r.targets.mine.benchmark === undefined)
+    check('an overlay cannot redefine a shipped key', refuses(overlay({ targets: { [defaultProvider()]: entry } })))
+    check('an overlay cannot claim a benchmark result',
+      refuses(overlay({ targets: { mine: { ...entry, benchmark: { corpus: 'x', languages: [], recall: '1/1', localization: '1/1', cost_usd: 0, run: 'r', source: 's' } } } })))
+    check('an overlay cannot use a lab transport', refuses(overlay({ targets: { mine: { ...entry, transport: 'claude-cli' } } })))
+    check('an overlay alias cannot point at a shipped target', refuses(overlay({ targets: { mine: entry }, aliases: { x: defaultProvider() } })))
+    check('a malformed overlay entry is refused', refuses(overlay({ targets: { mine: { ...entry, token_limit_param: 'tokens' } } })))
+    check('an unknown overlay field is refused', refuses(overlay({ targets: {}, models: {} })))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+
+  const shipped = loadRegistry({})
+  const g = shipped.generic!
+  check('the generic endpoint template exists', g != null)
+  check('no generic target without its env vars', !shipped.targets[g.key])
+  const gen = loadRegistry({ [g.model_env]: 'local-model', [g.base_url_env]: 'http://127.0.0.1:1/v1', [g.price_env]: '0.5/1.5' })
+  check('the generic endpoint materialises from the environment', gen.targets[g.key]?.model === 'local-model' && gen.origins[g.key] === 'generic')
+  check('...priced from its price variable', gen.targets[g.key]?.price_per_mtok?.input === 0.5 && gen.targets[g.key]?.price_per_mtok?.output === 1.5)
+  check('...and unmeasured', gen.targets[g.key]?.benchmark === undefined)
+  // Defaulting to a vendor's variable would send that vendor's key to whatever
+  // host --base-url names.
+  const vendorKeyVars = new Set(Object.values(shipped.targets).map(t => t.api_key_env))
+  check('the generic endpoint does not default to any shipped credential variable', !vendorKeyVars.has(g.api_key_env_default))
+  check('a malformed generic price is refused', refuses({ [g.model_env]: 'm', [g.base_url_env]: 'u', [g.price_env]: 'cheap' }))
+}
+
+console.log('\n-- productization 1c: no model id, endpoint or credential variable in the new code --')
+// The registry is the only place these may live (CLAUDE.md, change safety). The
+// CLI and the limit/gate modules are new and the likeliest place for one to
+// creep in, so their sources are checked for every value the registry holds.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync, readdirSync } = await import('fs')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/models.json'), 'utf8'))
+  const values = new Set<string>()
+  for (const t of Object.values(reg.targets as Record<string, any>)) {
+    for (const v of [t.model, t.base_url, t.api_key_env, t.model_env, t.base_url_env]) if (v) values.add(v)
+  }
+  const g = reg.generic_openai_compatible
+  for (const v of [g.model_env, g.base_url_env, g.api_key_env_env, g.api_key_env_default, g.price_env]) values.add(v)
+  const scanner = join(REPO_ROOT, 'tools/scanner')
+  const files = [
+    ...readdirSync(join(scanner, 'cli/src')).filter(f => f.endsWith('.ts')).map(f => join(scanner, 'cli/src', f)),
+    ...['limits.ts', 'spend-gate.ts', 'scan-plan.ts', 'run-status.ts'].map(f => join(scanner, 'stage1-budget-governor/src', f)),
+  ]
+  const hits: string[] = []
+  for (const f of files) {
+    if (f.endsWith('.test.ts')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const v of values) {
+      if (src.includes(`'${v}'`) || src.includes(`"${v}"`) || src.includes(`\`${v}\``) || src.includes(` ${v} `) || src.includes(`(${v})`)) {
+        hits.push(`${f.slice(scanner.length + 1)}: ${v}`)
+      }
+    }
+    if (/provider\s*===\s*['"`]/.test(src)) hits.push(`${f.slice(scanner.length + 1)}: a provider-name branch`)
+  }
+  check(`new CLI and limit code names no registry value${hits.length ? ` (found: ${hits.join('; ')})` : ''}`, hits.length === 0)
+}
+
+console.log('\n-- productization 1c: a committed secscan.config.json cannot redirect the scan --')
+// The file is repository content, so on a pull request anyone can change it.
+// If it could name an endpoint or a credential variable, a PR could send the
+// code and the maintainer's key to a host of its choosing on the next CI run.
+{
+  const { validateConfig } = await import('../cli/src/config.js')
+  for (const k of ['base_url', 'api_key_env', 'api_key', 'models_file']) {
+    let refused = false
+    try { validateConfig({ [k]: 'x' }) } catch { refused = true }
+    check(`secscan.config.json refuses "${k}"`, refused)
+  }
+  let unknownRefused = false
+  try { validateConfig({ endpoint: 'x' }) } catch { unknownRefused = true }
+  check('secscan.config.json refuses unknown fields', unknownRefused)
+}
+
+console.log('\n-- productization 1c: Stage 2 asks the spend gate before every lane --')
+// A structural pin, not a behaviour test (stage1-budget-governor/src/limits.test.ts
+// covers the gate itself): the hard cap exists only if Stage 2 actually asks the
+// gate before starting a lane and refuses to run unplanned lanes in a product run.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync } = await import('fs')
+  const src = readFileSync(join(REPO_ROOT, 'tools/scanner/stage2-hunt-lanes-perfile/src/hunt-executor.ts'), 'utf8')
+  check('Stage 2 imports the spend gate', src.includes("from '../../stage1-budget-governor/src/spend-gate.js'"))
+  check('Stage 2 decides before it begins a lane',
+    src.indexOf('gate.decide(') > 0 && src.indexOf('gate.decide(') < src.indexOf('gate.begin('))
+  check('Stage 2 requires a matching scan plan for product runs', /const required = product \|\| limited/.test(src))
+  // Once lanes are scheduled, both ways out — the normal end and the abort —
+  // record a status; a crash before that leaves none, which the CLI records as
+  // a failed stage rather than a clean run.
+  check('Stage 2 writes run-status.json when it finishes and when it aborts',
+    /writeRunStatus\(true\)/.test(src) && /const runStatus = writeRunStatus\(\)/.test(src))
+}
+
+// ── Task 1b: recon v3, file selection and signals ─────────────────────────
+//
+// Productization plan §2.3. Recon stopped assuming Juice Shop's layout and
+// language: one file selection shared by Stage 0 and Stage 0.5, a tree-sitter
+// symbol table, language-scoped sink patterns, and auth mechanisms named by an
+// LLM call instead of a hardcoded list. These checks hold the parts that would
+// fail silently — a selection rule that swallows real source, a pattern table
+// that quietly changes the class map, a Juice Shop identifier creeping back
+// into product code, and the blind-development boundary around the new
+// model-facing reads.
+{
+  const { readFileSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } = await import('fs')
+  const { join, relative } = await import('path')
+  const { tmpdir } = await import('os')
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { BENCHMARK_TARGET } = await import('./run-context.js')
+  const { SEED_DENYLIST } = await import('./read-guard.js')
+  const contract = await import('../stage0-recon/src/recon-contract.js')
+  const { selectFiles } = await import('../stage0-recon/src/file-selection.js')
+  const { extractSymbolTable } = await import('../stage0-recon/src/symbols.js')
+  const src = (p: string) => readFileSync(join(REPO_ROOT, 'tools/scanner', p), 'utf-8')
+
+  console.log('\n-- 1b: signal-classes.json keeps its class map and gains only sink patterns --')
+  const sc = JSON.parse(src('shared/signal-classes.json'))
+  // The pre-1b map, verbatim. Every recall number to date was measured with it.
+  const PRE_1B = {
+    floor: ['insecure-design', 'logging-monitoring', 'misconfiguration'],
+    signals: {
+      route_handler: ['access-control', 'api-property-auth', 'resource-consumption', 'injection', 'crypto-auth'],
+      db_query: ['injection', 'api-property-auth', 'resource-consumption'],
+      model_schema: ['api-property-auth', 'access-control', 'injection'],
+      model_write: ['injection', 'integrity-failures'],
+      http_outbound: ['ssrf', 'resource-consumption'],
+      auth_check: ['access-control', 'crypto-auth'],
+      crypto_op: ['crypto-auth'],
+      html_sink: ['client-side', 'injection'],
+      dynamic_exec: ['injection'],
+      deserialize: ['integrity-failures', 'injection', 'resource-consumption'],
+      file_io: ['injection', 'access-control', 'ssrf', 'resource-consumption'],
+      llm_call: ['ai-llm-agency', 'client-side'],
+      logging: ['logging-monitoring'],
+      config_file: ['misconfiguration', 'vulnerable-components'],
+      dep_manifest: ['vulnerable-components'],
+    },
+  }
+  check('floor classes unchanged', JSON.stringify(sc.floor) === JSON.stringify(PRE_1B.floor))
+  check('signal -> class map unchanged', JSON.stringify(sc.signals) === JSON.stringify(PRE_1B.signals))
+  const langs = Object.keys(sc.sink_patterns ?? {}).sort()
+  check('sink patterns cover exactly Python, Java, Go, Ruby, PHP, C#',
+    JSON.stringify(langs) === JSON.stringify(['csharp', 'go', 'java', 'php', 'python', 'ruby']))
+  let unknownSignal = 0, badPattern = 0, patterns = 0
+  for (const lang of langs) {
+    for (const [signal, list] of Object.entries(sc.sink_patterns[lang] as Record<string, string[]>)) {
+      if (!(signal in PRE_1B.signals)) unknownSignal++
+      for (const p of list) {
+        patterns++
+        try { new RegExp(p, 'm') } catch { badPattern++ }
+      }
+    }
+  }
+  check('sink patterns use only existing signal names', unknownSignal === 0)
+  check(`all ${patterns} sink patterns compile`, patterns > 0 && badPattern === 0)
+
+  console.log('\n-- 1b: one extension table; every pre-v3 extension keeps its language --')
+  const PRE_V3: Record<string, string> = {
+    '.ts': 'typescript', '.tsx': 'typescript', '.js': 'javascript', '.jsx': 'javascript',
+    '.py': 'python', '.rb': 'ruby', '.go': 'go', '.rs': 'rust', '.java': 'java',
+    '.kt': 'kotlin', '.scala': 'scala', '.php': 'php', '.cs': 'csharp', '.sol': 'solidity',
+    '.vue': 'vue', '.svelte': 'svelte', '.html': 'html', '.css': 'css', '.scss': 'css',
+    '.sql': 'sql', '.graphql': 'graphql', '.proto': 'protobuf', '.yaml': 'yaml', '.yml': 'yaml',
+    '.toml': 'toml', '.json': 'json', '.sh': 'shell', '.bash': 'shell', '.dockerfile': 'docker',
+  }
+  check('pre-v3 extensions map to the same language',
+    Object.entries(PRE_V3).every(([ext, lang]) => contract.languageForPath(`a/b${ext}`) === lang))
+  check('Dockerfile is docker', contract.languageForPath('Dockerfile') === 'docker')
+  check('requirements.txt is an inventoried manifest',
+    contract.languageForPath('requirements.txt') === contract.MANIFEST_LANGUAGE)
+  check('package.json keeps json', contract.languageForPath('package.json') === 'json')
+  check('lockfiles are lockfiles', ['package-lock.json', 'yarn.lock', 'go.sum', 'poetry.lock'].every(contract.isLockfile))
+  check('plan-named extensions are inventoried',
+    ['x.c', 'x.h', 'x.cpp', 'x.swift', 'x.dart', 'x.mjs', 'x.cjs'].every((p) => contract.languageForPath(p) !== null))
+
+  console.log('\n-- 1b: Juice Shop and JS-only assumptions are gone from recon source --')
+  const reconSrc = ['recon.ts', 'llm-probe.ts', 'ast-extractor.ts', 'frontend-grep.ts', 'repo-map.ts', 'signal-detector.ts', 'symbols.ts', 'file-selection.ts']
+    .map((f) => [f, src(`stage0-recon/src/${f}`)] as const)
+  const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
+  for (const id of ['isAuthorized', 'appendUserId', 'jwtChallenges', 'isAccounting', 'updateAuthenticatedUsers', 'generateCoupon']) {
+    const hits = reconSrc.filter(([, s]) => code(s).includes(id)).map(([f]) => f)
+    check(`no '${id}' in recon code${hits.length ? ' (found in ' + hits.join(', ') + ')' : ''}`, hits.length === 0)
+  }
+  const probe = code(src('stage0-recon/src/llm-probe.ts'))
+  check('tool-calling probe no longer says "TypeScript file"', !/TypeScript file/.test(probe))
+  check('no fixed routes/chat.ts path in recon code',
+    reconSrc.every(([, s]) => !/['"`]chat\.ts['"`]|routes\/chat\.ts/.test(code(s))))
+  check('no fixed frontend/src/app path in recon code',
+    reconSrc.every(([, s]) => !/['"`]frontend['"`]\s*,\s*['"`]src['"`]|frontend\/src\/app/.test(code(s))))
+  const laneSel = code(src('stage05-lane-selector-perfile/src/lane-selector-perfile.ts'))
+  check('Stage 0.5 no longer walks the target (one exclusion list, in Stage 0)', !/readdirSync/.test(laneSel))
+  check('Stage 0.5 reads file-inventory.json', /FILE_INVENTORY_FILE/.test(laneSel))
+  check('route context analysis reads the symbol table',
+    /SYMBOLS_FILE/.test(code(src('stage2-hunt-lanes-perfile/src/analyze-route-context.ts'))))
+
+  console.log('\n-- 1b: file selection on the benchmark target --')
+  const inv = selectFiles(BENCHMARK_TARGET)
+  const paths = new Set(inv.files.map((f) => f.path))
+  // Juice Shop's .gitignore has `app/` then `!frontend/src/app`, and `assets/`
+  // then `!frontend/src/assets/`. Getting negation wrong drops most of the
+  // frontend without an error.
+  check('gitignore negation keeps frontend/src/app', [...paths].filter((p) => p.startsWith('frontend/src/app/')).length > 200)
+  check('gitignore negation keeps frontend/src/assets', [...paths].some((p) => p.startsWith('frontend/src/assets/')))
+  check('server.ts and routes/ inventoried, not tests',
+    inv.files.some((f) => f.path === 'server.ts' && !f.test) && inv.files.some((f) => f.path.startsWith('routes/') && !f.test))
+  const blindDeny = SEED_DENYLIST.filter((p) => p.startsWith('target-apps/juice-shop-blind/'))
+    .map((p) => relative(BENCHMARK_TARGET, join(REPO_ROOT, p)))
+  // Inventoried, so Stage 0.5 records them as denylisted skips; a selection
+  // rule that silently dropped them would hide the boundary from the ledger.
+  check('denylisted files stay in the inventory (they become denylisted skip lanes)',
+    blindDeny.every((p) => paths.has(p)))
+  check('nothing from node_modules/.git/.secscan inventoried',
+    [...paths].every((p) => !/(^|\/)(node_modules|\.git|\.secscan)\//.test(p)))
+  check('selection is deterministic',
+    JSON.stringify({ ...selectFiles(BENCHMARK_TARGET), generated_at: '' }) === JSON.stringify({ ...inv, generated_at: '' }))
+  check('inventory is sorted', inv.files.every((f, i, a) => i === 0 || a[i - 1].path < f.path))
+
+  console.log('\n-- 1b: the symbol table honours the read guard --')
+  {
+    const entries = blindDeny.map((p) => ({ path: p, language: 'typescript', bytes: 1, test: false, oversize: false, empty: false }))
+    const table = await extractSymbolTable(BENCHMARK_TARGET, entries)
+    check('denylisted files yield no symbols', Object.keys(table.files).length === 0)
+    check('...and are counted as guard_denied', table.skipped.guard_denied === blindDeny.length)
+  }
+
+  console.log('\n-- 1b: product selection excludes scanner artifacts, VCS, vendored and ignored code --')
+  const fx = mkdtempSync(join(tmpdir(), 'secscan-1b-'))
+  try {
+    const t = join(fx, 'repo')
+    const put = (rel: string, body: string) => { mkdirSync(join(t, rel, '..'), { recursive: true }); writeFileSync(join(t, rel), body) }
+    put('app.py', 'import os\nprint(os.getcwd())\n')
+    put('requirements.txt', 'flask==3.0.3\n')
+    put('poetry.lock', '# lock\n')
+    put('.secscan/runs/r1/luna/stage0-recon/x.py', 'print(1)\n')
+    put('.git/hooks/pre-commit.sh', 'echo hi\n')
+    put('venv/pyvenv.cfg', 'home = /usr/bin\n')
+    put('venv/lib/site.py', 'x = 1\n')
+    put('node_modules/a/index.js', 'module.exports = 1\n')
+    put('.gitignore', 'secret.py\n')
+    put('secret.py', 'KEY = 1\n')
+    put('.secscanignore', 'legacy/\n')
+    put('legacy/old.py', 'x = 1\n')
+    put('tests/test_app.py', 'def test_x():\n    pass\n')
+    put('empty.py', '')
+    symlinkSync(join(fx, 'repo', 'app.py'), join(t, 'link.py'))
+    const p = selectFiles(t)
+    const got = p.files.map((f) => f.path)
+    check('product inventory is exactly the user source',
+      JSON.stringify(got) === JSON.stringify(['app.py', 'empty.py', 'requirements.txt', 'tests/test_app.py']))
+    check('test file flagged, empty file flagged',
+      p.files.find((f) => f.path === 'tests/test_app.py')?.test === true &&
+      p.files.find((f) => f.path === 'empty.py')?.empty === true)
+    const reasons = Object.fromEntries(p.excluded.map((g) => [g.reason, [...g.dirs, ...g.files]]))
+    check('.secscan/ and .git/ excluded as tool dirs',
+      (reasons.tool_dir ?? []).includes('.secscan/') && (reasons.tool_dir ?? []).includes('.git/'))
+    check('venv (pyvenv.cfg) and node_modules excluded as vendor dirs',
+      (reasons.vendor_dir ?? []).includes('venv/') && (reasons.vendor_dir ?? []).includes('node_modules/'))
+    check('.gitignore and .secscanignore honoured',
+      (reasons.gitignore ?? []).includes('secret.py') && (reasons.secscanignore ?? []).includes('legacy/'))
+    check('lockfile and symlink excluded',
+      (reasons.lockfile ?? []).includes('poetry.lock') && (reasons.symlink ?? []).includes('link.py'))
+  } finally {
+    rmSync(fx, { recursive: true, force: true })
+  }
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

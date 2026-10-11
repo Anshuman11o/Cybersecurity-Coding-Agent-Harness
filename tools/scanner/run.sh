@@ -2,7 +2,11 @@
 # Single entry point for scanner runs.
 #
 #   ./tools/scanner/run.sh [--target DIR] [--profile P] [--run-id ID] [--resume] \
-#                          [--out DIR] [--yes] <provider> <stage|all|all-v2>
+#                          [--out DIR] [--yes] [limit flags] [--models-file F] \
+#                          <provider> <stage|all|all-v2>
+#
+# End users run the `secscan` CLI (tools/scanner/cli/), which drives this script
+# one stage at a time; the lab runs it directly.
 #
 # The provider list is not hardcoded here — it comes from shared/models.json
 # via shared/registry-cli.mjs, so adding a model is a registry entry and
@@ -37,6 +41,23 @@
 #   - stale locks from crashed runs are auto-cleared via PID liveness check
 #   - stdout/stderr are teed into <artifact root>/<provider>/<stage>/logs/<stage>.std{out,err}.log
 #     (named per stage because two passes can share one log directory)
+#   - Ctrl-C stops a stage cleanly: Stage 2 starts no new lane, lets the ones in
+#     flight finish and records INCOMPLETE; a second Ctrl-C aborts. The log tee
+#     ignores the interrupt so it outlives the stage and keeps its last lines.
+#
+# Run limits (productization plan §2.6) are resolved by
+# stage1-budget-governor/src/limits.ts from SCANNER_* variables; the flags below
+# set them, and a flag wins over the same variable inherited from the caller:
+#
+#   --max-cost USD    no new lane once projected spend would pass it (priced models only)
+#   --max-files N     hunt at most N files
+#   --max-file-size S skip larger files (bytes, or 200k / 1m)
+#   --timeout T       Stage 2 wall clock; no lane starts after it (600, 90s, 30m, 1h)
+#   --concurrency N   lanes in flight (HUNT_CONCURRENCY; derived when unset)
+#   --paths P         scan only this target-relative file or directory (repeatable)
+#   --include G       scan only files matching this glob (repeatable)
+#   --exclude G       skip files matching this glob (repeatable)
+#   --models-file F   a user models.json overlay (SCANNER_MODELS_FILE)
 #
 # The lock is a directory (mkdir is atomic on POSIX), so this needs no flock —
 # which macOS does not ship by default.
@@ -61,7 +82,28 @@ REGISTRY="$SCANNER_DIR/shared/registry-cli.mjs"
 # The registry CLI reads a local JSON file and makes no network call, so it runs
 # without the proxy env — which would otherwise print an experimental-API
 # warning on every lookup and bury the real error message.
-registry() { NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= node "$REGISTRY" "$@"; }
+#
+# A model defined only by a user overlay (SCANNER_MODELS_FILE) or the generic
+# OpenAI-compatible endpoint is unknown to registry-cli.mjs, which reads the
+# shipped file alone. Those lookups fall through to the CLI's query, which goes
+# through shared/models.ts itself — the one loader the stages use — so bash and
+# TypeScript still cannot disagree about a key. Overlays may not redefine a
+# shipped key, so a key registry-cli.mjs knows has the same answer in both.
+REGISTRY_TS="$SCANNER_DIR/cli/src/registry-query.ts"
+REGISTRY_TSX="$SCANNER_DIR/cli/node_modules/.bin/tsx"
+registry() {
+  local out
+  if out="$(NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= node "$REGISTRY" "$@" 2>/dev/null)"; then
+    printf '%s\n' "$out"
+    return 0
+  fi
+  if [ -x "$REGISTRY_TSX" ]; then
+    NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= "$REGISTRY_TSX" "$REGISTRY_TS" "$@"
+    return $?
+  fi
+  # Neither knows it: rerun for registry-cli's own error message.
+  NODE_NO_WARNINGS=1 NODE_USE_ENV_PROXY= node "$REGISTRY" "$@"
+}
 
 # v1 — category-themed lanes.
 STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes)
@@ -78,6 +120,9 @@ usage() {
   echo "  --resume       product: let Stage 2 continue the checkpoint already in that run" >&2
   echo "  --out DIR      product: the run store, outside the target (default: <target>/.secscan)" >&2
   echo "  --yes          product: allow creating the run store without asking (scripts, CI)" >&2
+  echo "  limits:        --max-cost USD  --max-files N  --max-file-size S  --timeout T  --concurrency N" >&2
+  echo "                 --paths P  --include GLOB  --exclude GLOB  (the last three repeatable)" >&2
+  echo "  --models-file F  user models.json overlay" >&2
   echo "  providers: $(registry spellings 2>/dev/null || echo '(registry unreadable)')" >&2
   echo "  v1 stages: ${STAGES_V1[*]}" >&2
   echo "  v2 stages: ${STAGES_V2[*]}" >&2
@@ -85,6 +130,9 @@ usage() {
 }
 
 die() { echo "error: $*" >&2; exit 2; }
+
+# Same rule as absolute() below, needed while the options are still being read.
+absolute_path() { case "$1" in /*) echo "$1" ;; *) echo "$PWD/$1" ;; esac; }
 
 # ── Options ─────────────────────────────────────────────────────────────────
 # Flags come before the positional arguments. Each value flag also accepts the
@@ -99,13 +147,19 @@ RESUME=0
 YES=0
 OUT_ARG="${SCANNER_OUT:-}"
 
+# Repeatable list flags accumulate newline-separated, the format limits.ts
+# reads: a glob may contain a comma and a path may contain a space. The first
+# use of a flag replaces anything inherited, later uses append.
+PATHS_SET=0; INCLUDE_SET=0; EXCLUDE_SET=0
+append_line() { if [ -n "$1" ]; then printf '%s\n%s' "$1" "$2"; else printf '%s' "$2"; fi; }
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --target|--profile|--run-id|--out)
+    --target|--profile|--run-id|--out|--max-cost|--max-files|--max-file-size|--timeout|--concurrency|--paths|--include|--exclude|--models-file)
       { [ $# -ge 2 ] && [ -n "$2" ]; } || die "$1 needs a value"
       opt="$1"; val="$2"; shift 2
       ;;
-    --target=*|--profile=*|--run-id=*|--out=*)
+    --target=*|--profile=*|--run-id=*|--out=*|--max-cost=*|--max-files=*|--max-file-size=*|--timeout=*|--concurrency=*|--paths=*|--include=*|--exclude=*|--models-file=*)
       opt="${1%%=*}"; val="${1#*=}"; shift
       [ -n "$val" ] || die "$opt needs a value"
       ;;
@@ -117,10 +171,29 @@ while [ $# -gt 0 ]; do
     *)         break ;;
   esac
   case "$opt" in
-    --target)  TARGET_ARG="$val" ;;
-    --profile) PROFILE_ARG="$val" ;;
-    --run-id)  RUN_ID="$val" ;;
-    --out)     OUT_ARG="$val" ;;
+    --target)        TARGET_ARG="$val" ;;
+    --profile)       PROFILE_ARG="$val" ;;
+    --run-id)        RUN_ID="$val" ;;
+    --out)           OUT_ARG="$val" ;;
+    # Values are validated by limits.ts, where every stage reads them.
+    --max-cost)      export SCANNER_MAX_COST="$val" ;;
+    --max-files)     export SCANNER_MAX_FILES="$val" ;;
+    --max-file-size) export SCANNER_MAX_FILE_SIZE="$val" ;;
+    --timeout)       export SCANNER_TIMEOUT="$val" ;;
+    --concurrency)   export HUNT_CONCURRENCY="$val" ;;
+    --paths)
+      [ "$PATHS_SET" = 1 ] || SCANNER_PATHS=""
+      PATHS_SET=1; export SCANNER_PATHS="$(append_line "$SCANNER_PATHS" "$val")" ;;
+    --include)
+      [ "$INCLUDE_SET" = 1 ] || SCANNER_INCLUDE=""
+      INCLUDE_SET=1; export SCANNER_INCLUDE="$(append_line "$SCANNER_INCLUDE" "$val")" ;;
+    --exclude)
+      [ "$EXCLUDE_SET" = 1 ] || SCANNER_EXCLUDE=""
+      EXCLUDE_SET=1; export SCANNER_EXCLUDE="$(append_line "$SCANNER_EXCLUDE" "$val")" ;;
+    --models-file)
+      mf="$(absolute_path "$val")"
+      [ -f "$mf" ] || die "--models-file is not a file: $mf"
+      export SCANNER_MODELS_FILE="$mf" ;;
   esac
 done
 
@@ -486,10 +559,14 @@ run_stage() {
   mkdir -p "$logdir"
 
   echo "=== [$PROVIDER] $stage ==="
+  # The tees ignore SIGINT and SIGTERM: Ctrl-C signals the whole process
+  # group, and a tee that died first would cut the stage's wrap-up out of the
+  # log — or, worse, fail the stage's writes to a closed pipe.
   (
     cd "$SCANNER_DIR/$dir" || exit 1
     SCANNER_PROVIDER="$PROVIDER" npm run --silent "$script"
-  ) > >(tee "$logdir/$stage.stdout.log") 2> >(tee "$logdir/$stage.stderr.log" >&2)
+  ) > >(trap '' INT TERM; exec tee "$logdir/$stage.stdout.log") \
+    2> >(trap '' INT TERM; exec tee "$logdir/$stage.stderr.log" >&2)
 
   local code=${PIPESTATUS[0]}
   echo "=== [$PROVIDER] $stage exited $code ==="
