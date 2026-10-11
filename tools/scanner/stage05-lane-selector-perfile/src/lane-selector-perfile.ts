@@ -11,6 +11,7 @@
  * still carries the provider — its input did.
  *
  * Input:
+ *   - runs/<provider>/stage0-recon/file-inventory.json  (the file list; also: target_dir)
  *   - runs/<provider>/stage0-recon/architecture-summary.json
  *   - runs/<provider>/stage0-recon/category-applicability.json
  *   - runs/<provider>/stage0-recon/file-signals.json   (also: target_dir)
@@ -26,7 +27,12 @@ import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
-import { getRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { getRunContext } from '../../shared/run-context.js'
+// Relative across packages: the contract has no runtime dependencies, so this
+// does not pull Stage 0's parsers into Stage 0.5.
+import {
+  FILE_INVENTORY_FILE, MANIFEST_LANGUAGE, type FileInventoryArtifact,
+} from '../../stage0-recon/src/recon-contract.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -57,7 +63,7 @@ const EXECUTABLE_LANGUAGES = new Set([
 
 const NON_EXECUTABLE_LANGUAGES = new Set([
   'json', 'yaml', 'html', 'css', 'toml', 'sql',
-  'protobuf', 'xml', 'ini', 'properties',
+  'protobuf', 'xml', 'ini', 'properties', MANIFEST_LANGUAGE,
 ])
 
 const SKIP_REASONS: Record<string, string> = {
@@ -71,6 +77,15 @@ const SKIP_REASONS: Record<string, string> = {
   xml: 'Declarative data/config file — no executable logic',
   ini: 'Declarative config file — no executable logic',
   properties: 'Declarative config file — no executable logic',
+  [MANIFEST_LANGUAGE]: 'Dependency manifest — declarative; dependency risk is not judged per file',
+}
+
+// Inventory flags (file-inventory.json). Checked before language, after the
+// denylist: the file is in the inventory, so it gets a lane and a stated reason.
+const EMPTY_SKIP_REASON = 'Empty file — nothing to scan'
+const TEST_SKIP_REASON = 'Test file — skipped by default'
+function oversizeSkipReason(bytes: number, cap: number): string {
+  return 'Exceeds the per-file byte cap (' + bytes + ' > ' + cap + ' bytes)'
 }
 
 function getSkipReason(language: string): string {
@@ -402,6 +417,20 @@ async function main() {
   const fileSignals: FileSignals = JSON.parse(fs.readFileSync(signalsPath, 'utf-8'))
   console.log('[Stage 0.5 v3] Loaded file signals: ' + Object.keys(fileSignals.files).length + ' files')
 
+  // The only file list this stage reads. It used to rebuild one from
+  // architecture-summary.json plus a directory walk of its own, with its own
+  // exclusion list and extension table, which had drifted from Stage 0's.
+  const inventoryPath = path.join(stage0OutputDir, FILE_INVENTORY_FILE)
+  if (!fs.existsSync(inventoryPath)) {
+    console.error('[FATAL] ' + inventoryPath + ' not found.')
+    console.error('  This Stage 0 output predates recon v3, which writes the file inventory. Re-run Stage 0.')
+    process.exit(1)
+  }
+  const inventory: FileInventoryArtifact = JSON.parse(fs.readFileSync(inventoryPath, 'utf-8'))
+  console.log('[Stage 0.5 v3] Loaded file inventory: ' + inventory.files.length + ' files (' +
+    inventory.totals.test + ' test, ' + inventory.totals.oversize + ' oversize, ' + inventory.totals.empty + ' empty; ' +
+    inventory.totals.excluded_files + ' files and ' + inventory.totals.excluded_dirs + ' directories excluded)')
+
   // -----------------------------------------------------------------------
   // Load signal→class mapping and validate
   // -----------------------------------------------------------------------
@@ -434,21 +463,24 @@ async function main() {
   // is relative to that. Inferring it from a route file (as this stage once
   // did) only worked for a target under the repo, and fell back to
   // juice-shop-blind otherwise — silently measuring a different codebase.
-  // Stage 0 artifacts that predate the field fall back to this run's context.
+  // file-inventory.json always records it; both artifacts must agree with this
+  // run's context.
   const contextTarget = getRunContext().targetRoot
-  let targetDir: string
-  if (fileSignals.target_dir) {
-    targetDir = fileSignals.target_dir
-    if (canonicalPath(targetDir) !== canonicalPath(contextTarget)) {
+  function assertSameTarget(artifact: string, recorded: string): void {
+    if (canonicalPath(recorded) !== canonicalPath(contextTarget)) {
       console.error('[FATAL] Stage 0 artifacts were produced for a different target.')
-      console.error('  file-signals.json target_dir: ' + targetDir)
-      console.error('  this run\'s target:           ' + contextTarget)
+      console.error('  ' + artifact + ' target_dir: ' + recorded)
+      console.error('  this run\'s target: ' + contextTarget)
       console.error('  Re-run Stage 0 for this target, or point SCANNER_TARGET at the one Stage 0 scanned.')
       process.exit(1)
     }
+  }
+  assertSameTarget(FILE_INVENTORY_FILE, inventory.target_dir)
+  const targetDir = inventory.target_dir
+  if (fileSignals.target_dir) {
+    assertSameTarget('file-signals.json', fileSignals.target_dir)
   } else {
-    targetDir = contextTarget
-    console.warn('[Stage 0.5 v3] file-signals.json has no target_dir — using the run context target')
+    console.warn('[Stage 0.5 v3] file-signals.json has no target_dir — trusting file-inventory.json\'s')
   }
   console.log('[Stage 0.5 v3] Target directory: ' + targetDir)
 
@@ -465,85 +497,19 @@ async function main() {
   console.log('[Stage 0.5 v3] Category universe: ' + categoryUniverse.length + ' categories (' + presentCount + ' present, ' + uncertainCount + ' uncertain, ' + absentCount + ' absent)')
 
   // -----------------------------------------------------------------------
-  // Build complete file inventory from unclassified_surface
+  // File list: Stage 0's inventory, one lane per entry, in its order (by path)
   // -----------------------------------------------------------------------
-  const fileInv = arch.file_inventory
-  const totalFiles = fileInv.total_source_files
+  const totalFiles = inventory.files.length
   console.log('[Stage 0.5 v3] Total files in inventory: ' + totalFiles)
 
-  const unclassifiedSet = new Set<string>()
-  const allFiles: { path: string; language: string }[] = []
-  for (const group of fileInv.unclassified_surface) {
-    for (const f of group.files) {
-      allFiles.push({ path: f, language: group.language })
-      unclassifiedSet.add(f)
-    }
-  }
-
-  // Supplement: walk the target directory for undercounted language groups
-  const unclassifiedCountByLang = new Map<string, number>()
-  for (const group of fileInv.unclassified_surface) {
-    unclassifiedCountByLang.set(group.language.toLowerCase(), group.count)
-  }
-  const undercountedLanguages = new Set<string>()
-  for (const [lang, byLangEntry] of Object.entries(fileInv.by_language)) {
-    const unclassifiedCount = unclassifiedCountByLang.get(lang.toLowerCase()) ?? 0
-    if ((byLangEntry as { count: number }).count > unclassifiedCount) {
-      undercountedLanguages.add(lang.toLowerCase())
-    }
-  }
-
-  const EXT_TO_LANG: Record<string, string> = {
-    '.ts': 'typescript', '.tsx': 'typescript',
-    '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript',
-    '.py': 'python', '.rb': 'ruby', '.java': 'java', '.go': 'go',
-    '.rs': 'rust', '.c': 'c', '.h': 'c',
-    '.cpp': 'cpp', '.hpp': 'cpp', '.cc': 'cpp',
-    '.cs': 'csharp', '.php': 'php', '.kt': 'kotlin', '.swift': 'swift',
-    '.sol': 'solidity', '.json': 'json',
-    '.yaml': 'yaml', '.yml': 'yaml',
-    '.html': 'html', '.htm': 'html', '.hbs': 'html', '.pug': 'html',
-    '.css': 'css', '.scss': 'css', '.sass': 'css', '.less': 'css',
-    '.toml': 'toml', '.sql': 'sql',
-    '.proto': 'protobuf',
-    '.graphql': 'graphql', '.gql': 'graphql',
-    '.xml': 'xml', '.ini': 'ini', '.properties': 'properties',
-    '.sh': 'shell', '.bash': 'shell',
-  }
-
-  function extToLanguage(filePath: string): string | null {
-    const base = path.basename(filePath).toLowerCase()
-    if (base === 'dockerfile' || base === 'dockerfile.dev') return 'docker'
-    const ext = path.extname(filePath).toLowerCase()
-    return EXT_TO_LANG[ext] ?? null
-  }
-
-  function walkDir(dir: string, relativeBase: string): { path: string; language: string }[] {
-    const results: { path: string; language: string }[] = []
-    if (!fs.existsSync(dir)) return results
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (['node_modules', '.git', '.qwen', 'dist', 'build', 'out', PRODUCT_DIRNAME].includes(entry.name)) continue
-      if (entry.isDirectory()) {
-        results.push(...walkDir(path.join(dir, entry.name), path.join(relativeBase, entry.name)))
-      } else if (entry.isFile()) {
-        const relPath = path.join(relativeBase, entry.name).replace(/\\/g, '/')
-        if (unclassifiedSet.has(relPath)) continue
-        const lang = extToLanguage(entry.name)
-        if (lang && undercountedLanguages.has(lang)) {
-          results.push({ path: relPath, language: lang })
-        }
-      }
-    }
-    return results
-  }
-
-  const supplementalFiles = walkDir(targetDir, '')
-  if (supplementalFiles.length > 0) {
-    console.log('[Stage 0.5 v3] Supplemental files found: ' + supplementalFiles.length)
-    for (const sf of supplementalFiles) {
-      allFiles.push(sf)
-      unclassifiedSet.add(sf.path)
-    }
+  // architecture-summary.json's file_inventory is computed from the same
+  // selection. If the two disagree, Stage 0 wrote them from different walks and
+  // the ledger below would balance against the wrong number.
+  const summaryTotal = arch.file_inventory?.total_source_files
+  if (summaryTotal !== totalFiles) {
+    console.error('[FATAL] ' + FILE_INVENTORY_FILE + ' lists ' + totalFiles + ' files but architecture-summary.json ' +
+      'file_inventory.total_source_files is ' + summaryTotal + '. Re-run Stage 0.')
+    process.exit(1)
   }
 
   // -----------------------------------------------------------------------
@@ -558,7 +524,7 @@ async function main() {
   // run, which has no answer key to protect, so both checks below are no-ops.
   const denylist = activeDenylist()
 
-  for (const fileInfo of allFiles) {
+  for (const fileInfo of inventory.files) {
     laneCounter++
     const laneId = 'file-' + String(laneCounter).padStart(4, '0')
     const targetFile = fileInfo.path
@@ -582,6 +548,15 @@ async function main() {
       disposition = 'skip'
       skipReason = 'Denylisted: references challenge identifiers — must never reach a hunting lane'
       denylistedSkips.push(targetFile)
+    } else if (fileInfo.empty) {
+      disposition = 'skip'
+      skipReason = EMPTY_SKIP_REASON
+    } else if (fileInfo.test) {
+      disposition = 'skip'
+      skipReason = TEST_SKIP_REASON
+    } else if (fileInfo.oversize) {
+      disposition = 'skip'
+      skipReason = oversizeSkipReason(fileInfo.bytes, inventory.options.max_file_bytes)
     } else if (isNonExecutable) {
       disposition = 'skip'
       skipReason = getSkipReason(language)
@@ -603,7 +578,8 @@ async function main() {
 
     // File metrics
     const absolutePath = path.join(targetDir, targetFile)
-    const metrics = measureFile(absolutePath)
+    // An oversize file is never opened (the cap is what makes it oversize); its size comes from the inventory.
+    const metrics = fileInfo.oversize ? { bytes: fileInfo.bytes, lines: 0 } : measureFile(absolutePath)
 
     // Chunk plan
     const chunkPlan = generateChunkPlan(metrics.lines)
