@@ -251,3 +251,39 @@ Every delta is inside the ±7-entry nondeterminism floor. **Qualification:** not
 single-variable against run 6. Besides Task 1a, the tree carries post-run-6
 Stage 2 and registry commits (output cap 24000 to 64000, chunk bounds,
 failed-lane reporting, checkpoint fix).
+
+### 4.2 `luna` · 2026-10-11 · productization Task 1b (recon v3, signals, file selection, PR #57)
+
+| | |
+|---|---|
+| Tree | `d776714` (merged main) |
+| Concurrency / loop / effort / cap | 32 / `trace` / `high` / 64000 |
+| Stages | All fresh: Stage 0 with luna (5 calls, about $0.03, measured with a scratch usage hook), 0.5, 1, 2, reconcile |
+| Lane plan | 884 lanes = 301 hunt + 583 skip (246 former hunt lanes are test files, skipped by default) |
+| Artifacts | private run store `runs/2026-10-11T05-22Z__stage0-2-v2-perfile__luna__d776714`, mirrored in the answer-key repo; not committed here so run 6's committed artifacts stay in place. Eval-history row `scanner-2026-10-11-luna-task1b` |
+
+| Metric | This run | Task 1a run | Run 6 |
+|---|---|---|---|
+| Recall | 65/97 = 67.0% | 69/97 = 71.1% | 69/97 = 71.1% |
+| Localization (±15) | 82/97 = 84.5% | 85/97 = 87.6% | 86/97 = 88.7% |
+| File-level | 97/97 = 100% | 97/97 = 100% | 97/97 = 100% |
+| Recall / localization, category-blind | 75.3% / 96.9% | 79.4% / 97.9% | 79.4% / 95.9% |
+| Precision proxy, category-aware / blind | 15.6% / 25.7% | 12.2% / 21.2% | 12.5% / 22.4% |
+| Hedging | 1.365 | 1.386 | 1.418 |
+| Findings | 405 | 533 | 553 |
+| Tokens / cost | 5,723,610 / $2.63 Stage 2 + about $0.03 Stage 0 | 9,385,314 / $3.68 | 9,618,943 / $4.37 |
+| Wall clock | Stage 0 2m18s, Stage 2 12m06s | 13m25s | 13m04s |
+| Lanes / retries / fatal / blocked reads | 301/301 / 0 / 0 / 0 | 541/541 / 0 / 0 / 0 | 541/541 / 0 / 0 / 0 |
+
+Recall and localization deltas against the Task 1a run (−4, −3) are inside the
+±7-entry nondeterminism floor. Against run 6's committed findings, recall lost 8
+and gained 4, localization lost 6 and gained 2, and none of the losses is on the
+only lane whose prompt 1b changed. Pre-flight class coverage is 97/98 before and
+after, with the same single unreachable (denylisted) entry, so no known
+vulnerability sits in a newly skipped file. **Qualifications:** localization
+84.5% is one entry under the plan's 85% release bar. A defect is in force:
+route auth tagging matches an identifier's last dotted segment and the
+architecture call named challenge-verification middleware as authorization, so
+11 registrations in the route registrar lane read as guarded. Not
+single-variable against run 6 (post-run-6 Stage 2 and registry commits, as in
+§4.1).
