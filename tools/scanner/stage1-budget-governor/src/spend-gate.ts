@@ -1,46 +1,19 @@
 /**
- * Spend gate — the enforcing half of the budget governor (productization plan §2.6).
- *
- * Stage 1 prices every lane before the run; Stage 2 asks this gate before it
- * STARTS each one. The gate never interrupts a lane in flight: a lane's calls are
- * billed as they happen, so killing it mid-way pays for work and throws it away.
- * The guarantee is therefore the one the plan states — no new lane starts once
- * projected spend would exceed the cap — and the overshoot is bounded by the
- * lanes already in flight, not by the size of the repository.
- *
- * A lane may start when
- *
- *     spent + Σ projected(in flight) × k + projected(lane) × k  ≤  cap
- *
- * where `k` is the calibration factor: the ratio of measured to projected cost
- * over the lanes completed so far, never below 1. A projection that runs low on
- * this repository is corrected after the first few lanes instead of being
- * trusted for the whole run; one that runs high is left alone, because erring
- * high only stops a run early, which is the safe direction for a hard cap.
- *
- * When the next lane does not fit but others are still in flight, the answer is
- * `wait`, not `stop`: their measured cost may come in under projection and make
- * room. Only when nothing is in flight and it still does not fit does the run
- * stop. Lanes are never reordered to squeeze a small one in after a large one
- * failed to fit — the unscanned list stays a plain suffix of the plan, which is
- * what the confirmation screen promised.
- *
- * Zero dependencies, no I/O: Stage 2 owns the clock and the scheduling, this
- * owns only the decision, so the decision is unit-testable.
+ * Spend gate: hold each file's chunks × the run's fixed reservation unit U
+ * until the file finishes. Calls are already booked in the live ledger.
+ * Wait for in-flight files to release reservations before refusing a new file;
+ * a retry that cannot reserve one more U ends its file immediately.
  */
-
 export type GateDecision =
   | { action: 'start' }
   | { action: 'wait'; reason: 'max_cost' }
   | { action: 'stop'; reason: 'max_cost' | 'timeout'; detail: string }
 
 export interface GateConfig {
-  /** USD. Null means no cost cap. */
   capUsd: number | null
-  /** Epoch ms after which no lane starts. Null means no deadline. */
   deadlineMs: number | null
-  /** Completed lanes needed before the calibration factor moves off 1. */
-  calibrationMinLanes?: number
+  /** The run's ledger total, including recon and earlier passes. */
+  ledgerTotal?: () => number
   now?: () => number
 }
 
@@ -55,102 +28,67 @@ export interface GateSnapshot {
 }
 
 export class SpendGate {
-  private readonly cap: number | null
-  private readonly deadline: number | null
-  private readonly minLanes: number
-  private readonly now: () => number
-  private spent: number
   private readonly inFlight = new Map<string, number>()
   private completed = 0
-  private calibratedActual = 0
-  private calibratedProjected = 0
+  private spent: number
 
-  /**
-   * @param spentUsd spend already on the books — on a resume, what the
-   *                 checkpointed lanes cost, so the cap covers the whole run
-   */
-  constructor(cfg: GateConfig, spentUsd = 0) {
+  constructor(private readonly cfg: GateConfig, spentUsd = 0) {
     if (cfg.capUsd != null && !(cfg.capUsd > 0)) throw new Error(`spend cap must be positive, got ${cfg.capUsd}`)
-    this.cap = cfg.capUsd
-    this.deadline = cfg.deadlineMs
-    this.minLanes = cfg.calibrationMinLanes ?? 3
-    this.now = cfg.now ?? Date.now
     this.spent = spentUsd
   }
 
-  /** Measured-over-projected cost so far, floored at 1. */
-  calibration(): number {
-    if (this.completed < this.minLanes || this.calibratedProjected <= 0) return 1
-    return Math.max(1, this.calibratedActual / this.calibratedProjected)
+  /** Kept in the status format; U is fixed and never calibrated. */
+  calibration(): number { return 1 }
+
+  private reserved(): number {
+    return [...this.inFlight.values()].reduce((sum, value) => sum + value, 0)
   }
 
-  private inFlightProjected(): number {
-    let s = 0
-    for (const v of this.inFlight.values()) s += v
-    return s
-  }
-
-  /**
-   * May a lane projected at `projectedUsd` start now?
-   * `projectedUsd` null means the target is unpriced; with a cap set that is a
-   * configuration error, and the gate refuses rather than guessing.
-   */
-  decide(projectedUsd: number | null): GateDecision {
-    if (this.deadline != null && this.now() >= this.deadline) {
+  /** reservationUsd is chunks × U, never a per-file estimate. */
+  decide(reservationUsd: number | null): GateDecision {
+    if (this.cfg.deadlineMs != null && (this.cfg.now ?? Date.now)() >= this.cfg.deadlineMs) {
       return { action: 'stop', reason: 'timeout', detail: 'the --timeout deadline passed' }
     }
-    if (this.cap == null) return { action: 'start' }
-    if (projectedUsd == null) {
-      return { action: 'stop', reason: 'max_cost', detail: 'the model is unpriced, so a cost cap cannot be enforced' }
+    if (this.cfg.capUsd == null) return { action: 'start' }
+    if (reservationUsd == null) {
+      return { action: 'stop', reason: 'max_cost', detail: 'the reservation is unpriced, so a cost cap cannot be enforced' }
     }
-    const k = this.calibration()
-    const committed = this.spent + this.inFlightProjected() * k
-    if (committed + projectedUsd * k <= this.cap) return { action: 'start' }
+    if (this.spentUsd() + this.reserved() + reservationUsd <= this.cfg.capUsd) return { action: 'start' }
     if (this.inFlight.size > 0) return { action: 'wait', reason: 'max_cost' }
     return {
-      action: 'stop',
-      reason: 'max_cost',
-      detail:
-        `next lane projects $${(projectedUsd * k).toFixed(4)} and $${this.spent.toFixed(4)} is spent ` +
-        `of the $${this.cap.toFixed(2)} cap` + (k > 1 ? ` (projection scaled ×${k.toFixed(2)} by measured spend)` : ''),
+      action: 'stop', reason: 'max_cost',
+      detail: `next file reserves $${reservationUsd.toFixed(4)} and $${this.spentUsd().toFixed(4)} is spent of the $${this.cfg.capUsd.toFixed(2)} cap`,
     }
   }
 
-  /** A lane started; its projection is held against the cap until it finishes. */
-  begin(laneId: string, projectedUsd: number | null): void {
-    this.inFlight.set(laneId, projectedUsd ?? 0)
+  begin(laneId: string, reservationUsd: number | null): void {
+    this.inFlight.set(laneId, reservationUsd ?? 0)
   }
 
-  /**
-   * A lane finished, successfully or not. `actualUsd` is its measured cost, or
-   * null when the provider returned no usage — then its projection is booked
-   * instead, so an unmeasured lane is never free.
-   */
-  finish(laneId: string, actualUsd: number | null): void {
-    const projected = this.inFlight.get(laneId) ?? 0
+  /** No waiting here: refused retries end the file and stop the run. */
+  reserveRetry(laneId: string, unitUsd: number | null): boolean {
+    if (this.cfg.capUsd != null && (unitUsd == null ||
+        this.spentUsd() + this.reserved() + unitUsd > this.cfg.capUsd)) return false
+    this.inFlight.set(laneId, (this.inFlight.get(laneId) ?? 0) + (unitUsd ?? 0))
+    return true
+  }
+
+  /** With a ledger, finishing only releases the reservation; never book twice. */
+  finish(laneId: string, actualUsd: number | null = null): void {
+    if (!this.inFlight.has(laneId)) return
+    const held = this.inFlight.get(laneId)!
     this.inFlight.delete(laneId)
-    const cost = actualUsd ?? projected
-    this.spent += cost
-    if (actualUsd != null && projected > 0) {
-      this.completed++
-      this.calibratedActual += actualUsd
-      this.calibratedProjected += projected
-    }
+    if (!this.cfg.ledgerTotal) this.spent += actualUsd ?? held
+    this.completed++
   }
 
-  spentUsd(): number {
-    return this.spent
-  }
+  spentUsd(): number { return this.cfg.ledgerTotal ? this.cfg.ledgerTotal() : this.spent }
 
   snapshot(): GateSnapshot {
     return {
-      spent_usd: this.spent,
-      in_flight: this.inFlight.size,
-      in_flight_projected_usd: this.inFlightProjected(),
-      completed: this.completed,
-      calibration: this.calibration(),
-      cap_usd: this.cap,
-      deadline_ms: this.deadline,
+      spent_usd: this.spentUsd(), in_flight: this.inFlight.size,
+      in_flight_projected_usd: this.reserved(), completed: this.completed,
+      calibration: 1, cap_usd: this.cfg.capUsd, deadline_ms: this.cfg.deadlineMs,
     }
   }
 }

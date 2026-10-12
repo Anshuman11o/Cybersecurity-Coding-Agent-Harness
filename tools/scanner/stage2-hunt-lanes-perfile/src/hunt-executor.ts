@@ -13,13 +13,12 @@
  * - Per-finding categories: model names the class actually found
  * - Budget enforcement at lane boundaries: Stage 1's scan plan decides which
  *   lanes the run's limits admit and what each is projected to cost, and a
- *   spend gate (stage1-budget-governor/src/spend-gate.ts) refuses to START a
- *   lane once projected spend would pass --max-cost or --timeout has passed.
- *   A lane in flight is never cut off — its calls are already billed.
+ *   spend gate (stage1-budget-governor/src/spend-gate.ts) reserves chunks × U
+ *   before a lane starts. Each retry reserves another U; every attempt is
+ *   booked in the spend ledger, including failed and unmeasured responses.
  * - **Bounded concurrency**: lanes run in parallel up to a ceiling derived in
- *   stage1-budget-governor/src/limits.ts (HUNT_CONCURRENCY, else 8 held under
- *   the vendor's documented ceiling). Each lane is isolated with its own error
- *   boundary so one failure does not abort the pool.
+ *   Stage 1 from an explicit setting or recon's rate limits, with 8 as the
+ *   fallback. Rate-limit responses step that ceiling down for the run.
  * - A limit, Ctrl-C/SIGTERM or the CLI's stop request ends the run cleanly:
  *   no new lane starts, the in-flight ones finish, and run-status.json records
  *   INCOMPLETE with every lane that was not scanned. Live progress is written
@@ -45,12 +44,17 @@ import OpenAI from 'openai'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs'
 import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
+import { isDeepStrictEqual } from 'node:util'
 import { createClient, extractJson } from './llm-client.js'
-import { resolveLoopConfig, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
+import { HuntCallPolicy, HuntCallError, resumeConcurrency } from './call-policy.js'
+import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
+import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+import { reservationUnitUsd, tierInfo } from '../../shared/pricing.js'
+import { resolveLoopConfig, callsPerChunk, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
 import { setUsageLedgerPath } from '../../shared/claude-cli-client.js'
 import {
   resolveProvider, modelFor, tokenLimitParam, samplingParams, outputTokenCap,
-  costUsd, pricingFor, maxConcurrencyFor,
+  pricingFor, maxConcurrencyFor, clientConfigFor,
 } from '../../shared/provider.js'
 import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
@@ -62,7 +66,7 @@ import { resolveLimits, admissionKey, deriveConcurrency, NO_LIMITS, type RunLimi
 import { SpendGate, type GateDecision } from '../../stage1-budget-governor/src/spend-gate.js'
 import { SCAN_PLAN_FILE, SCAN_PLAN_SCHEMA, type ScanPlan } from '../../stage1-budget-governor/src/scan-plan.js'
 import {
-  PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE,
+  PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE, countNotStartedLanes,
   type Stage2Progress, type Stage2RunStatus, type StopReason, type UnscannedLane, type ScopeExcludedLane,
 } from '../../stage1-budget-governor/src/run-status.js'
 import type {
@@ -841,25 +845,6 @@ interface LlmCallResult {
   measured: MeasuredTokens
 }
 
-/**
- * Return true if the error looks transient and worth retrying:
- * rate-limit (429), gateway timeouts (502/503/504), network ECONNRESET, etc.
- */
-function isTransientError(err: any): boolean {
-  const msg = String(err.message ?? '').toLowerCase()
-  const status = err.status ?? err.statusCode ?? err.response?.status
-  if (status === 429 || status === 502 || status === 503 || status === 504) return true
-  if (msg.includes('rate limit')) return true
-  if (msg.includes('econnreset')) return true
-  if (msg.includes('etimedout')) return true
-  if (msg.includes('timeout')) return true
-  return false
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
 async function callLlm(
@@ -867,63 +852,25 @@ async function callLlm(
   messages: ChatMessage[],
   schema: Record<string, unknown>,
   laneId: string,
-): Promise<LlmCallResult | null> {
-  // Sized to outlast a tokens-per-minute window. The 2026-07-28 run lost 52 of
-  // 541 lanes to TPM limits with maxRetries=3 and a 15s backoff cap: total wait
-  // was ~14s, so all three retries were spent inside a single 60s window and the
-  // lane failed while the limit was still in force. Five retries capped at 60s
-  // wait 2+4+8+16+32 = 62s, which crosses the window.
-  const maxRetries = 5
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await client.chat.completions.create({
-        model: MODEL,
-        messages: messages,
-        ...samplingParams(PROVIDER),
-        ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'hunt_output',
-            schema: schema,
-            strict: true,
-          },
-        },
-      } as any)
-      const text = response.choices[0]?.message?.content
-      if (!text) return null
-      return { text, measured: captureMeasuredTokens(response.usage) }
-    } catch (err: any) {
-      const isSchema = err.message?.includes('json_schema') || err.message?.includes('strict') || err.message?.includes('response_format')
-      if (isSchema) {
-        try {
-          const response = await client.chat.completions.create({
-            model: MODEL,
-            messages: messages,
-            ...samplingParams(PROVIDER),
-            ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
-            response_format: { type: 'json_object' },
-          } as any)
-          const text = response.choices[0]?.message?.content
-          if (!text) return null
-          return { text, measured: captureMeasuredTokens(response.usage) }
-        } catch (err2: any) {
-          console.error(`  [${laneId}] [ERROR] json_schema + fallback both failed: ${err2.message}`)
-          return null
-        }
-      }
-      if (isTransientError(err) && attempt < maxRetries) {
-        const backoff = Math.min(2000 * Math.pow(2, attempt), 60000)
-        const jitter = Math.random() * 1000
-        const wait = Math.round(backoff + jitter)
-        console.log(`  [${laneId}] [RETRY] Transient error (attempt ${attempt + 1}/${maxRetries}), backing off ${wait}ms: ${err.message ?? err}`)
-        await sleep(wait)
-        continue
-      }
-      throw err
-    }
-  }
-  return null
+  policy: HuntCallPolicy | undefined,
+  label: string,
+): Promise<LlmCallResult> {
+  if (!policy) throw new Error('hunt calls require a metered call policy')
+  const { response } = await policy.call(client, {
+    model: MODEL,
+    messages,
+    ...samplingParams(PROVIDER),
+    ...tokenLimitParam(PROVIDER, OUTPUT_TOKEN_CAP),
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'hunt_output',
+        schema,
+        strict: true,
+      },
+    },
+  }, laneId, label)
+  return { text: response.choices[0].message.content, measured: captureMeasuredTokens(response.usage) }
 }
 
 /**
@@ -1058,6 +1005,7 @@ export async function huntLane(
   playbooks: Map<string, string>,
   archSummarySnippet?: string,
   archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[]; middleware_routes?: any[] } },
+  callPolicy?: HuntCallPolicy,
 ): Promise<{
   findings: CandidateFinding[];
   tokensUsed: number;
@@ -1101,22 +1049,8 @@ export async function huntLane(
 
     const t0 = Date.now()
     const result = await callLlm(
-      client, [{ role: 'user', content: huntResult.prompt }], schema, lane.lane_id)
+      client, [{ role: 'user', content: huntResult.prompt }], schema, lane.lane_id, callPolicy, `chunk ${chunk.index} pass 0`)
     const elapsed = (Date.now() - t0) / 1000
-
-    if (!result) {
-      console.error(`  [${lane.lane_id}] [ERROR] chunk ${chunk.index} LLM call failed`)
-      // Still record the chunk with null measurements
-      chunkRecords.push({
-        chunk_index: chunk.index,
-        start_line: chunk.start_line,
-        end_line: chunk.end_line,
-        prompt_breakdown: huntResult.breakdown,
-        segment_attribution: deriveSegmentAttribution(huntResult.breakdown, { prompt_tokens: null, completion_tokens: null, total_tokens: null }),
-        measured: { prompt_tokens: null, completion_tokens: null, total_tokens: null },
-      })
-      continue
-    }
 
     totalTokens += result.measured.total_tokens ?? 0
     const totalLabel = result.measured.total_tokens != null
@@ -1160,28 +1094,8 @@ export async function huntLane(
         messages.push({ role: 'user', content: instruction })
 
         const tPass = Date.now()
-        const followUp = await callLlm(client, messages, schema, lane.lane_id)
+        const followUp = await callLlm(client, messages, schema, lane.lane_id, callPolicy, `chunk ${chunk.index} pass ${pass}`)
         const passElapsed = (Date.now() - tPass) / 1000
-        if (!followUp) {
-          console.error(`  [${lane.lane_id}] [ERROR] chunk ${chunk.index} pass ${pass} LLM call failed`)
-          // The call was made and may have been billed. Record it with null
-          // measurements, exactly as a failed turn-1 call is recorded, so the
-          // consumption artifact has one entry per call attempted.
-          const breakdown = followUpBreakdown(messages, instruction)
-          chunkRecords.push({
-            chunk_index: chunk.index,
-            start_line: chunk.start_line,
-            end_line: chunk.end_line,
-            loop_pass: pass,
-            loop_mode: LOOP_MODE,
-            prompt_breakdown: breakdown,
-            segment_attribution: deriveSegmentAttribution(
-              breakdown, { prompt_tokens: null, completion_tokens: null, total_tokens: null }),
-            measured: { prompt_tokens: null, completion_tokens: null, total_tokens: null },
-          })
-          break
-        }
-
         totalTokens += followUp.measured.total_tokens ?? 0
         const breakdown = followUpBreakdown(messages, instruction)
         chunkRecords.push({
@@ -1240,28 +1154,11 @@ export async function huntLane(
         )
         const tGroup = Date.now()
         const res = await callLlm(
-          client, [{ role: 'user', content: built.prompt }], buildHuntSchema(group), lane.lane_id)
+          client, [{ role: 'user', content: built.prompt }], buildHuntSchema(group), lane.lane_id, callPolicy, `chunk ${chunk.index} sweep ${group.join('+')}`)
         // The group is named in the record. Per-group cost and yield is the one
         // question sweep mode exists to answer, and it is unanswerable if every
         // group's record is indistinguishable from every other's.
         const groupMode = `sweep:${group.join('+')}`
-        const nullMeasured = { prompt_tokens: null, completion_tokens: null, total_tokens: null }
-        if (!res) {
-          console.error(`  [${lane.lane_id}] [ERROR] sweep group ${group.join('+')} failed`)
-          // The call was made and may have been billed — record it, as a failed
-          // turn-1 call is recorded, so there is one entry per call attempted.
-          chunkRecords.push({
-            chunk_index: chunk.index,
-            start_line: chunk.start_line,
-            end_line: chunk.end_line,
-            loop_pass: 1,
-            loop_mode: groupMode,
-            prompt_breakdown: built.breakdown,
-            segment_attribution: deriveSegmentAttribution(built.breakdown, nullMeasured),
-            measured: nullMeasured,
-          })
-          continue
-        }
         totalTokens += res.measured.total_tokens ?? 0
         chunkRecords.push({
           chunk_index: chunk.index,
@@ -1932,6 +1829,19 @@ function loadCheckpoint(outDir: string): {
 
 // ── Scan plan, lane cost and progress helpers ─────────────────────────────
 
+/** The fixed reservation must describe the calls this process will make. */
+export function scanPlanCallMismatch(
+  plan: Pick<ScanPlan, 'model' | 'call_config'>,
+  current: NonNullable<ScanPlan['call_config']>,
+): string | null {
+  if (plan.model !== current.model) return 'scan plan model differs from the current model'
+  if (!plan.call_config) return null
+  for (const key of Object.keys(current) as (keyof typeof current)[]) {
+    if (!isDeepStrictEqual(plan.call_config[key], current[key])) return `scan plan call configuration changed (${key})`
+  }
+  return null
+}
+
 /**
  * Stage 1's scan plan for this run, or null when the run may go without one.
  *
@@ -1963,6 +1873,11 @@ function loadScanPlan(assignments: LaneAssignments, limits: RunLimits, product: 
   }
   if (plan.schema !== SCAN_PLAN_SCHEMA) return refuse(`scan plan ${path} has schema "${plan.schema}", expected "${SCAN_PLAN_SCHEMA}"`)
   if (plan.provider !== PROVIDER) return refuse(`scan plan ${path} was computed for "${plan.provider}", not "${PROVIDER}"`)
+  const changedCall = scanPlanCallMismatch(plan, {
+    model: MODEL, max_output_tokens: OUTPUT_TOKEN_CAP, sampling: samplingParams(PROVIDER),
+    loop: LOOP, base_url: clientConfigFor(PROVIDER).baseURL ?? null,
+  })
+  if (changedCall) return refuse(changedCall)
   if (plan.source_assignments?.generated_at !== assignments.generated_at) {
     return refuse(`scan plan ${path} was computed from different lane assignments (Stage 0.5 re-ran since)`)
   }
@@ -1972,24 +1887,32 @@ function loadScanPlan(assignments: LaneAssignments, limits: RunLimits, product: 
   return plan
 }
 
-/** Measured USD cost of one lane, or null when unpriced or any call went unmeasured. */
-function laneCostUsd(record: LaneTokenRecordV2 | undefined): number | null {
-  if (!record || !pricingFor(PROVIDER) || record.chunks.length === 0) return null
-  let prompt = 0, completion = 0, cached = 0, written = 0
-  for (const c of record.chunks) {
-    if (c.measured.prompt_tokens == null || c.measured.completion_tokens == null) return null
-    prompt += c.measured.prompt_tokens
-    completion += c.measured.completion_tokens
-    cached += c.measured.cached_prompt_tokens ?? 0
-    written += c.measured.cache_write_prompt_tokens ?? 0
+/** Recheck both slots and budget whenever an in-flight lane settles. */
+export async function waitForLaneAdmission(
+  gate: SpendGate,
+  reservationUsd: number | null,
+  running: Set<Promise<void>>,
+  concurrency: () => number,
+  stopping: () => boolean,
+  start: () => void,
+): Promise<GateDecision | null> {
+  while (!stopping()) {
+    if (running.size >= concurrency()) {
+      await Promise.race(running)
+      continue
+    }
+    const decision = gate.decide(reservationUsd)
+    if (decision.action === 'start') {
+      // Reserve and launch synchronously: no response may change the spend or
+      // concurrency between the admission check and the launch.
+      start()
+      return decision
+    }
+    if (decision.action === 'stop') return decision
+    // A 429 can lower the slot limit while waiting for budget to free up.
+    await Promise.race(running)
   }
-  return costUsd(PROVIDER, prompt, completion, cached, written)
-}
-
-/** What the lanes carried forward from earlier passes cost; null when unpriced. */
-function sumLaneCosts(records: LaneTokenRecordV2[]): number | null {
-  if (!pricingFor(PROVIDER)) return null
-  return records.reduce((s, r) => s + (laneCostUsd(r) ?? 0), 0)
+  return null
 }
 
 function formatSeconds(sec: number): string {
@@ -2328,8 +2251,32 @@ async function main() {
   const admittedIds = new Set(
     scanPlan ? scanPlan.admitted.map(l => l.lane_id) : assignments.lanes.filter(l => l.disposition === 'hunt').map(l => l.lane_id),
   )
-  const projectedCost = new Map<string, number | null>(
-    (scanPlan?.admitted ?? []).map(l => [l.lane_id, l.projected_cost_usd]),
+  const spendLedger = new SpendLedger(ledgerPathFor(runCtx.runsRoot, PROVIDER))
+  const apiProfile = readApiProfile(join(runPath(PROVIDER, 'stage0-recon'), API_PROFILE_FILE))
+  const tierPin = { send: apiProfile?.served_tier ?? null }
+  let reservationUnit = scanPlan?.reservation_unit_usd ?? null
+  // Old unlimited lab runs can lack a scan plan. Size their reservation once
+  // over the whole admitted set too, so a no-usage attempt is still booked.
+  if (scanPlan?.reservation_unit_usd === undefined && pricingFor(PROVIDER) && tierInfo(PROVIDER, tierPin.send).multiplier != null) {
+    let maxBytes = 0, maxFollowUpBytes = 0, maxCalls = 1
+    for (const lane of assignments.lanes.filter(l => admittedIds.has(l.lane_id))) {
+      const raw = readCorpusFile(relative(REPO_ROOT, join(assignments.target_dir, lane.target_file)))
+      if (raw === null) continue
+      const classes = lane.classes?.length ? lane.classes : codesToClasses(lane.categories.map(c => c.code))
+      const books = await loadPlaybooksForClasses(classes)
+      for (const built of buildLanePrompts(lane, raw, classes, books, archSnippet, archSummaryFull)) {
+        maxBytes = Math.max(maxBytes, Buffer.byteLength(built.prompt, 'utf8'))
+      }
+      maxFollowUpBytes = Math.max(maxFollowUpBytes, followUpTemplateBytes(classes))
+      maxCalls = Math.max(maxCalls, callsPerChunk(LOOP, classes.length))
+    }
+    reservationUnit = reservationUnitUsd(PROVIDER, {
+      callsPerUnit: maxCalls, maxPromptBytes: maxBytes, followUpTemplateBytes: maxFollowUpBytes,
+      outputCap: OUTPUT_TOKEN_CAP, servedTier: tierPin.send, baseURL: client.baseURL,
+    })
+  }
+  const reservationCost = new Map<string, number | null>(
+    huntLanes.map(l => [l.lane_id, reservationUnit == null ? null : l.chunk_plan.chunks.length * reservationUnit]),
   )
   const unscanned: UnscannedLane[] = []
   const scopeExcluded: ScopeExcludedLane[] = []
@@ -2349,7 +2296,7 @@ async function main() {
   const carriedDone = checkpoint
     ? [...checkpoint.completedLaneIds].filter(id => admittedIds.has(id)).length
     : 0
-  const carriedSpend = sumLaneCosts(laneRecordsV2)
+  const carriedSpend = spendLedger.total()
 
   // ── Chunk bound ─────────────────────────────────────────────────────────
   // HUNT_MAX_LANES stops this pass after N *newly executed* lanes and exits
@@ -2377,8 +2324,16 @@ async function main() {
     }
   }
 
-  const concurrency = deriveConcurrency(limits.concurrency, maxConcurrencyFor(PROVIDER), huntLanes.length)
-  console.log(`\n[CONCURRENCY] Running up to ${concurrency.value} lanes in parallel (${concurrency.basis})`)
+  const concurrency = limits.concurrency != null || !scanPlan
+    ? deriveConcurrency(limits.concurrency, maxConcurrencyFor(PROVIDER), huntLanes.length)
+    : scanPlan.concurrency
+  let previousConcurrency: Stage2RunStatus['concurrency']
+  if (checkpoint) {
+    try { previousConcurrency = JSON.parse(readFileSync(join(outDir, RUN_STATUS_FILE), 'utf8')).concurrency }
+    catch { /* A checkpoint can predate the status file. */ }
+  }
+  const concurrencyState = resumeConcurrency(concurrency.value, previousConcurrency)
+  console.log(`\n[CONCURRENCY] Running up to ${concurrencyState.concurrency} lanes in parallel (${concurrency.basis})`)
   if (limits.max_cost_usd != null) {
     console.log(`[LIMITS] cost cap $${limits.max_cost_usd.toFixed(2)}` +
       (carriedSpend ? ` ($${carriedSpend.toFixed(4)} already spent by earlier passes)` : ''))
@@ -2395,18 +2350,18 @@ async function main() {
   console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
 
   // ── Lane scheduler: bounded concurrency behind the spend gate ───────────
-  // Lanes start in assignment order, as they always have; the only new
-  // question asked before each one is whether the gate lets it start. The
-  // gate never stops a lane already running — see spend-gate.ts.
+  // Lanes start in assignment order when slots and fixed reservations permit.
+  // Calls in flight finish; retries need another reservation — see spend-gate.ts.
   const stageStart = Date.now()
   const gate = new SpendGate(
     {
       capUsd: limits.max_cost_usd,
+      ledgerTotal: () => spendLedger.total(),
       deadlineMs: limits.timeout_seconds != null ? stageStart + limits.timeout_seconds * 1000 : null,
     },
-    carriedSpend ?? 0,
+    carriedSpend,
   )
-  const priced = pricingFor(PROVIDER) != null
+  const priced = pricingFor(PROVIDER) != null && tierInfo(PROVIDER, tierPin.send).multiplier != null
   const admittedTotal = admittedIds.size
   const progressPath = join(outDir, PROGRESS_FILE)
   const stopPath = join(outDir, STOP_REQUEST_FILE)
@@ -2415,11 +2370,26 @@ async function main() {
 
   const inFlightLanes = new Map<string, LaneAssignmentEntry>()
   const settled = new Set<string>()
+  const startedLanes = new Set<string>()
   let doneThisPass = 0
   let failedThisPass = 0
   let stop: { reason: StopReason; detail: string } | null = null
   let phase: Stage2Progress['status'] = 'running'
   let notStarted: LaneAssignmentEntry[] = []
+  const callPolicy = new HuntCallPolicy({
+    provider: PROVIDER, ledger: spendLedger, gate, reservationUnitUsd: reservationUnit, pin: tierPin,
+    ...concurrencyState,
+    onStop: (reason, detail) => {
+      if (!stop) stop = { reason, detail }
+      phase = 'stopping'
+      writeProgress()
+    },
+    onUpdate: () => writeProgress(),
+  })
+  if (tierInfo(PROVIDER, tierPin.send).multiplier == null) {
+    stop = { reason: 'unpriced_service_tier', detail: `service tier ${tierPin.send} has no registered price` }
+    phase = 'stopping'
+  }
 
   const findingsBySeverity = () => {
     const by = { critical: 0, high: 0, medium: 0, low: 0 }
@@ -2446,9 +2416,11 @@ async function main() {
       },
       spend: {
         spent_usd: priced ? gate.spentUsd() : null,
+        ledger_spent_usd: priced ? spendLedger.total() : null,
         estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
         cap_usd: limits.max_cost_usd,
       },
+      concurrency: { current: callPolicy.currentConcurrency, initial: callPolicy.initialConcurrency },
       findings: { total: allFindings.length, by_severity: findingsBySeverity() },
     }
     try {
@@ -2486,6 +2458,7 @@ async function main() {
     gate.finish(laneId, actualUsd)
     if (failed) failedThisPass++
     else doneThisPass++
+    callPolicy.laneFinished(failed)
   }
 
   const writeRunStatus = (aborted = false): Stage2RunStatus => {
@@ -2517,7 +2490,7 @@ async function main() {
     const blocked = guardStats().blocked
     if (blocked > 0) reasons.push({ reason: 'blocked_reads', detail: `${blocked} read(s) refused by the read guard` })
 
-    const complete = unscannedAll.length === 0 && blocked === 0 && !aborted
+    const complete = unscannedAll.length === 0 && blocked === 0 && !aborted && !stop
     // Lanes cut by --max-files come back only once the limit is raised and
     // Stage 1 re-plans; everything else continues with a plain resume.
     const resumable = unscannedAll.some(u => u.reason !== 'over-max-files')
@@ -2533,17 +2506,18 @@ async function main() {
         admitted: admittedTotal,
         completed: carriedDone + doneThisPass,
         failed: failedLanes.length,
-        not_started: unscannedAll.filter(u =>
-          u.reason !== 'failed' && u.reason !== 'aborted_in_flight' && u.reason !== 'over-max-files').length,
+        not_started: countNotStartedLanes(unscannedAll, startedLanes),
       },
       unscanned: unscannedAll,
       scope_excluded: scopeExcluded,
       spend: {
         spent_usd: priced ? gate.spentUsd() : null,
+        ledger_spent_usd: priced ? spendLedger.total() : null,
         estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
         cap_usd: limits.max_cost_usd,
         calibration: gate.calibration(),
       },
+      concurrency: { initial: callPolicy.initialConcurrency, final: callPolicy.currentConcurrency, step_downs: callPolicy.stepDowns },
       findings_total: allFindings.length,
       blocked_reads: blocked,
       limits,
@@ -2579,8 +2553,7 @@ async function main() {
     stop = stop ?? { reason: 'interrupted', detail }
     for (const l of inFlightLanes.values()) {
       unscanned.push({ lane_id: l.lane_id, target_file: l.target_file, reason: 'aborted_in_flight', detail })
-      // Its calls may already be billed and their usage dies with the process,
-      // so the recorded spend carries its projection rather than nothing.
+      // Completed attempts remain in the ledger even when the lane is aborted.
       gate.finish(l.lane_id, null)
     }
     // Lanes the loop had not reached yet, or had already set aside — those keep
@@ -2646,7 +2619,7 @@ async function main() {
       console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
 
       const t0 = Date.now()
-      const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet, archSummaryFull)
+      const result = await huntLane(client, lane, assignments.target_dir, laneClasses, playbooks, archSnippet, archSummaryFull, callPolicy)
       const elapsed = (Date.now() - t0) / 1000
 
       allFindings.push(...result.findings)
@@ -2688,14 +2661,16 @@ async function main() {
 
       console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
-      // Measured cost of this lane, booked against the cap. Null when the
-      // provider returned no usage; the gate then books the projection.
-      settle(lane.lane_id, laneCostUsd(laneRecordsV2[laneRecordsV2.length - 1]), false)
+      // Every call is in the ledger already; finishing releases its reservation.
+      settle(lane.lane_id, null, false)
 
       // ── Checkpoint: write results immediately after each lane ─────────
       writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
     } catch (err: any) {
       console.error(`  [${lane.lane_id}] [FATAL] Lane failed: ${err.message ?? err}`)
+      if (err instanceof HuntCallError && err.stopReason) {
+        unscanned.push({ lane_id: lane.lane_id, target_file: lane.target_file, reason: err.stopReason, detail: err.message })
+      }
       // Marked failed, not merely zero-token. Without the flag this entry is
       // indistinguishable from a skip lane, and loadCheckpoint would treat
       // the lane as done — so a resume would skip it for good and the run
@@ -2708,8 +2683,7 @@ async function main() {
         failed: true,
         failure_reason: String(err?.message ?? err).slice(0, 300),
       })
-      // A lane that threw may already have been billed for some calls; its
-      // usage is lost with the exception, so the gate books its projection.
+      // Failed attempts are already booked; release only the held reservation.
       settle(lane.lane_id, null, true)
       writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
     } finally {
@@ -2723,15 +2697,19 @@ async function main() {
   writeProgress()
   for (let i = 0; i < huntLanes.length; i++) {
     const lane = huntLanes[i]
-    while (running.size >= concurrency.value) await Promise.race(running)
-
-    let decision: GateDecision | null = stop ? null : gate.decide(projectedCost.get(lane.lane_id) ?? null)
-    while (!stop && decision?.action === 'wait') {
-      // Over the cap only because of lanes still in flight: their measured
-      // cost may come in under projection, so wait for one rather than stop.
-      await Promise.race(running)
-      decision = stop ? null : gate.decide(projectedCost.get(lane.lane_id) ?? null)
-    }
+    const decision = await waitForLaneAdmission(
+      gate, reservationCost.get(lane.lane_id) ?? null, running,
+      () => callPolicy.currentConcurrency, () => stop !== null,
+      () => {
+        gate.begin(lane.lane_id, reservationCost.get(lane.lane_id) ?? null)
+        startedLanes.add(lane.lane_id)
+        inFlightLanes.set(lane.lane_id, lane)
+        writeProgress()
+        const p: Promise<void> = runLane(lane).finally(() => { running.delete(p) })
+        running.add(p)
+      },
+    )
+    if (decision?.action === 'start') continue
     if (!stop && decision?.action === 'stop') {
       stop = { reason: decision.reason, detail: decision.detail }
       phase = 'stopping'
@@ -2742,12 +2720,6 @@ async function main() {
       notStarted = huntLanes.slice(i)
       break
     }
-
-    gate.begin(lane.lane_id, projectedCost.get(lane.lane_id) ?? null)
-    inFlightLanes.set(lane.lane_id, lane)
-    writeProgress()
-    const p: Promise<void> = runLane(lane).finally(() => { running.delete(p) })
-    running.add(p)
   }
 
   await Promise.all(running)
