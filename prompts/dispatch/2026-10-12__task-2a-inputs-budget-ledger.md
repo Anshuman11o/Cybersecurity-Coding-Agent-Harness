@@ -321,7 +321,7 @@ additions are fine; renames are not.
 | 2 | stage 1 | `stage1-budget-governor/src/budget-governor.ts` (scan-plan path only), `scan-plan.ts`, `limits.ts`, new `stage1-budget-governor/src/estimate.test.ts`, `stage1-budget-governor/package.json` |
 | 2 | stage 2 | `stage2-hunt-lanes-perfile/src/hunt-executor.ts` (scheduling, gate, calls, ledger, progress; never prompt or schema text), `stage2-hunt-lanes-perfile/src/llm-client.ts`, new `stage2-hunt-lanes-perfile/src/call-policy.ts` + `call-policy.test.ts`, `stage1-budget-governor/src/spend-gate.ts`, `stage1-budget-governor/src/run-status.ts`, `stage1-budget-governor/src/limits.test.ts` (gate cases only), `stage2-hunt-lanes-perfile/package.json` |
 | 2 | cli | `cli/src/*` (new `cli/src/inputs.ts` for round-1 prompts with injectable input/output), `cli/package.json` |
-| end | orchestrator | `cli/README.md`, `docs/architecture/`, this file |
+| end | orchestrator | `cli/README.md`, `docs/architecture/`, this file; integration hooks in `run.sh`, `shared/api-profile.ts`, `stage0-recon/src/{recon-contract,ast-extractor,frontend-grep,symbols,signal-detector,swagger-diff}.ts`, and CLI lockfile bin metadata |
 
 ## Verification (orchestrator, after each phase)
 1. Read every diff.
