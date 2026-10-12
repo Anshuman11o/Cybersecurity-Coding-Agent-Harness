@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "run": "tsx src/hunt-executor.ts"
+    "run": "tsx src/hunt-executor.ts",
+    "test:prompts": "tsx --test src/prompt-extract.test.ts"
   },
   "dependencies": {
     "https-proxy-agent": "^9.1.0",

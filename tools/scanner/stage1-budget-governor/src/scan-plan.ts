@@ -61,7 +61,17 @@ export interface ScanPlan {
   limits: RunLimits
   /** admissionKey(limits). Stage 2 refuses to run under different scope limits. */
   admission_key: string
-  concurrency: { value: number; basis: string }
+  concurrency: {
+    value: number
+    basis: string
+    /**
+     * Where the value came from: an explicit --concurrency, the account's rate
+     * limits recorded by recon, or the default. Optional until Stage 1 fills it.
+     */
+    source?: 'explicit' | 'rate-limits' | 'default'
+    tokens_per_minute?: number | null
+    requests_per_minute?: number | null
+  }
   price_per_mtok: { input: number; cached_input?: number; cache_write?: number; output: number } | null
   price_asof: string | null
   admitted: ScanPlanLane[]
@@ -77,6 +87,17 @@ export interface ScanPlan {
     projected_wall_seconds: number
     wall_basis: string
   }
+  /**
+   * The run estimate (shared/pricing.ts scanCostUsd plus the ledger's spend so
+   * far). Optional and null until Stage 1 computes it; null also when unpriced.
+   */
+  estimate?: ScanEstimate | null
+  /**
+   * The reservation unit U: the worst case of one chunk, which the spend gate
+   * reserves per chunk before a file starts (shared/pricing.ts
+   * reservationUnitUsd). Optional and null until Stage 1 computes it.
+   */
+  reservation_unit_usd?: number | null
   cap: {
     max_cost_usd: number | null
     /** Null when there is no cap or no price to compare against. */
@@ -84,6 +105,30 @@ export interface ScanPlan {
     /** How many admitted lanes, in order, fit under the cap by projection. */
     lanes_within_cap: number | null
   }
+}
+
+/** The scan's cost estimate and every input it was computed from. */
+export interface ScanEstimate {
+  input_tokens: number
+  output_tokens: number
+  input_usd: number
+  output_usd: number
+  scan_usd: number
+  /** Ledger total before the hunt: recon and earlier passes. */
+  spent_before_usd: number
+  /** spent_before_usd + scan_usd. */
+  total_usd: number
+  /** ± percent; null under 10 files ("can vary widely"). */
+  band_pct: number | null
+  files: number
+  ratio_R: number
+  ratio_source: string
+  chars_per_token: number
+  chars_per_token_source: string
+  served_tier: string | null
+  tier_label: string
+  tier_multiplier: number
+  region_multiplier: number
 }
 
 export interface PlanInput {

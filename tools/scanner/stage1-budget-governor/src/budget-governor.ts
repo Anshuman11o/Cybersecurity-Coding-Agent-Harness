@@ -15,6 +15,7 @@ import {
 import { resolveLimits } from "./limits.js";
 import { computeScanPlan, SCAN_PLAN_FILE, type ScanPlan } from "./scan-plan.js";
 import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
+import { FOLLOW_UP_INPUT_MULTIPLIER } from "../../shared/pricing.js";
 
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
 
@@ -58,15 +59,9 @@ const BASE_OUTPUT_TOKENS_PER_CALL = 718;
  */
 const EFFORT_OUTPUT_MULTIPLIER: Record<string, number> = { high: 3.53 };
 
-/**
- * A follow-up turn's input as a multiple of the turn-1 prompt.
- *
- * A conversational follow-up does not re-send the prompt — it continues the
- * transcript, so it pays for the prompt again plus the assistant's answer plus
- * its own instruction. Measured 1.19x on the 40-lane platform. Treating it as a
- * second full prompt would overstate a looped run's input by about 40%.
- */
-const FOLLOW_UP_INPUT_MULTIPLIER = 1.19;
+// A follow-up turn's input as a multiple of the turn-1 prompt (measured 1.19x
+// on the 40-lane platform). Defined in shared/pricing.ts, where the run
+// estimate uses the same figure, so the two cannot drift apart.
 
 const LOOP = resolveLoopConfig();
 

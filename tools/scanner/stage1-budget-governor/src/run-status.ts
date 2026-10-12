@@ -33,6 +33,12 @@ export type StopReason =
   | 'interrupted'
   /** HUNT_MAX_LANES bounded this pass (lab chunking). */
   | 'chunk_bound'
+  /** The provider refused for quota or a spend limit; retrying cannot help. */
+  | 'provider_quota'
+  /** Three files in a row failed every attempt. */
+  | 'provider_failing'
+  /** A response reported a service tier the registry has no price for. */
+  | 'unpriced_service_tier'
 
 /** Why an admitted lane, or a lane the limits cut, was not scanned. */
 export type UnscannedReason =
@@ -66,7 +72,11 @@ export interface Stage2Progress {
     spent_usd: number | null
     estimate_usd: number | null
     cap_usd: number | null
+    /** The spend ledger's total: recon, earlier passes and this one. Optional until Stage 2 fills it. */
+    ledger_spent_usd?: number | null
   }
+  /** Lanes allowed in flight now, and at the start (rate-limit step-downs lower it). Optional until Stage 2 fills it. */
+  concurrency?: { current: number; initial: number }
   findings: { total: number; by_severity: Record<'critical' | 'high' | 'medium' | 'low', number> }
 }
 
@@ -111,7 +121,11 @@ export interface Stage2RunStatus {
     cap_usd: number | null
     /** Measured / projected over completed lanes; > 1 means the estimate ran low. */
     calibration: number
+    /** The spend ledger's total at the end. Optional until Stage 2 fills it. */
+    ledger_spent_usd?: number | null
   }
+  /** Concurrency at the start and end, and how many rate-limit step-downs it took. Optional until Stage 2 fills it. */
+  concurrency?: { initial: number; final: number; step_downs: number }
   findings_total: number
   blocked_reads: number
   limits: RunLimits | null

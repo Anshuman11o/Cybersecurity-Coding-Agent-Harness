@@ -962,6 +962,94 @@ function unionCodesForClasses(classes: FindingClassRef[], reg: VulnClassRegistry
   return result
 }
 
+/** One chunk's turn-1 prompt, as huntLane sends it. */
+export interface LanePrompt {
+  chunk_index: number
+  prompt: string
+  breakdown: PromptBreakdown
+  /** The chunk's line-numbered content; sweep mode re-prompts with it. */
+  line_numbered: string
+  /** The lane's route context, identical for every chunk; undefined when there is none. */
+  route_context_section: string | undefined
+}
+
+/**
+ * Every turn-1 prompt a lane sends, one per chunk, without calling anything.
+ *
+ * The route-context and per-chunk assembly huntLane has always done, moved out
+ * of it unchanged so Stage 1 can size a plan from the exact text the hunt will
+ * send instead of a projection of it. `rawContent` is the file as read through
+ * the guard; reading it stays the caller's job, so this function cannot be the
+ * path by which a denylisted file reaches a prompt.
+ */
+export function buildLanePrompts(
+  lane: LaneAssignmentEntry,
+  rawContent: string,
+  classIds: string[],
+  playbooks: Map<string, string>,
+  archSummarySnippet?: string,
+  archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[]; middleware_routes?: any[] } },
+): LanePrompt[] {
+  const sanitized = sanitizePemPrivateKey(rawContent)
+
+  // Compute per-lane route context (once, not per-chunk)
+  const routeContext = archSummary
+    ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
+    : { handWritten: [], autoCrud: [] }
+  let routeContextSection = renderRouteContext(routeContext)
+
+  // A file can both declare registrations and export handlers. The registrar
+  // block goes first because it is the one carrying line numbers.
+  const registrarSection = archSummary
+    ? renderRegistrarRouteContext(lane.target_file, archSummary.route_table)
+    : undefined
+  if (registrarSection) {
+    routeContextSection = routeContextSection
+      ? `${registrarSection}\n\n${routeContextSection}`
+      : registrarSection
+  }
+
+  return lane.chunk_plan.chunks.map(chunk => {
+    const allLines = sanitized.split('\n')
+    const chunkLines = allLines.slice(chunk.start_line - 1, chunk.end_line)
+    const chunkContent = chunkLines.join('\n')
+
+    const lineNumbered = lineNumberContent(chunkContent, chunk.start_line)
+
+    const huntResult = buildHuntPrompt(
+      lane.target_file,
+      lineNumbered,
+      classIds,
+      playbooks,
+      { chunkIndex: chunk.index, totalChunks: lane.chunk_plan.total_chunks },
+      archSummarySnippet,
+      routeContextSection,
+    )
+    return {
+      chunk_index: chunk.index,
+      prompt: huntResult.prompt,
+      breakdown: huntResult.breakdown,
+      line_numbered: lineNumbered,
+      route_context_section: routeContextSection,
+    }
+  })
+}
+
+/**
+ * Bytes of the follow-up instruction this run's loop sends when nothing has
+ * been reported yet — the T of Stage 1's reservation bound. Computed by calling
+ * buildFollowUpTurn rather than copied, so a change to the wording moves the
+ * bound with it.
+ *
+ * `classes` matters only to the gap and reflect wordings, which list the
+ * assigned classes; trace mode ignores it. Zero for `none` and `sweep`, which
+ * send no follow-up turn.
+ */
+export function followUpTemplateBytes(classes: string[] = []): number {
+  if (LOOP_MODE === 'none' || LOOP_MODE === 'sweep') return 0
+  return Buffer.byteLength(buildFollowUpTurn(LOOP_MODE, classes, []), 'utf8')
+}
+
 export async function huntLane(
   client: OpenAI,
   lane: LaneAssignmentEntry,
@@ -989,25 +1077,6 @@ export async function huntLane(
     )
     return { findings: [], tokensUsed: 0, chunkRecords: [] }
   }
-  const sanitized = sanitizePemPrivateKey(rawContent)
-
-  // Compute per-lane route context (once, not per-chunk)
-  const routeContext = archSummary
-    ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
-    : { handWritten: [], autoCrud: [] }
-  let routeContextSection = renderRouteContext(routeContext)
-
-  // A file can both declare registrations and export handlers. The registrar
-  // block goes first because it is the one carrying line numbers.
-  const registrarSection = archSummary
-    ? renderRegistrarRouteContext(lane.target_file, archSummary.route_table)
-    : undefined
-  if (registrarSection) {
-    routeContextSection = routeContextSection
-      ? `${registrarSection}\n\n${routeContextSection}`
-      : registrarSection
-  }
-
   const allFindings: CandidateFinding[] = []
   let totalTokens = 0
   const chunkRecords: ChunkTokenRecord[] = []
@@ -1018,24 +1087,17 @@ export async function huntLane(
     return { findings: [], tokensUsed: 0, chunkRecords: [] }
   }
 
+  // Route context and every chunk's turn-1 prompt, built by the same pure
+  // function Stage 1 calls to size the plan, so the planned prompt is the sent one.
+  const lanePrompts = buildLanePrompts(lane, rawContent, classIds, playbooks, archSummarySnippet, archSummary)
+
   const schema = buildHuntSchema(classIds)
 
-  for (const chunk of chunks) {
-    const allLines = sanitized.split('\n')
-    const chunkLines = allLines.slice(chunk.start_line - 1, chunk.end_line)
-    const chunkContent = chunkLines.join('\n')
-
-    const lineNumbered = lineNumberContent(chunkContent, chunk.start_line)
-
-    const huntResult = buildHuntPrompt(
-      lane.target_file,
-      lineNumbered,
-      classIds,
-      playbooks,
-      { chunkIndex: chunk.index, totalChunks: lane.chunk_plan.total_chunks },
-      archSummarySnippet,
-      routeContextSection,
-    )
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci]
+    const huntResult = lanePrompts[ci]
+    const lineNumbered = huntResult.line_numbered
+    const routeContextSection = huntResult.route_context_section
 
     const t0 = Date.now()
     const result = await callLlm(
