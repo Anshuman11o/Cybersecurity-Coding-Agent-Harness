@@ -716,6 +716,8 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   // a failed stage rather than a clean run.
   check('Stage 2 writes run-status.json when it finishes and when it aborts',
     /writeRunStatus\(true\)/.test(src) && /const runStatus = writeRunStatus\(\)/.test(src))
+}
+
 // ── Task 1b: recon v3, file selection and signals ─────────────────────────
 //
 // Productization plan §2.3. Recon stopped assuming Juice Shop's layout and
@@ -887,6 +889,56 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   } finally {
     rmSync(fx, { recursive: true, force: true })
   }
+}
+
+// ── Task 2a: GPT-6 Luna as the product default, priced from registry data ──
+//
+// The product CLI now defaults to a different model from the lab. That split is
+// only safe while it stays a split: the lab's default must not move with it, and
+// the new model must not be labelled measured before a scored run exists.
+console.log('\n-- task 2a: luna6 is the product default, unmeasured, and the lab default is unchanged --')
+{
+  const { productDefaultProvider, benchmarkFor, isProvider } = await import('./models.js')
+  check('luna6 is a shipped target', isProvider('luna6') && listProviders().includes('luna6'))
+  check('luna6 is the product default', productDefaultProvider() === 'luna6')
+  check('luna6 is unmeasured (no benchmark block)', targetFor('luna6').benchmark === undefined && benchmarkFor('luna6') === null)
+  check('default_provider is still luna', defaultProvider() === 'luna')
+  check('luna declares none of the new pricing fields, so it prices as before',
+    ['long_context', 'service_tiers', 'regional_endpoint_pattern', 'regional_uplift', 'web_search_usd_per_call', 'calibration']
+      .every(f => !(f in targetFor('luna'))))
+  check('luna6 calibration says it is a placeholder', /placeholder/i.test(targetFor('luna6').calibration?.source ?? ''))
+}
+
+console.log('\n-- task 2a: no model id, endpoint or credential variable in the new shared modules --')
+// Same check as 1c's, over the modules that price calls, book the ledger and
+// classify errors. They are shared by every stage, so a literal here would be a
+// model branch in every stage at once.
+{
+  const { REPO_ROOT } = await import('./run-paths.js')
+  const { join } = await import('path')
+  const { readFileSync } = await import('fs')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/models.json'), 'utf8'))
+  const values = new Set<string>()
+  for (const t of Object.values(reg.targets as Record<string, any>)) {
+    for (const v of [t.model, t.base_url, t.api_key_env, t.model_env, t.base_url_env]) if (v) values.add(v)
+  }
+  const g = reg.generic_openai_compatible
+  for (const v of [g.model_env, g.base_url_env, g.api_key_env_env, g.api_key_env_default, g.price_env]) values.add(v)
+  const shared = join(REPO_ROOT, 'tools/scanner/shared')
+  const files = ['pricing.ts', 'ledger.ts', 'api-profile.ts', 'api-errors.ts', 'metered-call.ts', 'calibration.ts']
+  const hits: string[] = []
+  for (const f of files) {
+    const src = readFileSync(join(shared, f), 'utf8')
+    for (const v of values) {
+      if (src.includes(`'${v}'`) || src.includes(`"${v}"`) || src.includes(`\`${v}\``) || src.includes(` ${v} `) || src.includes(`(${v})`) || src.includes(v)) {
+        hits.push(`${f}: ${v}`)
+      }
+    }
+    if (/provider\s*===\s*['"`]/.test(src)) hits.push(`${f}: a provider-name branch`)
+    // metered-call.ts must stay dependency-light: a type-only import of the SDK is fine, a runtime one is not.
+    if (/^import\s+(?!type\b)[^\n]*from\s+['"]openai['"]/m.test(src)) hits.push(`${f}: a runtime import of openai`)
+  }
+  check(`new shared modules name no registry value${hits.length ? ` (found: ${hits.join('; ')})` : ''}`, hits.length === 0)
 }
 
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)

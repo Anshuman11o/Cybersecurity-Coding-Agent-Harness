@@ -10,8 +10,8 @@
  * budget-plan-v2.json is left exactly as it was — every hunt lane, no limits —
  * because the lab compares it across runs. Limits live here only.
  *
- * Zero dependencies apart from limits.ts, and no I/O: the caller passes the
- * lanes, the per-lane projection and the price, and writes the result.
+ * Shared pricing and calibration supply the estimate. computeScanPlan itself
+ * takes projections and measured inputs and performs no I/O.
  */
 import {
   admitLanes,
@@ -20,6 +20,11 @@ import {
   type ExclusionReason,
   type RunLimits,
 } from './limits.js'
+import { calibratedRatios } from '../../shared/calibration.js'
+import { calibrationFor } from '../../shared/provider.js'
+import { DEFAULT_SECONDS_PER_CALL, type ApiProfile } from '../../shared/api-profile.js'
+import { scanCostUsd, reservationUnitUsd, estimateBandPct, tierInfo, regionMultiplier } from '../../shared/pricing.js'
+import type { LoopConfig } from '../../shared/loop-config.js'
 
 export const SCAN_PLAN_FILE = 'scan-plan.json'
 export const SCAN_PLAN_SCHEMA = 'secscan.scan-plan/1'
@@ -61,7 +66,17 @@ export interface ScanPlan {
   limits: RunLimits
   /** admissionKey(limits). Stage 2 refuses to run under different scope limits. */
   admission_key: string
-  concurrency: { value: number; basis: string }
+  concurrency: {
+    value: number
+    basis: string
+    /**
+     * Where the value came from: an explicit --concurrency, the account's rate
+     * limits recorded by recon, or the default. Older saved plans may omit it.
+     */
+    source?: 'explicit' | 'rate-limits' | 'default'
+    tokens_per_minute?: number | null
+    requests_per_minute?: number | null
+  }
   price_per_mtok: { input: number; cached_input?: number; cache_write?: number; output: number } | null
   price_asof: string | null
   admitted: ScanPlanLane[]
@@ -77,6 +92,19 @@ export interface ScanPlan {
     projected_wall_seconds: number
     wall_basis: string
   }
+  /**
+   * The run estimate (shared/pricing.ts scanCostUsd plus the ledger's spend so
+   * far). Null when unpriced; absent only in older saved plans.
+   */
+  estimate?: ScanEstimate | null
+  /**
+   * The reservation unit U: the worst case of one chunk, which the spend gate
+   * reserves per chunk before a file starts (shared/pricing.ts
+   * reservationUnitUsd). Null when unpriced; absent only in older saved plans.
+   */
+  reservation_unit_usd?: number | null
+  /** Runtime settings priced into U; a resumed hunt must use the same settings. */
+  call_config?: ScanCallConfig
   cap: {
     max_cost_usd: number | null
     /** Null when there is no cap or no price to compare against. */
@@ -84,6 +112,38 @@ export interface ScanPlan {
     /** How many admitted lanes, in order, fit under the cap by projection. */
     lanes_within_cap: number | null
   }
+}
+
+export interface ScanCallConfig {
+  model: string
+  max_output_tokens: number
+  sampling: Record<string, number | string>
+  loop: LoopConfig
+  base_url: string | null
+}
+
+/** The scan's cost estimate and every input it was computed from. */
+export interface ScanEstimate {
+  input_tokens: number
+  output_tokens: number
+  input_usd: number
+  output_usd: number
+  scan_usd: number
+  /** Ledger total before the hunt: recon and earlier passes. */
+  spent_before_usd: number
+  /** spent_before_usd + scan_usd. */
+  total_usd: number
+  /** ± percent; null under 10 files ("can vary widely"). */
+  band_pct: number | null
+  files: number
+  ratio_R: number
+  ratio_source: string
+  chars_per_token: number
+  chars_per_token_source: string
+  served_tier: string | null
+  tier_label: string
+  tier_multiplier: number
+  region_multiplier: number
 }
 
 export interface PlanInput {
@@ -99,26 +159,122 @@ export interface PlanInput {
   priceAsOf: string | null
   /** costUsd() for this provider; null when unpriced. */
   cost: (inputTokens: number, outputTokens: number) => number | null
+  /** Exact prompt projection inputs. Omitted by older callers. */
+  estimation?: EstimateInput
+  callConfig?: ScanCallConfig
   now?: Date
 }
 
+export interface EstimateRatios {
+  ratio_R: number
+  ratio_source: string
+  chars_per_token: number
+  chars_per_token_source: string
+}
+
+/** Recon measures this run's tokenization; completed runs calibrate output at the same effort. */
+export function resolveEstimateRatios(
+  provider: string,
+  profile: ApiProfile | null,
+  reportsRoot: string | null,
+  model: string,
+  effort: string,
+): EstimateRatios {
+  const prior = reportsRoot ? calibratedRatios(reportsRoot, model, effort) : null
+  const seed = calibrationFor(provider)
+  const reconChars = profile?.chars_per_token
+  const hasRecon = reconChars != null && Number.isFinite(reconChars) && reconChars > 0
+  return {
+    ratio_R: prior?.ratio_R ?? seed?.output_per_input ?? 0.341,
+    ratio_source: prior?.ratio_R != null ? 'calibration' : seed ? 'registry' : 'default',
+    chars_per_token: hasRecon ? reconChars : prior?.chars_per_token ?? seed?.chars_per_token ?? 4,
+    chars_per_token_source: hasRecon ? 'recon' : prior?.chars_per_token != null ? 'calibration' : seed ? 'registry' : 'default',
+  }
+}
+
+export interface PromptBound {
+  maxPromptBytes: number
+  followUpTemplateBytes: number
+  callsPerChunk: number
+}
+
+export interface EstimateInput {
+  ratios: EstimateRatios
+  profile: ApiProfile | null
+  baseURL?: string
+  spentBeforeUsd: number
+  /** Bounds keyed by lane, so excluded files cannot inflate the run's U. */
+  promptBounds: Map<string, PromptBound>
+  outputCap: number
+  secondsPerCall?: number
+}
+
 export function computeScanPlan(input: PlanInput): ScanPlan {
+  const estimation = input.estimation
+  const servedTier = estimation?.profile?.served_tier ?? null
+  const priceTokens = (inputTokens: number) => estimation ? scanCostUsd(input.provider, {
+    inputTokens, ratioR: estimation.ratios.ratio_R, servedTier, baseURL: estimation.baseURL,
+  }) : null
   const priced: ScanPlanLane[] = input.lanes.map(l => ({
     ...l,
-    projected_cost_usd: input.cost(l.projected_input_tokens, l.projected_output_tokens),
+    projected_cost_usd: estimation
+      ? priceTokens(l.projected_input_tokens)?.scan_usd ?? null
+      : input.cost(l.projected_input_tokens, l.projected_output_tokens),
   }))
   const { admitted, excluded } = admitLanes(priced, input.limits)
-  const concurrency = deriveConcurrency(input.limits.concurrency, input.vendorConcurrencyCeiling, admitted.length)
 
   const sum = (f: (l: ScanPlanLane) => number) => admitted.reduce((s, l) => s + f(l), 0)
   const calls = sum(l => l.projected_calls)
+  const inputTokens = sum(l => l.projected_input_tokens)
+  const secondsPerCall = estimation?.secondsPerCall ?? DEFAULT_SECONDS_PER_CALL
+  const avgPrompt = calls > 0 ? inputTokens / calls : 0
+  const concurrency = deriveConcurrency(input.limits.concurrency, input.vendorConcurrencyCeiling, admitted.length,
+    estimation ? {
+      tokensPerMinute: estimation.profile?.rate_limits.tokens_per_minute ?? null,
+      requestsPerMinute: estimation.profile?.rate_limits.requests_per_minute ?? null,
+      promptTokensPerCall: avgPrompt,
+      outputTokensPerCall: avgPrompt * estimation.ratios.ratio_R,
+      secondsPerCall,
+    } : undefined)
   const unpriced = admitted.some(l => l.projected_cost_usd == null)
-  const cost = unpriced ? null : sum(l => l.projected_cost_usd ?? 0)
+  const scanCost = priceTokens(inputTokens)
+  const cost = estimation ? scanCost?.scan_usd ?? null : unpriced ? null : sum(l => l.projected_cost_usd ?? 0)
+  const spentBefore = estimation?.spentBeforeUsd ?? 0
   const longestLane = admitted.reduce((m, l) => Math.max(m, l.projected_calls), 0)
   const wall = Math.round(Math.max(
-    (calls * SECONDS_PER_CALL_SLOT) / concurrency.value,
-    longestLane * SECONDS_PER_CALL_SLOT,
+    (calls * secondsPerCall) / concurrency.value,
+    longestLane * secondsPerCall,
   ))
+
+  const tier = estimation ? tierInfo(input.provider, servedTier) : { tier: null, label: 'Standard', multiplier: 1 }
+  const files = new Set(admitted.map(l => l.target_file)).size
+  const estimate: ScanEstimate | null = estimation && scanCost && tier.multiplier !== null ? {
+    input_tokens: inputTokens,
+    ...scanCost,
+    spent_before_usd: spentBefore,
+    total_usd: spentBefore + scanCost.scan_usd,
+    band_pct: estimateBandPct(files),
+    files,
+    ...estimation.ratios,
+    served_tier: servedTier,
+    tier_label: tier.label,
+    tier_multiplier: tier.multiplier,
+    region_multiplier: regionMultiplier(input.provider, estimation.baseURL),
+  } : null
+  let reservation: number | null = null
+  if (estimation) {
+    const bounds = admitted.map(l => estimation.promptBounds.get(l.lane_id))
+    if (bounds.some(b => !b)) throw new Error('an admitted lane has no prompt reservation bound')
+    const maximum = (f: (b: PromptBound) => number) => bounds.reduce((m, b) => Math.max(m, f(b!)), 0)
+    reservation = reservationUnitUsd(input.provider, {
+      callsPerUnit: maximum(b => b.callsPerChunk),
+      maxPromptBytes: maximum(b => b.maxPromptBytes),
+      followUpTemplateBytes: maximum(b => b.followUpTemplateBytes),
+      outputCap: estimation.outputCap,
+      servedTier,
+      baseURL: estimation.baseURL,
+    })
+  }
 
   const byReason: Partial<Record<ExclusionReason, number>> = {}
   for (const e of excluded) byReason[e.reason] = (byReason[e.reason] ?? 0) + 1
@@ -126,7 +282,7 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
   const cap = input.limits.max_cost_usd
   let withinCap: number | null = null
   if (cap != null && cost != null) {
-    let running = 0
+    let running = spentBefore
     withinCap = 0
     for (const l of admitted) {
       running += l.projected_cost_usd ?? 0
@@ -153,15 +309,18 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
       admitted_lanes: admitted.length,
       excluded_by_reason: byReason,
       projected_calls: calls,
-      projected_input_tokens: sum(l => l.projected_input_tokens),
-      projected_output_tokens: sum(l => l.projected_output_tokens),
+      projected_input_tokens: inputTokens,
+      projected_output_tokens: scanCost?.output_tokens ?? sum(l => l.projected_output_tokens),
       projected_cost_usd: cost,
       projected_wall_seconds: wall,
-      wall_basis: WALL_BASIS,
+      wall_basis: estimation ? `${secondsPerCall} s per call per in-flight slot (registry calibration or default)` : WALL_BASIS,
     },
+    estimate,
+    reservation_unit_usd: reservation,
+    ...(input.callConfig ? { call_config: input.callConfig } : {}),
     cap: {
       max_cost_usd: cap,
-      estimate_exceeds_cap: cap != null && cost != null ? cost > cap : null,
+      estimate_exceeds_cap: cap != null && cost != null ? spentBefore + cost > cap : null,
       lanes_within_cap: withinCap,
     },
   }

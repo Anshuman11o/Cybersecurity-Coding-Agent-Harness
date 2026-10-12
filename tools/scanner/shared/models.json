@@ -19,6 +19,21 @@
     "it by guard.test.ts. A target without `benchmark` is unmeasured, and so is every",
     "entry a user adds through an overlay or the generic endpoint below.",
     "",
+    "Pricing and planning fields, all optional (a target without them prices and",
+    "runs exactly as before): `long_context` {threshold_tokens, input_multiplier,",
+    "output_multiplier} applies to a whole request whose prompt passes the threshold;",
+    "`service_tiers` {<tier>: {multiplier, label}} lists the tiers the API may report",
+    "in `service_tier`, and declaring it is what makes the scanner pin a tier (any",
+    "tier string not listed is unpriced and stops the run); `regional_endpoint_pattern`",
+    "is a regex on the base URL's host and `regional_uplift` the multiplier when it",
+    "matches; `web_search_usd_per_call` prices a web-search tool call; `calibration`",
+    "{output_per_input, chars_per_token, seconds_per_call, source} seeds the run",
+    "estimate until a reports folder has its own measured runs. See shared/pricing.ts.",
+    "",
+    "`product_default_provider` is the model the product CLI (`npx secscan`) uses when",
+    "nothing selects one. `default_provider` stays the lab's default: benchmark runs,",
+    "run.sh and every stage launched by hand resolve to it, unchanged.",
+    "",
     "`generic_openai_compatible` is not a target. It is the template the CLI's",
     "--base-url/--model/--api-key-env flags fill in at runtime (OpenRouter, other",
     "vendors, a local Ollama or LM Studio). The model id, endpoint and credential",
@@ -26,6 +41,7 @@
   ],
 
   "default_provider": "luna",
+
   "product_default_provider": "luna6",
 
   "aliases": {
@@ -61,19 +77,6 @@
   },
 
   "targets": {
-    "luna6": {
-      "label": "GPT-6 Luna",
-      "model": "gpt-6-luna",
-      "model_env": "OPENAI_MODEL",
-      "api_key_env": "OPENAI_API_KEY",
-      "base_url": null,
-      "base_url_env": "OPENAI_BASE_URL",
-      "token_limit_param": "max_completion_tokens",
-      "sampling": { "reasoning_effort": "high" },
-      "max_output_tokens": 64000,
-      "price_per_mtok": null,
-      "notes": "Product default. Responses API structured output and web_search support confirmed by the owner. Unmeasured by this lab; no benchmark or price inherited from GPT-5.6 Luna. Prices remain unknown until verified. Existing luna benchmark records remain attached to their original model."
-    },
     "luna": {
       "label": "GPT-5.6 Luna",
       "model": "gpt-5.6-luna",
@@ -91,6 +94,41 @@
       "price_tier": "standard service tier, short context (prompt <=272K)",
       "benchmark": { "corpus": "OWASP Juice Shop, 97 reachable entries", "languages": ["typescript"], "recall": "69/97", "localization": "86/97", "cost_usd": 4.37, "run": "run 6, 2026-08-01", "source": "docs/benchmarking-results.md §2.1" },
       "notes": "Long-context (>272K prompt) rates are 0.4/1.8 and are NOT modelled: the registry carries one rate pair, so a long-context run under-reports. GPT-5.x reasoning models reject max_tokens with a 400, and reject any temperature but the default, so steering happens through the prompt and through reasoning_effort. reasoning_effort was added 2026-07-31: runs 1-5 sent none at all and therefore ran at the endpoint's default, so four rounds of playbook work were tuned against the cheapest tier of the family at that tier's own cheapest effort. Re-measured 2026-08-01 on the 40-lane platform against a matched control: high effort alone is recall 53.6% -> 63.9%, 10 entries gained and 0 lost. Paired with Stage 2's default trace loop it is 67.0% recall and 85.6% localization, the shipped arm — see docs/run-history.md 2026-08-01 and docs/architecture/stage2-lane-loop.md. max_output_tokens must move with the effort: reasoning tokens are billed as output AND counted against the cap, and at this effort 42% of calls exceed 8000, where a truncated body is unparseable JSON that Stage 2 records as a lane that found nothing — measured recall 63.9% -> 37.1% at an 8000 cap. Raised 24000 -> 64000 on 2026-08-01. The 14584 figure was the highest completion on run 6's workload only; a deliberately output-maximising lane-shaped probe on the same model returned 29682 completion tokens, so 24000 truncates a harder-but-legitimate lane and the earlier claim that 16000 would do was wrong. 64000 is ~2.2x that measured worst case and half the model's 128000 hard ceiling (established by API rejection, not documentation). The cap is a ceiling, not a spend — billing is per token generated — so headroom is free, while a low cap truncates JSON into what Stage 2 records as a lane that found nothing. All six benchmark targets share 64000 so no cross-model comparison is confounded by differing room to answer. 'medium' is untested. To reproduce runs 1-5 exactly, set SCANNER_REASONING_EFFORT= and SCANNER_MAX_OUTPUT_TOKENS=8000 and HUNT_LOOP=none rather than editing this entry. base_url null means the SDK default, https://api.openai.com/v1. Requires api.openai.com on the environment's egress allowlist."
+    },
+
+    "luna6": {
+      "label": "GPT-6 Luna",
+      "model": "gpt-6-luna",
+      "model_env": "OPENAI_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "base_url": null,
+      "base_url_env": "OPENAI_BASE_URL",
+      "token_limit_param": "max_completion_tokens",
+      "sampling": {
+        "reasoning_effort": "high"
+      },
+      "max_output_tokens": 64000,
+      "price_per_mtok": { "input": 0.1, "cached_input": 0.01, "cache_write": 0.125, "output": 0.5 },
+      "price_asof": "2026-10-12",
+      "price_tier": "standard service tier, short context (prompt <=272K); long context, other tiers and regional endpoints via the fields below",
+      "long_context": { "threshold_tokens": 272000, "input_multiplier": 2, "output_multiplier": 1.5 },
+      "service_tiers": {
+        "default": { "multiplier": 1, "label": "Standard" },
+        "flex": { "multiplier": 0.5, "label": "Flex" },
+        "batch": { "multiplier": 0.5, "label": "Batch" },
+        "priority": { "multiplier": 2, "label": "Fast" },
+        "fast": { "multiplier": 2, "label": "Fast" }
+      },
+      "regional_endpoint_pattern": "^[a-z0-9-]+\\.api\\.openai\\.com$",
+      "regional_uplift": 1.1,
+      "web_search_usd_per_call": 0.01,
+      "calibration": {
+        "output_per_input": 0.341,
+        "chars_per_token": 4,
+        "seconds_per_call": 23.2,
+        "source": "PLACEHOLDER: GPT-5.6 Luna run 6 (2026-08-01) values, not GPT-6 Luna measurements. Replace once GPT-6 Luna has been measured; until then a reports folder's own calibration.json takes precedence over these."
+      },
+      "notes": "The product default (product_default_provider); the lab default stays luna. UNMEASURED on the benchmark: no benchmark block, so every surface labels it unmeasured until a scored run is recorded in docs/benchmarking-results.md. Prices are the official rates as of 2026-10-12 from developers.openai.com (model and pricing pages): per MTok input 0.10, cached 0.01, cache write 0.125, output 0.50 at Standard, prompt <=272K. A prompt over 272K bills the WHOLE request at 2x input and cache and 1.5x output (long_context). Tiers: Flex and Batch 0.5x, Priority/Fast 2x — Priority was renamed Fast on 2026-07-30 and which string the API reports in service_tier is unverified, so both are listed; Ultrafast has no published price and is deliberately absent, so a response reporting it is unpriced and stops the run rather than being billed at a guess. Regional (data-residency) hosts such as eu.api.openai.com cost +10%; api.openai.com itself does not match the pattern. Web search is $10 per 1,000 calls. Verified 2026-10-12: cache writes are billed automatically on a prompt's first send (usage reports prompt_tokens_details.cache_write_tokens without any opt-in), so a first call's input is priced at the cache-write rate, not the fresh one; the output cap (max_completion_tokens) does not count toward the tokens-per-minute rate limit at admission, so concurrency is sized on expected rather than capped output; Chat Completions with reasoning_effort high and strict json_schema works. Same endpoint, key and OPENAI_MODEL variable as luna — setting OPENAI_MODEL overrides both targets at once. max_output_tokens 64000 matches luna's for the same reason (reasoning tokens are billed and counted as output); it is not a measured ceiling for this model. calibration holds GPT-5.6 Luna run 6 placeholders, see its source. base_url null means the SDK default, https://api.openai.com/v1."
     },
 
     "terra": {

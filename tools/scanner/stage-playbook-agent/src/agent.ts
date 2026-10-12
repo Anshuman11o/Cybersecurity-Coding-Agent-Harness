@@ -1,5 +1,6 @@
 import type { Response, ResponseCreateParamsNonStreaming } from 'openai/resources/responses/responses'
 import { readFileSync } from 'node:fs'
+import { normalizeUsage } from '../../shared/pricing.js'
 import {
   agentPlaybookRecord, builtinPlaybookRecord, listCachedPlaybooks, readCachedPlaybook,
   writeCachedPlaybook, type PlaybookRecord,
@@ -30,11 +31,12 @@ export interface UsageCall {
   started_at: string
   ended_at: string
   status: string
+  served_tier: string | null
   usage: {
-    input_tokens: number
-    input_tokens_details: { cached_tokens: number; cache_write_tokens: number }
-    output_tokens: number
-    output_tokens_details: { reasoning_tokens: number }
+    input_tokens: number | null
+    input_tokens_details: { cached_tokens: number | null; cache_write_tokens: number | null }
+    output_tokens: number | null
+    output_tokens_details: { reasoning_tokens: number | null }
   } | null
   queries: string[]
   source_urls: string[]
@@ -78,6 +80,16 @@ const decisionSchema = (signals: SignalClassMap) => object({
   }) },
 })
 const playbookSchema = object({ playbook: { type: 'string' }, source_urls: strings })
+
+function recordedUsage(raw: unknown): UsageCall['usage'] {
+  const usage = normalizeUsage(raw)
+  return usage ? {
+    input_tokens: usage.prompt_tokens,
+    input_tokens_details: { cached_tokens: usage.cached_tokens, cache_write_tokens: usage.cache_write_tokens },
+    output_tokens: usage.completion_tokens,
+    output_tokens_details: { reasoning_tokens: usage.reasoning_tokens },
+  } : null
+}
 
 /** Responses-native search trace; do not infer queries from the assistant text. */
 export function searchTrace(response: Response): { queries: string[]; source_urls: string[]; web_search_calls: number } {
@@ -132,23 +144,19 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
       ...(search ? { include: ['web_search_call.action.sources'] } : {}),
     }
     let response: Response
-    try { response = await o.create(request) } catch (error) {
+    try { response = await o.create(request) } catch (error: any) {
+      const raw = error?.usage ? error : error?.error
       o.recordUsage({ purpose, model: o.model, response_id: null, started_at: started,
-        ended_at: new Date().toISOString(), status: 'request_failed', usage: null,
+        ended_at: new Date().toISOString(), status: 'request_failed', usage: recordedUsage(raw?.usage),
+        served_tier: typeof raw?.service_tier === 'string' ? raw.service_tier : null,
         queries: [], source_urls: [], web_search_calls: 0 })
       throw error
     }
-    const usage = response.usage
-    const inputDetails = usage?.input_tokens_details as { cached_tokens?: number; cache_write_tokens?: number } | undefined
     const record: UsageCall = {
       purpose, model: response.model ?? o.model, response_id: response.id,
       started_at: started, ended_at: new Date().toISOString(), status: response.status ?? 'unknown',
-      usage: usage ? {
-        input_tokens: usage.input_tokens,
-        input_tokens_details: { cached_tokens: inputDetails?.cached_tokens ?? 0, cache_write_tokens: inputDetails?.cache_write_tokens ?? 0 },
-        output_tokens: usage.output_tokens,
-        output_tokens_details: { reasoning_tokens: usage.output_tokens_details?.reasoning_tokens ?? 0 },
-      } : null,
+      usage: recordedUsage(response.usage),
+      served_tier: typeof response.service_tier === 'string' ? response.service_tier : null,
       ...searchTrace(response),
     }
     calls.push(record)

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { mergeClassTables, type ClassesOverlay } from '../../shared/playbook-overlay.js'
 import { writeCachedPlaybook, cacheRoot, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
 import { resolveRunContext } from '../../shared/run-context.js'
-import { defaultProvider, modelFor, targetFor } from '../../shared/provider.js'
+import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '../../shared/provider.js'
 import { loadRegistryModules } from '../../cli/src/registry.js'
 import { readRunPlaybooks } from '../../cli/src/playbooks.js'
 import { loadRecon } from './main.js'
@@ -17,7 +17,7 @@ const scanner = fileURLToPath(new URL('../..', import.meta.url))
 const tsx = join(scanner, 'stage-playbook-agent/node_modules/.bin/tsx')
 const builtins = JSON.parse(readFileSync(join(scanner, 'shared/vuln-classes.json'), 'utf8'))
 const signals = JSON.parse(readFileSync(join(scanner, 'shared/signal-classes.json'), 'utf8'))
-const provider = defaultProvider('benchmark')
+const provider = defaultProvider()
 const id = 'worker-epoch-confusion'
 const text = 'Playbook text for a synthetic integration fixture.\n'
 const json = (file: string, data: unknown) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(data)) }
@@ -149,6 +149,17 @@ test('reports cache is shared across product runs, while artifacts stay run-scop
   assert.ok(existsSync(join(f.cache, id, 'generic', 'test%2Fmodel', 'meta.json')))
 })
 
+test('custom reports root owns the playbook cache across runs and artifact-root overrides', t => {
+  const f = fixture(t)
+  const reports = join(f.root, 'custom-reports')
+  const first = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports }, [])
+  const next = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports, SCANNER_RUN_ID: 'next', SCANNER_RUNS_ROOT: undefined }, [])
+  assert.equal(cacheRoot(first), join(reports, 'playbooks'))
+  assert.equal(cacheRoot(next), cacheRoot(first))
+  assert.equal(next.runsRoot, join(reports, 'runs/next'))
+  assert.notEqual(first.runsRoot, next.runsRoot)
+})
+
 test('recon input uses only the dependency section of the existing repo map', t => {
   const f = fixture(t)
   writeFileSync(join(f.stage0, 'repo-map.md'), '# Repo map\n## Dependency manifests\n### package.json\n{"dependencies":{"example-lib":"1"}}\n## Entry points\nDO_NOT_INCLUDE\n')
@@ -159,10 +170,10 @@ test('recon input uses only the dependency section of the existing repo map', t 
 
 test('product default is registry-driven and carries no inherited benchmark', async () => {
   const raw = JSON.parse(readFileSync(join(scanner, 'shared/models.json'), 'utf8'))
-  assert.equal(defaultProvider('benchmark'), raw.default_provider)
-  assert.equal(defaultProvider('product'), raw.product_default_provider)
-  assert.equal(modelFor(defaultProvider('product')), raw.targets[raw.product_default_provider].model)
-  assert.equal(targetFor(defaultProvider('product')).benchmark, undefined)
+  assert.equal(defaultProvider(), raw.default_provider)
+  assert.equal(productDefaultProvider(), raw.product_default_provider)
+  assert.equal(modelFor(productDefaultProvider()), raw.targets[raw.product_default_provider].model)
+  assert.equal(targetFor(productDefaultProvider()).benchmark, undefined)
   const cli = await loadRegistryModules()
   assert.equal(cli.defaultKey(), raw.product_default_provider)
 })

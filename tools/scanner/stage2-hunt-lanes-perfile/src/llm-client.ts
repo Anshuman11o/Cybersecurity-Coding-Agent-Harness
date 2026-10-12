@@ -35,7 +35,7 @@ export function createClient(provider: Provider): OpenAI {
   }
   const { apiKey, baseURL } = clientConfigFor(provider)
   if (!apiKey) throw new Error(`${apiKeyEnvFor(provider)} is not set`)
-  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
+  return new OpenAI({ maxRetries: 0, apiKey, ...(baseURL ? { baseURL } : {}) })
 }
 
 /**

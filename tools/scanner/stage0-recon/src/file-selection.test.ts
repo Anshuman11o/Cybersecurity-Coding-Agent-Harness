@@ -423,6 +423,56 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  console.log('\n-- exclusions are resolved before stat, content, or directory walking --')
+  {
+    const root = fixture('early-exclusions', {
+      '.gitignore': 'git-hidden.ts\ngit-dir/\n',
+      '.secscanignore': 'sec-hidden.ts\nsec-dir/\n!explicit.ts\n',
+      'git-hidden.ts': CODE, 'git-dir/child.ts': CODE,
+      'sec-hidden.ts': CODE, 'sec-dir/child.ts': CODE,
+      'explicit.ts': CODE, 'private-dir/child.ts': CODE, 'glob-dir/child.ts': CODE,
+      'src/keep.ts': CODE, 'src/other.ts': CODE, 'unselected/deep.ts': CODE,
+      'reports/old.json': '{}', 'README.md': 'Overview',
+      'ordinary/pyvenv.cfg': 'not a selected environment marker', 'ordinary/keep.py': 'print(1)',
+      'nested/.gitignore': 'pyvenv.cfg', 'nested/pyvenv.cfg': 'ignored marker', 'nested/keep.py': 'print(2)',
+    })
+    const fsCjs = createRequire(import.meta.url)('node:fs') as Record<string, any>
+    const keys = ['lstatSync', 'statSync', 'openSync', 'readFileSync', 'readdirSync']
+    const originals = Object.fromEntries(keys.map(k => [k, fsCjs[k]]))
+    const touched: string[] = []
+    for (const key of keys) fsCjs[key] = (p: unknown, ...args: unknown[]) => {
+      touched.push(String(p)); return originals[key](p, ...args)
+    }
+    syncBuiltinESMExports()
+    let a: FileInventoryArtifact
+    try {
+      a = selectFilesWithRunsRoot(root, {}, null, {
+        reportsRoot: path.join(root, 'reports'),
+        env: { SCANNER_EXCLUDE: 'explicit.ts\nprivate-dir\nglob-dir/**\nordinary/pyvenv.cfg' },
+      })
+    } finally {
+      for (const key of keys) fsCjs[key] = originals[key]
+      syncBuiltinESMExports()
+    }
+    const hidden = ['git-hidden.ts', 'git-dir', 'sec-hidden.ts', 'sec-dir', 'explicit.ts', 'private-dir', 'glob-dir', 'reports', 'ordinary/pyvenv.cfg', 'nested/pyvenv.cfg']
+    check('ignored files and directories are never statted, opened, or walked', hidden.every(rel =>
+      !touched.some(abs => abs === path.join(root, rel) || abs.startsWith(path.join(root, rel) + path.sep))))
+    check('explicit exclusion overrides secscanignore negation', exFile(a, 'user-excluded', 'explicit.ts'))
+    check('explicit directory excluded whole', exDir(a, 'user-excluded', 'private-dir/'))
+    check('directory subtree glob is pruned before walking', exDir(a, 'user-excluded', 'glob-dir/'))
+    check('reports folder excluded whole', exDir(a, 'tool_dir', 'reports/'))
+    check('README admitted for recon outside the hunt inventory', a.read_files?.includes('README.md') === true && !inventoried(a, 'README.md'))
+    check('positive control is read', touched.includes(path.join(root, 'src/keep.ts')))
+    check('an explicitly excluded venv marker cannot prune source', inventoried(a, 'ordinary/keep.py'))
+    check('nested gitignore applies before a venv marker stat', inventoried(a, 'nested/keep.py'))
+    const scoped = selectFilesWithRunsRoot(root, {}, null, { env: { SCANNER_PATHS: 'src/keep.ts' } })
+    check('scope retains ancestors of the selected file', inventoried(scoped, 'src/keep.ts'))
+    check('out of scope files have a user-excluded receipt', exFile(scoped, 'user-excluded', 'src/other.ts'))
+    check('out of scope directories are pruned', exDir(scoped, 'user-excluded', 'unselected/'))
+    check('out of scope README is not readable', !scoped.read_files?.includes('README.md'))
+  }
+
+  // -------------------------------------------------------------------------
   console.log('\n-- options --')
   {
     const d = selectionOptionsFromEnv({})

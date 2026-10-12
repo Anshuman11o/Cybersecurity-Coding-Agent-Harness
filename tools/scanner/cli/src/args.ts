@@ -20,11 +20,13 @@ export interface ModelFlags {
 export interface ScanArgs extends ModelFlags {
   command: 'scan'
   target: string
+  targetProvided: boolean
   limits: Partial<RunLimits>
   yes: boolean
   configPath?: string
   noConfig: boolean
-  resume?: string
+  resume?: string | true
+  out?: string
 }
 
 export interface ModelsArgs extends ModelFlags {
@@ -38,12 +40,13 @@ export type Args = ScanArgs | ModelsArgs | { command: 'help' } | { command: 'ver
 export const usage = (customKeyDefault: string): string => `secscan — find security vulnerabilities in your code with your own model key
 
 Usage:
+  secscan [options]                 scan the current directory
   secscan scan [dir] [options]      scan a repository (default: the current directory)
   secscan models [--all]            list models: price, measured or unmeasured, key status
   secscan help                      this text
 
-Model:
-  --model <key>             a model from \`secscan models\` (default: the registry default)
+Lab options:
+  --model <key>             a model from \`secscan models\` (default: the product registry default)
   --base-url <url>          any OpenAI-compatible endpoint (OpenRouter, Ollama, LM Studio, ...);
                             --model is then that endpoint's model id
   --api-key-env <VAR>       env var holding the custom endpoint's key (default ${customKeyDefault})
@@ -51,7 +54,7 @@ Model:
   --models-file <path>      your own models.json overlay (adds entries; never replaces shipped ones)
 
 Limits:
-  --max-cost <usd>          hard stop: no new file starts once projected spend would pass it
+  --budget <usd>            total run budget, including recon (alias: --max-cost)
   --max-files <n>           scan at most n files
   --max-file-size <size>    skip larger files (bytes, or 200k / 1m)
   --timeout <time>          no new file starts after this long (600, 90s, 30m, 1h)
@@ -61,10 +64,11 @@ Limits:
   --exclude <glob>          skip files matching (repeatable)
 
 Run:
-  -y, --yes                 start without the confirmation prompt (scripts and CI)
+  -y, --yes                 skip prompts; requires --budget unless resuming
+  --out <dir>              reports folder (default: <dir>/.secscan)
   --config <path>           settings file (default: <dir>/secscan.config.json)
   --no-config               ignore secscan.config.json
-  --resume <run-id>         continue a stopped run; finished files are not scanned again
+  --resume [run-id]         continue a stopped run (default: latest INCOMPLETE)
 
 A limit or Ctrl-C ends the run cleanly: files in flight finish, the run is
 recorded INCOMPLETE with the list of what was not scanned, and --resume
@@ -78,10 +82,10 @@ export class UsageError extends Error {}
 export function parseArgs(argv: readonly string[]): Args {
   const args = [...argv]
   const first = args[0]
-  if (first === undefined || first === 'help' || first === '--help' || first === '-h') return { command: 'help' }
+  if (first === 'help' || first === '--help' || first === '-h') return { command: 'help' }
   if (first === '--version' || first === 'version') return { command: 'version' }
-  if (first !== 'scan' && first !== 'models') throw new UsageError(`unknown command "${first}"`)
-  args.shift()
+  if (first !== undefined && !first.startsWith('-') && first !== 'scan' && first !== 'models') throw new UsageError(`unknown command "${first}"`)
+  if (first === 'scan' || first === 'models') args.shift()
 
   const model: ModelFlags = {}
   const limits: Partial<RunLimits> = {}
@@ -89,7 +93,8 @@ export function parseArgs(argv: readonly string[]): Args {
   let all = false
   let configPath: string | undefined
   let noConfig = false
-  let resume: string | undefined
+  let resume: string | true | undefined
+  let out: string | undefined
   const positional: string[] = []
 
   const push = (key: 'paths' | 'include' | 'exclude', vals: string[]) => {
@@ -121,7 +126,7 @@ export function parseArgs(argv: readonly string[]): Args {
       case '--api-key-env': model.apiKeyEnv = value(); break
       case '--price': model.price = value(); break
       case '--models-file': model.modelsFile = value(); break
-      case '--max-cost': { const v = value(); limits.max_cost_usd = wrap(() => parseCost(v, '--max-cost')); break }
+      case '--budget': case '--max-cost': { const v = value(); limits.max_cost_usd = wrap(() => parseCost(v, a)); break }
       case '--max-files': { const v = value(); limits.max_files = wrap(() => parsePositiveInt(v, '--max-files')); break }
       case '--max-file-size': { const v = value(); limits.max_file_size = wrap(() => parseSize(v, '--max-file-size')); break }
       case '--timeout': { const v = value(); limits.timeout_seconds = wrap(() => parseDuration(v, '--timeout')); break }
@@ -137,7 +142,10 @@ export function parseArgs(argv: readonly string[]): Args {
       case '--all': all = true; break
       case '--config': configPath = value(); break
       case '--no-config': noConfig = true; break
-      case '--resume': resume = value(); break
+      case '--out': out = value(); break
+      case '--resume':
+        resume = inline !== undefined ? value() : (args[i + 1] && !args[i + 1].startsWith('-') ? args[++i] : true)
+        break
       default:
         if (a.startsWith('-')) throw new UsageError(`unknown option "${a}"`)
         positional.push(a)
@@ -158,14 +166,17 @@ export function parseArgs(argv: readonly string[]): Args {
   }
   if (positional.length > 1) throw new UsageError(`expected one directory, got ${positional.join(' ')}`)
   if (configPath && noConfig) throw new UsageError('--config and --no-config contradict each other')
+  if (yes && resume === undefined && limits.max_cost_usd == null) throw new UsageError('--yes requires --budget (or --max-cost), except with --resume')
   return {
     command: 'scan',
     target: positional[0] ?? '.',
+    targetProvided: positional.length > 0,
     limits,
     yes,
     configPath,
     noConfig,
     resume,
+    out,
     ...model,
   }
 }

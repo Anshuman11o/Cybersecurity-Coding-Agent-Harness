@@ -6,15 +6,22 @@
 //     (spend-gate.ts) enforces and the CLI's confirmation screen shows.
 
 import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSync, renameSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
 import {
   resolveProvider, modelFor, costUsd, pricingFor, priceAsOf, samplingParams, maxConcurrencyFor,
+  calibrationFor, clientConfigFor, outputTokenCap,
 } from "../../shared/provider.js";
-import { resolveLimits } from "./limits.js";
-import { computeScanPlan, SCAN_PLAN_FILE, type ScanPlan } from "./scan-plan.js";
+import { resolveLimits, admitLanes } from "./limits.js";
+import { computeScanPlan, resolveEstimateRatios, SCAN_PLAN_FILE, type ScanPlan, type PromptBound } from "./scan-plan.js";
 import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
+import { FOLLOW_UP_INPUT_MULTIPLIER } from "../../shared/pricing.js";
+import { API_PROFILE_FILE, readApiProfile } from "../../shared/api-profile.js";
+import { ledgerPathFor, readLedgerTotals } from "../../shared/ledger.js";
+import { getRunContext } from "../../shared/run-context.js";
+import { readCorpusFile } from "../../shared/read-guard.js";
+import type { LaneAssignments, VulnClassRegistry } from "../../stage2-hunt-lanes-perfile/src/types.js";
 
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
 import { readClassesOverlay } from "../../shared/playbook-overlay.js";
@@ -60,15 +67,9 @@ const BASE_OUTPUT_TOKENS_PER_CALL = 718;
  */
 const EFFORT_OUTPUT_MULTIPLIER: Record<string, number> = { high: 3.53 };
 
-/**
- * A follow-up turn's input as a multiple of the turn-1 prompt.
- *
- * A conversational follow-up does not re-send the prompt — it continues the
- * transcript, so it pays for the prompt again plus the assistant's answer plus
- * its own instruction. Measured 1.19x on the 40-lane platform. Treating it as a
- * second full prompt would overstate a looped run's input by about 40%.
- */
-const FOLLOW_UP_INPUT_MULTIPLIER = 1.19;
+// A follow-up turn's input as a multiple of the turn-1 prompt (measured 1.19x
+// on the 40-lane platform). Defined in shared/pricing.ts, where the run
+// estimate uses the same figure, so the two cannot drift apart.
 
 const LOOP = resolveLoopConfig();
 
@@ -768,12 +769,13 @@ Below is the technical guidance for the vulnerability classes you are hunting. T
 // ── v2: Scan plan (limits applied, lane by lane) ──────────────────────────
 
 /**
- * The lanes this run's limits admit, priced from the plan just computed.
+ * The lanes this run's limits admit, priced from the hunt's exact prompts.
+ * The unlimited budget plan keeps the lab's historical projection separately.
  * Throws when a cost cap is set on an unpriced model: a cap that cannot be
  * evaluated is no cap, and running under it would be the silent failure the
  * cap exists to prevent.
  */
-function computeScanPlanV2(plan: BudgetPlanV2): ScanPlan {
+export async function computeScanPlanV2(): Promise<ScanPlan> {
   const limits = resolveLimits()
   if (limits.max_cost_usd != null && !pricingFor(PROVIDER)) {
     throw new Error(
@@ -782,25 +784,85 @@ function computeScanPlanV2(plan: BudgetPlanV2): ScanPlan {
     )
   }
   const assignmentsPath = join(runPath(PROVIDER, 'stage05-lane-selector-perfile'), 'lane-assignments.json')
-  const assignments = JSON.parse(readFileSync(assignmentsPath, 'utf-8'))
+  const assignments = JSON.parse(readFileSync(assignmentsPath, 'utf-8')) as LaneAssignments
+  const ctx = getRunContext()
+  const model = modelFor(PROVIDER)
+  const profile = readApiProfile(join(runPath(PROVIDER, 'stage0-recon'), API_PROFILE_FILE))
+  const ratios = resolveEstimateRatios(PROVIDER, profile, ctx.reportsRoot, model, EFFORT)
+  const {
+    buildLanePrompts, followUpTemplateBytes, loadPlaybooksForClasses, loadArchSummarySnippet, DEFAULT_OUTPUT_TOKEN_CAP,
+  } = await import('../../stage2-hunt-lanes-perfile/src/hunt-executor.js')
+  const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/vuln-classes.json'), 'utf8')) as VulnClassRegistry
+  const archPath = assignments.source_stage0_run.startsWith('/')
+    ? assignments.source_stage0_run : join(REPO_ROOT, assignments.source_stage0_run)
+  const archSnippet = loadArchSummarySnippet(archPath)
+  let archSummary: Parameters<typeof buildLanePrompts>[5]
+  try {
+    const full = JSON.parse(readFileSync(archPath, 'utf8'))
+    if (full.route_table) archSummary = { route_table: full.route_table }
+  } catch {
+    // Match the hunt: absent architecture context is omitted from every prompt.
+  }
+
+  const huntLanes = assignments.lanes.filter(l => l.disposition === 'hunt')
+  const admittedIds = new Set(admitLanes(huntLanes, limits).admitted.map(l => l.lane_id))
+  const promptBounds = new Map<string, PromptBound>()
+  const lanes = []
+  for (const lane of huntLanes) {
+    // Scope checks precede target reads. Excluded lanes remain in the plan's
+    // ledger, but neither their content nor their prompts are needed.
+    const projected = {
+      lane_id: lane.lane_id, target_file: lane.target_file, file_bytes: lane.file_bytes,
+      projected_calls: 0, projected_input_tokens: 0, projected_output_tokens: 0,
+    }
+    if (admittedIds.has(lane.lane_id)) {
+      const classIds = lane.classes?.length ? lane.classes : [...new Set(lane.categories.flatMap(c =>
+        Object.entries(reg).filter(([, entry]) => entry.codes.includes(c.code)).map(([id]) => id)))]
+      const rawContent = readCorpusFile(relative(REPO_ROOT, join(assignments.target_dir, lane.target_file)))
+      if (rawContent === null) throw new Error(`cannot estimate ${lane.lane_id}: the read guard refused ${lane.target_file}`)
+      const playbooks = await loadPlaybooksForClasses(classIds)
+      const prompts = buildLanePrompts(lane, rawContent, classIds, playbooks, archSnippet, archSummary)
+      const calls = callsPerChunk(LOOP, classIds.length)
+      const input = prompts.reduce((s, p) => s + p.prompt.length / ratios.chars_per_token, 0) *
+        (1 + (calls - 1) * FOLLOW_UP_INPUT_MULTIPLIER)
+      projected.projected_calls = prompts.length * calls
+      projected.projected_input_tokens = input
+      projected.projected_output_tokens = Math.round(input * ratios.ratio_R)
+      promptBounds.set(lane.lane_id, {
+        maxPromptBytes: prompts.reduce((m, p) => Math.max(m, Buffer.byteLength(p.prompt, 'utf8')), 0),
+        followUpTemplateBytes: followUpTemplateBytes(classIds),
+        callsPerChunk: calls,
+      })
+    }
+    lanes.push(projected)
+  }
   return computeScanPlan({
     provider: PROVIDER,
-    model: modelFor(PROVIDER),
+    model,
     assignmentsPath,
     assignmentsGeneratedAt: assignments.generated_at,
-    lanes: plan.lanes.map(l => ({
-      lane_id: l.lane_id,
-      target_file: l.target_file,
-      file_bytes: l.file_bytes,
-      projected_calls: l.projected_calls,
-      projected_input_tokens: l.projected_input_tokens,
-      projected_output_tokens: l.projected_output_tokens,
-    })),
+    lanes,
     limits,
     vendorConcurrencyCeiling: maxConcurrencyFor(PROVIDER),
     price: pricingFor(PROVIDER),
     priceAsOf: priceAsOf(PROVIDER),
     cost: (i, o) => costUsd(PROVIDER, i, o),
+    callConfig: {
+      model,
+      max_output_tokens: outputTokenCap(PROVIDER, DEFAULT_OUTPUT_TOKEN_CAP),
+      sampling: samplingParams(PROVIDER),
+      loop: { ...LOOP },
+      base_url: clientConfigFor(PROVIDER).baseURL ?? null,
+    },
+    estimation: {
+      ratios,
+      profile,
+      baseURL: clientConfigFor(PROVIDER).baseURL,
+      spentBeforeUsd: readLedgerTotals(ledgerPathFor(ctx.runsRoot, PROVIDER)).total_usd,
+      promptBounds,
+      outputCap: outputTokenCap(PROVIDER, DEFAULT_OUTPUT_TOKEN_CAP),
+      secondsPerCall: calibrationFor(PROVIDER)?.seconds_per_call,
+    },
   })
 }
 
@@ -957,7 +1019,7 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
 
     // The limits are applied here, after the unlimited plan is written, so
     // budget-plan-v2.json stays comparable across runs whatever the limits.
-    const scanPlan = computeScanPlanV2(plan)
+    const scanPlan = await computeScanPlanV2()
     const scanPlanPath = join(outDir, SCAN_PLAN_FILE)
     const scanPlanTmp = scanPlanPath + '.tmp'
     writeFileSync(scanPlanTmp, JSON.stringify(scanPlan, null, 2) + '\n')

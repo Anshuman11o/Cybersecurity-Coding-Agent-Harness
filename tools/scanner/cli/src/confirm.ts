@@ -44,6 +44,10 @@ export interface ConfirmationSummary {
     cap_usd: number | null
     exceeds_cap: boolean | null
     lanes_within_cap: number | null
+    breakdown?: {
+      total_usd: number; input_usd: number; output_usd: number; spent_usd: number
+      band_pct: number | null; tier_label: string; tier_multiplier: number
+    }
   }
   limits: RunLimits
   concurrency: { value: number; basis: string }
@@ -92,7 +96,9 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
   const totalCalls = plan.totals.projected_calls
   const remainingCalls = remaining.reduce((s, l) => s + l.projected_calls, 0)
   const seconds = totalCalls > 0 ? Math.round(plan.totals.projected_wall_seconds * (remainingCalls / totalCalls)) : 0
-  const spent = input.resume?.spentUsd ?? 0
+  const spent = input.resume?.spentUsd ?? plan.estimate?.spent_before_usd ?? 0
+  const detail = plan.estimate
+  const remainingShare = detail && detail.scan_usd > 0 && remainingCost != null ? remainingCost / detail.scan_usd : 0
   const cap = plan.limits.max_cost_usd
   let withinCap: number | null = null
   if (cap != null && remainingCost != null) {
@@ -130,12 +136,21 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
     // run hunts with the built-in ones, and the screen says so.
     guidance: 'none (built-in playbooks only)',
     estimate: {
-      usd: remainingCost,
+      usd: detail && remainingCost != null ? spent + remainingCost : remainingCost,
       seconds,
       basis: plan.totals.wall_basis,
       cap_usd: cap,
       exceeds_cap: cap != null && remainingCost != null ? spent + remainingCost > cap : null,
       lanes_within_cap: withinCap,
+      ...(detail ? { breakdown: {
+        total_usd: spent + (remainingCost ?? 0),
+        input_usd: detail.input_usd * remainingShare,
+        output_usd: detail.output_usd * remainingShare,
+        spent_usd: spent,
+        band_pct: detail.band_pct,
+        tier_label: detail.tier_label,
+        tier_multiplier: detail.tier_multiplier,
+      } } : {}),
     },
     limits: plan.limits,
     concurrency: plan.concurrency,
@@ -181,6 +196,11 @@ export function renderSummary(s: ConfirmationSummary): string {
   const est = `~${usd(s.estimate.usd)}, ~${Math.max(1, Math.round(s.estimate.seconds / 60))} min`
   const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
   out.push(`Estimate: ${est}    Cap: ${cap}`)
+  const detail = s.estimate.breakdown
+  if (detail) {
+    out.push(`  Total ${usd(detail.total_usd)}: ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
+    out.push(`  ${detail.band_pct == null ? 'Can vary widely (fewer than 10 files).' : `Accuracy band: ±${detail.band_pct}% (90%).`}`)
+  }
   if (s.estimate.exceeds_cap) {
     out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
       `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)
@@ -198,7 +218,8 @@ export function renderSummary(s: ConfirmationSummary): string {
   out.push(`Limits: ${lim.join('; ')}`)
   if (s.resume) {
     out.push(`Resuming run ${s.resume.run_id}: ${int(s.resume.done)} file(s) already scanned` +
-      (s.resume.spent_usd != null ? `, ${usd(s.resume.spent_usd)} spent` : '') + '; the estimate covers the rest.')
+      (s.resume.spent_usd != null ? `, ${usd(s.resume.spent_usd)} spent` : '') +
+      (detail ? '; the total includes earlier spend and the remaining scan.' : '; the estimate covers the rest.'))
   }
   return out.join('\n')
 }

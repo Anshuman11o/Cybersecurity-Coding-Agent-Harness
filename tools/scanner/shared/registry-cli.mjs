@@ -55,7 +55,7 @@ switch (cmd) {
     )
     break
   case 'default':
-    console.log(process.env.SCANNER_PROFILE === 'product' ? reg.product_default_provider ?? reg.default_provider : reg.default_provider)
+    console.log(reg.default_provider)
     break
   case 'canonical':
     console.log(need(arg, 'canonical'))

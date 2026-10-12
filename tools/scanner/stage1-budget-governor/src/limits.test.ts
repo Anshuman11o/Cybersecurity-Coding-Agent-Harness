@@ -148,15 +148,44 @@ test('gate: an unmeasured lane is booked at its projection', () => {
   assert.equal(g.spentUsd(), 0.3)
 })
 
-test('gate: calibration scales projections up, never down', () => {
-  const g = new SpendGate({ capUsd: 100, deadlineMs: null, calibrationMinLanes: 3 })
-  for (const id of ['a', 'b']) { g.begin(id, 1); g.finish(id, 2) }
-  assert.equal(g.calibration(), 1, 'not before the minimum lane count')
-  g.begin('c', 1); g.finish('c', 2)
-  assert.equal(g.calibration(), 2)
-  const cheap = new SpendGate({ capUsd: 100, deadlineMs: null })
-  for (const id of ['a', 'b', 'c']) { cheap.begin(id, 1); cheap.finish(id, 0.5) }
-  assert.equal(cheap.calibration(), 1)
+test('gate: reservation U is fixed even when actual costs differ', () => {
+  const g = new SpendGate({ capUsd: 100, deadlineMs: null })
+  for (const id of ['a', 'b', 'c']) { g.begin(id, 1); g.finish(id, 2) }
+  assert.equal(g.calibration(), 1)
+  assert.equal(g.decide(94).action, 'start')
+})
+
+test('gate: live ledger includes recon and calls in flight; completion only releases c × U', () => {
+  let total = 0.2
+  const g = new SpendGate({ capUsd: 1, deadlineMs: null, ledgerTotal: () => total })
+  const unit = 0.2
+  assert.equal(g.decide(2 * unit).action, 'start')
+  g.begin('two-chunks', 2 * unit)
+  assert.equal(g.decide(3 * unit).action, 'wait')
+  total += 0.1
+  assert.equal(g.spentUsd(), total)
+  assert.equal(g.decide(2 * unit).action, 'wait', 'spent calls count while their file is in flight')
+  g.finish('two-chunks', 0.1)
+  assert.equal(g.spentUsd(), total, 'finishing must never double book ledger spend')
+  assert.equal(g.snapshot().in_flight_projected_usd, 0)
+  assert.equal(g.decide(4 * unit).action, 'stop')
+})
+
+test('gate: retries reserve another U immediately or refuse without changing held funds', () => {
+  let total = 0.1
+  const g = new SpendGate({ capUsd: 1, deadlineMs: null, ledgerTotal: () => total })
+  g.begin('a', 0.4)
+  assert.equal(g.reserveRetry('a', 0.4), true)
+  assert.equal(g.snapshot().in_flight_projected_usd, 0.8)
+  total += 0.1
+  assert.equal(g.reserveRetry('a', 0.4), false)
+  assert.equal(g.snapshot().in_flight_projected_usd, 0.8)
+  g.finish('a')
+  assert.equal(g.snapshot().in_flight_projected_usd, 0)
+  assert.equal(g.spentUsd(), 0.2)
+  const unlimited = new SpendGate({ capUsd: null, deadlineMs: null })
+  unlimited.begin('a', null)
+  assert.equal(unlimited.reserveRetry('a', null), true)
 })
 
 test('gate: deadline stops, unpriced under a cap stops, carried spend counts', () => {

@@ -18,8 +18,8 @@
  * that names a field or node the grammar lacks fails to compile for the whole
  * language. A walker only ever misses the construct it does not know.
  *
- * Content is read with fs: this is local analysis whose output is names and
- * line numbers, never a model prompt. The read guard still decides which files
+ * Content is read through the supplied guard: its output is names and line
+ * numbers, never a model prompt. The read guard decides which files
  * are looked at, so the benchmark's denylisted bookkeeping files contribute no
  * symbols (skipped as guard_denied) and cannot leak into anything derived from
  * the table.
@@ -28,7 +28,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { createRequire } from 'node:module'
 import { Parser, Language, type Node as TSNode } from 'web-tree-sitter'
-import { isCorpusReadable, type ReadGuard } from '../../shared/read-guard.js'
+import { isCorpusReadable, readCorpusFile, type ReadGuard } from '../../shared/read-guard.js'
 import { REPO_ROOT } from '../../shared/run-context.js'
 import type {
   ExtractSymbolTable,
@@ -1324,7 +1324,7 @@ function sortedRecord<T>(r: Record<string, T>): Record<string, T> {
 export async function extractSymbolTable(
   targetDir: string,
   entries: readonly InventoryEntry[],
-  guard: Pick<ReadGuard, 'isCorpusReadable'> = { isCorpusReadable },
+  guard: Pick<ReadGuard, 'isCorpusReadable'> & Partial<Pick<ReadGuard, 'readCorpusFile'>> = { isCorpusReadable, readCorpusFile },
 ): Promise<SymbolTableArtifact> {
   const skipped: Record<string, number> = {}
   const parsed: Record<string, number> = {}
@@ -1347,7 +1347,11 @@ export async function extractSymbolTable(
   for (const { entry, abs } of toParse) {
     let source: string
     try {
-      source = fs.readFileSync(abs, 'utf-8')
+      const content = guard.readCorpusFile
+        ? guard.readCorpusFile(path.relative(REPO_ROOT, abs))
+        : fs.readFileSync(abs, 'utf-8')
+      if (content === null) { skip('guard_denied'); continue }
+      source = content
     } catch {
       skip('read_error')
       continue

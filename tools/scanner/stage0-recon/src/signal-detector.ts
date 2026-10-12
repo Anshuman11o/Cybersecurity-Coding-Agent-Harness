@@ -450,6 +450,7 @@ function detectFileSignals(
   entry: SignalEntry,
   routeHandlerNames: Set<string>,
   symbols: SymbolTableArtifact | undefined,
+  read?: (relPath: string) => string | null,
 ): Signal[] {
   const relPath = entry.path
   if (entry.empty) return []
@@ -462,7 +463,9 @@ function detectFileSignals(
 
   let source: string
   try {
-    source = fs.readFileSync(path.join(targetDir, relPath), 'utf-8')
+    const content = read ? read(relPath) : fs.readFileSync(path.join(targetDir, relPath), 'utf-8')
+    if (content === null) return []
+    source = content
   } catch {
     // Cannot read file — return empty signals (real answer, not failure)
     return []
@@ -532,11 +535,12 @@ export function detectAllSignalsFromList(
   entries: Pick<InventoryEntry, 'path' | 'language' | 'oversize' | 'empty'>[],
   routeHandlerNames: Set<string>,
   symbols?: SymbolTableArtifact,
+  read?: (relPath: string) => string | null,
 ): FileSignalsResult {
   const files: Record<string, Signal[]> = {}
   for (const entry of entries) {
     try {
-      files[entry.path] = detectFileSignals(targetDir, entry, routeHandlerNames, symbols)
+      files[entry.path] = detectFileSignals(targetDir, entry, routeHandlerNames, symbols, read)
     } catch {
       // Never drop a file — empty array is a real answer
       files[entry.path] = []

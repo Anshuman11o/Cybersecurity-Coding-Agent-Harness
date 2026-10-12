@@ -9,6 +9,8 @@ import { assertUpstream, writeMeta } from '../../shared/meta.js'
 import { cacheRoot } from '../../shared/playbook-cache.js'
 import { PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
 import { runPlaybookAgent, type AgentOptions, type ReconInput, type UsageCall } from './agent.js'
+import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+import { PlaybookMeter } from './meter.js'
 
 function writeJson(file: string, data: unknown) {
   writeFileSync(file + '.tmp', JSON.stringify(data, null, 2) + '\n')
@@ -50,17 +52,19 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
       builtinTexts.set(entry.playbook, mod.playbook)
     }
     if (transportFor(provider) !== 'openai') throw new Error('Playbook agent requires Responses API with web_search')
+    const config = clientConfigFor(provider)
     if (!createResponse) {
-      const config = clientConfigFor(provider)
       if (!config.apiKey) throw new Error('No credential configured for the selected playbook model')
       const client = new OpenAI({ ...config, apiKey: config.apiKey, maxRetries: 0 })
       createResponse = request => client.responses.create(request)
     }
+    const profile = readApiProfile(join(runPath(provider, 'stage0-recon'), API_PROFILE_FILE))
+    const meter = new PlaybookMeter(provider, getRunContext(), config.baseURL ?? null, profile?.served_tier ?? null, createResponse)
     const { plan, overlay } = await runPlaybookAgent({
       recon, builtins, builtinTexts, signals, model, cacheRoot: cacheRoot(),
       allowedDomains: (process.env.SCANNER_PLAYBOOK_ALLOWED_DOMAINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
       maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider),
-      create: createResponse,
+      create: request => meter.call(request),
       recordUsage: call => { calls.push(call); writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls }) },
     })
     writeJson(join(dir, 'playbook-plan.json'), plan)

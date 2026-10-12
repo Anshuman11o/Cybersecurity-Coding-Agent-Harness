@@ -66,7 +66,11 @@ const FRAMEWORK_PATTERNS: FrameworkPatternSet[] = [
  * Auto-detect which frontend frameworks are present in the target.
  * Checks package.json dependencies and config files.
  */
-export function detectFrontendFrameworks(targetDir: string): FrameworkType[] {
+export function detectFrontendFrameworks(
+  targetDir: string,
+  selectedPaths?: readonly string[],
+  read: (relPath: string) => string | null = rel => fs.readFileSync(path.join(targetDir, rel), 'utf-8'),
+): FrameworkType[] {
   const detected: FrameworkType[] = []
 
   // Collect dependencies from ALL package.json files in the target tree
@@ -98,15 +102,29 @@ export function detectFrontendFrameworks(targetDir: string): FrameworkType[] {
     }
   }
 
-  findPackageJsons(targetDir)
+  const selected = selectedPaths === undefined ? null : new Set(selectedPaths)
+  if (selected) {
+    for (const rel of selected) {
+      if (path.basename(rel) !== 'package.json') continue
+      try {
+        const content = read(rel)
+        if (content === null) continue
+        const pkg = JSON.parse(content)
+        allDeps.push(...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {}))
+      } catch {}
+    }
+  } else {
+    findPackageJsons(targetDir)
+  }
+  const hasConfig = (rel: string) => selected ? selected.has(rel) : fileExists(targetDir, rel)
 
   // Also look for framework config files
-  if (fileExists(targetDir, 'angular.json')) configFiles.push('angular')
-  if (fileExists(targetDir, 'frontend/angular.json')) configFiles.push('angular')
-  if (fileExists(targetDir, 'vue.config.js')) configFiles.push('vue')
-  if (fileExists(targetDir, 'frontend/vue.config.js')) configFiles.push('vue')
-  if (fileExists(targetDir, 'vite.config.ts')) configFiles.push('vite')
-  if (fileExists(targetDir, 'frontend/vite.config.ts')) configFiles.push('vite')
+  if (hasConfig('angular.json')) configFiles.push('angular')
+  if (hasConfig('frontend/angular.json')) configFiles.push('angular')
+  if (hasConfig('vue.config.js')) configFiles.push('vue')
+  if (hasConfig('frontend/vue.config.js')) configFiles.push('vue')
+  if (hasConfig('vite.config.ts')) configFiles.push('vite')
+  if (hasConfig('frontend/vite.config.ts')) configFiles.push('vite')
 
   const uniqueDeps = [...new Set(allDeps)]
 
@@ -154,14 +172,19 @@ export function escapeHatchCandidates(
  * specified frontend frameworks. Findings are sorted by file, then line;
  * within a line they keep pattern order.
  */
-export function scan(targetDir: string, relPaths: readonly string[], frameworks?: FrameworkType[]): EscapeHatchFinding[] {
+export function scan(
+  targetDir: string, relPaths: readonly string[], frameworks?: FrameworkType[],
+  read?: (relPath: string) => string | null,
+): EscapeHatchFinding[] {
   const findings: EscapeHatchFinding[] = []
 
   const patternSets = frameworks
     ? getPatternsForFrameworks(frameworks)
     : FRAMEWORK_PATTERNS
 
-  for (const relPath of relPaths) scanFile(path.join(targetDir, relPath), findings, patternSets)
+  for (const relPath of relPaths) {
+    scanFile(path.join(targetDir, relPath), findings, patternSets, read ? () => read(relPath) : undefined)
+  }
 
   // Stable sort, so equal (file, line) keys keep the order they were found in.
   findings.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line))
@@ -176,7 +199,10 @@ export function scanLegacy(targetDir: string, relPaths: readonly string[]): Esca
   return scan(targetDir, relPaths, ['angular'])
 }
 
-function scanFile(fullPath: string, findings: EscapeHatchFinding[], patternSets: FrameworkPatternSet[]): void {
+function scanFile(
+  fullPath: string, findings: EscapeHatchFinding[], patternSets: FrameworkPatternSet[],
+  read?: () => string | null,
+): void {
   const name = path.basename(fullPath)
   // Kept from the directory walk this replaced: the inventory flags *.spec.*
   // as tests already, but not when tests are included on purpose.
@@ -185,7 +211,9 @@ function scanFile(fullPath: string, findings: EscapeHatchFinding[], patternSets:
 
   let content: string
   try {
-    content = fs.readFileSync(fullPath, 'utf-8')
+    const source = read ? read() : fs.readFileSync(fullPath, 'utf-8')
+    if (source === null) return
+    content = source
   } catch {
     return
   }

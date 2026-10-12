@@ -7,7 +7,7 @@
     "run": "tsx src/budget-governor.ts",
     "run:v2": "tsx src/budget-governor.ts --v2 --mode estimate",
     "run:v2-reconcile": "tsx src/budget-governor.ts --v2 --mode reconcile",
-    "test": "tsx src/test-harness.ts && tsx --test src/limits.test.ts"
+    "test": "tsx src/test-harness.ts && tsx --test src/limits.test.ts src/estimate.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

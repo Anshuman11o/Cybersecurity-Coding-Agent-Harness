@@ -27,10 +27,9 @@ SCANNER_PLAYBOOK_AGENT=1 npm run secscan -- scan /path/to/target
 
 The registry supplies the model, endpoint, credential name and token settings.
 The product default is `luna6` (GPT-6 Luna); the lab default and previous model
-entries retain their identities. This new model is unmeasured and its token
-prices are unknown: no old benchmark or prices are attributed to it. Until
-verified prices are added, the CLI cannot enforce `--max-cost` with that entry;
-use a priced user model entry when a cost cap is required.
+entries retain their identities. This model is unmeasured on the benchmark.
+Pricing uses the registry's verified token, cache-write and web-search rates,
+service-tier, regional and long-context settings from Task 2a.
 
 `SCANNER_PLAYBOOK_ALLOWED_DOMAINS` is an optional comma-separated list of search
 domains. Its empty default sends no filter. Values are passed directly to the
@@ -46,8 +45,11 @@ tools/scanner/run.sh --target /path/to/target --run-id RUN_ID luna6 stage-playbo
 ```
 
 Coverage and any web research run before the existing hunt confirmation, and
-are billed by the selected provider. Stage 1 still only estimates the hunt;
-the new stage records its own usage, including search-call counts. Unsupported
+are billed by the selected provider. Each attempt appends to Task 2a's shared
+spend ledger as well as this stage's usage artifact; the estimate and live hunt
+gate include that spend. Requests pin recon's observed service tier, use the
+shared pricing functions, and book conservative reservations when usage is
+missing. Unsupported
 Responses/web-search providers fail explicitly. No alternate model is selected
 silently. No full scan or paid call was used to test this implementation.
 
@@ -68,7 +70,8 @@ codes and signals together with their text; changing coverage cannot relabel
 an old entry.
 
 The cache lives at `reportsRoot(context)/playbooks/<class-id>/<framework>/<model>/`.
-Product reports roots are `<target>/.secscan`, shared across run IDs even when
+Product reports roots use `SCANNER_REPORTS_ROOT` (the CLI's `--out`), defaulting
+to `<target>/.secscan`. They are shared across run IDs even when
 `SCANNER_RUNS_ROOT` relocates per-run outputs. The benchmark reports root is its
 configured runs root. The model path segment is percent-encoded. Each entry
 contains `playbook.md` and `meta.json` with source URLs, sha256 of the UTF-8
@@ -90,7 +93,8 @@ hashes stop loading rather than silently supplying different guidance.
   incomplete responses, input/output, cached input, cache writes, reasoning
   tokens, search calls, query strings and sources. Usage is written before
   response validation. SDK automatic retries are disabled so requests are not
-  hidden. No shared `ledger.ts` existed on the base main commit.
+  hidden. Calls also append to `shared/ledger.ts`, which became available with
+  Task 2a, so recon, playbook research and hunting share one spend total.
 - `meta.json`: normal stage provenance; failed attempts cannot leave a
   previous overlay with successful provenance.
 

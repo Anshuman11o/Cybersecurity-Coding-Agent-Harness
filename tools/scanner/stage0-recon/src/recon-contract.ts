@@ -149,6 +149,7 @@ export interface InventoryEntry {
 
 /** Why a path never entered the inventory at all. */
 export type ExclusionReason =
+  | 'user-excluded'
   | 'gitignore'       // matched a .gitignore inside the target
   | 'secscanignore'   // matched the target's .secscanignore
   | 'vendor_dir'      // node_modules, vendor, venv (any dir holding pyvenv.cfg), ...
@@ -184,6 +185,8 @@ export interface FileInventoryArtifact {
   ignore_files: string[]
   /** Sorted by path. */
   files: InventoryEntry[]
+  /** Selected nonoversize source and root README paths admitted for guarded reads. */
+  read_files?: string[]
   /** One group per reason that excluded anything, sorted by reason. */
   excluded: ExclusionGroup[]
   /** Files with no language (images, markdown, ...): counted, never listed. */
