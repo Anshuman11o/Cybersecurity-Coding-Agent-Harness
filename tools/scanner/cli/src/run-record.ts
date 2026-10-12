@@ -80,7 +80,7 @@ export interface RunRecord {
   scope_excluded: ScopeExcludedLane[]
   spend: {
     estimate_usd: number | null
-    /** Stage 2's gate figure: measured cost of every finished lane, all passes. */
+    /** The ledger total: recon, hunt, failed attempts and earlier passes. */
     spent_usd: number | null
     /** Stage 1's post-run reconciliation (usage-v2.json), when it ran. */
     reconciled_usd: number | null

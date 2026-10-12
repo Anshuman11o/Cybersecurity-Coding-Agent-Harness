@@ -19,7 +19,7 @@ export function readProgress(path: string): Stage2Progress | null {
   }
 }
 
-export function progressLine(p: Stage2Progress, nowMs: number, plannedSeconds: number): string {
+export function progressLine(p: Stage2Progress, nowMs: number, plannedSeconds: number, ledgerSpend?: number): string {
   const elapsed = (nowMs - Date.parse(p.started_at)) / 1000
   const finishedThisPass = p.lanes.done - p.lanes.carried + p.lanes.failed
   const remaining = Math.max(0, p.lanes.total - p.lanes.done - p.lanes.failed)
@@ -28,8 +28,9 @@ export function progressLine(p: Stage2Progress, nowMs: number, plannedSeconds: n
   else if (finishedThisPass > 0) eta = `~${duration((elapsed / finishedThisPass) * remaining)}`
   else eta = `~${duration(Math.max(0, plannedSeconds - elapsed))} (planned)`
   const sev = p.findings.by_severity
+  const spent = ledgerSpend ?? p.spend.ledger_spent_usd ?? p.spend.spent_usd
   const spend = [
-    p.spend.spent_usd != null ? `${usd(p.spend.spent_usd)} spent` : 'spend unpriced',
+    spent != null ? `${usd(spent)} spent` : 'spend unpriced',
     p.spend.estimate_usd != null ? `~${usd(p.spend.estimate_usd)} est` : null,
     p.spend.cap_usd != null ? `${usd(p.spend.cap_usd)} cap` : null,
   ].filter(Boolean).join(' / ')
@@ -50,6 +51,7 @@ export function startProgress(
   path: string,
   plannedSeconds: number,
   out: NodeJS.WriteStream = process.stderr,
+  ledgerSpend?: () => number,
 ): ProgressHandle {
   const tty = Boolean(out.isTTY)
   let lastDone = -1
@@ -60,7 +62,7 @@ export function startProgress(
     const p = readProgress(path)
     if (!p) return
     const now = Date.now()
-    let line = progressLine(p, now, plannedSeconds)
+    let line = progressLine(p, now, plannedSeconds, ledgerSpend?.())
     if (tty) {
       const cols = out.columns ?? 120
       if (line.length > cols - 1) line = line.slice(0, cols - 2) + '…'
