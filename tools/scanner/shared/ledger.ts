@@ -33,7 +33,7 @@ export interface LedgerEntry {
   schema: typeof LEDGER_SCHEMA
   /** ISO time the entry was booked. */
   at: string
-  source: 'recon' | 'hunt'
+  source: 'recon' | 'hunt' | 'playbook'
   /** Stage key that made the call, e.g. 'stage0-recon'. */
   stage: string
   /** What the call was for, e.g. 'auth-mechanisms' or 'chunk 1 pass 1'. */

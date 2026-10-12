@@ -1,0 +1,121 @@
+# Recon-guided playbook agent (Mode A)
+
+An optional stage adds guidance for vulnerability families recon detects that
+the fourteen built-in playbooks do not cover. The built-ins remain immutable.
+
+```mermaid
+flowchart LR
+    Recon[Stage 0: recon] --> Agent[Playbook agent: coverage + cached/web guidance]
+    Agent --> Classes[Stage 0.5: deterministic class assignment]
+    Classes --> Estimate[Stage 1: deterministic estimate]
+    Estimate --> Hunt[Stage 2: hunt]
+    Hunt --> Report[Run record / report]
+    Cache[(Target playbook cache)] <--> Agent
+    Cache --> Estimate
+    Cache --> Hunt
+```
+
+## Use
+
+Run `tools/scanner/install.sh` from the repository root to install the new
+package along with the existing stages. Enable it for a product scan:
+
+```bash
+cd tools/scanner/cli
+SCANNER_PLAYBOOK_AGENT=1 npm run secscan -- scan /path/to/target
+```
+
+The registry supplies the model, endpoint, credential name and token settings.
+The product default is `luna6` (GPT-6 Luna); the lab default and previous model
+entries retain their identities. This model is unmeasured on the benchmark.
+Pricing uses the registry's verified token, cache-write and web-search rates,
+service-tier, regional and long-context settings from Task 2a.
+
+`SCANNER_PLAYBOOK_ALLOWED_DOMAINS` is an optional comma-separated list of search
+domains. Its empty default sends no filter. Values are passed directly to the
+Responses `web_search` tool's `filters.allowed_domains`. The agent chooses its
+own queries; there is no query filter or enforced source allowlist.
+
+The stage is opt-in per productization plan §3.4. It runs between recon and
+class assignment in the CLI and in `run.sh ... all-v2` when enabled. For an
+already prepared recon run it can also be called explicitly:
+
+```bash
+tools/scanner/run.sh --target /path/to/target --run-id RUN_ID luna6 stage-playbook-agent
+```
+
+Coverage and any web research run before the existing hunt confirmation, and
+are billed by the selected provider. Each attempt appends to Task 2a's shared
+spend ledger as well as this stage's usage artifact; the estimate and live hunt
+gate include that spend. Requests pin recon's observed service tier, use the
+shared pricing functions, and book conservative reservations when usage is
+missing. Unsupported
+Responses/web-search providers fail explicitly. No alternate model is selected
+silently. No full scan or paid call was used to test this implementation.
+
+## Decision and cache
+
+`guidance.md` is loaded at runtime. A strict structured coverage call receives
+the architecture, languages, frameworks, manifest section of recon's repo map,
+file signals and counts, category applicability, built-in text and registry,
+signal mappings, and available cached classes. It has no web tool. The model
+returns a reason plus zero or more additional class definitions.
+
+Each uncached class then gets a Responses call with `web_search` and a strict
+playbook schema. It returns a plain-text playbook in the built-in format plus
+source URLs. The caller captures queries from `output[].action.queries`.
+Repeated runs still assess current coverage, but reuse matching cached entries
+instead of researching them again. Cached definitions keep their original
+codes and signals together with their text; changing coverage cannot relabel
+an old entry.
+
+The cache lives at `reportsRoot(context)/playbooks/<class-id>/<framework>/<model>/`.
+Product reports roots use `SCANNER_REPORTS_ROOT` (the CLI's `--out`), defaulting
+to `<target>/.secscan`. They are shared across run IDs even when
+`SCANNER_RUNS_ROOT` relocates per-run outputs. The benchmark reports root is its
+configured runs root. The model path segment is percent-encoded. Each entry
+contains `playbook.md` and `meta.json` with source URLs, sha256 of the UTF-8
+text, creation time, model, queries, class codes, and signal mappings. Cache
+publication is atomic; existing entries are immutable. Missing or mismatching
+hashes stop loading rather than silently supplying different guidance.
+
+## Artifacts and hooks
+
+`runPath(provider, 'stage-playbook-agent')` contains:
+
+- `playbook-plan.json`: coverage decision and reason, whether search ran,
+  new classes and signal mappings, cache hits, all consulted playbooks with
+  hashes and sources.
+- `classes-overlay.json`: class-ID dictionary in the shipped registry's
+  `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
+  and `sha256`. Built-in replacements and unknown signals are rejected.
+- `usage.json`: one entry per Responses request, including failures and
+  incomplete responses, input/output, cached input, cache writes, reasoning
+  tokens, search calls, query strings and sources. Usage is written before
+  response validation. SDK automatic retries are disabled so requests are not
+  hidden. Calls also append to `shared/ledger.ts`, which became available with
+  Task 2a, so recon, playbook research and hunting share one spend total.
+- `meta.json`: normal stage provenance; failed attempts cannot leave a
+  previous overlay with successful provenance.
+
+Stage 0.5 deterministically extends the signal tables when an overlay exists;
+absent or empty overlays retain the shipped output. Its existing file selection
+and skip rules still apply, including config/test files. Stage 1 adds cached
+playbook lengths to the estimate. Stage 2 loads cached plain text for added
+classes, includes their codes in findings, and records the guidance supplied
+to lanes in `playbooks-used.json`. The CLI copies those records (or the agent
+plan before hunting starts) to `run-record.json.playbooks`. Built-in records
+have a repository source path and text hash; their web-source list is empty
+because the original built-ins do not declare web sources.
+
+## Tests
+
+```bash
+cd tools/scanner/stage-playbook-agent
+npm ci
+npm test
+```
+
+All model and web responses are mocked. The suite uses synthetic recon fixtures
+and temporary caches/targets, including a one-file deterministic Stage 0.5 run
+and import-only Stage 2 loading; it never launches recon or a hunting model.

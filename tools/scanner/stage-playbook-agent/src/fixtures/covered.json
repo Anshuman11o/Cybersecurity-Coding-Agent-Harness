@@ -1,0 +1,10 @@
+{
+  "architecture": {
+    "architecture": { "frameworks": ["Express"], "data_stores": ["PostgreSQL"], "trust_boundaries": ["HTTP request to parameterized database query"] },
+    "dependencies": { "security_relevant": [{ "name": "express" }, { "name": "pg" }] },
+    "file_inventory": { "by_language": { "typescript": { "count": 1 } } }
+  },
+  "category_applicability": [{ "name": "A03: Injection", "verdict": "present" }],
+  "file_signals": { "files": { "src/handler.ts": ["route_handler", "db_query"] } },
+  "dependency_manifests": "package.json: express, pg"
+}

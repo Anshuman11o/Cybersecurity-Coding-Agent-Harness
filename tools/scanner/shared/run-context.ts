@@ -175,6 +175,11 @@ export function isBenchmark(ctx: RunContext = getRunContext()): boolean {
   return ctx.profile === 'benchmark'
 }
 
+/** Persistent report assets shared by successive runs of this target. */
+export function reportsRoot(ctx: RunContext = getRunContext()): string {
+  return ctx.profile === 'product' ? ctx.reportsRoot ?? join(ctx.targetRoot, PRODUCT_DIRNAME) : ctx.runsRoot
+}
+
 /** Plain-object form for meta.json. */
 export function describeRunContext(ctx: RunContext = getRunContext()): Record<string, unknown> {
   return {

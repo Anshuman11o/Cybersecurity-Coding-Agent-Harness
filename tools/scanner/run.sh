@@ -103,7 +103,7 @@ registry() {
 STAGES_V1=(stage0-recon stage05-lane-selector stage1-budget-governor stage2-hunt-lanes)
 # v2 — one lane per file. Shares stage0-recon with v1; reconcile runs last,
 # after stage 2 has produced the consumption it reconciles against.
-STAGES_V2=(stage0-recon stage05-lane-selector-perfile stage1-budget-governor-perfile stage2-hunt-lanes-perfile reconcile-v2)
+STAGES_V2=(stage0-recon stage-playbook-agent stage05-lane-selector-perfile stage1-budget-governor-perfile stage2-hunt-lanes-perfile reconcile-v2)
 
 usage() {
   echo "usage: $0 [--target DIR] [--profile P] [--run-id ID] [--resume] <provider> <stage|all|all-v2>" >&2
@@ -476,6 +476,8 @@ run_stage() {
 # macOS still ships 3.2 — the same reason the lock is a directory, not flock.
 run_pipeline() {
   for s in "$@"; do
+    # Recon-guided playbooks remain opt-in until the guidance evaluation lands.
+    if [ "$s" = stage-playbook-agent ] && [ "${SCANNER_PLAYBOOK_AGENT:-0}" != 1 ]; then continue; fi
     run_stage "$s" || { echo "error: $s failed — stopping pipeline" >&2; exit 1; }
   done
 }
