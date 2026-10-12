@@ -39,6 +39,7 @@ import { diff as swaggerDiff } from './swagger-diff.js'
 import { scan as frontendGrep, detectFrontendFrameworks, escapeHatchCandidates, type EscapeHatchFinding } from './frontend-grep.js'
 import {
   detectToolCalling,
+  initializeReconMeter,
   probeCategoryApplicability,
   rankToolCallingCandidates,
   summarizeArchitecture,
@@ -58,7 +59,7 @@ import { runPath, REPO_ROOT } from '../../shared/run-paths.js'
 import { resolveProvider, modelFor } from '../../shared/provider.js'
 import { writeMeta, failIfDegraded } from '../../shared/meta.js'
 import { getRunContext } from '../../shared/run-context.js'
-import { guardStats } from '../../shared/read-guard.js'
+import { guardStats, beginReconReadAudit, writeReadAllowlist } from '../../shared/read-guard.js'
 
 // ---------------------------------------------------------------------------
 // Target resolution: delegated to the run context (CLI arg > env var > default)
@@ -231,7 +232,8 @@ async function main() {
     process.exit(1)
   }
 
-  const guard = corpusGuard(TARGET_DIR)
+  beginReconReadAudit(getRunContext())
+  initializeReconMeter()
 
   // Files claimed by a framework-specific pass, left out of
   // file_inventory.unclassified_surface. Each pass adds paths in the form it
@@ -256,6 +258,15 @@ async function main() {
 
   const files = inventory.files
   const byPath = new Map(files.map(f => [f.path, f]))
+  const allowedReads = new Set(inventory.read_files ?? files.filter(f => !f.oversize).map(f => f.path))
+  writeReadAllowlist(getRunContext(), [...allowedReads])
+  const corpus = corpusGuard(TARGET_DIR)
+  const guard = {
+    isReadable: (rel: string) => allowedReads.has(rel) && corpus.isReadable(rel),
+    read: (rel: string) => allowedReads.has(rel) ? corpus.read(rel) : null,
+  }
+  const readable = (rel: string) => byPath.has(rel) && !byPath.get(rel)!.oversize && guard.isReadable(rel)
+  const read = (rel: string) => readable(rel) ? guard.read(rel) : null
 
   // ---- Step 2: Symbol table ----
   console.log('[2/9] Extracting symbols (tree-sitter)...')
@@ -273,14 +284,14 @@ async function main() {
   const enrichers: EnricherRecord[] = []
 
   // Express: an entry file the inventory selected (not ignored, not a test).
-  const expressResult = detectExpress(TARGET_DIR, rel => byPath.get(rel)?.test === false)
+  const expressResult = detectExpress(TARGET_DIR, rel => byPath.get(rel)?.test === false && readable(rel), read)
   let astResult: AstResult | null = null
   let dependencies: ReturnType<typeof extractDependencies> = []
 
   console.log(`  Express: ${expressResult.isExpress} (${expressResult.reason})`)
   if (expressResult.isExpress && expressResult.entryFile) {
-    astResult = extract(expressResult.entryFile)
-    dependencies = extractDependencies(PACKAGE_JSON)
+    astResult = extract(expressResult.entryFile, read(makeRelativePath(expressResult.entryFile, TARGET_DIR)) ?? '')
+    dependencies = extractDependencies(PACKAGE_JSON, read('package.json') ?? '{}')
     astResult.dependencies = dependencies
     const entryRel = makeRelativePath(expressResult.entryFile, TARGET_DIR)
     console.log(`    Route receivers: ${astResult.receivers.join(', ')}`)
@@ -309,7 +320,7 @@ async function main() {
     enrichers.push({ name: 'express', detected: false, reason: expressResult.reason })
     // Try to get dependencies anyway for the architecture summary
     try {
-      dependencies = extractDependencies(PACKAGE_JSON)
+      dependencies = extractDependencies(PACKAGE_JSON, read('package.json') ?? '{}')
     } catch {
       console.log('    (Could not read package.json either)')
     }
@@ -318,12 +329,12 @@ async function main() {
   // Frontend escape hatches: every non-test inventory file with a
   // frontend-capable extension that the read guard allows — its lines and
   // line numbers reach the category prompt.
-  const frontendFrameworks = detectFrontendFrameworks(TARGET_DIR)
+  const frontendFrameworks = detectFrontendFrameworks(TARGET_DIR, files.filter(f => !f.oversize && readable(f.path)).map(f => f.path), read)
   const grepFiles = escapeHatchCandidates(files).filter(p => guard.isReadable(p))
   let escapeHatchFindings: EscapeHatchFinding[] = []
   console.log(`  Frontend frameworks: ${frontendFrameworks.length > 0 ? frontendFrameworks.join(', ') : 'none detected'}`)
   if (frontendFrameworks.length > 0 && grepFiles.length > 0) {
-    escapeHatchFindings = frontendGrep(TARGET_DIR, grepFiles, frontendFrameworks)
+    escapeHatchFindings = frontendGrep(TARGET_DIR, grepFiles, frontendFrameworks, read)
     console.log(`    Scanned ${grepFiles.length} file(s) for escape-hatch APIs: ${escapeHatchFindings.length} occurrence(s)`)
     const byFile = new Map<string, number>()
     for (const f of escapeHatchFindings) byFile.set(f.file, (byFile.get(f.file) || 0) + 1)
@@ -350,9 +361,10 @@ async function main() {
 
   // ---- Step 4: Swagger diff (only meaningful with AST routes) ----
   let swaggerResult: ReturnType<typeof swaggerDiff>
-  if (astResult && fs.existsSync(SWAGGER_YML)) {
+  const swaggerContent = astResult ? read('swagger.yml') : null
+  if (astResult && swaggerContent !== null) {
     console.log('[4/9] Diffing routes against swagger.yml...')
-    swaggerResult = swaggerDiff(SWAGGER_YML, astResult.routes, astResult.autoCrudRoutes)
+    swaggerResult = swaggerDiff(SWAGGER_YML, astResult.routes, astResult.autoCrudRoutes, swaggerContent)
     console.log(`  Documented paths: ${swaggerResult.documentedPaths.length}`)
     console.log(`  Undocumented surfaces: ${swaggerResult.undocumentedSurfaces.length}`)
     console.log(`  Coverage: ${swaggerResult.coverageNote}`)
@@ -369,7 +381,7 @@ async function main() {
   const untaggedTable = buildRouteTable(astResult?.routes ?? [], astResult)
   const rhNames = collectRouteHandlerNames(untaggedTable)
   console.log(`  Route handler names from route table: ${rhNames.size}`)
-  const fileSignals = detectAllSignalsFromList(TARGET_DIR, files, rhNames, symbols)
+  const fileSignals = detectAllSignalsFromList(TARGET_DIR, files, rhNames, symbols, read)
   const signalCounts = Object.values(fileSignals.files).map(s => s.length)
   const signalDist: Record<number, number> = {}
   for (const n of signalCounts) signalDist[n] = (signalDist[n] || 0) + 1

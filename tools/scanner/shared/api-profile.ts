@@ -36,6 +36,8 @@ export interface ApiProfile {
   rate_limits: { requests_per_minute: number | null; tokens_per_minute: number | null }
   /** Model calls recon made, failed attempts included. */
   recon_calls: number
+  /** A terminal provider response stops recon and the run. */
+  stop_reason?: 'provider_quota' | 'unpriced_service_tier'
   /** Recon's own chars sent / prompt tokens, or null when it measured none. */
   chars_per_token: number | null
 }

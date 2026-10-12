@@ -27,8 +27,9 @@ export function diff(
   swaggerPath: string,
   routes: RouteEntry[],
   autoCrudRoutes: AutoCrudEntry[],
+  sourceText?: string,
 ): SwaggerDiffResult {
-  const swaggerContent = fs.readFileSync(swaggerPath, 'utf-8')
+  const swaggerContent = sourceText ?? fs.readFileSync(swaggerPath, 'utf-8')
   const swagger = yaml.load(swaggerContent) as any
 
   // Extract documented paths from swagger
