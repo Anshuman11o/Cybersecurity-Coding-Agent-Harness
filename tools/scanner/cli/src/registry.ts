@@ -101,14 +101,15 @@ export async function loadRegistryModules() {
       measured: provider.isMeasured(key),
       benchmark: models.benchmarkFor(key),
       maxConcurrency: provider.maxConcurrencyFor(key),
-      isDefault: key === models.defaultProvider(),
+      isDefault: key === models.productDefaultProvider(),
     }
   }
 
   return {
     info,
     list: (): ModelInfo[] => models.listProviders().map(info),
-    defaultKey: (): string => models.defaultProvider(),
+    defaultKey: (): string => models.productDefaultProvider(),
     costUsd: provider.costUsd,
+    effort: (key: string): string => String(provider.samplingParams(key).reasoning_effort ?? ''),
   }
 }

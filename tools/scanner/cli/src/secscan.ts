@@ -6,7 +6,7 @@
  *   secscan scan [dir] [flags]     recon, plan, confirm, hunt with live progress
  *
  * A scan runs Stage 0 (recon), 0.5 (lanes) and 1 (scan plan and estimate)
- * first; those make at most two small recon model calls. It then shows the
+ * first; those make up to five recon model calls, counted against the budget. It then shows the
  * confirmation screen and spends nothing on the hunt until the user starts it
  * (or --yes says so). The hunt runs behind Stage 1's spend gate with live
  * progress; a limit or Ctrl-C ends it cleanly, and either way the run record
@@ -15,16 +15,17 @@
  * Nothing here names a model, an endpoint or a credential: the registry
  * (shared/models.json) and the user's flags supply all three.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
 import { createInterface } from 'readline/promises'
 import { parseArgs, usage, UsageError, type ScanArgs } from './args.js'
-import { applyModelFlags, loadRegistryModules, genericNames, type ModelInfo } from './registry.js'
+import { applyModelFlags, loadRegistryModules, genericNames } from './registry.js'
 import { CONFIG_FILENAME, loadConfig, configFromRun, writeConfig, type LoadedConfig } from './config.js'
 import { buildSummary, renderSummary, PROMPT_LINE, type ConfirmationSummary, type LaneLite } from './confirm.js'
 import { launchStage, signalStage, type RunningStage } from './stages.js'
 import { startProgress, readProgress } from './progress.js'
+import { roundOneInputs, terminalIO, InputCancelled, findResume, askNewBudget, tierNotice, reconRefusal, assertSameReadScope } from './inputs.js'
 import {
   RUN_RECORD_FILE, RUN_RECORD_SCHEMA, decideStatus, writeRunRecord,
   type RunRecord, type StageResult,
@@ -34,19 +35,21 @@ import {
   NO_LIMITS, LIMIT_ENV, limitsToEnv, parseCost, parsePositiveInt, parseSize, parseDuration,
   normalizeScopePath, compileGlob, type RunLimits,
 } from '../../stage1-budget-governor/src/limits.js'
-import { SCAN_PLAN_FILE, type ScanPlan } from '../../stage1-budget-governor/src/scan-plan.js'
+import type { ScanPlan } from '../../stage1-budget-governor/src/scan-plan.js'
 import {
   PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE, type Stage2RunStatus,
 } from '../../stage1-budget-governor/src/run-status.js'
-import { resolveRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+import { recordCalibration } from '../../shared/calibration.js'
 
 const EXIT = { complete: 0, failure: 1, usage: 2, incomplete: 3, interrupted: 130 } as const
 const HUNT = 'stage2-hunt-lanes-perfile'
 const PRE_STAGES = ['stage0-recon', 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'] as const
-const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 
 const err = (msg: string) => process.stderr.write(`secscan: ${msg}\n`)
 const say = (msg = '') => process.stdout.write(msg + '\n')
+const shellQuote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`
 
 function git(root: string, ...args: string[]): string | null {
   try {
@@ -71,12 +74,12 @@ function merge(base: RunLimits, over: Partial<RunLimits>): RunLimits {
 }
 
 /** A product run id: the same shape run.sh generates, suffixed when taken. */
-function newRunId(target: string): string {
+function newRunId(reportsRoot: string): string {
   const d = new Date().toISOString()
   const base = `${d.slice(0, 4)}${d.slice(5, 7)}${d.slice(8, 10)}-${d.slice(11, 13)}${d.slice(14, 16)}${d.slice(17, 19)}`
   for (let n = 1; ; n++) {
     const id = n === 1 ? base : `${base}-${n}`
-    const dir = resolveRunContext({ SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: id }, [], target).runsRoot
+    const dir = join(reportsRoot, 'runs', id)
     if (!existsSync(dir)) return id
   }
 }
@@ -113,109 +116,77 @@ async function main(argv: string[]): Promise<number> {
 }
 
 async function scan(args: ScanArgs): Promise<number> {
-  // ── Target ────────────────────────────────────────────────────────────────
-  const targetAbs = resolve(args.target)
-  if (!existsSync(targetAbs) || !statSync(targetAbs).isDirectory()) {
-    err(`not a directory: ${targetAbs}`)
-    return EXIT.usage
-  }
-  const target = realpathSync(targetAbs)
-  const targetDisplay = relative(process.cwd(), target) === '' ? '.' : (relative(process.cwd(), target).startsWith('..') ? target : `./${relative(process.cwd(), target)}`)
-
-  // Decided before anything runs: recon spends a little, so a run that could
-  // never be confirmed must not start it.
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY)
-  if (!args.yes && !interactive) {
-    err('no terminal to confirm on. Pass --yes to start without the prompt (in CI, commit a secscan.config.json and pass --yes).')
-    return EXIT.usage
-  }
-
-  // ── Run id and the previous record on --resume ───────────────────────────
-  let runId: string
+  const initialTarget = resolve(args.target)
+  const initialReports = resolve(args.out ?? join(initialTarget, PRODUCT_DIRNAME))
   let previous: RunRecord | null = null
-  if (args.resume) {
-    if (!RUN_ID_RE.test(args.resume)) {
-      err(`--resume "${args.resume}" is not a run id`)
-      return EXIT.usage
+  if (args.resume !== undefined) {
+    previous = findResume(initialReports, args.resume)
+    if (args.targetProvided && realpathSync(initialTarget) !== previous.target.root) {
+      throw new UsageError(`run ${previous.run_id} belongs to ${previous.target.root}`)
     }
-    runId = args.resume
-    const dir = resolveRunContext({ SCANNER_TARGET: target, SCANNER_PROFILE: 'product', SCANNER_RUN_ID: runId }, [], target).runsRoot
-    previous = readJson<RunRecord>(join(dir, RUN_RECORD_FILE))
-    if (!previous || previous.schema !== RUN_RECORD_SCHEMA) {
-      err(`no run record for run "${runId}" under ${dir}`)
-      return EXIT.usage
-    }
-  } else {
-    runId = newRunId(target)
+    args = { ...args, target: previous.target.root, out: initialReports }
   }
 
-  // ── Config file ───────────────────────────────────────────────────────────
   let config: LoadedConfig | null = null
-  const configPath = args.configPath ? resolve(args.configPath) : join(target, CONFIG_FILENAME)
+  let configPath = args.configPath ? resolve(args.configPath) : join(initialTarget, CONFIG_FILENAME)
   if (!args.noConfig && !previous) {
-    try {
-      config = loadConfig(configPath)
-    } catch (e: any) {
-      err(e.message)
-      return EXIT.usage
-    }
-    if (args.configPath && !config) {
-      err(`--config ${configPath} does not exist`)
-      return EXIT.usage
-    }
+    config = loadConfig(configPath)
+    if (args.configPath && !config) throw new UsageError(`--config ${configPath} does not exist`)
   }
 
-  // ── Model ─────────────────────────────────────────────────────────────────
-  // Nothing may import the registry before this block: it reads the model
-  // flags from the environment once, when first imported.
-  //
-  // A resumed run keeps its model: artifacts are provider-scoped, and the
-  // checkpoint's spend was measured at that model's price.
+  // Registry loading follows flags, including a resumed custom endpoint.
   if (previous) {
-    if (args.model || args.baseUrl) {
-      err(`run ${runId} was made with "${previous.model.key}"; a resumed run keeps its model`)
-      return EXIT.usage
-    }
+    if (args.model || args.baseUrl) throw new UsageError(`run ${previous.run_id} was made with "${previous.model.key}"; a resumed run keeps its model`)
     restoreModelEnv(previous)
   }
   let modelKey = applyModelFlags(args) ?? previous?.model.key ?? config?.config.model
-  let reg
-  let model: ModelInfo
+  const reg = await loadRegistryModules()
+  modelKey ??= reg.defaultKey()
+  let model = reg.info(modelKey)
+  if (model.transport !== 'openai') throw new UsageError(`"${model.key}" uses the lab-only "${model.transport}" transport and cannot run here. Pick another with --model.`)
+  let limits = merge(merge(NO_LIMITS, previous ? previous.limits : config?.config.limits ?? {}), args.limits)
+  if (previous) assertSameReadScope(previous.limits, limits)
+  const input = terminalIO()
+  let round
   try {
-    reg = await loadRegistryModules()
-    modelKey = modelKey ?? reg.defaultKey()
-    model = reg.info(modelKey)
-  } catch (e: any) {
-    err(`${e.message}\nRun "secscan models" to list the models.`)
-    return EXIT.usage
+    round = await roundOneInputs({
+      args, model, limits, io: input, resumed: previous,
+      async targetSelected(target) {
+        if (!previous && !args.noConfig && !args.configPath && target !== initialTarget) {
+          configPath = join(target, CONFIG_FILENAME)
+          config = loadConfig(configPath)
+          model = reg.info(applyModelFlags(args) ?? config?.config.model ?? reg.defaultKey())
+          if (model.transport !== 'openai') throw new UsageError(`"${model.key}" uses a lab-only transport. Pick another with --model.`)
+          limits = merge(merge(NO_LIMITS, config?.config.limits ?? {}), args.limits)
+        }
+        return { model, limits }
+      },
+    })
   }
-  if (model.transport !== 'openai') {
-    err(`"${model.key}" uses the lab-only "${model.transport}" transport and cannot run here. Pick another with --model.`)
-    return EXIT.usage
-  }
-  if (!model.keyPresent) {
-    err(`${model.apiKeyEnv} is not set. secscan runs on your own provider account: export ${model.apiKeyEnv}=<your key>` +
-      (model.origin === 'generic' ? ' (or name another variable with --api-key-env)' : ''))
-    return EXIT.usage
-  }
+  catch (e) { if (e instanceof InputCancelled) return EXIT.complete; throw e }
+  finally { input.close?.() }
+  if (!round) { say('Not started.'); return EXIT.complete }
+  const { target, reportsRoot } = round
+  limits = round.limits
+  if (limits.max_cost_usd != null && !model.price) throw new UsageError(`--budget needs a priced model, and "${model.key}" has no price. ` +
+    (model.origin === 'generic' ? 'Pass --price <in/out>.' : 'Add price_per_mtok in a --models-file entry.'))
+  model = reg.info(model.key) // hidden input may have supplied the key
+  if (!args.configPath) configPath = join(target, CONFIG_FILENAME)
+  const targetDisplay = relative(process.cwd(), target) === '' ? '.' : (relative(process.cwd(), target).startsWith('..') ? target : `./${relative(process.cwd(), target)}`)
+  const runId = previous?.run_id ?? newRunId(reportsRoot)
 
-  // The run context for this process. run-paths resolves it — and the model
-  // registry — once, at import, so both are imported only now, after the
-  // model flags are in the environment.
   process.env.SCANNER_TARGET = target
   process.env.SCANNER_PROFILE = 'product'
   process.env.SCANNER_RUN_ID = runId
-  delete process.env.SCANNER_RUNS_ROOT
+  process.env.SCANNER_REPORTS_ROOT = reportsRoot
+  process.env.SCANNER_RUNS_ROOT = join(reportsRoot, 'runs', runId)
   const paths = await import('../../shared/run-paths.js')
+  const { SCAN_PLAN_FILE } = await import('../../stage1-budget-governor/src/scan-plan.js')
+  const { ledgerPathFor, readLedgerTotals } = await import('../../shared/ledger.js')
   const runsRoot = paths.RUNS_ROOT
-
-  // ── Limits: flags over the file (or the run being resumed) over none ─────
-  let limits = merge(merge(NO_LIMITS, previous ? previous.limits : config?.config.limits ?? {}), args.limits)
-  if (limits.max_cost_usd != null && !model.price) {
-    err(`--max-cost needs a priced model, and "${model.key}" has no price. ` +
-      (model.origin === 'generic' ? 'Pass --price <in/out>.' : 'Add price_per_mtok in a --models-file entry.'))
-    return EXIT.usage
-  }
+  const ledgerPath = ledgerPathFor(runsRoot, model.key)
+  const ledgerTotals = () => readLedgerTotals(ledgerPath)
 
   // Stages inherit exactly what was confirmed: no stray limit, per-stage
   // provider override or lab knob from the caller's shell.
@@ -225,16 +196,13 @@ async function scan(args: ScanArgs): Promise<number> {
     for (const k of Object.keys(env)) if (k.startsWith('SCANNER_PROVIDER')) delete env[k]
     delete env.HUNT_MAX_LANES
     delete env.SCANNER_RESUME
-    delete env.SCANNER_RUNS_ROOT
     return { ...env, ...limitsToEnv(l) }
   }
 
   // ── Run directory ─────────────────────────────────────────────────────────
   // The same rule run.sh applies: `.secscan/` carries a `*` .gitignore before
   // anything is written, so run artifacts can never be committed by accident.
-  const productDir = join(target, PRODUCT_DIRNAME)
   mkdirSync(runsRoot, { recursive: true })
-  if (!existsSync(join(productDir, '.gitignore'))) writeFileSync(join(productDir, '.gitignore'), '*\n')
   const logPath = join(runsRoot, 'secscan.log')
   const stageDir = (s: Parameters<typeof paths.runPath>[1]) => paths.runPath(model.key, s)
   const stopPath = join(stageDir(HUNT), STOP_REQUEST_FILE)
@@ -246,6 +214,7 @@ async function scan(args: ScanArgs): Promise<number> {
   let confirmation: RunRecord['confirmation'] = null
   let summary: ConfirmationSummary | null = null
   let plan: ScanPlan | null = null
+  let resuming = Boolean(previous)
 
   // ── Interrupts ────────────────────────────────────────────────────────────
   let current: RunningStage | null = null
@@ -296,7 +265,11 @@ async function scan(args: ScanArgs): Promise<number> {
     // A status left by an earlier pass describes that pass, not this one.
     const fresh = stage2 && thisPass.some(s => s.stage === HUNT && Date.parse(stage2.generated_at) >= Date.parse(s.started_at))
       ? stage2 : null
-    const verdict = decideStatus(fresh, thisPass, cancelled)
+    const refusal = reconRefusal(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
+    const verdict = refusal
+      ? { status: 'INCOMPLETE' as const, reasons: [refusal] }
+      : decideStatus(fresh, thisPass, cancelled)
+    const totals = ledgerTotals()
     const usage = readJson<any>(join(stageDir('stage1-budget-governor-perfile'), 'usage-v2.json'))
     const usageFresh = usage && fresh && Date.parse(usage.generated_at) >= Date.parse(fresh.ended_at) ? usage : null
     const progress = readProgress(join(stageDir(HUNT), PROGRESS_FILE))
@@ -340,13 +313,13 @@ async function scan(args: ScanArgs): Promise<number> {
       scope_excluded: fresh?.scope_excluded
         ?? (plan?.excluded.filter(e => e.reason !== 'over-max-files').map(e => ({ lane_id: e.lane_id, target_file: e.target_file, reason: e.reason as 'user-excluded' | 'too-large', detail: e.detail })) ?? []),
       spend: {
-        estimate_usd: plan?.totals.projected_cost_usd ?? null,
-        spent_usd: fresh?.spend.spent_usd ?? null,
+        estimate_usd: plan?.estimate?.total_usd ?? plan?.totals.projected_cost_usd ?? null,
+        spent_usd: totals.total_usd,
         reconciled_usd: usageFresh?.cost_usd ?? null,
         cap_usd: limits.max_cost_usd,
-        input_tokens: usageFresh?.input_tokens ?? null,
-        output_tokens: usageFresh?.output_tokens ?? null,
-        calls: usageFresh?.calls ?? null,
+        input_tokens: totals.prompt_tokens,
+        output_tokens: totals.completion_tokens,
+        calls: totals.calls,
       },
       findings_total: fresh?.findings_total ?? null,
       artifacts: Object.fromEntries(
@@ -359,11 +332,20 @@ async function scan(args: ScanArgs): Promise<number> {
     const resumable = record.status === 'INCOMPLETE' && !cancelled && record.unscanned.length > 0
     const cut = (r: string) => record.incomplete_reasons.some(x => x.reason === r)
     record.resume_command = resumable
-      ? `secscan scan ${targetDisplay} --resume ${runId}` +
-        (cut('max_cost') ? ' --max-cost <higher>' : '') +
+      ? `secscan scan ${shellQuote(targetDisplay)} --resume ${runId}` +
+        ` --out ${shellQuote(reportsRoot)}` +
+        (cut('max_cost') ? ' --budget <higher>' : '') +
         (cut('over-max-files') ? ' --max-files <higher>' : '')
       : null
     writeRunRecord(join(runsRoot, RUN_RECORD_FILE), record)
+    if (totals.prompt_tokens > 0) recordCalibration(reportsRoot, {
+      run_id: runId, at: record.updated_at, model: model.model, effort: reg.effort(model.key),
+      files: record.coverage.completed ?? 0, calls: totals.calls,
+      input_tokens: totals.prompt_tokens, output_tokens: totals.completion_tokens,
+      chars_sent: totals.chars_with_prompt_tokens, prompt_tokens_for_chars: totals.prompt_tokens_with_chars,
+      ratio_R: totals.completion_tokens / totals.prompt_tokens,
+      chars_per_token: totals.prompt_tokens_with_chars > 0 ? totals.chars_with_prompt_tokens / totals.prompt_tokens_with_chars : null,
+    })
 
     // ── Terminal summary ──────────────────────────────────────────────────
     say()
@@ -383,7 +365,7 @@ async function scan(args: ScanArgs): Promise<number> {
         'candidates from static reasoning, not verified')
       say(`  ${join(stageDir(HUNT), 'candidate-findings.json')}`)
     }
-    if (fresh) {
+    if (totals.calls || fresh) {
       say(`Spend: ${usd(record.spend.spent_usd)}` +
         (record.spend.estimate_usd != null ? ` (estimate ${usd(record.spend.estimate_usd)})` : '') +
         (record.spend.cap_usd != null ? `, cap ${usd(record.spend.cap_usd)}` : ''))
@@ -401,19 +383,27 @@ async function scan(args: ScanArgs): Promise<number> {
   // ── Recon, lanes, plan ────────────────────────────────────────────────────
   say(`secscan · run ${runId} · ${targetDisplay}${previous ? ' (resumed)' : ''}`)
   say(`Model ${model.model} (${model.label}), ${model.measured ? 'measured' : 'unmeasured'}. Full stage output: ${logPath}`)
-  say('Reading the repository. Recon makes up to two small model calls; nothing else is spent before you confirm.')
+  say('Reading the repository. Recon makes up to five model calls; they count against the budget.')
   for (const stage of PRE_STAGES) {
-    const metaDone = previous && stage !== 'stage1-budget-governor-perfile' &&
-      readJson<{ exit_code: number }>(join(stageDir(stage), 'meta.json'))?.exit_code === 0
+    const scopeChanged = ['paths', 'include', 'exclude', 'max_files', 'max_file_size', 'concurrency']
+      .some(key => key in args.limits)
+    const savedPlan = stage === 'stage1-budget-governor-perfile' && !scopeChanged &&
+      existsSync(join(stageDir(stage), SCAN_PLAN_FILE))
+    const metaDone = previous && (savedPlan || (stage !== 'stage1-budget-governor-perfile' &&
+      readJson<{ exit_code: number }>(join(stageDir(stage), 'meta.json'))?.exit_code === 0))
     if (metaDone) continue
     const t0 = Date.now()
     process.stdout.write(`  ${stage} … `)
-    const r = await runOne(stage)
+    const r = await runOne(stage, Boolean(previous))
     say(r.exit_code === 0 ? `done (${Math.round((Date.now() - t0) / 1000)}s)` : 'FAILED')
     if (r.exit_code !== 0) {
-      if (!interrupted) err(`${stage} failed; the last lines of ${logPath}:\n${tail(logPath, 15)}`)
+      const refusal = reconRefusal(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
+      if (refusal) say(refusal.detail)
+      else if (!interrupted) err(`${stage} failed; the last lines of ${logPath}:\n${tail(logPath, 15)}`)
       return finish(false)
     }
+    const refusal = reconRefusal(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
+    if (refusal) { say(refusal.detail); return finish(false) }
   }
 
   const loadPlanAndSummary = () => {
@@ -423,16 +413,18 @@ async function scan(args: ScanArgs): Promise<number> {
     const arch = readJson<{ file_inventory?: { by_language?: Record<string, { count: number }> } }>(
       join(stageDir('stage0-recon'), 'architecture-summary.json'))
     if (!plan || !assignments) throw new Error('Stage 1 or Stage 0.5 left no plan to confirm')
+    // Budget-only resumes keep the original U and concurrency. The cap comes
+    // from this invocation's limits, which Stage 2 receives in its environment.
+    plan.limits = limits
     let resume: Parameters<typeof buildSummary>[0]['resume'] = null
-    if (previous) {
+    if (resuming) {
       const consumption = readJson<any>(join(stageDir(HUNT), 'budget-consumption.json'))
       const entries: { lane_id: string; failed?: boolean }[] =
         Array.isArray(consumption) ? consumption : consumption?.legacy_entries ?? []
-      const status = readJson<Stage2RunStatus>(join(stageDir(HUNT), RUN_STATUS_FILE))
       resume = {
         runId,
         doneLaneIds: new Set(entries.filter(e => !e.failed).map(e => e.lane_id)),
-        spentUsd: status?.spend.spent_usd ?? null,
+        spentUsd: ledgerTotals().total_usd,
       }
     }
     summary = buildSummary({
@@ -453,6 +445,9 @@ async function scan(args: ScanArgs): Promise<number> {
   // ── Confirmation ──────────────────────────────────────────────────────────
   say()
   say(renderSummary(summary!))
+  const tier = tierNotice(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
+  if (tier.message) say(tier.message)
+  if (tier.refuse) return finish(false)
   if (args.yes) {
     say('\nStarting (--yes).')
     confirmation = { by: '--yes', at: new Date().toISOString(), summary: summary! }
@@ -484,6 +479,8 @@ async function scan(args: ScanArgs): Promise<number> {
         }
         if (answer === 'e' || answer === 'edit') {
           const edited = await editLimits(rl, limits)
+          try { assertSameReadScope(limits, edited) }
+          catch (e: any) { say(e.message); continue }
           if (edited.max_cost_usd != null && !model.price) {
             say('A cost cap needs a priced model; the cap was not changed.')
             edited.max_cost_usd = limits.max_cost_usd
@@ -519,13 +516,37 @@ async function scan(args: ScanArgs): Promise<number> {
   if (interrupted) return finish(false)
   mkdirSync(stageDir(HUNT), { recursive: true })
   const progressPath = join(stageDir(HUNT), PROGRESS_FILE)
-  const huntStart = Date.now()
-  const pending = runOne(HUNT, Boolean(previous))
-  const progress = startProgressWhenFresh(progressPath, huntStart, summary!.estimate.seconds)
-  await pending
-  progress.stop()
+  let resumeHunt = Boolean(previous)
+  for (;;) {
+    const huntStart = Date.now()
+    const pending = runOne(HUNT, resumeHunt)
+    const progress = startProgressWhenFresh(progressPath, huntStart, summary!.estimate.seconds, () => ledgerTotals().total_usd)
+    await pending
+    progress.stop()
+    const status = readJson<Stage2RunStatus>(join(stageDir(HUNT), RUN_STATUS_FILE))
+    const atCap = status?.reasons.some(r => r.reason === 'max_cost') &&
+      Date.parse(status.generated_at) >= huntStart - 2000
+    if (interrupted || !atCap || args.yes || !interactive) break
+    const budgetIO = terminalIO()
+    let budget: number | null
+    try {
+      budget = await askNewBudget(budgetIO, {
+        yes: args.yes, totals: ledgerTotals(), done: status!.lanes.completed,
+        total: status!.lanes.admitted, plan: plan!,
+      })
+    } catch (e) {
+      if (e instanceof InputCancelled) break
+      throw e
+    } finally { budgetIO.close?.() }
+    if (budget === null) break
+    limits = { ...limits, max_cost_usd: budget }
+    resuming = true
+    loadPlanAndSummary()
+    resumeHunt = true
+    say(`Continuing run ${runId} with budget ${usd(budget)}.`)
+  }
 
-  // Usage is reconciled whenever the hunt left consumption to reconcile.
+  // The ledger is authoritative; reconciliation remains a separate usage artifact.
   if (existsSync(join(stageDir(HUNT), 'budget-consumption.json'))) {
     interrupts = 0
     await runOne('reconcile-v2')
@@ -534,13 +555,13 @@ async function scan(args: ScanArgs): Promise<number> {
 }
 
 /** Draw progress only from a progress.json written by this hunt, not an earlier pass. */
-function startProgressWhenFresh(path: string, sinceMs: number, plannedSeconds: number) {
+function startProgressWhenFresh(path: string, sinceMs: number, plannedSeconds: number, ledgerSpend: () => number) {
   let handle: ReturnType<typeof startProgress> | null = null
   const timer = setInterval(() => {
     const p = readProgress(path)
     if (p && Date.parse(p.started_at) >= sinceMs - 2000) {
       clearInterval(timer)
-      handle = startProgress(path, plannedSeconds)
+      handle = startProgress(path, plannedSeconds, process.stderr, ledgerSpend)
     }
   }, 250)
   return {
@@ -613,7 +634,7 @@ async function editLimits(rl: ReturnType<typeof createInterface>, l: RunLimits):
 main(process.argv.slice(2)).then(
   code => process.exit(code),
   e => {
-    err(e?.stack ?? String(e))
-    process.exit(EXIT.failure)
+    err(e instanceof UsageError ? e.message : e?.stack ?? String(e))
+    process.exit(e instanceof UsageError ? EXIT.usage : EXIT.failure)
   },
 )

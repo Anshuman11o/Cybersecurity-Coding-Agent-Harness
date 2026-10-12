@@ -17,7 +17,8 @@
  *
  *   product    A user's repo. Target is wherever SCANNER_TARGET points, reads
  *              are confined to it, artifacts go to
- *              <target>/.secscan/runs/<run-id>/<provider>/<stage>/, and Stage 2
+ *              <reports>/runs/<run-id>/<provider>/<stage>/ under a reports
+ *              folder that defaults to <target>/.secscan/, and Stage 2
  *              resumes only when SCANNER_RESUME=1 says so explicitly.
  *
  * Each stage is its own process (run.sh launches them one by one), so the
@@ -28,6 +29,8 @@
  *                      cwd, so run.sh always exports an absolute path.
  *   SCANNER_PROFILE    benchmark | product. Optional — inferred below.
  *   SCANNER_RUNS_ROOT  override for the artifact root. Optional.
+ *   SCANNER_REPORTS_ROOT  product only: the reports folder (runs, calibration).
+ *                      Optional; defaults to <target>/.secscan.
  *   SCANNER_RUN_ID     product only: names the run directory.
  *   SCANNER_RESUME     product only: '1' allows Stage 2 to resume.
  *
@@ -67,6 +70,12 @@ export interface RunContext {
   targetRoot: string
   /** Absolute artifact root. Stage artifacts live at <runsRoot>/<provider>/<stage>/. */
   runsRoot: string
+  /**
+   * Product only: the reports folder — runs under <reportsRoot>/runs/, the
+   * calibration file at its top. SCANNER_REPORTS_ROOT, else <target>/.secscan.
+   * Null in the benchmark profile, whose runs tree is the lab's own.
+   */
+  reportsRoot: string | null
   /** Product run id; null in the benchmark profile. */
   runId: string | null
   /** Product only: Stage 2 may resume from an existing checkpoint. */
@@ -119,16 +128,22 @@ export function resolveRunContext(
   }
 
   let runId: string | null = null
+  let reportsRoot: string | null = null
   let runsRoot: string
   if (profile === 'product') {
     runId = env.SCANNER_RUN_ID || null
     if (runId !== null && !RUN_ID_RE.test(runId)) {
       throw new Error(`[run-context] SCANNER_RUN_ID has unsafe characters: '${runId}'`)
     }
+    reportsRoot = env.SCANNER_REPORTS_ROOT
+      ? resolve(cwd, env.SCANNER_REPORTS_ROOT)
+      : join(targetRoot, PRODUCT_DIRNAME)
     if (env.SCANNER_RUNS_ROOT) {
       runsRoot = resolve(cwd, env.SCANNER_RUNS_ROOT)
     } else if (runId) {
-      runsRoot = join(targetRoot, PRODUCT_DIRNAME, 'runs', runId)
+      // With the default reports root this is <target>/.secscan/runs/<run-id>,
+      // the path product runs have always used.
+      runsRoot = join(reportsRoot, 'runs', runId)
     } else {
       throw new Error(
         '[run-context] a product run needs SCANNER_RUN_ID (run.sh generates one) or SCANNER_RUNS_ROOT',
@@ -142,6 +157,7 @@ export function resolveRunContext(
     profile,
     targetRoot,
     runsRoot,
+    reportsRoot,
     runId,
     resume: profile === 'product' && env.SCANNER_RESUME === '1',
   }

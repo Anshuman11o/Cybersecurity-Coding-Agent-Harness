@@ -47,8 +47,8 @@
  *
  * Zero dependencies (node builtins only).
  */
-import { readFileSync, existsSync, realpathSync, statSync } from 'fs'
-import { resolve, join, sep } from 'path'
+import { readFileSync, existsSync, realpathSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'fs'
+import { resolve, join, sep, relative } from 'path'
 import { REPO_ROOT, PRODUCT_DIRNAME, getRunContext, type RunContext } from './run-context.js'
 
 /** Benchmark profile: the only directories a model-supplied path may resolve into. */
@@ -111,7 +111,37 @@ function excludedDirs(ctx: RunContext): string[] {
   if (ctx.profile === 'benchmark') return []
   const dirs = [join(ctx.targetRoot, PRODUCT_DIRNAME), join(ctx.targetRoot, '.git')]
   if (within(ctx.runsRoot.toLowerCase(), ctx.targetRoot.toLowerCase())) dirs.push(ctx.runsRoot)
+  if (ctx.reportsRoot && within(ctx.reportsRoot.toLowerCase(), ctx.targetRoot.toLowerCase())) dirs.push(ctx.reportsRoot)
   return dirs
+}
+
+export const READ_ALLOWLIST_FILE = 'read-allowlist.json'
+export const READ_AUDIT_FILE = 'read-audit.jsonl'
+
+/** Product recon admits the only target files later stages may read. */
+export function writeReadAllowlist(ctx: RunContext, files: readonly string[]): void {
+  if (ctx.profile !== 'product') return
+  mkdirSync(ctx.runsRoot, { recursive: true })
+  writeFileSync(join(ctx.runsRoot, READ_ALLOWLIST_FILE), JSON.stringify({
+    schema: 'secscan.read-allowlist/1', target_root: ctx.targetRoot,
+    files: [...new Set(files)].sort(),
+  }, null, 2) + '\n')
+}
+
+let auditContext: RunContext | null = null
+
+/** Recon enables auditing before its first selection read. No source text is logged. */
+export function beginReconReadAudit(ctx: RunContext): void {
+  auditContext = ctx
+}
+
+export function auditReconRead(absPath: string): void {
+  const ctx = auditContext
+  if (!ctx || !within(resolve(absPath), ctx.targetRoot)) return
+  mkdirSync(ctx.runsRoot, { recursive: true })
+  appendFileSync(join(ctx.runsRoot, READ_AUDIT_FILE), JSON.stringify({
+    at: new Date().toISOString(), path: relative(ctx.targetRoot, resolve(absPath)).split(sep).join('/'),
+  }) + '\n')
 }
 
 /** Count of blocked attempts this process, surfaced into meta.json. */
@@ -150,6 +180,23 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
   // case-sensitive comparison would let it through. Over-matching here only
   // ever denies more.
   const excluded = excludedDirs(ctx).map((d) => d.toLowerCase())
+  const allowlistPath = join(ctx.runsRoot, READ_ALLOWLIST_FILE)
+  let allowlist: Set<string> | null = null
+  if (ctx.profile === 'product' && existsSync(allowlistPath)) {
+    // A malformed receipt fails closed. An absent one preserves pre-recon
+    // access for setup and explicit-context callers; recon writes it first.
+    allowlist = new Set()
+    try {
+      const saved = JSON.parse(readFileSync(allowlistPath, 'utf8'))
+      if (saved.schema === 'secscan.read-allowlist/1' && saved.target_root === ctx.targetRoot && Array.isArray(saved.files)) {
+        for (const rel of saved.files) {
+          if (typeof rel !== 'string') continue
+          const abs = resolve(ctx.targetRoot, rel)
+          if (within(abs, ctx.targetRoot)) allowlist.add(abs)
+        }
+      }
+    } catch { /* deny every target read when a saved allowlist is unusable */ }
+  }
 
   const inRoots = (abs: string) => roots.some((r) => within(abs, r))
   const inExcluded = (abs: string) => {
@@ -169,6 +216,7 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
     let abs = resolve(REPO_ROOT, relPath)
     if (!inRoots(abs)) return { reason: 'out-of-corpus path' }
     if (inExcluded(abs)) return { reason: 'excluded path (run artifacts / .git)' }
+    if (allowlist && !allowlist.has(abs)) return { reason: 'not in recon read allowlist' }
 
     if (!existsSync(abs)) return { reason: 'file not found' }
 
@@ -181,6 +229,7 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
     }
     if (!inRoots(abs)) return { reason: 'symlink escapes corpus' }
     if (inExcluded(abs)) return { reason: 'symlink into excluded path' }
+    if (allowlist && !allowlist.has(abs)) return { reason: 'symlink outside recon read allowlist' }
 
     if (denylist.includes(relPath)) return { reason: 'denylisted file' }
 
@@ -199,7 +248,9 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
       const d = decide(relPath)
       if ('reason' in d) return deny(relPath, d.reason)
       try {
-        return readFileSync(d.abs, 'utf-8')
+        const content = readFileSync(d.abs, 'utf-8')
+        auditReconRead(d.abs)
+        return content
       } catch {
         // e.g. EACCES on a file in a user's repo. Still a blocked read, not a crash.
         return deny(relPath, 'unreadable file')

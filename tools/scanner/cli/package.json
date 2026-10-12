@@ -4,10 +4,11 @@
   "private": true,
   "description": "secscan command line: model selection, run limits, run-start confirmation and live progress (productization plan §2.5-§2.7). Packaging is Task 1e.",
   "type": "module",
+  "bin": { "secscan": "src/secscan.ts" },
   "engines": { "node": ">=20" },
   "scripts": {
     "secscan": "tsx src/secscan.ts",
-    "test": "tsx --test src/cli.test.ts"
+    "test": "tsx --test src/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

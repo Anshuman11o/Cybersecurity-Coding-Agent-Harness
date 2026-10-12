@@ -31,7 +31,14 @@ import { resolveProvider, modelFor, tokenLimitParam, samplingParams, clientConfi
 import { createClaudeCliClient } from '../../shared/claude-cli-client.js'
 import { markDegraded } from '../../shared/degraded.js'
 import { readCorpusFile } from '../../shared/read-guard.js'
-import { REPO_ROOT } from '../../shared/run-context.js'
+import { REPO_ROOT, getRunContext, type RunContext } from '../../shared/run-context.js'
+import { meteredChatCompletion, promptChars, type ChatCompletionsClient, type TierPin } from '../../shared/metered-call.js'
+import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
+import { callCostUsd, normalizeUsage, tierInfo, tiersManaged, worstCaseCallUsd } from '../../shared/pricing.js'
+import { classifyApiError } from '../../shared/api-errors.js'
+import { API_PROFILE_FILE, API_PROFILE_SCHEMA, parseRateLimitHeaders, writeApiProfile, type ApiProfile } from '../../shared/api-profile.js'
+import type { Provider } from '../../shared/provider.js'
+import { runPath } from '../../shared/run-paths.js'
 
 const PROVIDER = resolveProvider('stage0')
 
@@ -103,7 +110,135 @@ function createClient(): OpenAI | null {
   }
   const { apiKey, baseURL } = clientConfigFor(PROVIDER)
   if (!apiKey) return null
-  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}), maxRetries: 0 })
+}
+
+export class ReconStopError extends Error {
+  constructor(readonly code: 'provider_quota' | 'unpriced_service_tier', detail: string) {
+    super(`${code}: ${detail}`)
+  }
+}
+
+/** One recon session: its first response fixes the tier and rate-limit profile. */
+export class ReconMeter {
+  readonly ledger: SpendLedger
+  private readonly pin: TierPin = { send: null }
+  private firstResponse = true
+  private stopped: ReconStopError | null = null
+  private promptTokens = 0
+  private chars = 0
+  private readonly profile: ApiProfile
+
+  constructor(
+    private readonly provider: Provider,
+    ctx: RunContext,
+    private readonly profilePath: string,
+  ) {
+    this.ledger = new SpendLedger(ledgerPathFor(ctx.runsRoot, provider))
+    if (ctx.profile === 'benchmark') this.ledger.reset()
+    const tier = tierInfo(provider, null)
+    this.profile = {
+      schema: API_PROFILE_SCHEMA, observed_at: new Date().toISOString(),
+      provider, model: modelFor(provider), served_tier: null,
+      tier_label: tier.label, tier_multiplier: tier.multiplier,
+      rate_limits: { requests_per_minute: null, tokens_per_minute: null },
+      recon_calls: 0, chars_per_token: null,
+    }
+    writeApiProfile(this.profilePath, this.profile)
+  }
+
+  async call(client: ChatCompletionsClient, params: Record<string, unknown>, label: string, outputCap: number): Promise<any> {
+    if (this.stopped) throw this.stopped
+    const charsSent = promptChars(params.messages)
+    // The UTF-8 byte bound also covers non-ASCII repository text.
+    const promptBytes = Array.isArray(params.messages)
+      ? params.messages.reduce((n, m) => n + Buffer.byteLength(typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? '')), 0)
+      : 0
+    let result: Awaited<ReturnType<typeof meteredChatCompletion>>
+    this.profile.recon_calls++
+    try {
+      result = await meteredChatCompletion(client, this.provider, params, this.pin)
+    } catch (err) {
+      const raw = err as any
+      const usage = normalizeUsage(raw?.usage ?? raw?.error?.usage)
+      const rawTier = raw?.service_tier ?? raw?.error?.service_tier
+      const servedTier = typeof rawTier === 'string' ? rawTier : this.pin.send
+      const cost = callCostUsd(this.provider, usage, { servedTier, baseURL: client.baseURL })
+      this.ledger.append({
+        source: 'recon', stage: 'stage0-recon', label, lane_id: null, attempt: 1,
+        model: modelFor(this.provider), served_tier: servedTier, usage, chars_sent: charsSent,
+        cost_usd: usage ? cost.cost_usd
+          : worstCaseCallUsd(this.provider, { promptBytes, outputCap, servedTier, baseURL: client.baseURL }),
+        basis: usage ? 'actual' : 'reservation', note: usage ? 'request failed with usage' : 'request failed without usage',
+      })
+      if (usage?.prompt_tokens && charsSent > 0) {
+        this.promptTokens += usage.prompt_tokens
+        this.chars += charsSent
+        this.profile.chars_per_token = this.chars / this.promptTokens
+      }
+      if (classifyApiError(err) === 'quota') {
+        this.profile.stop_reason = 'provider_quota'
+        this.stopped = new ReconStopError('provider_quota', 'provider quota or spend limit reached')
+      } else if (cost.tier.multiplier === null) {
+        this.profile.served_tier = servedTier
+        this.profile.tier_label = cost.tier.label
+        this.profile.tier_multiplier = null
+        this.profile.stop_reason = 'unpriced_service_tier'
+        this.stopped = new ReconStopError('unpriced_service_tier', servedTier ?? 'unknown')
+      }
+      writeApiProfile(this.profilePath, this.profile)
+      throw this.stopped ?? err
+    }
+    if (this.firstResponse) {
+      this.firstResponse = false
+      this.profile.rate_limits = parseRateLimitHeaders(result.headers)
+      this.profile.served_tier = result.servedTier
+      this.profile.tier_label = result.cost.tier.label
+      this.profile.tier_multiplier = result.cost.tier.multiplier
+      if (tiersManaged(this.provider)) this.pin.send = result.servedTier
+    }
+    const tokens = result.usage?.prompt_tokens
+    if (tokens != null && tokens > 0 && result.charsSent > 0) {
+      this.promptTokens += tokens
+      this.chars += result.charsSent
+      this.profile.chars_per_token = this.chars / this.promptTokens
+    }
+    const reserved = result.usage === null
+    this.ledger.append({
+      source: 'recon', stage: 'stage0-recon', label, lane_id: null, attempt: 1,
+      model: modelFor(this.provider), served_tier: result.servedTier, usage: result.usage,
+      chars_sent: result.charsSent,
+      cost_usd: reserved
+        ? worstCaseCallUsd(this.provider, { promptBytes, outputCap, servedTier: result.servedTier, baseURL: client.baseURL })
+        : result.cost.cost_usd,
+      basis: reserved ? 'reservation' : 'actual',
+      ...(reserved ? { note: 'response omitted usage' } : {}),
+    })
+    if (result.cost.tier.multiplier === null) {
+      this.profile.served_tier = result.servedTier
+      this.profile.tier_label = result.cost.tier.label
+      this.profile.tier_multiplier = null
+      this.profile.stop_reason = 'unpriced_service_tier'
+      this.stopped = new ReconStopError('unpriced_service_tier', result.servedTier ?? 'unknown')
+    }
+    writeApiProfile(this.profilePath, this.profile)
+    if (this.stopped) throw this.stopped
+    return result.response
+  }
+}
+
+let reconMeter: ReconMeter | null = null
+
+/** Called once by the orchestrator, before the first probe or ledger booking. */
+export function initializeReconMeter(): ReconMeter {
+  return reconMeter = new ReconMeter(PROVIDER, getRunContext(), path.join(runPath(PROVIDER, 'stage0-recon'), API_PROFILE_FILE))
+}
+
+async function reconCall(client: ChatCompletionsClient, params: Record<string, unknown>, label: string, outputCap: number): Promise<any> {
+  // Standalone probe tests inject clients without starting a run. They still
+  // exercise metering, but must never write to the default artifact tree.
+  if (!reconMeter) return (await meteredChatCompletion(client, PROVIDER, params, { send: null })).response
+  return reconMeter.call(client, params, label, outputCap)
 }
 
 /** Target-relative path -> the repo-relative form the read guard takes. */
@@ -571,12 +706,12 @@ export async function summarizeArchitecture(
     markDegraded('architecture summary: no API key for provider — used deterministic fallback')
   } else {
     try {
-      const response = await client.chat.completions.create({
+      const response = await reconCall(client, {
         model: MODEL,
         messages: [{ role: 'user', content: buildArchitecturePrompt(repoMap) }],
         ...samplingParams(PROVIDER),
         ...tokenLimitParam(PROVIDER, PROBE_CAP_LARGE),
-      })
+      }, 'architecture-summary', PROBE_CAP_LARGE)
       const text = response.choices[0]?.message?.content ?? ''
       console.log('  [LLM OK] Architecture summary received a real API response')
       let parsed: unknown = null
@@ -588,6 +723,7 @@ export async function summarizeArchitecture(
       console.error('  Architecture JSON unusable (first 200 chars of response:', JSON.stringify(text.substring(0, 200)), ')')
       markDegraded('architecture summary: LLM returned unparseable JSON — used deterministic fallback')
     } catch (err: any) {
+      if (err instanceof ReconStopError) throw err
       markDegraded(`architecture summary: LLM call failed (${err.message}) — used deterministic fallback`)
     }
   }
@@ -739,17 +875,18 @@ export async function detectToolCalling(
     let verdict: ToolCallingVerdict | null = null
     if (client) {
       try {
-        const response = await client.chat.completions.create({
+        const response = await reconCall(client, {
           model: MODEL,
           messages: [{ role: 'user', content: buildToolCallingPrompt(c.path, c.language, content) }],
           ...samplingParams(PROVIDER),
           ...tokenLimitParam(PROVIDER, PROBE_CAP_SMALL),
-        })
+        }, `tool-calling:${c.path}`, PROBE_CAP_SMALL)
         const text = response.choices[0]?.message?.content ?? '{}'
         const jsonStr = extractJson(text)
         console.log(`  [LLM OK] Tool-calling detection received a real API response (${c.path})`)
         verdict = coerceToolVerdict(JSON.parse(jsonStr))
       } catch (err: any) {
+        if (err instanceof ReconStopError) throw err
         markDegraded(`tool-calling probe: LLM call failed for ${c.path} (${err.message}) — used deterministic analysis`)
       }
     }
@@ -854,6 +991,7 @@ export async function probeCategoryApplicability(
       if (result !== null) return result
       markDegraded('category probe: LLM returned unparseable JSON — used deterministic analysis')
     } catch (err: any) {
+      if (err instanceof ReconStopError) throw err
       // A thrown call (network, 4xx/5xx, timeout) is a fallback like any other:
       // without this the stage wrote deterministic verdicts and reported a clean run.
       markDegraded(`category probe: LLM call failed (${err.message}) — used deterministic analysis`)
@@ -913,12 +1051,12 @@ Per-category evidence logic:
 Respond in JSON array:
 [{"name":"category name","framework":"framework name","verdict":"present|absent|uncertain","evidence":"brief evidence","confidence":0.0-1.0}]`
 
-  const response = await client.chat.completions.create({
+  const response = await reconCall(client, {
     model: MODEL,
     messages: [{ role: 'user', content: prompt }],
     ...samplingParams(PROVIDER),
     ...tokenLimitParam(PROVIDER, PROBE_CAP_LARGE),
-  })
+  }, 'category-applicability', PROBE_CAP_LARGE)
 
   console.log('  [LLM OK] Category applicability probe received a real API response')
   const text = response.choices[0]?.message?.content ?? '[]'

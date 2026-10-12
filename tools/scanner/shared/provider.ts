@@ -18,6 +18,7 @@
 import {
   assertProvider,
   defaultProvider,
+  productDefaultProvider,
   targetFor,
   listProviders,
   listProviderSpellings,
@@ -27,10 +28,15 @@ import {
   type ModelTarget,
   type BenchmarkRecord,
   type TargetOrigin,
+  type LongContextPricing,
+  type ServiceTierPricing,
+  type CalibrationSeed,
 } from './models.js'
 
-export type { Provider, ModelTarget, BenchmarkRecord, TargetOrigin }
-export { listProviders, listProviderSpellings, defaultProvider, targetFor, benchmarkFor, targetOrigin }
+export type { Provider, ModelTarget, BenchmarkRecord, TargetOrigin, LongContextPricing, ServiceTierPricing, CalibrationSeed }
+export {
+  listProviders, listProviderSpellings, defaultProvider, productDefaultProvider, targetFor, benchmarkFor, targetOrigin,
+}
 
 /**
  * @param stageKey short key for the per-stage override env var,
@@ -245,4 +251,42 @@ export function maxConcurrencyFor(provider: Provider): number | null {
 /** True when a lab benchmark result exists for this target (models.json `benchmark`). */
 export function isMeasured(provider: Provider): boolean {
   return benchmarkFor(provider) !== null
+}
+
+// ── Pricing and planning fields (all optional; see models.json _comment) ──
+//
+// Each returns null when the target does not declare the field, and a caller
+// treats null as "not modelled": no long-context multiplier, no tier
+// management, no regional uplift. That is how a target that predates these
+// fields keeps pricing exactly as it did. The arithmetic lives in pricing.ts.
+
+/** Long-context multipliers, or null when the target models no long-context tier. */
+export function longContextFor(provider: Provider): LongContextPricing | null {
+  const lc = targetFor(provider).long_context
+  return lc ? { ...lc } : null
+}
+
+/** The priced service tiers, or null when the target does not manage tiers. */
+export function serviceTiersFor(provider: Provider): Record<string, ServiceTierPricing> | null {
+  const tiers = targetFor(provider).service_tiers
+  if (!tiers) return null
+  return Object.fromEntries(Object.entries(tiers).map(([k, v]) => [k, { ...v }]))
+}
+
+/** The regional-endpoint host pattern and its uplift, or null when none is declared. */
+export function regionalEndpointFor(provider: Provider): { pattern: RegExp; uplift: number } | null {
+  const t = targetFor(provider)
+  if (t.regional_endpoint_pattern == null || t.regional_uplift == null) return null
+  return { pattern: new RegExp(t.regional_endpoint_pattern), uplift: t.regional_uplift }
+}
+
+/** USD per web-search tool call, or null when the registry does not price them. */
+export function webSearchUsdPerCall(provider: Provider): number | null {
+  return targetFor(provider).web_search_usd_per_call ?? null
+}
+
+/** The registry's estimate seeds for this target, or null when it carries none. */
+export function calibrationFor(provider: Provider): CalibrationSeed | null {
+  const c = targetFor(provider).calibration
+  return c ? { ...c } : null
 }

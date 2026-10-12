@@ -31,6 +31,7 @@
  * Zero dependencies (node builtins only) so Stage 2 and the CLI can import it
  * across package boundaries.
  */
+import { CONCURRENCY_CEILING, concurrencyFromRateLimits } from '../../shared/api-profile.js'
 
 export interface RunLimits {
   max_cost_usd: number | null
@@ -335,22 +336,36 @@ export function admitLanes<T extends AdmissionCandidate>(
 }
 
 /**
- * Lanes in flight. An explicit value wins; otherwise the stage default, held
- * under the vendor's documented ceiling when the registry records one, and never
- * more than there are lanes to run.
+ * Lanes in flight. An explicit value wins; otherwise the account's rate limits
+ * determine it, bounded by 32, the vendor ceiling and the admitted lane count.
+ * Without headers, keep the stage default under the vendor and lane ceilings.
  */
 export function deriveConcurrency(
   explicit: number | null,
   vendorCeiling: number | null,
   laneCount: number,
-): { value: number; basis: string } {
+  rateLimits?: Parameters<typeof concurrencyFromRateLimits>[0],
+): { value: number; basis: string; source: 'explicit' | 'rate-limits' | 'default'; tokens_per_minute?: number | null; requests_per_minute?: number | null } {
+  const headers = rateLimits ? {
+    tokens_per_minute: rateLimits.tokensPerMinute,
+    requests_per_minute: rateLimits.requestsPerMinute,
+  } : {}
   if (explicit != null) {
     return {
       value: explicit,
+      source: 'explicit',
+      ...headers,
       basis: vendorCeiling != null && explicit > vendorCeiling
         ? `explicit, ABOVE the vendor's documented ceiling of ${vendorCeiling}`
         : 'explicit',
     }
+  }
+  if (rateLimits) {
+    const derived = concurrencyFromRateLimits({
+      ...rateLimits,
+      ceiling: Math.min(CONCURRENCY_CEILING, vendorCeiling ?? CONCURRENCY_CEILING, Math.max(1, laneCount)),
+    })
+    if (derived) return { ...derived, source: 'rate-limits', ...headers }
   }
   let value = DEFAULT_CONCURRENCY
   let basis = `default ${DEFAULT_CONCURRENCY}`
@@ -362,5 +377,5 @@ export function deriveConcurrency(
     value = laneCount
     basis += `, bounded by ${laneCount} lane(s)`
   }
-  return { value: Math.max(1, value), basis }
+  return { value: Math.max(1, value), basis, source: 'default', ...headers }
 }

@@ -18,7 +18,11 @@
  *                         optionally `aliases`) in the same format as here. An
  *                         overlay may add keys but never redefine a shipped
  *                         one, never claim a `benchmark` result, and never use a
- *                         lab transport.
+ *                         lab transport. It MAY declare the pricing and planning
+ *                         fields (long_context, service_tiers, regional_*,
+ *                         web_search_usd_per_call, calibration): they describe
+ *                         the user's own endpoint, are validated exactly as a
+ *                         shipped entry's are, and claim nothing measured.
  *   generic endpoint      `generic_openai_compatible` in models.json names the
  *                         env vars (model, base URL, credential variable, price)
  *                         that, when set, materialise one more target. The CLI's
@@ -143,8 +147,59 @@ export interface ModelTarget {
    * model that way in the CLI and the report.
    */
   benchmark?: BenchmarkRecord
+  /**
+   * Long-context pricing: a request whose prompt passes `threshold_tokens` is
+   * billed WHOLE at these multiples of the rates above — input and cache by
+   * `input_multiplier`, output by `output_multiplier`. Absent means no
+   * long-context tier is modelled, which is what every target had before.
+   */
+  long_context?: LongContextPricing
+  /**
+   * The service tiers the API may report in a response's `service_tier`, each
+   * with its price multiplier and the name the vendor's price list uses.
+   * Declaring this is what makes the scanner manage tiers for the target: it
+   * records the tier served, pins it on later calls, and refuses (as unpriced)
+   * any tier string not listed here. Absent means tiers are not managed and
+   * every call prices at 1x, as before.
+   */
+  service_tiers?: Record<string, ServiceTierPricing>
+  /**
+   * A regular expression matched against the base URL's host. When it matches,
+   * the call is on a regional (data-residency) endpoint and is billed at
+   * `regional_uplift` times the rates. Both or neither.
+   */
+  regional_endpoint_pattern?: string
+  regional_uplift?: number
+  /** USD per web-search tool call, where the vendor bills them separately. */
+  web_search_usd_per_call?: number
+  /**
+   * Seeds for the run estimate, used until a reports folder has measured runs
+   * of its own (shared/calibration.ts). `source` says where the numbers came
+   * from — a placeholder must say it is one.
+   */
+  calibration?: CalibrationSeed
   /** Free text: quirks, endpoint requirements, why a field is set as it is. */
   notes?: string
+}
+
+export interface LongContextPricing {
+  threshold_tokens: number
+  input_multiplier: number
+  output_multiplier: number
+}
+
+export interface ServiceTierPricing {
+  multiplier: number
+  label: string
+}
+
+export interface CalibrationSeed {
+  /** Output tokens per input token (R). */
+  output_per_input: number
+  chars_per_token: number
+  /** Seconds one in-flight slot spends per call. */
+  seconds_per_call: number
+  source: string
 }
 
 /** A lab result, as recorded in docs/benchmarking-results.md. */
@@ -189,6 +244,8 @@ interface GenericTemplate {
 
 interface Registry {
   default_provider: string
+  /** The product CLI's default; the shipped default_provider when the file names none. */
+  product_default_provider: string
   aliases: Record<string, string>
   targets: Record<string, ModelTarget>
   origins: Record<string, TargetOrigin>
@@ -243,6 +300,65 @@ function validateTarget(key: string, t: ModelTarget, where: string): void {
       )
     }
   }
+  const positive = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0
+  if (t.long_context != null) {
+    const lc = t.long_context
+    if (typeof lc !== 'object' || !Number.isInteger(lc.threshold_tokens) || !(lc.threshold_tokens > 0) ||
+        !positive(lc.input_multiplier) || !positive(lc.output_multiplier)) {
+      throw new Error(
+        `${where}: target "${key}" has a malformed long_context; expected ` +
+          `{ threshold_tokens: positive integer, input_multiplier: number > 0, output_multiplier: number > 0 }`,
+      )
+    }
+  }
+  if (t.service_tiers != null) {
+    const tiers = t.service_tiers
+    if (typeof tiers !== 'object' || Array.isArray(tiers) || Object.keys(tiers).length === 0) {
+      throw new Error(`${where}: target "${key}" has a malformed service_tiers; expected { <tier>: { multiplier, label } }`)
+    }
+    for (const [tier, v] of Object.entries(tiers)) {
+      if (!tier || v == null || typeof v !== 'object' || !positive(v.multiplier) ||
+          typeof v.label !== 'string' || !v.label) {
+        throw new Error(
+          `${where}: target "${key}" service tier "${tier}" is malformed; expected { multiplier: number > 0, label: string }`,
+        )
+      }
+    }
+  }
+  if ((t.regional_endpoint_pattern != null) !== (t.regional_uplift != null)) {
+    throw new Error(
+      `${where}: target "${key}" must declare regional_endpoint_pattern and regional_uplift together`,
+    )
+  }
+  if (t.regional_endpoint_pattern != null) {
+    let ok = typeof t.regional_endpoint_pattern === 'string' && t.regional_endpoint_pattern.length > 0
+    if (ok) { try { new RegExp(t.regional_endpoint_pattern) } catch { ok = false } }
+    if (!ok) {
+      throw new Error(
+        `${where}: target "${key}" has regional_endpoint_pattern "${t.regional_endpoint_pattern}"; expected a valid regular expression`,
+      )
+    }
+    if (!positive(t.regional_uplift)) {
+      throw new Error(`${where}: target "${key}" has regional_uplift "${t.regional_uplift}"; expected a number > 0`)
+    }
+  }
+  if (t.web_search_usd_per_call != null &&
+      !(typeof t.web_search_usd_per_call === 'number' && Number.isFinite(t.web_search_usd_per_call) &&
+        t.web_search_usd_per_call >= 0)) {
+    throw new Error(
+      `${where}: target "${key}" has web_search_usd_per_call "${t.web_search_usd_per_call}"; expected a number >= 0`,
+    )
+  }
+  if (t.calibration != null) {
+    const c = t.calibration
+    if (typeof c !== 'object' || !positive(c.output_per_input) || !positive(c.chars_per_token) ||
+        !positive(c.seconds_per_call) || typeof c.source !== 'string' || !c.source) {
+      throw new Error(
+        `${where}: target "${key}" has a malformed calibration; expected ` +
+          `{ output_per_input, chars_per_token, seconds_per_call: numbers > 0, source: string }`,
+      )
+    }
+  }
   if (t.benchmark != null) {
     const b = t.benchmark
     if (typeof b !== 'object' || !b.corpus || !Array.isArray(b.languages) ||
@@ -282,6 +398,16 @@ export function loadRegistry(
   if (!targets[raw.default_provider]) {
     throw new Error(
       `models.json: default_provider "${raw.default_provider}" is not a target. ` +
+        `Known: ${Object.keys(targets).join(', ')}`,
+    )
+  }
+
+  // The product default must name a shipped target, never an overlay's: a
+  // user's overlay cannot change which model `npx secscan` picks by itself.
+  const productDefault = raw.product_default_provider ?? raw.default_provider
+  if (!targets[productDefault]) {
+    throw new Error(
+      `models.json: product_default_provider "${productDefault}" is not a target. ` +
         `Known: ${Object.keys(targets).join(', ')}`,
     )
   }
@@ -369,7 +495,11 @@ export function loadRegistry(
     origins[g.key] = 'generic'
   }
 
-  return { default_provider: raw.default_provider, aliases, targets, origins, generic }
+  return {
+    default_provider: raw.default_provider,
+    product_default_provider: productDefault,
+    aliases, targets, origins, generic,
+  }
 }
 
 const REGISTRY: Registry = loadRegistry()
@@ -387,6 +517,15 @@ export function listProviderSpellings(): string[] {
 /** The provider used when nothing selects one explicitly. */
 export function defaultProvider(): Provider {
   return REGISTRY.default_provider
+}
+
+/**
+ * The provider the product CLI uses when nothing selects one. Separate from
+ * defaultProvider() so the lab's default — and every benchmark run, run.sh and
+ * hand-launched stage that resolves through it — stays where it was.
+ */
+export function productDefaultProvider(): Provider {
+  return REGISTRY.product_default_provider
 }
 
 /** Map an alias to its canonical key; pass canonical keys through unchanged. */

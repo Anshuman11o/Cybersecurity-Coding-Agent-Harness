@@ -8,7 +8,8 @@
  * This is now the only walk: Stage 0 writes its result to file-inventory.json
  * and Stage 0.5 reads that instead of the disk.
  *
- * A path's fate is the first match, in this order:
+ * Ignore and user-scope rules are resolved before stat or content reads.
+ * Built-in classifications for the exclusion receipt are:
  *
  *   symlink              never followed, never inventoried
  *   directory classes    tool_dir, vendor_dir, build_dir — by name, or (vendor)
@@ -18,9 +19,8 @@
  *   lockfile             with or without a language (yarn.lock, go.sum ...)
  *   no language          counted in `unsupported`, never listed
  *   minified, generated
- *   gitignore, secscanignore
  *
- * Built-in classes come before the ignore rules so that the reason recorded for
+ * Built-in name classes retain precedence in receipts so the reason recorded for
  * node_modules/ or package-lock.json does not depend on whether a repo happens
  * to list it in its .gitignore as well.
  *
@@ -32,6 +32,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ignore from 'ignore'
 import { PRODUCT_DIRNAME, getRunContext } from '../../shared/run-context.js'
+import { auditReconRead } from '../../shared/read-guard.js'
+import { compileGlob, normalizeScopePath } from '../../stage1-budget-governor/src/limits.js'
 import {
   languageForPath, isLockfile,
   type ExclusionGroup, type ExclusionReason, type FileInventoryArtifact,
@@ -187,6 +189,7 @@ function loadIgnoreFile(abs: string): Ignore | null {
   let text: string
   try {
     text = fs.readFileSync(abs, 'utf-8')
+    auditReconRead(abs)
   } catch {
     return null
   }
@@ -248,14 +251,6 @@ function ignoredBy(rel: string, isDir: boolean, layers: readonly IgnoreLayer[]):
 // Per-file checks
 // ---------------------------------------------------------------------------
 
-function directoryClass(name: string, abs: string): ExclusionReason | null {
-  if (TOOL_DIRS.has(name)) return 'tool_dir'
-  if (VENDOR_DIRS.has(name)) return 'vendor_dir'
-  if (BUILD_DIRS.has(name)) return 'build_dir'
-  if (isRegularFile(path.join(abs, VENV_MARKER))) return 'vendor_dir'
-  return null
-}
-
 function isTestPath(rel: string): boolean {
   const parts = rel.split('/')
   const base = parts.pop()!
@@ -290,7 +285,7 @@ function contentReader(abs: string) {
   return {
     whole(): string | null {
       if (whole === undefined) {
-        try { whole = fs.readFileSync(abs) } catch { whole = null }
+        try { whole = fs.readFileSync(abs); auditReconRead(abs) } catch { whole = null }
       }
       return whole === null ? null : whole.toString('utf-8')
     },
@@ -302,6 +297,7 @@ function contentReader(abs: string) {
           try {
             const buf = Buffer.alloc(GENERATED_HEADER_BYTES)
             head = buf.subarray(0, fs.readSync(fd, buf, 0, buf.length, 0))
+            auditReconRead(abs)
           } finally {
             fs.closeSync(fd)
           }
@@ -343,8 +339,15 @@ function runsRootInside(root: string, runsRoot: string | null): string | null {
   return rel.split(path.sep).join('/')
 }
 
-export const selectFiles: SelectFiles = (targetDir, options = {}) =>
-  selectFilesWithRunsRoot(targetDir, options, getRunContext().runsRoot)
+export const selectFiles: SelectFiles = (targetDir, options = {}) => {
+  const ctx = getRunContext()
+  return selectFilesWithRunsRoot(targetDir, options, ctx.runsRoot, { reportsRoot: ctx.reportsRoot })
+}
+
+interface SelectionScope {
+  reportsRoot?: string | null
+  env?: Record<string, string | undefined>
+}
 
 /**
  * selectFiles with the run's artifact root given explicitly rather than taken
@@ -354,15 +357,25 @@ export function selectFilesWithRunsRoot(
   targetDir: string,
   options: Partial<SelectionOptions>,
   runsRoot: string | null,
+  scope: SelectionScope = {},
 ): FileInventoryArtifact {
   const opts = resolveOptions(options)
   const root = fs.realpathSync(path.resolve(targetDir))
   if (!fs.statSync(root).isDirectory()) {
     throw new Error(`[file-selection] target is not a directory: ${root}`)
   }
-  const runsRel = runsRootInside(root, runsRoot)
+  const artifactDirs = [runsRootInside(root, runsRoot), runsRootInside(root, scope.reportsRoot ?? null)].filter((r): r is string => r !== null)
+  const env = scope.env ?? process.env
+  const list = (v: string | undefined) => (v ?? '').split('\n').map(s => s.trim()).filter(Boolean)
+  const excludes = list(env.SCANNER_EXCLUDE).map(compileGlob)
+  const scopes = list(env.SCANNER_PATHS).map(normalizeScopePath)
+  const explicitlyExcluded = (rel: string, isDir = false) => excludes.some(re => re.test(rel) || (isDir && re.test(rel + '/')))
+  const outOfScope = (rel: string, isDir: boolean) => scopes.length > 0 && !scopes.some(p =>
+    p === '' || rel === p || rel.startsWith(p + '/') || (isDir && p.startsWith(rel + '/')))
+  const userExcluded = (rel: string, isDir: boolean) => explicitlyExcluded(rel, isDir) || outOfScope(rel, isDir)
 
   const files: InventoryEntry[] = []
+  const readFiles: string[] = []
   const excluded = new Map<ExclusionReason, { dirs: string[]; files: string[] }>()
   const ignoreFiles: string[] = []
   const unsupportedByExt = new Map<string, number>()
@@ -375,16 +388,26 @@ export function selectFilesWithRunsRoot(
   }
 
   // Root only, and always applied last: it is the user's word on this scan.
-  const secscan = loadIgnoreFile(path.join(root, SECSCANIGNORE))
+  const secscan = explicitlyExcluded(SECSCANIGNORE) ? null : loadIgnoreFile(path.join(root, SECSCANIGNORE))
   if (secscan) ignoreFiles.push(SECSCANIGNORE)
   const secscanLayer: IgnoreLayer[] = secscan ? [ignoreLayer('', secscan, 'secscanignore')] : []
 
   function selectFile(rel: string, abs: string, layers: readonly IgnoreLayer[]): void {
+    // Resolve every path rule before even statting a file. Generated/minified
+    // checks read source, so they must follow this gate too.
+    if (userExcluded(rel, false)) return exclude('user-excluded', 'files', rel)
+    const ignoredReason = ignoredBy(rel, false, layers)
+    if (ignoredReason) return exclude(isLockfile(rel) ? 'lockfile' : ignoredReason, 'files', rel)
     // Before the language check: most lockfiles (yarn.lock, go.sum) have no
     // language, and the receipt should still say what they are.
     if (isLockfile(rel)) return exclude('lockfile', 'files', rel)
     const language = languageForPath(rel)
     if (language === null) {
+      // The repo map reads one root README even though prose is not a hunt
+      // language. Admit it through the same path rules and content-size cap.
+      if (/^readme(\.(md|markdown|rst|txt|adoc|org))?$/i.test(rel)) {
+        try { if (fs.lstatSync(abs).size <= opts.max_file_bytes) readFiles.push(rel) } catch { /* vanished */ }
+      }
       const ext = path.extname(rel).toLowerCase() || '(none)'
       unsupportedByExt.set(ext, (unsupportedByExt.get(ext) ?? 0) + 1)
       unsupportedCount++
@@ -418,9 +441,6 @@ export function selectFilesWithRunsRoot(
       return exclude('generated', 'files', rel)
     }
 
-    const ignoredReason = ignoredBy(rel, false, layers)
-    if (ignoredReason) return exclude(ignoredReason, 'files', rel)
-
     let empty = bytes === 0
     if (!empty && content) {
       // Most files show a non-space character in the first kilobyte; only a
@@ -432,6 +452,7 @@ export function selectFilesWithRunsRoot(
       }
     }
 
+    if (!oversize) readFiles.push(rel)
     files.push({
       path: rel,
       language,
@@ -446,12 +467,21 @@ export function selectFilesWithRunsRoot(
     const absDir = relDir ? path.join(root, relDir) : root
 
     let gitignores = inherited
-    const own = loadIgnoreFile(path.join(absDir, '.gitignore'))
+    const ignoreRel = relDir ? `${relDir}/.gitignore` : '.gitignore'
+    const own = explicitlyExcluded(ignoreRel) || ignoredBy(ignoreRel, false, [...inherited, ...secscanLayer])
+      ? null : loadIgnoreFile(path.join(absDir, '.gitignore'))
     if (own) {
       gitignores = [...inherited, ignoreLayer(relDir, own, 'gitignore')]
       ignoreFiles.push(relDir ? `${relDir}/.gitignore` : '.gitignore')
     }
     const layers = [...gitignores, ...secscanLayer]
+    if (relDir) {
+      const marker = `${relDir}/${VENV_MARKER}`
+      if (!userExcluded(marker, false) && !ignoredBy(marker, false, layers) && isRegularFile(path.join(absDir, VENV_MARKER))) {
+        exclude('vendor_dir', 'dirs', relDir + '/')
+        return
+      }
+    }
 
     let entries: fs.Dirent[]
     try {
@@ -470,8 +500,13 @@ export function selectFilesWithRunsRoot(
         // mean following the link.
         exclude('symlink', 'files', rel)
       } else if (entry.isDirectory()) {
-        const reason = (rel.toLowerCase() === runsRel ? 'tool_dir' : null) ??
-          directoryClass(entry.name, abs) ?? ignoredBy(rel, true, layers)
+        const ignoredReason = ignoredBy(rel, true, layers)
+        const namedClass = TOOL_DIRS.has(entry.name) ? 'tool_dir'
+          : VENDOR_DIRS.has(entry.name) ? 'vendor_dir'
+          : BUILD_DIRS.has(entry.name) ? 'build_dir' : null
+        const reason = userExcluded(rel, true) ? 'user-excluded'
+          : artifactDirs.includes(rel.toLowerCase()) ? 'tool_dir'
+          : namedClass ?? ignoredReason
         if (reason) exclude(reason, 'dirs', rel + '/')
         else walk(rel, gitignores)
       } else if (entry.isFile()) {
@@ -499,6 +534,7 @@ export function selectFilesWithRunsRoot(
     options: opts,
     ignore_files: ignoreFiles.sort(byString),
     files,
+    read_files: readFiles.sort(byString),
     excluded: excludedGroups,
     unsupported: { count: unsupportedCount, by_extension: byExtension },
     totals: {

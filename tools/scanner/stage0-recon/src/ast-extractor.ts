@@ -98,12 +98,15 @@ export function expressEntryCandidates(): string[] {
 export function detectExpress(
   targetDir: string,
   isSelected: (relPath: string) => boolean = () => true,
+  read: (relPath: string) => string | null = rel => fs.readFileSync(path.join(targetDir, rel), 'utf-8'),
 ): ExpressDetection {
-  const pkgPath = path.join(targetDir, 'package.json')
+  if (!isSelected('package.json')) return { isExpress: false, entryFile: null, reason: 'package.json is excluded' }
   let pkg: any
 
   try {
-    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+    const content = read('package.json')
+    if (content === null) return { isExpress: false, entryFile: null, reason: 'package.json is not readable' }
+    pkg = JSON.parse(content)
   } catch {
     return { isExpress: false, entryFile: null, reason: 'No package.json found in target directory' }
   }
@@ -118,7 +121,7 @@ export function detectExpress(
   }
 
   for (const candidate of expressEntryCandidates()) {
-    if (exists(candidate) && isSelected(candidate)) {
+    if (isSelected(candidate) && exists(candidate)) {
       return { isExpress: true, entryFile: path.join(targetDir, candidate), reason: `Express dependency + entry file "${candidate}" found` }
     }
   }
@@ -130,7 +133,7 @@ export function detectExpress(
     if (!main.startsWith('../') && !path.posix.isAbsolute(main)) {
       const variants = path.posix.extname(main) ? [main] : [main, ...ENTRY_EXTENSIONS.map(e => main + e)]
       for (const candidate of variants) {
-        if (exists(candidate) && isSelected(candidate)) {
+        if (isSelected(candidate) && exists(candidate)) {
           return { isExpress: true, entryFile: path.join(targetDir, candidate), reason: `Express dependency + package.json main "${candidate}" found` }
         }
       }
@@ -276,10 +279,10 @@ function extractStringLiteral(expr: Expression | undefined): string | null {
  * Given an Express entry file, extract all route registrations and auto-CRUD
  * definitions. Every route's `auth` is null; see tagRouteAuth().
  */
-export function extract(serverTsPath: string): AstExtractionResult {
+export function extract(serverTsPath: string, sourceText?: string): AstExtractionResult {
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
-    useInMemoryFileSystem: false,
+    useInMemoryFileSystem: sourceText !== undefined,
     compilerOptions: {
       allowJs: true,
       skipLibCheck: true,
@@ -290,7 +293,9 @@ export function extract(serverTsPath: string): AstExtractionResult {
     },
   })
 
-  const sourceFile = project.addSourceFileAtPath(serverTsPath)
+  const sourceFile = sourceText === undefined
+    ? project.addSourceFileAtPath(serverTsPath)
+    : project.createSourceFile(serverTsPath, sourceText)
   const relPath = makeRelativePath(serverTsPath)
 
   const routes: RouteEntry[] = []
@@ -677,8 +682,8 @@ function makeRelativePath(absPath: string): string {
 /**
  * Extract dependencies from a package.json file.
  */
-export function extractDependencies(packageJsonPath: string): DependencyInfo[] {
-  const content = fs.readFileSync(packageJsonPath, 'utf-8')
+export function extractDependencies(packageJsonPath: string, sourceText?: string): DependencyInfo[] {
+  const content = sourceText ?? fs.readFileSync(packageJsonPath, 'utf-8')
   const pkg = JSON.parse(content)
   const deps: DependencyInfo[] = []
   for (const [name, version] of Object.entries(pkg.dependencies || {})) {

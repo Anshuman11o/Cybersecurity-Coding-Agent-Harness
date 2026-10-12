@@ -299,6 +299,8 @@ if [ "$PROFILE" = product ]; then
   # benchmark target would write .secscan/ into the lab's working copy.
   [ -n "$TARGET" ] || die "the product profile needs --target DIR"
 
+  REPORTS_ROOT="$(absolute_path "${SCANNER_REPORTS_ROOT:-$TARGET/.secscan}")"
+
   if [ -n "$RUN_ID" ]; then
     valid_run_id "$RUN_ID" ||
       die "run id (--run-id or SCANNER_RUN_ID) must start with a letter or digit, use only A-Z a-z 0-9 . _ - and be at most 128 characters, got '$RUN_ID'"
@@ -311,7 +313,7 @@ if [ "$PROFILE" = product ]; then
         run_id_base="$(date -u +%Y%m%d-%H%M%S)"
         RUN_ID="$run_id_base"
         n=2
-        while [ -e "$TARGET/.secscan/runs/$RUN_ID" ]; do
+        while [ -e "$REPORTS_ROOT/runs/$RUN_ID" ]; do
           RUN_ID="$run_id_base-$n"
           n=$((n + 1))
         done
@@ -320,16 +322,14 @@ if [ "$PROFILE" = product ]; then
       *)
         echo "error: a product run needs --run-id to run '$STAGE_ARG' on its own." >&2
         echo "       A run starts at stage0-recon, all or all-v2, which print the id to reuse;" >&2
-        echo "       existing runs are under $TARGET/.secscan/runs/" >&2
+        echo "       existing runs are under $REPORTS_ROOT/runs/" >&2
         exit 2
         ;;
     esac
   fi
 
-  ARTIFACT_ROOT="$TARGET/.secscan/runs/$RUN_ID"
-  if [ -n "${SCANNER_RUNS_ROOT:-}" ] && [ "$(absolute "$SCANNER_RUNS_ROOT")" != "$ARTIFACT_ROOT" ]; then
-    echo "  [CONTEXT] ignoring inherited SCANNER_RUNS_ROOT — a product run writes under its target" >&2
-  fi
+  ARTIFACT_ROOT="$(absolute_path "${SCANNER_RUNS_ROOT:-$REPORTS_ROOT/runs/$RUN_ID}")"
+  export SCANNER_REPORTS_ROOT="$REPORTS_ROOT"
   export SCANNER_TARGET="$TARGET"
   export SCANNER_PROFILE=product
   export SCANNER_RUN_ID="$RUN_ID"
@@ -426,9 +426,9 @@ if [ "$PROFILE" = product ]; then
   # Nothing is written into the user's repo until here. The .gitignore of `*`
   # matches itself too, so git never sees .secscan/ and run artifacts cannot
   # be committed into the repository being scanned.
-  if [ ! -e "$TARGET/.secscan/.gitignore" ]; then
-    mkdir -p "$TARGET/.secscan" && printf '*\n' > "$TARGET/.secscan/.gitignore" ||
-      { echo "error: cannot create $TARGET/.secscan/ — is the target writable?" >&2; exit 1; }
+  if [ ! -e "$REPORTS_ROOT/.gitignore" ]; then
+    mkdir -p "$REPORTS_ROOT" && printf '*\n' > "$REPORTS_ROOT/.gitignore" ||
+      { echo "error: cannot create $REPORTS_ROOT/ — is the target writable?" >&2; exit 1; }
   fi
 
   if [ "$RUN_ID_GENERATED" = 1 ]; then

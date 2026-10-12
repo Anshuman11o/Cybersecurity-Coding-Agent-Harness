@@ -37,7 +37,7 @@ test('flags parse into limits and model choices', () => {
   assert.equal(g.command === 'scan' && g.baseUrl, 'http://localhost:1/v1')
   assert.equal(g.command === 'scan' && g.target, '.')
   assert.equal(parseArgs(['models', '--all']).command, 'models')
-  assert.equal(parseArgs([]).command, 'help')
+  assert.equal(parseArgs([]).command, 'scan')
 })
 
 test('bad flags are usage errors', () => {
