@@ -716,6 +716,8 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   // a failed stage rather than a clean run.
   check('Stage 2 writes run-status.json when it finishes and when it aborts',
     /writeRunStatus\(true\)/.test(src) && /const runStatus = writeRunStatus\(\)/.test(src))
+}
+
 // ── Task 1b: recon v3, file selection and signals ─────────────────────────
 //
 // Productization plan §2.3. Recon stopped assuming Juice Shop's layout and
