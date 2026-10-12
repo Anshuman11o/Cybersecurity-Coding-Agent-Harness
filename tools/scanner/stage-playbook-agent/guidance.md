@@ -12,6 +12,13 @@ dependency counts only when the application uses its affected functionality.
 
 ## Coverage decision
 
+Class selection is your job. No class is applied to this run by default:
+not the built-ins and not the former floor classes. Return in
+builtin_classes every built-in class that applies to this target, judged
+from recon's evidence and the built-in guidance, and in classes every
+additional class. Their union is the complete set of classes this run will
+hunt; a class you do not return is not hunted.
+
 Read recon's languages, frameworks, dependency manifests, signals, category
 applicability and architecture alongside ALL built-in playbooks. Decide whether
 their actual guidance covers the detected surfaces. Do not infer a gap merely
@@ -31,9 +38,9 @@ cached class identifiers and entries; do not search again for existing guidance.
 Return every applicable additional class in the decision, INCLUDING cached
 ones. Coverage is assessed against the built-ins: an entry being cached does
 not remove the need to assign that class in this run.
-Map every proposed class to one or more EXISTING signal names. Do not invent
-signals or change the three floor classes. Mode A only adds classes: never
-rewrite or rename a built-in class or playbook.
+Map every additional class to one or more EXISTING signal names. Do not invent
+signals. Mode A only adds classes: never rewrite or rename a built-in class or
+playbook.
 
 ## Research and playbook content
 

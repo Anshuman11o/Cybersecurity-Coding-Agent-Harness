@@ -69,6 +69,16 @@ instead of researching them again. Cached definitions keep their original
 codes and signals together with their text; changing coverage cannot relabel
 an old entry.
 
+The same coverage call also selects the built-in classes that apply
+(`builtin_classes`, each with a reason). The selected built-ins plus the
+additional classes are the run's complete class set, recorded as
+`selected_classes` in the plan and written to `class-selection.json`. When that
+file exists, Stage 0.5 runs in agent mode: no floor classes; each hunt lane gets
+the selected classes its file's signals reach; selected classes no hunt-eligible
+file reaches are added to every hunt lane (`class_basis['selection-unrouted']`);
+a lane left with no class is skipped. Without the file, Stage 0.5 output is
+unchanged.
+
 The cache lives at `reportsRoot(context)/playbooks/<class-id>/<framework>/<model>/`.
 Product reports roots use `SCANNER_REPORTS_ROOT` (the CLI's `--out`), defaulting
 to `<target>/.secscan`. They are shared across run IDs even when
@@ -89,6 +99,9 @@ hashes stop loading rather than silently supplying different guidance.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.
+- `class-selection.json`: the run's complete class set — selected built-in
+  ids, additional class ids, and their sorted union. Stage 0.5 validates it
+  against the shipped registry and the overlay before using it.
 - `usage.json`: one entry per Responses request, including failures and
   incomplete responses, input/output, cached input, cache writes, reasoning
   tokens, search calls, query strings and sources. Usage is written before

@@ -44,7 +44,7 @@ function harness(t: { after: (fn: () => void) => void }, fixture: string, replie
 }
 
 test('covered recon: structured coverage call only, reason and all 14 built-ins recorded', async t => {
-  const h = harness(t, 'covered', [response({ reason: 'All detected surfaces have built-in guidance.', classes: [] })])
+  const h = harness(t, 'covered', [response({ reason: 'All detected surfaces have built-in guidance.', builtin_classes: [], classes: [] })])
   const { plan, overlay } = await runPlaybookAgent(h.options)
   assert.deepEqual(overlay, {})
   assert.equal(plan.searched, false)
@@ -67,7 +67,7 @@ test('covered recon: structured coverage call only, reason and all 14 built-ins 
 })
 
 test('uncovered recon: research, full usage, plain text cache and subsequent reuse without web', async t => {
-  const decision = response({ reason: 'Worker protocol needs additional guidance.', classes: [proposed] })
+  const decision = response({ reason: 'Worker protocol needs additional guidance.', builtin_classes: [], classes: [proposed] })
   const h = harness(t, 'uncovered', [decision, response({ playbook: generated, source_urls: [source] }, true)])
   const { plan, overlay } = await runPlaybookAgent(h.options)
   assert.equal(plan.searched, true)
@@ -98,14 +98,14 @@ test('uncovered recon: research, full usage, plain text cache and subsequent reu
 })
 
 test('configured domains use Responses filters.allowed_domains', async t => {
-  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', classes: [proposed] }), response({ playbook: generated, source_urls: [source] }, true)])
+  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes: [], classes: [proposed] }), response({ playbook: generated, source_urls: [source] }, true)])
   h.options.allowedDomains = ['example.test']
   await runPlaybookAgent(h.options)
   assert.deepEqual(h.requests[1].tools, [{ type: 'web_search', filters: { allowed_domains: ['example.test'] } }])
 })
 
 test('research cannot claim source URLs absent from returned search evidence', async t => {
-  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', classes: [proposed] }),
+  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes: [], classes: [proposed] }),
     response({ playbook: generated, source_urls: ['https://example.test/not-retrieved'] }, true)])
   await assert.rejects(runPlaybookAgent(h.options), /absent from the search sources/)
   assert.equal(h.usage.length, 2)
@@ -113,7 +113,7 @@ test('research cannot claim source URLs absent from returned search evidence', a
 })
 
 test('cache hash mismatch is a failure, never used as guidance', async t => {
-  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', classes: [proposed] }), response({ playbook: generated, source_urls: [source] }, true)])
+  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes: [], classes: [proposed] }), response({ playbook: generated, source_urls: [source] }, true)])
   await runPlaybookAgent(h.options)
   writeFileSync(join(cacheDirectory(h.root, proposed.id, proposed.framework, 'test-model'), 'playbook.md'), 'tampered')
   await assert.rejects(runPlaybookAgent(h.options), /sha256 mismatch/)
@@ -125,8 +125,8 @@ test('invalid additions fail before search: built-ins, traversal, unknown signal
     [{ ...proposed, id: 'injection' }], [{ ...proposed, id: '../escape' }],
     [{ ...proposed, signals: ['invented_signal'] }], [proposed, proposed],
   ]) {
-    const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', classes })])
-    await assert.rejects(runPlaybookAgent(h.options))
+    const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes: [], classes })])
+    await assert.rejects(runPlaybookAgent(h.options), /built-in class|class id|signals|duplicate proposed/)
     assert.equal(h.requests.length, 1)
   }
 })
@@ -150,4 +150,47 @@ test('a failed request is recorded with unknown usage; no hidden retry', async t
   assert.equal(h.usage.length, 1)
   assert.equal(h.usage[0].status, 'request_failed')
   assert.equal(h.usage[0].usage, null)
+})
+
+test('coverage request asks for built-in selection with the built-in ids as an enum', async t => {
+  const h = harness(t, 'covered', [response({ reason: 'Covered.', builtin_classes: [], classes: [] })])
+  const { plan, selection } = await runPlaybookAgent(h.options)
+  const schema = (h.requests[0].text?.format as { schema: any }).schema
+  assert.deepEqual(Object.keys(schema.properties), ['reason', 'builtin_classes', 'classes'])
+  assert.deepEqual(schema.required, ['reason', 'builtin_classes', 'classes'])
+  const item = schema.properties.builtin_classes.items
+  assert.deepEqual(item.properties.id.enum, Object.keys(builtins))
+  assert.deepEqual(item.required, ['id', 'reason'])
+  assert.equal(item.additionalProperties, false)
+  assert.match(JSON.parse(h.requests[0].input as string).task, /^Select the built-in classes that apply/)
+  // An empty selection is valid: the run hunts nothing.
+  assert.deepEqual(plan.selected_classes, [])
+  assert.deepEqual(selection.classes, [])
+})
+
+test('unknown, duplicate or unexplained built-in selections fail before any search', async t => {
+  for (const builtin_classes of [
+    [{ id: 'not-a-builtin', reason: 'Invented.' }],
+    [{ id: 'injection', reason: 'Queries.' }, { id: 'injection', reason: 'Again.' }],
+    [{ id: 'injection', reason: ' ' }],
+  ]) {
+    const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes, classes: [proposed] })])
+    await assert.rejects(runPlaybookAgent(h.options), /selected built-in/)
+    assert.equal(h.requests.length, 1, 'no research call after an invalid selection')
+    assert.equal(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model'), null)
+  }
+})
+
+test('selected_classes and the class selection hold the sorted union of built-ins and additions', async t => {
+  const builtin_classes = [{ id: 'injection', reason: 'Queries.' }, { id: 'access-control', reason: 'Routes.' }]
+  const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes, classes: [proposed] }),
+    response({ playbook: generated, source_urls: [source] }, true)])
+  const { plan, overlay, selection } = await runPlaybookAgent(h.options)
+  assert.deepEqual(plan.builtin_classes, builtin_classes)
+  assert.deepEqual(plan.selected_classes, ['access-control', 'injection', proposed.id])
+  assert.equal(selection.schema, 'secscan.class-selection/1')
+  assert.equal(selection.model, 'test-model')
+  assert.deepEqual(selection.builtin, ['access-control', 'injection'])
+  assert.deepEqual(selection.added, Object.keys(overlay))
+  assert.deepEqual(selection.classes, plan.selected_classes)
 })

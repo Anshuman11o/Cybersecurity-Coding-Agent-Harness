@@ -5,7 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mergeClassTables, type ClassesOverlay } from '../../shared/playbook-overlay.js'
+import {
+  CLASS_SELECTION_FILE, mergeClassTables, validateClassSelection, type ClassesOverlay, type ClassSelection,
+} from '../../shared/playbook-overlay.js'
 import { writeCachedPlaybook, cacheRoot, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
 import { resolveRunContext } from '../../shared/run-context.js'
 import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '../../shared/provider.js'
@@ -21,6 +23,11 @@ const provider = defaultProvider()
 const id = 'worker-epoch-confusion'
 const text = 'Playbook text for a synthetic integration fixture.\n'
 const json = (file: string, data: unknown) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(data)) }
+const selectionOf = (builtin: string[], added: string[] = []): ClassSelection => ({
+  schema: 'secscan.class-selection/1', created_at: '2026-01-01T00:00:00Z', model: 'test/model',
+  builtin, added, classes: [...builtin, ...added].sort(),
+})
+const huntUnion = (out: any) => [...new Set(out.lanes.filter((l: any) => l.disposition === 'hunt').flatMap((l: any) => l.classes))].sort()
 
 function fixture(t: { after: (fn: () => void) => void }) {
   const root = mkdtempSync(join(tmpdir(), 'playbook-hooks-test-'))
@@ -62,7 +69,23 @@ function fixture(t: { after: (fn: () => void) => void }) {
     json(join(agentDir, 'classes-overlay.json'), value)
     json(join(agentDir, 'meta.json'), { provider, exit_code: 0 })
   }
-  return { root, ctx, env, agentDir, stage0, target, cache, overlay, publish, runSelector }
+  // Agent mode: an overlay plus the agent's complete class set.
+  const publishSelection = (builtin: string[], added: ClassesOverlay = {}) => {
+    publish(added)
+    json(join(agentDir, CLASS_SELECTION_FILE), selectionOf(builtin, Object.keys(added)))
+  }
+  // Replace Stage 0's one-file artifacts with several files and their signals.
+  const retarget = (files: Record<string, { language: string; signals: string[] }>) => {
+    const paths = Object.keys(files).sort()
+    for (const p of paths) writeFileSync(join(target, p), 'export const x = 1\n')
+    json(join(stage0, 'architecture-summary.json'), { file_inventory: { total_source_files: paths.length } })
+    json(join(stage0, 'file-signals.json'), { target_dir: target, files: Object.fromEntries(paths.map(p => [p, files[p].signals])) })
+    json(join(stage0, 'file-inventory.json'), {
+      target_dir: target, files: paths.map(p => ({ path: p, language: files[p].language, bytes: 19, empty: false, test: false, oversize: false })),
+      totals: { test: 0, oversize: 0, empty: 0, excluded_files: 0, excluded_dirs: 0 }, options: { max_file_bytes: 200000 },
+    })
+  }
+  return { root, ctx, env, agentDir, stage0, target, cache, overlay, publish, publishSelection, retarget, runSelector }
 }
 
 test('table merge is additive and absent overlay returns byte-identical shipped tables', () => {
@@ -185,7 +208,7 @@ test('stage entrypoint saves plan, overlay and per-call usage; a failed retry in
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     await main(async request => ({
       id: 'mock-covered', model: request.model, status: 'completed', output: [],
-      output_text: JSON.stringify({ reason: 'Covered by the built-ins.', classes: [] }),
+      output_text: JSON.stringify({ reason: 'Covered by the built-ins.', builtin_classes: [], classes: [] }),
       usage: { input_tokens: 200, input_tokens_details: { cached_tokens: 50, cache_write_tokens: 10 },
         output_tokens: 25, output_tokens_details: { reasoning_tokens: 5 } },
     }));
@@ -206,4 +229,119 @@ test('stage entrypoint saves plan, overlay and per-call usage; a failed retry in
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls[0].status, 'request_failed')
   assert.throws(f.runSelector, /UPSTREAM FAILED/)
+})
+
+test('Stage 0.5 agent mode, one file: only selected classes, no floor, unrouted selections still hunted', t => {
+  const f = fixture(t)
+  // deserialize reaches injection, integrity-failures and resource-consumption; only one is selected.
+  f.publishSelection(['integrity-failures'])
+  let out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.floor_classes, [])
+  assert.deepEqual(out.class_selection, { source: 'playbook-agent', classes: ['integrity-failures'], unrouted: [] })
+  assert.deepEqual(out.lanes[0].classes, ['integrity-failures'])
+  assert.deepEqual(out.lanes[0].class_basis, { deserialize: ['integrity-failures'] })
+  assert.ok(!out.lanes[0].classes.some((c: string) => signals.floor.includes(c)))
+  assert.ok(!out.lanes[0].classes.includes('injection'), 'reached by signals but not selected')
+  // A selected class no signal reaches (a former floor class) lands on the hunt lane.
+  f.publishSelection(['injection', 'insecure-design'], f.overlay)
+  out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.class_selection.unrouted, ['insecure-design'])
+  assert.deepEqual(out.lanes[0].classes, ['injection', 'insecure-design', id])
+  assert.deepEqual(out.lanes[0].class_basis, { deserialize: ['injection', id], 'selection-unrouted': ['insecure-design'] })
+  assert.deepEqual(huntUnion(out), out.class_selection.classes)
+  // An empty selection hunts nothing: the lane is skipped rather than left empty.
+  f.publishSelection([])
+  out = JSON.parse(f.runSelector())
+  assert.equal(out.lanes[0].disposition, 'skip')
+  assert.equal(out.lanes[0].skip_reason, 'No selected class applies to this file')
+  assert.deepEqual(out.lanes[0].classes, [])
+  assert.deepEqual(out.coverage_ledger, { total_files_in_inventory: 1, assigned_hunt: 0, assigned_skip: 1, unaccounted: 0 })
+})
+
+test('Stage 0.5 agent mode, several files: routing, skip lanes, unrouted classes on every hunt lane', t => {
+  const f = fixture(t)
+  f.retarget({
+    'worker.ts': { language: 'typescript', signals: ['deserialize'] },
+    'fetch.ts': { language: 'typescript', signals: ['http_outbound'] },
+    'log.ts': { language: 'typescript', signals: ['logging'] },
+    'plain.ts': { language: 'typescript', signals: [] },
+    'settings.json': { language: 'json', signals: ['config_file'] },
+  })
+  const lane = (out: any, file: string) => out.lanes.find((l: any) => l.target_file === file)
+  f.publishSelection(['injection', 'ssrf'])
+  let out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.class_selection, { source: 'playbook-agent', classes: ['injection', 'ssrf'], unrouted: [] })
+  assert.deepEqual(lane(out, 'worker.ts').classes, ['injection'])
+  assert.deepEqual(lane(out, 'fetch.ts').classes, ['ssrf'], 'resource-consumption is reached but not selected')
+  for (const file of ['log.ts', 'plain.ts']) {
+    assert.equal(lane(out, file).disposition, 'skip')
+    assert.equal(lane(out, file).skip_reason, 'No selected class applies to this file')
+    assert.deepEqual(lane(out, file).classes, [])
+  }
+  assert.match(lane(out, 'settings.json').skip_reason, /Pure data/)
+  assert.deepEqual(huntUnion(out), ['injection', 'ssrf'])
+  assert.deepEqual(out.coverage_ledger, { total_files_in_inventory: 5, assigned_hunt: 2, assigned_skip: 3, unaccounted: 0 })
+  f.publishSelection(['injection', 'sensitive-business-flows'])
+  out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.class_selection.unrouted, ['sensitive-business-flows'])
+  const hunted = out.lanes.filter((l: any) => l.disposition === 'hunt')
+  assert.deepEqual(hunted.map((l: any) => l.target_file), ['fetch.ts', 'log.ts', 'plain.ts', 'worker.ts'])
+  for (const l of hunted) {
+    assert.ok(l.classes.includes('sensitive-business-flows'))
+    assert.deepEqual(l.class_basis['selection-unrouted'], ['sensitive-business-flows'])
+    assert.ok(!l.classes.some((c: string) => signals.floor.includes(c) || c === 'ssrf' || c === 'resource-consumption'))
+  }
+  assert.deepEqual(lane(out, 'worker.ts').classes, ['injection', 'sensitive-business-flows'])
+  assert.deepEqual(huntUnion(out), out.class_selection.classes)
+  assert.deepEqual(out.coverage_ledger, { total_files_in_inventory: 5, assigned_hunt: 4, assigned_skip: 1, unaccounted: 0 })
+})
+
+test('class selection is validated and refused when the agent stage recorded a failure', t => {
+  const f = fixture(t)
+  validateClassSelection(selectionOf(['injection'], [id]), builtins, f.overlay)
+  for (const bad of [
+    selectionOf(['not-a-builtin']), selectionOf(['injection'], [id]), selectionOf([], ['injection']),
+    { ...selectionOf(['injection', 'ssrf']), classes: ['ssrf', 'injection'] },
+    { ...selectionOf(['injection']), builtin: ['injection', 'injection'], classes: ['injection', 'injection'] },
+    { ...selectionOf([]), schema: 'secscan.class-selection/0' },
+  ]) assert.throws(() => validateClassSelection(bad as ClassSelection, builtins, {}))
+  json(join(f.agentDir, CLASS_SELECTION_FILE), selectionOf(['injection']))
+  json(join(f.agentDir, 'meta.json'), { provider, exit_code: 1 })
+  assert.throws(f.runSelector, /UPSTREAM FAILED/)
+  json(join(f.agentDir, 'meta.json'), { provider, exit_code: 0 })
+  json(join(f.agentDir, CLASS_SELECTION_FILE), selectionOf(['not-a-builtin']))
+  assert.throws(f.runSelector, /not a built-in/)
+})
+
+test('stage entrypoint writes the class selection: union of selected built-ins and researched additions', t => {
+  const f = fixture(t)
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
+    const source = 'https://example.test/worker-security';
+    await main(async request => request.tools?.length ? {
+      id: 'mock-research', model: request.model, status: 'completed', usage,
+      output: [{ type: 'web_search_call', status: 'completed', action: { type: 'search', queries: ['q'], sources: [{ type: 'url', url: source }] } }],
+      output_text: JSON.stringify({ playbook: playbook.replace('Playbook for Access Control', 'Playbook for Worker Epoch Confusion'), source_urls: [source] }),
+    } : {
+      id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
+      output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
+        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }],
+        classes: [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }] }),
+    });
+  `)
+  const log = execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }).toString()
+  assert.match(log, /Playbook agent: 3 class\(es\) selected \(2 built-in, 1 additional\); searched=true/)
+  const selection = JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8'))
+  const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
+  assert.deepEqual(selection.classes, ['injection', 'integrity-failures', id])
+  assert.deepEqual(selection.builtin, ['injection', 'integrity-failures'])
+  assert.deepEqual(selection.added, [id])
+  assert.deepEqual(plan.selected_classes, selection.classes)
+  const out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.lanes[0].classes, selection.classes)
+  assert.deepEqual(out.class_selection.classes, selection.classes)
 })

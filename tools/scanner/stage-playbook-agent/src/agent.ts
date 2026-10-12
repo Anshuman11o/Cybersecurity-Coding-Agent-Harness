@@ -6,7 +6,8 @@ import {
   writeCachedPlaybook, type PlaybookRecord,
 } from '../../shared/playbook-cache.js'
 import {
-  validateOverlay, type ClassRegistry, type ClassesOverlay, type OverlayEntry, type SignalClassMap,
+  validateClassSelection, validateOverlay, type ClassRegistry, type ClassesOverlay, type ClassSelection,
+  type OverlayEntry, type SignalClassMap,
 } from '../../shared/playbook-overlay.js'
 
 export interface ReconInput {
@@ -23,7 +24,8 @@ export interface ProposedClass {
   signals: string[]
   reason: string
 }
-export interface CoverageDecision { reason: string; classes: ProposedClass[] }
+export interface SelectedBuiltin { id: string; reason: string }
+export interface CoverageDecision { reason: string; builtin_classes: SelectedBuiltin[]; classes: ProposedClass[] }
 export interface UsageCall {
   purpose: string
   model: string
@@ -50,6 +52,9 @@ export interface PlaybookPlan {
   reason: string
   decision: CoverageDecision
   allowed_domains: string[]
+  builtin_classes: SelectedBuiltin[]
+  /** The run's complete class set: selected built-ins plus additional classes, sorted. */
+  selected_classes: string[]
   classes: (ProposedClass & { cache: 'hit' | 'created'; sha256: string })[]
   playbooks: PlaybookRecord[]
 }
@@ -71,8 +76,11 @@ const object = (properties: Record<string, unknown>) => ({
   type: 'object', additionalProperties: false, properties, required: Object.keys(properties),
 })
 const strings = { type: 'array', items: { type: 'string' } }
-const decisionSchema = (signals: SignalClassMap) => object({
+const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry) => object({
   reason: { type: 'string' },
+  builtin_classes: { type: 'array', items: object({
+    id: { type: 'string', enum: Object.keys(builtins) }, reason: { type: 'string' },
+  }) },
   classes: { type: 'array', items: object({
     id: { type: 'string' }, framework: { type: 'string' }, codes: strings,
     signals: { type: 'array', minItems: 1, items: { type: 'string', enum: Object.keys(signals.signals) } },
@@ -124,7 +132,7 @@ export function validatePlaybook(text: string, sources: string[]): void {
   })) throw new Error('Generated playbook needs web source URLs')
 }
 
-export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay }> {
+export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay; selection: ClassSelection }> {
   // Read on every invocation so changing guidance changes the next run.
   const guidance = readFileSync(new URL('../guidance.md', import.meta.url), 'utf8')
   const allowedDomains = o.allowedDomains ?? []
@@ -179,19 +187,29 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     for (const signal of new Set(signals)) signalCounts[signal] = (signalCounts[signal] ?? 0) + 1
   }
   const { value: decision } = await call('coverage', JSON.stringify({
-    task: 'Decide coverage against the built-ins. Return all additional classes needed for this run, including applicable cached classes; no web search on this call. Reuse cached identifiers.',
+    task: 'Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes; no web search on this call. Reuse cached identifiers.',
     recon: o.recon, signal_counts: signalCounts, signal_classes: o.signals,
     builtins: builtinGuidance, cached_classes: cached,
-  }), decisionSchema(o.signals), false) as { value: CoverageDecision }
-  if (typeof decision.reason !== 'string' || !decision.reason.trim() || !Array.isArray(decision.classes)) throw new Error('Invalid coverage decision')
+  }), decisionSchema(o.signals, o.builtins), false) as { value: CoverageDecision }
+  if (typeof decision.reason !== 'string' || !decision.reason.trim() || !Array.isArray(decision.classes) ||
+      !Array.isArray(decision.builtin_classes)) throw new Error('Invalid coverage decision')
 
   const overlay: ClassesOverlay = {}
   const plan: PlaybookPlan = {
     schema: 'secscan.playbook-plan/1', created_at: new Date().toISOString(), model: o.model,
     searched: false, reason: decision.reason, decision, allowed_domains: allowedDomains,
+    builtin_classes: decision.builtin_classes,
+    selected_classes: [...new Set([...decision.builtin_classes.map(b => b.id), ...decision.classes.map(c => c.id)])].sort(),
     classes: [], playbooks: builtinRecords,
   }
   // Validate the entire decision before performing any searches or cache writes.
+  const selectedBuiltins = new Set<string>()
+  for (const b of decision.builtin_classes) {
+    if (!b || !Object.hasOwn(o.builtins, b.id) || selectedBuiltins.has(b.id) || typeof b.reason !== 'string' || !b.reason.trim()) {
+      throw new Error('Invalid or duplicate selected built-in class')
+    }
+    selectedBuiltins.add(b.id)
+  }
   const proposed: ClassesOverlay = {}
   for (const c of decision.classes) {
     if (!c || Object.hasOwn(proposed, c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
@@ -230,5 +248,10 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     plan.playbooks.push(agentPlaybookRecord(entry.meta))
   }
   plan.searched = calls.some(c => c.web_search_calls > 0)
-  return { plan, overlay }
+  const selection: ClassSelection = {
+    schema: 'secscan.class-selection/1', created_at: plan.created_at, model: o.model,
+    builtin: [...selectedBuiltins].sort(), added: Object.keys(overlay).sort(), classes: plan.selected_classes,
+  }
+  validateClassSelection(selection, o.builtins, overlay)
+  return { plan, overlay, selection }
 }

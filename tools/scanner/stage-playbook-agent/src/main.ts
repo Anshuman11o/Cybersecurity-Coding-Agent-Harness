@@ -7,7 +7,7 @@ import { runPath, REPO_ROOT } from '../../shared/run-paths.js'
 import { getRunContext } from '../../shared/run-context.js'
 import { assertUpstream, writeMeta } from '../../shared/meta.js'
 import { cacheRoot } from '../../shared/playbook-cache.js'
-import { PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
+import { CLASS_SELECTION_FILE, PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
 import { runPlaybookAgent, type AgentOptions, type ReconInput, type UsageCall } from './agent.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
 import { PlaybookMeter } from './meter.js'
@@ -60,7 +60,7 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     }
     const profile = readApiProfile(join(runPath(provider, 'stage0-recon'), API_PROFILE_FILE))
     const meter = new PlaybookMeter(provider, getRunContext(), config.baseURL ?? null, profile?.served_tier ?? null, createResponse)
-    const { plan, overlay } = await runPlaybookAgent({
+    const { plan, overlay, selection } = await runPlaybookAgent({
       recon, builtins, builtinTexts, signals, model, cacheRoot: cacheRoot(),
       allowedDomains: (process.env.SCANNER_PLAYBOOK_ALLOWED_DOMAINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
       maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider),
@@ -69,8 +69,10 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     })
     writeJson(join(dir, 'playbook-plan.json'), plan)
     writeJson(join(dir, 'classes-overlay.json'), overlay)
+    writeJson(join(dir, CLASS_SELECTION_FILE), selection)
     writeMeta(provider, PLAYBOOK_STAGE, model, started)
-    console.log(`Playbook agent: ${plan.classes.length} additional class(es); searched=${plan.searched}`)
+    console.log(`Playbook agent: ${selection.classes.length} class(es) selected (${selection.builtin.length} built-in, ` +
+      `${selection.added.length} additional); searched=${plan.searched}`)
   } catch (error) {
     writeMeta(provider, PLAYBOOK_STAGE, model, started, 1)
     throw error

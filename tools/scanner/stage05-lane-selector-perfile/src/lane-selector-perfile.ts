@@ -17,6 +17,7 @@
  *   - runs/<provider>/stage0-recon/file-signals.json   (also: target_dir)
  *   - tools/scanner/shared/signal-classes.json
  *   - tools/scanner/shared/vuln-classes.json
+ *   - runs/<provider>/stage-playbook-agent/class-selection.json  (optional; "agent mode")
  * Output:
  *   - runs/<provider>/stage05-lane-selector-perfile/lane-assignments.json
  */
@@ -28,7 +29,7 @@ import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
-import { mergeClassTables, readClassesOverlay } from '../../shared/playbook-overlay.js'
+import { mergeClassTables, readClassesOverlay, readClassSelection } from '../../shared/playbook-overlay.js'
 // Relative across packages: the contract has no runtime dependencies, so this
 // does not pull Stage 0's parsers into Stage 0.5.
 import {
@@ -190,8 +191,12 @@ interface LaneAssignments {
   category_universe: CategoryEntry[]
   signal_class_map: string
   floor_classes: string[]
+  /** Present only when the playbook agent selected the run's classes. */
+  class_selection?: { source: 'playbook-agent'; classes: string[]; unrouted: string[] }
   lanes: Lane[]
 }
+
+const NO_SELECTED_CLASS_REASON = 'No selected class applies to this file'
 
 // ---------------------------------------------------------------------------
 // Framework name expansion
@@ -446,6 +451,19 @@ async function main() {
   signalClassMap = merged.signalMap
   const allClassIds = new Set<string>(Object.keys(vulnClasses))
 
+  // Agent mode: the playbook agent chose the complete class set. No floor, and
+  // signals route only selected classes. Without a selection nothing changes.
+  const selection = readClassSelection(PROVIDER)
+  if (selection) {
+    const selected = new Set(selection.classes)
+    signalClassMap = {
+      ...signalClassMap, floor: [],
+      signals: Object.fromEntries(Object.entries(signalClassMap.signals).map(([s, ids]) => [s, ids.filter(c => selected.has(c))])),
+    }
+    console.log('[Stage 0.5 v3] Agent class selection: ' + selection.classes.length + ' classes (' +
+      selection.builtin.length + ' built-in, ' + selection.added.length + ' additional); no floor')
+  }
+
   // Validate: every class in signal-classes.json must exist in vuln-classes.json
   const allReferencedClasses = new Set<string>(signalClassMap.floor)
   for (const [, classes] of Object.entries(signalClassMap.signals)) {
@@ -605,6 +623,40 @@ async function main() {
 
   console.log('[Stage 0.5 v3] Generated ' + lanes.length + ' lanes')
 
+  // Agent mode: route selected classes no file's signals reach onto every hunt
+  // lane, then skip lanes left empty — Stage 2 would otherwise fall back to
+  // category-derived classes and reintroduce defaults.
+  let unrouted: string[] = []
+  if (selection) {
+    const huntLanes = lanes.filter(l => l.disposition === 'hunt')
+    for (const lane of huntLanes) {
+      for (const [key, ids] of Object.entries(lane.class_basis)) if (!ids.length) delete lane.class_basis[key]
+    }
+    const reached = new Set(huntLanes.flatMap(l => l.classes))
+    unrouted = selection.classes.filter(c => !reached.has(c))
+    for (const lane of huntLanes) {
+      if (unrouted.length) {
+        lane.classes = [...new Set([...lane.classes, ...unrouted])].sort()
+        lane.class_basis['selection-unrouted'] = [...unrouted]
+      }
+      if (!lane.classes.length) {
+        lane.disposition = 'skip'
+        lane.skip_reason = NO_SELECTED_CLASS_REASON
+        lane.signals = []
+        lane.classes = []
+        lane.class_basis = {}
+      }
+    }
+    const hunted = lanes.filter(l => l.disposition === 'hunt')
+    const union = [...new Set(hunted.flatMap(l => l.classes))].sort()
+    if (hunted.length && JSON.stringify(union) !== JSON.stringify([...selection.classes].sort())) {
+      throw new Error('Hunt-lane classes ' + JSON.stringify(union) + ' differ from the agent selection ' + JSON.stringify(selection.classes))
+    }
+    console.log('[Stage 0.5 v3] Unrouted selected classes (on every hunt lane): ' + unrouted.length +
+      (unrouted.length ? ' — ' + unrouted.join(', ') : '') + '; ' +
+      (huntLanes.length - hunted.length) + ' lane(s) skipped with no selected class')
+  }
+
   // -----------------------------------------------------------------------
   // Coverage ledger
   // -----------------------------------------------------------------------
@@ -708,6 +760,7 @@ async function main() {
     category_universe: categoryUniverse,
     signal_class_map: 'tools/scanner/shared/signal-classes.json',
     floor_classes: signalClassMap.floor,
+    ...(selection ? { class_selection: { source: 'playbook-agent' as const, classes: selection.classes, unrouted } } : {}),
     lanes,
   }
 
