@@ -26,10 +26,12 @@
   ],
 
   "default_provider": "luna",
+  "product_default_provider": "luna6",
 
   "aliases": {
     "openai": "luna",
     "gpt-5.6-luna": "luna",
+    "gpt-6-luna": "luna6",
     "dashscope": "qwen",
     "qwen-plus": "qwen",
     "claude-opus-5": "opus5",
@@ -59,6 +61,19 @@
   },
 
   "targets": {
+    "luna6": {
+      "label": "GPT-6 Luna",
+      "model": "gpt-6-luna",
+      "model_env": "OPENAI_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "base_url": null,
+      "base_url_env": "OPENAI_BASE_URL",
+      "token_limit_param": "max_completion_tokens",
+      "sampling": { "reasoning_effort": "high" },
+      "max_output_tokens": 64000,
+      "price_per_mtok": null,
+      "notes": "Product default. Responses API structured output and web_search support confirmed by the owner. Unmeasured by this lab; no benchmark or price inherited from GPT-5.6 Luna. Prices remain unknown until verified. Existing luna benchmark records remain attached to their original model."
+    },
     "luna": {
       "label": "GPT-5.6 Luna",
       "model": "gpt-5.6-luna",

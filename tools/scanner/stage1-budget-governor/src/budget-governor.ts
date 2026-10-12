@@ -17,6 +17,8 @@ import { computeScanPlan, SCAN_PLAN_FILE, type ScanPlan } from "./scan-plan.js";
 import { resolveLoopConfig, callsPerChunk } from "../../shared/loop-config.js";
 
 import { writeMeta, assertUpstream } from "../../shared/meta.js";
+import { readClassesOverlay } from "../../shared/playbook-overlay.js";
+import { addOverlayPlaybookSizes } from "../../shared/playbook-cache.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../../../..");
@@ -622,6 +624,8 @@ function computeBudgetPlanV2(): BudgetPlanV2 {
   // Load vuln class registry to map class ids → playbook modules
   const vulnClassesPath = join(REPO_ROOT, 'tools/scanner/shared/vuln-classes.json')
   const vulnClasses = JSON.parse(readFileSync(vulnClassesPath, 'utf-8')) as Record<string, { playbook: string; codes: string[] }>
+  addOverlayPlaybookSizes(vulnClasses, playbookSizes, readClassesOverlay(PROVIDER),
+    JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/signal-classes.json'), 'utf8')))
 
   // Boilerplate char budget (constant across all chunks, same as stage2)
   // This is the base boilerplate without the chunk-specific line and class list

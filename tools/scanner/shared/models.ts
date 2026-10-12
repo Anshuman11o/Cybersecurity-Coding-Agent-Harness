@@ -189,6 +189,7 @@ interface GenericTemplate {
 
 interface Registry {
   default_provider: string
+  product_default_provider?: string
   aliases: Record<string, string>
   targets: Record<string, ModelTarget>
   origins: Record<string, TargetOrigin>
@@ -285,6 +286,9 @@ export function loadRegistry(
         `Known: ${Object.keys(targets).join(', ')}`,
     )
   }
+  if (raw.product_default_provider && !targets[raw.product_default_provider]) {
+    throw new Error('models.json: product_default_provider is not a target')
+  }
 
   const aliases: Record<string, string> = { ...(raw.aliases ?? {}) }
   for (const [alias, canonical] of Object.entries(aliases)) {
@@ -369,7 +373,7 @@ export function loadRegistry(
     origins[g.key] = 'generic'
   }
 
-  return { default_provider: raw.default_provider, aliases, targets, origins, generic }
+  return { default_provider: raw.default_provider, product_default_provider: raw.product_default_provider, aliases, targets, origins, generic }
 }
 
 const REGISTRY: Registry = loadRegistry()
@@ -385,8 +389,8 @@ export function listProviderSpellings(): string[] {
 }
 
 /** The provider used when nothing selects one explicitly. */
-export function defaultProvider(): Provider {
-  return REGISTRY.default_provider
+export function defaultProvider(profile: string | undefined = process.env.SCANNER_PROFILE): Provider {
+  return profile === 'product' ? REGISTRY.product_default_provider ?? REGISTRY.default_provider : REGISTRY.default_provider
 }
 
 /** Map an alias to its canonical key; pass canonical keys through unchanged. */

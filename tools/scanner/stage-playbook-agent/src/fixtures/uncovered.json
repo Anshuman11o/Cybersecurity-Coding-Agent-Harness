@@ -1,0 +1,10 @@
+{
+  "architecture": {
+    "architecture": { "frameworks": ["ExampleQueue"], "data_stores": ["message broker"], "trust_boundaries": ["untrusted message replay across worker epochs"] },
+    "dependencies": { "security_relevant": [{ "name": "example-queue-client" }] },
+    "file_inventory": { "by_language": { "typescript": { "count": 1 } } }
+  },
+  "category_applicability": [{ "name": "A08: Integrity", "verdict": "uncertain" }],
+  "file_signals": { "files": { "src/worker.ts": ["deserialize", "model_write"] } },
+  "dependency_manifests": "package.json: example-queue-client"
+}

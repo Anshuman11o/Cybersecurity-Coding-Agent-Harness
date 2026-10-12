@@ -39,10 +39,11 @@ import {
   PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE, type Stage2RunStatus,
 } from '../../stage1-budget-governor/src/run-status.js'
 import { resolveRunContext, PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { readRunPlaybooks } from './playbooks.js'
 
 const EXIT = { complete: 0, failure: 1, usage: 2, incomplete: 3, interrupted: 130 } as const
 const HUNT = 'stage2-hunt-lanes-perfile'
-const PRE_STAGES = ['stage0-recon', 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'] as const
+const PRE_STAGES = ['stage0-recon', ...(process.env.SCANNER_PLAYBOOK_AGENT === '1' ? ['stage-playbook-agent' as const] : []), 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'] as const
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 
 const err = (msg: string) => process.stderr.write(`secscan: ${msg}\n`)
@@ -349,6 +350,7 @@ async function scan(args: ScanArgs): Promise<number> {
         calls: usageFresh?.calls ?? null,
       },
       findings_total: fresh?.findings_total ?? null,
+      playbooks: readRunPlaybooks(stageDir(HUNT), stageDir('stage-playbook-agent'), previous?.playbooks),
       artifacts: Object.fromEntries(
         [...PRE_STAGES, HUNT].map(s => [s, stageDir(s as Parameters<typeof paths.runPath>[1])]).filter(([, d]) => existsSync(d)),
       ),
@@ -401,7 +403,8 @@ async function scan(args: ScanArgs): Promise<number> {
   // ── Recon, lanes, plan ────────────────────────────────────────────────────
   say(`secscan · run ${runId} · ${targetDisplay}${previous ? ' (resumed)' : ''}`)
   say(`Model ${model.model} (${model.label}), ${model.measured ? 'measured' : 'unmeasured'}. Full stage output: ${logPath}`)
-  say('Reading the repository. Recon makes up to two small model calls; nothing else is spent before you confirm.')
+  say('Reading the repository. Recon makes up to two small model calls.' +
+    (process.env.SCANNER_PLAYBOOK_AGENT === '1' ? ' Playbook coverage and any uncached web research also run before confirmation.' : ' Nothing else is spent before you confirm.'))
   for (const stage of PRE_STAGES) {
     const metaDone = previous && stage !== 'stage1-budget-governor-perfile' &&
       readJson<{ exit_code: number }>(join(stageDir(stage), 'meta.json'))?.exit_code === 0
@@ -447,6 +450,8 @@ async function scan(args: ScanArgs): Promise<number> {
       model,
       resume,
     })
+    const playbookPlan = readJson<{ classes: unknown[]; searched: boolean }>(join(stageDir('stage-playbook-agent'), 'playbook-plan.json'))
+    if (playbookPlan) summary.guidance = `${playbookPlan.classes.length} additional classes (${playbookPlan.searched ? 'web research' : 'cache or built-in coverage'})`
   }
   loadPlanAndSummary()
 

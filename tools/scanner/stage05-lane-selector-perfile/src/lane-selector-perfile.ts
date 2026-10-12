@@ -28,6 +28,7 @@ import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { mergeClassTables, readClassesOverlay } from '../../shared/playbook-overlay.js'
 // Relative across packages: the contract has no runtime dependencies, so this
 // does not pull Stage 0's parsers into Stage 0.5.
 import {
@@ -435,12 +436,14 @@ async function main() {
   // Load signal→class mapping and validate
   // -----------------------------------------------------------------------
   const signalClassMapPath = path.join(sharedDir, 'signal-classes.json')
-  const signalClassMap: SignalClassMap = JSON.parse(fs.readFileSync(signalClassMapPath, 'utf-8'))
+  let signalClassMap: SignalClassMap = JSON.parse(fs.readFileSync(signalClassMapPath, 'utf-8'))
   console.log('[Stage 0.5 v3] Loaded signal→class map: ' + Object.keys(signalClassMap.signals).length + ' signals, ' + signalClassMap.floor.length + ' floor classes')
 
   const vulnClassesPath = path.join(sharedDir, 'vuln-classes.json')
   const vulnClassesRaw = fs.readFileSync(vulnClassesPath, 'utf-8')
-  const vulnClasses = JSON.parse(vulnClassesRaw) as Record<string, { playbook: string; codes: string[] }>
+  const merged = mergeClassTables(JSON.parse(vulnClassesRaw), signalClassMap, readClassesOverlay(PROVIDER))
+  const vulnClasses = merged.registry
+  signalClassMap = merged.signalMap
   const allClassIds = new Set<string>(Object.keys(vulnClasses))
 
   // Validate: every class in signal-classes.json must exist in vuln-classes.json

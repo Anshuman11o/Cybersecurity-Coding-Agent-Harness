@@ -56,6 +56,8 @@ import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { mergeClassTables, readClassesOverlay, type ClassesOverlay } from '../../shared/playbook-overlay.js'
+import { cacheRoot, readCachedPlaybook, agentPlaybookRecord, builtinPlaybookRecord, type PlaybookRecord } from '../../shared/playbook-cache.js'
 // Lane scheduling under the run's limits. These live with the budget governor,
 // which plans what the gate enforces; Stage 2 only asks before starting a lane.
 import { resolveLimits, admissionKey, deriveConcurrency, NO_LIMITS, type RunLimits } from '../../stage1-budget-governor/src/limits.js'
@@ -179,18 +181,22 @@ export const SINGLE_PASS_LINE_BUDGET = 2000
 
 const SHARED_DIR = join(REPO_ROOT, 'tools/scanner/shared')
 
+let classOverlay: ClassesOverlay | null = null
+
 let registry: VulnClassRegistry | null = null
 let codeToClass: Record<string, string> = {}
 
 function loadRegistry(): VulnClassRegistry {
   if (registry) return registry
   const raw = readFileSync(join(SHARED_DIR, 'vuln-classes.json'), 'utf-8')
-  registry = JSON.parse(raw) as VulnClassRegistry
+  classOverlay = readClassesOverlay(PROVIDER)
+  registry = mergeClassTables(JSON.parse(raw),
+    JSON.parse(readFileSync(join(SHARED_DIR, 'signal-classes.json'), 'utf8')), classOverlay).registry
 
   // Build reverse index: code → classId
   for (const [classId, entry] of Object.entries(registry)) {
     for (const code of entry.codes) {
-      codeToClass[code] = classId
+      codeToClass[code] ??= classId
     }
   }
 
@@ -319,10 +325,31 @@ export async function loadPlaybooksForClasses(classIds: string[]): Promise<Map<s
     if (!entry) continue
     const modName = entry.playbook
     if (loaded.has(modName)) continue
+    const overlay = classOverlay?.[classId]
+    if (overlay) {
+      const cached = readCachedPlaybook(cacheRoot(), classId, overlay.framework, overlay.model, overlay.sha256)
+      if (!cached) throw new Error(`Missing cached playbook for overlay class ${classId}`)
+      loaded.set(modName, cached.text)
+      continue
+    }
     const mod = await import(`./playbooks/${modName}.js`)
     loaded.set(modName, (mod as { playbook: string }).playbook)
   }
   return loaded
+}
+
+/** Provenance for the exact text sent to a hunting lane. */
+export function describePlaybooks(classIds: string[], loaded: Map<string, string>): PlaybookRecord[] {
+  return classIds.map(id => {
+    const entry = loadRegistry()[id]
+    const overlay = classOverlay?.[id]
+    if (overlay) {
+      const cached = readCachedPlaybook(cacheRoot(), id, overlay.framework, overlay.model, overlay.sha256)
+      if (!cached) throw new Error(`Missing cached playbook for ${id}`)
+      return agentPlaybookRecord(cached.meta)
+    }
+    return builtinPlaybookRecord(id, entry.playbook, loaded.get(entry.playbook)!)
+  })
 }
 
 async function validateAllPlaybooks(): Promise<void> {
@@ -334,7 +361,7 @@ async function validateAllPlaybooks(): Promise<void> {
   const loadErrors = new Map<string, string>()
   for (const [classId, entry] of Object.entries(reg)) {
     try {
-      await import(`./playbooks/${entry.playbook}.js`)
+      await loadPlaybooksForClasses([classId])
     } catch (err: any) {
       loadErrors.set(classId, err.message)
     }
@@ -347,7 +374,9 @@ async function validateAllPlaybooks(): Promise<void> {
   // of run output at 3% precision, and matched no ground-truth entry. Dropping
   // the class drops its only code with it. This is v2-only: v1 has no class
   // model and keeps its own general-catchall lane and playbook.
-  const allCodes = Object.values(reg).flatMap(e => e.codes)
+  // The one-class-per-code invariant belongs to the shipped registry. Added
+  // classes may legitimately share an OWASP umbrella with a built-in class.
+  const allCodes = Object.entries(reg).filter(([id]) => !classOverlay?.[id]).flatMap(([, e]) => e.codes)
   const codeCounts = new Map<string, number>()
   for (const code of allCodes) {
     codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1)
@@ -2093,6 +2122,11 @@ function buildRunLevelRollup(
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
+  const usedPlaybooks = new Map<string, PlaybookRecord>()
+  const playbookRecordFile = join(runPath(PROVIDER, 'stage2-hunt-lanes-perfile'), 'playbooks-used.json')
+  if (getRunContext().resume && existsSync(playbookRecordFile)) {
+    for (const record of JSON.parse(readFileSync(playbookRecordFile, 'utf8'))) usedPlaybooks.set(record.class_id, record)
+  }
   // When the log tee in front of this process dies first (Ctrl-C reaches the
   // whole process group), a write to the closed pipe would crash the stage
   // before it records what it finished. Losing a log line is the lesser harm.
@@ -2581,6 +2615,9 @@ async function main() {
       console.log(`  [${lane.lane_id}] Chunk plan: ${lane.chunk_plan.required ? lane.chunk_plan.total_chunks + ' chunks' : 'single pass'}`)
 
       const playbooks = await loadPlaybooksForClasses(laneClasses)
+      for (const record of describePlaybooks(laneClasses, playbooks)) usedPlaybooks.set(record.class_id, record)
+      writeFileSync(playbookRecordFile + '.tmp', JSON.stringify([...usedPlaybooks.values()], null, 2) + '\n')
+      renameSync(playbookRecordFile + '.tmp', playbookRecordFile)
       console.log(`  [${lane.lane_id}] Loaded ${playbooks.size} playbook module(s): ${Array.from(playbooks.keys()).join(', ')}`)
 
       const t0 = Date.now()

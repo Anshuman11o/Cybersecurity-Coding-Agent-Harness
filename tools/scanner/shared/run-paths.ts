@@ -52,6 +52,7 @@ export const STAGES = [
   'stage1-budget-governor',
   'stage2-hunt-lanes',
   // v2 — one lane per file. Shares stage0-recon with v1.
+  'stage-playbook-agent',
   'stage05-lane-selector-perfile',
   'stage1-budget-governor-perfile',
   'stage2-hunt-lanes-perfile',

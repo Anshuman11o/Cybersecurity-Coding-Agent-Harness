@@ -18,6 +18,7 @@ import { writeFileSync, renameSync } from 'fs'
 import type { RunLimits } from '../../stage1-budget-governor/src/limits.js'
 import type { Stage2RunStatus, UnscannedLane, ScopeExcludedLane } from '../../stage1-budget-governor/src/run-status.js'
 import type { ConfirmationSummary } from './confirm.js'
+import type { PlaybookRecord } from '../../shared/playbook-cache.js'
 
 export const RUN_RECORD_FILE = 'run-record.json'
 export const RUN_RECORD_SCHEMA = 'secscan.run-record/1'
@@ -90,6 +91,8 @@ export interface RunRecord {
     calls: number | null
   }
   findings_total: number | null
+  /** Text hashes and sources for built-in and generated guidance. */
+  playbooks?: PlaybookRecord[]
   artifacts: Record<string, string>
   /** The command that continues this run; null when there is nothing left to do. */
   resume_command: string | null
