@@ -3,18 +3,20 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   CLASS_SELECTION_FILE, mergeClassTables, validateClassSelection, type ClassesOverlay, type ClassSelection,
 } from '../../shared/playbook-overlay.js'
 import { writeCachedPlaybook, cacheRoot, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
-import { resolveRunContext } from '../../shared/run-context.js'
+import { resolveRunContext, REPO_ROOT } from '../../shared/run-context.js'
+import { makeReadGuard, SEED_DENYLIST } from '../../shared/read-guard.js'
 import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
 import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '../../shared/provider.js'
 import { loadRegistryModules } from '../../cli/src/registry.js'
 import { readRunPlaybooks } from '../../cli/src/playbooks.js'
-import { loadRecon, loopOptions } from './main.js'
+import { collectSourceExcerpts, EXCERPT_FILE_BYTES, EXCERPT_TOTAL_BYTES, loadRecon, loopOptions } from './main.js'
+import type { InventoryEntry } from '../../stage0-recon/src/recon-contract.js'
 
 const scanner = fileURLToPath(new URL('../..', import.meta.url))
 const tsx = join(scanner, 'stage-playbook-agent/node_modules/.bin/tsx')
@@ -330,6 +332,8 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
     const source = 'https://example.test/worker-security';
@@ -340,8 +344,8 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }],
-        classes: [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }]),
         changes: [] }),
     });
   `)
@@ -358,8 +362,9 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   const researched = plan.playbooks.find((p: any) => p.class_id === id)
   assert.deepEqual([researched.source_urls, researched.verified_source_urls, researched.unverified_source_urls],
     [['https://example.test/worker-security'], ['https://example.test/worker-security'], []])
-  assert.deepEqual(plan.loop, { enabled: true, max_passes: 3, passes_run: 1 })
+  assert.deepEqual(plan.loop, { enabled: true, max_passes: 1, passes_run: 1 })
   assert.deepEqual(plan.turns.map((x: any) => x.purpose), ['turn1', 'turn2:pass1', 'turn3'])
+  assert.deepEqual(plan.turns.at(-1).ratings, { injection: 'high', 'integrity-failures': 'high', [id]: 'high' })
   const decision = JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8'))
   assert.equal(decision.schema, 'secscan.class-decision/1')
   assert.deepEqual(decision.classes, selection.classes)
@@ -382,6 +387,8 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 7 } };
     const source = 'https://example.test/worker-security';
@@ -393,8 +400,8 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
-        classes: [{ id: ${JSON.stringify(id)}, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(id)}, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }]),
         changes: [] }),
     });
   `)
@@ -409,7 +416,7 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   assert.deepEqual(decision.classes, ['injection', id])
   assert.deepEqual(decision.builtin, ['injection'])
   assert.deepEqual(decision.added, [{ id, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }])
-  assert.deepEqual(decision.loop, { enabled: true, max_passes: 3, passes_run: 1 })
+  assert.deepEqual(decision.loop, { enabled: true, max_passes: 1, passes_run: 1 })
   for (const file of ['playbook-plan.json', 'classes-overlay.json', CLASS_SELECTION_FILE]) assert.ok(!existsSync(join(f.agentDir, file)), file)
   const record = JSON.parse(readFileSync(join(f.agentDir, 'research-failures', `${id}.json`), 'utf8'))
   assert.equal(record.check, 'size')
@@ -456,6 +463,8 @@ test('stage entrypoint: additional-class codes outside the strict format complet
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
     const source = 'https://example.test/mobile-platform';
@@ -466,8 +475,8 @@ test('stage entrypoint: additional-class codes outside the strict format complet
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Platform API misuse is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
-        classes: [{ id: ${JSON.stringify(added)}, framework: 'generic', codes: ${JSON.stringify(codes)}, signals: ['deserialize'], reason: 'Platform.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(added)}, framework: 'generic', codes: ${JSON.stringify(codes)}, signals: ['deserialize'], reason: 'Platform.' }]),
         changes: [] }),
     });
   `)
@@ -528,8 +537,9 @@ test('Stage 1 and Stage 2 accept free-form codes and carry them verbatim; no mod
 })
 
 test('loop switches: SCANNER_PLAYBOOK_LOOP=0 disables the turns; passes must be a positive integer', () => {
-  assert.deepEqual(loopOptions({}), { enabled: true, maxPasses: 3 })
-  assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP: '0' }), { enabled: false, maxPasses: 3 })
+  assert.deepEqual(loopOptions({}), { enabled: true, maxPasses: 1 })
+  assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP: '0' }), { enabled: false, maxPasses: 1 })
+  assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP_PASSES: '3' }), { enabled: true, maxPasses: 3 })
   for (const on of ['1', 'false', 'off', '']) assert.equal(loopOptions({ SCANNER_PLAYBOOK_LOOP: on }).enabled, true)
   assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP_PASSES: '5' }), { enabled: true, maxPasses: 5 })
   for (const bad of ['0', '-1', '1.5', '2x', ' 2', 'abc', '', '99999999999999999999']) {
@@ -552,11 +562,234 @@ test('stage entrypoint: loop off makes one decision call; an invalid pass count 
   const log = execFileSync(tsx, [script], { env: { ...f.env, SCANNER_PLAYBOOK_LOOP: '0' }, stdio: 'pipe' }).toString()
   assert.match(log, /Playbook agent: 1 class\(es\) selected \(1 built-in, 0 additional\); turns=0; searches=0/)
   const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
-  assert.deepEqual(plan.loop, { enabled: false, max_passes: 3, passes_run: 0 })
+  assert.deepEqual(plan.loop, { enabled: false, max_passes: 1, passes_run: 0 })
   assert.deepEqual(plan.turns, [])
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls.length, 1)
   assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_PLAYBOOK_LOOP_PASSES: 'three' }, stdio: 'pipe' }),
     /SCANNER_PLAYBOOK_LOOP_PASSES must be a positive integer/)
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
   assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls, [], 'no model call was made')
+})
+
+test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LOOP_PASSES; turn3 sees each pass and includes the built-ins it rates', t => {
+  const f = fixture(t)
+  const script = join(f.root, 'stage.mts'), review = join(f.root, 'turn2-review.json')
+  // Every turn2 pass adds one built-in; turn3 returns all four rated high without changes, so any not yet selected are
+  // included by their rating and listed in added.
+  writeFileSync(script, `
+    import { writeFileSync } from 'node:fs';
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    const ids = ['injection', 'ssrf', 'access-control', 'integrity-failures'];
+    const n = (purpose) => purpose === 'turn3' ? 4 : purpose.startsWith('turn2:pass') ? Number(purpose.slice(10)) + 1 : 1;
+    await main(async (request, purpose) => {
+      if (purpose === 'turn3') writeFileSync(${JSON.stringify(review)}, JSON.stringify(JSON.parse(request.input).turn2_review));
+      return {
+        id: 'mock', model: request.model, status: 'completed', output: [],
+        output_text: JSON.stringify({ reason: purpose, builtin_classes: ids.slice(0, n(purpose))
+          .map(id => ({ id, reason: 'Recon.', ...(purpose === 'turn3' ? { likelihood: 'high' } : {}) })),
+          classes: [], changes: [] }),
+        usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+          output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
+      };
+    });
+  `)
+  const selected = ['access-control', 'injection', 'integrity-failures', 'ssrf']
+  for (const [env, passes, added] of [
+    [{}, 1, ['access-control', 'integrity-failures']],
+    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '2' }, 2, ['integrity-failures']],
+    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '3' }, 3, []],
+  ] as [Record<string, string>, number, string[]][]) {
+    execFileSync(tsx, [script], { env: { ...f.env, ...env }, stdio: 'pipe' })
+    const passPurposes = Array.from({ length: passes }, (_, k) => `turn2:pass${k + 1}`)
+    const usage = JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8'))
+    assert.deepEqual(usage.calls.map((c: any) => c.purpose), ['coverage', 'turn1', ...passPurposes, 'turn3'])
+    const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
+    assert.deepEqual(plan.loop, { enabled: true, max_passes: passes, passes_run: passes })
+    const turn3 = plan.turns.at(-1)
+    assert.deepEqual([turn3.added, turn3.removed, turn3.unexplained], [added, [], []])
+    assert.deepEqual(JSON.parse(readFileSync(review, 'utf8')), passPurposes.map(purpose => ({ purpose, reason: purpose, changes: [] })))
+    assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8')).classes, selected)
+    assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8')).classes, selected)
+  }
+})
+
+// A guard read that records every path it is asked for.
+const spyRead = (read: (p: string) => string | null) => {
+  const asked: string[] = []
+  return { asked, read: (p: string) => { asked.push(p); return read(p) } }
+}
+
+// A recon inventory entry: a source file unless a flag says otherwise.
+const inv = (path: string, language = 'typescript', flags: Partial<Pick<InventoryEntry, 'test' | 'oversize' | 'empty'>> = {}): InventoryEntry =>
+  ({ path, language, bytes: 1, test: false, oversize: false, empty: false, ...flags })
+
+test('source excerpts: content-signal files first, most distinct signals first then path; long files cut at a newline; unreadable reads counted', t => {
+  const f = fixture(t)
+  const lines = Array.from({ length: 1500 }, (_, k) => `line ${String(k).padStart(4, '0')}`).join('\n') + '\n'
+  const write = (p: string, text: string) => { mkdirSync(dirname(join(f.target, p)), { recursive: true }); writeFileSync(join(f.target, p), text) }
+  write('many.ts', 'export const many = 1\n')
+  write('pair.ts', 'export const pair = 1\n')
+  write('big.ts', lines)
+  write('one.ts', 'export const one = 1\n')
+  write('mixed.json', '{"name":"mixed"}\n')
+  write('package.json', '{"name":"MANIFEST_ONLY_MARKER"}\n')
+  write('empty.ts', 'export const none = 1\n')
+  write('.secscan/prior.json', 'PRIOR_RUN_MARKER\n')
+  writeFileSync(join(f.root, 'outside.ts'), 'OUTSIDE_CORPUS_MARKER\n')
+  const files: Record<string, string[]> = {
+    'one.ts': ['logging'], 'many.ts': ['route_handler', 'db_query', 'logging'],
+    // Distinct signals count: a repeated one counts once, so pair.ts ranks with the other two-signal files.
+    'pair.ts': ['route_handler', 'route_handler', 'db_query'], 'big.ts': ['http_outbound', 'deserialize'],
+    'mixed.json': ['dep_manifest', 'config_file'], 'package.json': ['dep_manifest'], 'empty.ts': [],
+    'missing.ts': ['logging'], '../outside.ts': ['logging'], '.secscan/prior.json': ['logging'],
+  }
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  // No inventory: the signal-flagged group alone, exactly as before the unflagged group existed.
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, [], f.target, spy.read)
+  const order = ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', '../outside.ts', '.secscan/prior.json', 'missing.ts', 'one.ts']
+  assert.deepEqual(spy.asked, order.map(p => relative(REPO_ROOT, join(f.target, p))), 'dep_manifest-only and signal-less files are never read')
+  assert.deepEqual(out.files.map(x => x.path), ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', 'one.ts'])
+  assert.deepEqual([out.unreadable_files, out.omitted_files], [3, 0])
+  assert.deepEqual(out.files[0], { path: 'many.ts', signals: files['many.ts'], truncated: false, text: 'export const many = 1\n' })
+  const big = out.files[1]
+  assert.equal(big.truncated, true)
+  assert.ok(Buffer.byteLength(lines) > EXCERPT_FILE_BYTES)
+  assert.ok(Buffer.byteLength(big.text) <= EXCERPT_FILE_BYTES && Buffer.byteLength(big.text) > EXCERPT_FILE_BYTES - 10)
+  assert.ok(big.text.endsWith('\n') && lines.startsWith(big.text), 'cut at the last newline within the cap')
+  assert.ok(out.files.every(x => x.path === 'big.ts' || !x.truncated))
+  const all = JSON.stringify(out)
+  for (const marker of ['MANIFEST_ONLY_MARKER', 'PRIOR_RUN_MARKER', 'OUTSIDE_CORPUS_MARKER']) assert.ok(!all.includes(marker), marker)
+})
+
+test('source excerpts: flagged files first, then every other inventoried source file by path; tests, oversize, empty, css, unflagged json and manifest-only files excluded; no duplicates', t => {
+  const f = fixture(t)
+  const write = (p: string, text: string) => { mkdirSync(dirname(join(f.target, p)), { recursive: true }); writeFileSync(join(f.target, p), text) }
+  const sources: Record<string, string> = {
+    'many.ts': 'export const many = 1\n', 'one.ts': 'export const one = 1\n', 'config.json': '{"debug":true}\n',
+    'src/a.ts': 'export const a = 1\n', 'b.py': 'b = 1\n', 'zz/c.ts': 'export const c = 1\n', 'Z.go': 'package z\n',
+  }
+  for (const [p, text] of Object.entries(sources)) write(p, text)
+  const excluded: Record<string, string> = {
+    'spec/x.test.ts': 'TEST_MARKER', 'huge.ts': 'OVERSIZE_MARKER', 'blank.ts': 'EMPTY_MARKER', 'style.css': 'CSS_MARKER',
+    'data.json': 'JSON_MARKER', 'Gemfile': 'MANIFEST_ONLY_MARKER', 'package.json': 'PACKAGE_MARKER',
+  }
+  for (const [p, marker] of Object.entries(excluded)) write(p, marker + '\n')
+  const files: Record<string, string[]> = {
+    'one.ts': ['logging'], 'many.ts': ['route_handler', 'db_query'],
+    // A json file recon flagged with a content signal belongs to the flagged group.
+    'config.json': ['config_file'],
+    'Gemfile': ['dep_manifest'], 'package.json': ['dep_manifest', 'dep_manifest'],
+    // Recon recorded no signal for it: an unflagged source file.
+    'src/a.ts': [],
+  }
+  const inventory = [
+    inv('zz/c.ts'), inv('src/a.ts'), inv('one.ts'), inv('many.ts'), inv('config.json', 'json'), inv('b.py', 'python'), inv('Z.go', 'go'),
+    inv('missing.ts'), inv('src/a.ts'),
+    inv('spec/x.test.ts', 'typescript', { test: true }), inv('huge.ts', 'typescript', { oversize: true }),
+    inv('blank.ts', 'typescript', { empty: true }), inv('style.css', 'css'), inv('data.json', 'json'),
+    inv('Gemfile', 'manifest'), inv('package.json', 'json'),
+  ]
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, inventory, f.target, spy.read)
+  const order = ['many.ts', 'config.json', 'one.ts', 'Z.go', 'b.py', 'missing.ts', 'src/a.ts', 'zz/c.ts']
+  assert.deepEqual(spy.asked, order.map(p => relative(REPO_ROOT, join(f.target, p))), 'each path read once, in group order')
+  assert.deepEqual(out.files.map(x => x.path), order.filter(p => p !== 'missing.ts'))
+  assert.deepEqual([out.unreadable_files, out.omitted_files], [1, 0])
+  assert.deepEqual(out.files.find(x => x.path === 'config.json'), { path: 'config.json', signals: ['config_file'], truncated: false, text: sources['config.json'] })
+  for (const p of ['Z.go', 'b.py', 'src/a.ts', 'zz/c.ts']) {
+    assert.deepEqual(out.files.find(x => x.path === p), { path: p, signals: [], truncated: false, text: sources[p] }, p)
+  }
+  const all = JSON.stringify(out)
+  for (const marker of Object.values(excluded)) assert.ok(!all.includes(marker), marker)
+})
+
+test('source excerpts: the set stops at the first file that would pass the total cap, across both groups; the rest are counted as omitted', t => {
+  const f = fixture(t)
+  const files: Record<string, string[]> = {}
+  const inventory: InventoryEntry[] = []
+  for (let k = 0; k < 20; k++) {
+    const p = `f${String(k).padStart(2, '0')}.ts`
+    writeFileSync(join(f.target, p), `// ${p}\n` + 'x'.repeat(10990) + '\n')
+    // The first ten are flagged; the rest reach the set only through the inventory.
+    if (k < 10) files[p] = ['logging']
+    inventory.push(inv(p))
+  }
+  // Small enough to fit, but after the stop: still omitted, never read.
+  writeFileSync(join(f.target, 'z.ts'), 'export const z = 1\n')
+  inventory.push(inv('z.ts'))
+  // Unreadable before the stop: counted, and no part of the cap.
+  inventory.push(inv('f10-missing.ts'))
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, inventory, f.target, spy.read)
+  const each = Buffer.byteLength(readFileSync(join(f.target, 'f00.ts'), 'utf8'))
+  assert.equal(EXCERPT_TOTAL_BYTES, 200000)
+  assert.equal(out.files.length, Math.floor(EXCERPT_TOTAL_BYTES / each))
+  assert.equal(out.files.length, 18)
+  assert.deepEqual(out.files.map(x => x.signals.length), [...Array(10).fill(1), ...Array(8).fill(0)])
+  assert.ok(out.files.reduce((n, x) => n + Buffer.byteLength(x.text), 0) <= EXCERPT_TOTAL_BYTES)
+  // Read: f00-f09, then f10-missing ('-' sorts before '.'), f10-f17, and f18, which would pass the cap.
+  assert.deepEqual([out.omitted_files, out.unreadable_files], [3, 1])
+  assert.equal(spy.asked.length, 20, 'reading stops at the file that would pass the cap')
+  assert.ok(out.files.every(x => !x.truncated))
+})
+
+test('source excerpts in the benchmark: denylisted files are refused by the guard and counted unreadable', () => {
+  const bench = resolveRunContext({}, [], REPO_ROOT)
+  const blind = SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).map(p => p.slice('target-apps/juice-shop-blind/'.length))
+  assert.ok(blind.length > 0)
+  for (const viaInventory of [false, true]) {
+    const spy = spyRead(makeReadGuard(bench).readCorpusFile)
+    const out = viaInventory
+      ? collectSourceExcerpts({ files: {}, target_dir: bench.targetRoot }, blind.map(p => inv(p)), bench.targetRoot, spy.read)
+      : collectSourceExcerpts({ files: Object.fromEntries(blind.map(p => [p, ['db_query']])), target_dir: bench.targetRoot }, [], bench.targetRoot, spy.read)
+    // The guard's denylist is a raw string match: the paths asked for must be exactly the denylisted ones.
+    assert.deepEqual(spy.asked.sort(), SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).sort())
+    assert.deepEqual(out, { files: [], omitted_files: 0, unreadable_files: blind.length })
+  }
+})
+
+test('stage entrypoint: every decision call receives the target source, flagged files then inventoried ones; the plan records counts, no text', t => {
+  const f = fixture(t)
+  writeFileSync(join(f.target, 'manifest.json'), '{"name":"MANIFEST_ONLY_MARKER"}\n')
+  writeFileSync(join(f.target, 'app.ts'), 'export const app = 1\n')
+  writeFileSync(join(f.target, 'site.css'), 'body { content: "CSS_MARKER" }\n')
+  json(join(f.stage0, 'file-signals.json'), { target_dir: f.target, files: { 'worker.ts': ['deserialize'], 'manifest.json': ['dep_manifest'] } })
+  json(join(f.stage0, 'file-inventory.json'), {
+    target_dir: f.target, files: [['app.ts', 'typescript'], ['manifest.json', 'json'], ['site.css', 'css'], ['worker.ts', 'typescript']]
+      .map(([path, language]) => ({ path, language, bytes: 1, empty: false, test: false, oversize: false })),
+    totals: { test: 0, oversize: 0, empty: 0, excluded_files: 0, excluded_dirs: 0 }, options: { max_file_bytes: 200000 },
+  })
+  const script = join(f.root, 'stage.mts'), inputs = join(f.root, 'inputs.json')
+  writeFileSync(script, `
+    import { writeFileSync } from 'node:fs';
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    const seen = {};
+    await main(async (request, purpose) => {
+      seen[purpose] = request.input;
+      writeFileSync(${JSON.stringify(inputs)}, JSON.stringify(seen));
+      return {
+        id: 'mock', model: request.model, status: 'completed', output: [],
+        output_text: JSON.stringify({ reason: 'Covered.', builtin_classes: [{ id: 'injection', reason: 'Parsed input.',
+          ...(purpose === 'turn3' ? { likelihood: 'high' } : {}) }], classes: [], changes: [] }),
+        usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+          output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
+      };
+    });
+  `)
+  execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' })
+  const seen = JSON.parse(readFileSync(inputs, 'utf8'))
+  assert.deepEqual(Object.keys(seen), ['coverage', 'turn1', 'turn2:pass1', 'turn3'])
+  const worker = readFileSync(join(f.target, 'worker.ts'), 'utf8'), app = readFileSync(join(f.target, 'app.ts'), 'utf8')
+  for (const purpose of Object.keys(seen)) {
+    const excerpts = JSON.parse(seen[purpose]).source_excerpts
+    assert.deepEqual(excerpts.files, [
+      { path: 'worker.ts', signals: ['deserialize'], truncated: false, text: worker },
+      { path: 'app.ts', signals: [], truncated: false, text: app },
+    ], purpose)
+    assert.deepEqual([excerpts.omitted_files, excerpts.unreadable_files], [0, 0])
+    assert.ok(!seen[purpose].includes('MANIFEST_ONLY_MARKER') && !seen[purpose].includes('CSS_MARKER'), purpose)
+  }
+  const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
+  assert.deepEqual(plan.source_excerpts, { files: 2, bytes: Buffer.byteLength(worker) + Buffer.byteLength(app), truncated: 0, omitted_files: 0, unreadable_files: 0 })
+  assert.ok(!readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8').includes('JSON.parse(message)'), 'no excerpt text in the plan')
 })
