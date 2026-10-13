@@ -27,15 +27,20 @@ export interface ProposedClass {
 export interface SelectedBuiltin { id: string; reason: string }
 export interface CoverageDecision { reason: string; builtin_classes: SelectedBuiltin[]; classes: ProposedClass[] }
 export interface DecisionChange { id: string; why: string }
-/** One review turn after the initial decision: what the no-drop union added and restored. */
+/** One review turn after the initial decision: what the no-drop union added and restored, or what turn3's prune removed. */
 export interface DecisionTurn {
   purpose: string
   added: string[]
   restored: string[]
+  removed: string[]
   changes: DecisionChange[]
   web_search_calls: number
   queries: string[]
   source_urls: string[]
+  /** turn3 only: ids it returned that were not selected before it, never added. */
+  ignored?: string[]
+  /** turn3 only: its prune would have left no class, so the set before it was kept. */
+  prune_rejected?: 'empty'
 }
 export interface UsageCall {
   purpose: string
@@ -61,7 +66,7 @@ export interface PlaybookPlan {
   model: string
   searched: boolean
   reason: string
-  /** The final union of the initial decision and every review turn. */
+  /** The final decision: the union of the initial decision and turn1/turn2, pruned by turn3. */
   decision: CoverageDecision
   turns: DecisionTurn[]
   loop: { enabled: boolean; max_passes: number; passes_run: number }
@@ -74,7 +79,7 @@ export interface PlaybookPlan {
 }
 /** Research attempts behind a cached playbook: the first call plus its revisions, with each output's bytes. */
 export interface PlaybookRevisions { attempts: number; sizes: (number | null)[] }
-/** The final union, recorded before any research call so a research failure cannot lose it. */
+/** The final decision, recorded before any research call so a research failure cannot lose it. */
 export interface ClassDecision {
   schema: 'secscan.class-decision/1'
   created_at: string
@@ -121,7 +126,7 @@ export interface AgentOptions {
   allowedDomains?: string[]
   maxOutputTokens: number
   sampling?: Record<string, number | string>
-  /** Review turns after the initial decision; main.ts reads the env. Default: on, 3 turn-2 passes. */
+  /** Review turns after the initial decision; main.ts reads the env. Default: on, 1 turn-2 pass. */
   loop?: { enabled: boolean; maxPasses: number }
   create: (request: ResponseCreateParamsNonStreaming, purpose: string) => Promise<Response>
   recordUsage: (call: UsageCall) => void
@@ -153,7 +158,7 @@ const tasks = {
   coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
   turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
   turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
-  turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
+  turn3: "Review every selected class against recon's data. For each, name the recon evidence (signal, dependency, framework, category verdict or architecture element) that shows the target has a surface it applies to. Remove a class when you can name no such evidence. Return the final decision in the same schema, listing each removed class and why.",
 }
 const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
 // Each bracketed clause of the revision template appears only when that problem exists.
@@ -256,7 +261,7 @@ const overlayEntry = (c: ProposedClass, model: string): OverlayEntry =>
   ({ playbook: c.id, codes: c.codes, signals: c.signals, framework: c.framework, model, sha256: '0'.repeat(64) })
 const classIds = (d: CoverageDecision) => [...d.builtin_classes.map(b => b.id), ...d.classes.map(c => c.id)]
 
-/** Every decision call is checked alike, before it joins the union and before any research or cache write. */
+/** Every decision call is checked alike, before it is merged and before any research or cache write. */
 function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOptions): void {
   if (!d || typeof d.reason !== 'string' || !d.reason.trim() || !Array.isArray(d.classes) ||
       !Array.isArray(d.builtin_classes)) throw new Error(`Invalid ${purpose} decision`)
@@ -287,11 +292,22 @@ function unionDecision(before: CoverageDecision, turn: CoverageDecision): { deci
   return { decision, added: classIds(decision).filter(id => !had.has(id)), restored: [...had].filter(id => !own.has(id)) }
 }
 
+/** Code-enforced prune for turn3: an intersection. A kept id keeps its first definition and reason; a new id is
+ *  ignored, never added. A prune that would leave no class is rejected and the set before it kept. */
+function pruneDecision(before: CoverageDecision, turn: CoverageDecision): { decision: CoverageDecision; removed: string[]; ignored: string[]; rejected: boolean } {
+  const had = new Set(classIds(before)), own = new Set(classIds(turn))
+  const ignored = classIds(turn).filter(id => !had.has(id))
+  const decision = { reason: turn.reason, builtin_classes: before.builtin_classes.filter(b => own.has(b.id)),
+    classes: before.classes.filter(c => own.has(c.id)) }
+  if (!classIds(decision).length) return { decision: before, removed: [], ignored, rejected: true }
+  return { decision, removed: classIds(before).filter(id => !own.has(id)), ignored, rejected: false }
+}
+
 export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay; selection: ClassSelection }> {
   // Read on every invocation so changing guidance changes the next run.
   const guidance = readFileSync(new URL('../guidance.md', import.meta.url), 'utf8')
   const allowedDomains = o.allowedDomains ?? []
-  const loop = o.loop ?? { enabled: true, maxPasses: 3 }
+  const loop = o.loop ?? { enabled: true, maxPasses: 1 }
   if (!Number.isSafeInteger(loop.maxPasses) || loop.maxPasses < 1) throw new Error('Loop max passes must be a positive integer')
   const cached = listCachedPlaybooks(o.cacheRoot, o.model)
   const calls: UsageCall[] = []
@@ -329,7 +345,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     calls.push(record)
     o.recordUsage(record) // Persist paid usage even if parsing or validation fails next.
     if (response.status !== 'completed') {
-      o.log?.(progress(record, { decision: 'added=-', research: 'bytes=- unverified=-', revision: 'bytes=- problems=-' }[kind]))
+      o.log?.(progress(record, { decision: purpose === 'turn3' ? 'removed=-' : 'added=-', research: 'bytes=- unverified=-', revision: 'bytes=- problems=-' }[kind]))
       throw new Error(`Playbook ${purpose} response ${response.status}`)
     }
     const text = response.output_text || (response.output ?? []).flatMap(item =>
@@ -366,10 +382,20 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   const review = async (purpose: string, task: string) => {
     const { value, trace } = await decide(purpose, task, true)
     const next = unionDecision(decision, value)
-    turns.push({ purpose, added: next.added, restored: next.restored, changes: value.changes,
+    turns.push({ purpose, added: next.added, restored: next.restored, removed: [], changes: value.changes,
       web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls })
     o.log?.(progress(trace, `added=${next.added.join(',') || '-'}`))
     return next
+  }
+  // turn3 is the only turn that can remove, and the only one that cannot add.
+  const prune = async (purpose: string, task: string) => {
+    const { value, trace } = await decide(purpose, task, true)
+    const next = pruneDecision(decision, value)
+    turns.push({ purpose, added: [], restored: [], removed: next.removed, changes: value.changes,
+      web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls,
+      ignored: next.ignored, ...(next.rejected ? { prune_rejected: 'empty' as const } : {}) })
+    o.log?.(progress(trace, `removed=${next.removed.join(',') || '-'}`))
+    return next.decision
   }
   const { value: initial, trace: first } = await decide('coverage', tasks.coverage, false)
   decision = { reason: initial.reason, builtin_classes: initial.builtin_classes, classes: initial.classes }
@@ -383,7 +409,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
       if (!next.added.length) break
       decision = next.decision
     }
-    decision = (await review('turn3', tasks.turn3)).decision
+    decision = await prune('turn3', tasks.turn3)
   }
 
   const selected = [...new Set(classIds(decision))].sort()

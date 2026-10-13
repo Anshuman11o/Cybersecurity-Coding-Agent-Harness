@@ -32,7 +32,7 @@ export function loadRecon(dir: string): ReconInput {
 /** The decision-loop switches. Read here so the agent itself reads no environment. */
 export function loopOptions(env: NodeJS.ProcessEnv = process.env): NonNullable<AgentOptions['loop']> {
   const passes = env.SCANNER_PLAYBOOK_LOOP_PASSES
-  const maxPasses = passes === undefined ? 3 : Number(passes)
+  const maxPasses = passes === undefined ? 1 : Number(passes)
   if (passes !== undefined && (!/^[1-9][0-9]*$/.test(passes) || !Number.isSafeInteger(maxPasses))) {
     throw new Error(`SCANNER_PLAYBOOK_LOOP_PASSES must be a positive integer, got ${JSON.stringify(passes)}`)
   }
