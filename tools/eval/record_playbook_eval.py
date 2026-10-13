@@ -46,8 +46,14 @@ def build_row(a):
     agent_dir = os.path.join(a.run_dir, 'stage-playbook-agent')
     recon_meta = read_json(os.path.join(a.run_dir, 'stage0-recon', 'meta.json'))
     agent_meta = read_json(os.path.join(agent_dir, 'meta.json'))
-    plan = read_json(os.path.join(agent_dir, 'playbook-plan.json'))
-    selection = read_json(os.path.join(agent_dir, 'class-selection.json'))
+    # A run whose research failed has no plan or selection, but keeps the decision it saved first.
+    if os.path.exists(os.path.join(agent_dir, 'class-selection.json')):
+        plan = read_json(os.path.join(agent_dir, 'playbook-plan.json'))
+        selection = read_json(os.path.join(agent_dir, 'class-selection.json'))
+        scored = 'class-selection.json'
+    else:
+        plan = selection = read_json(os.path.join(agent_dir, 'class-decision.json'))
+        scored = 'class-decision.json (stage failed after the decision)'
     usage = read_json(os.path.join(agent_dir, 'usage.json'))
     score = read_json(a.score)
     with open(os.path.join(a.run_dir, 'spend-ledger.jsonl')) as f:
@@ -76,7 +82,8 @@ def build_row(a):
         'arm': {'loop_enabled': loop['enabled'], 'loop_max_passes': loop['max_passes'],
                 'turn2_passes_run': loop['passes_run'], 'turns_run': len(plan.get('turns') or [])},
         'metrics': {**{k: score[k] for k in SCORE_KEYS},
-                    'builtin_selected': len(selection['builtin']), 'additional_selected': len(selection['added'])},
+                    'builtin_selected': len(selection['builtin']), 'additional_selected': len(selection['added']),
+                    'scored_artifact': scored},
         'web_search_calls': sum(c.get('web_search_calls') or 0 for c in usage['calls']),
         'tokens': {'stage0-recon': tokens('stage0-recon'), 'stage-playbook-agent': tokens('stage-playbook-agent')},
         'est_cost_usd': round(sum(r.get('cost_usd') or 0 for r in ledger), 6),
