@@ -42,6 +42,7 @@ when one class is or is not picked, so single-run differences are noisy.
 | P1 | c61dbe2 | turn3 prunes classes with no recon evidence; turn2 one pass | 8/8 | 8/13 (61.5%) | 6/7 | 6/12 (50.0%) | $0.0456 / $0.1528 |
 | P2 | 8f07d9e | turn2 adds only with named recon evidence; turn3 re-thinks from turn2's evidence (keep, include, remove with explanation) | 8/8 | 8/13 (61.5%) | 6/7 | 6/13 (46.2%) | $0.0458 / $0.0822 |
 | P3 | 4b37673 | turn3 rates each class's likelihood (high/medium/low) from recon evidence; code drops low | 5/8 | 5/10 (50.0%) | 3/7 | 3/8 (37.5%) | $0.0452 / $0.1654 |
+| P4 | 735a086 | decision calls see the source of signal-flagged files (12 KB per file, 120 KB total); turn3 rates from source and recon | 7/8 | 7/8 (87.5%) | 5/7 | 5/9 (55.6%) | $0.1046 / $0.1139 |
 
 The Test 1 checkpoint row is the last Test 1 run (`ab3f0bd`, same decision loop;
 its later commits changed research only, which Test 1 never reaches).
@@ -73,4 +74,21 @@ Result: recall fell on both tests. turn3 removed 3 classes in each; 5 of those
 likely is not just weak but leans the wrong way: recon is summary-level
 ("feature present, controls not described") and gives it nothing concrete to
 separate on. Conclusion: a prune needs better evidence, not a stricter question.
+
+### P4: source code evidence for decision calls (735a086)
+
+Change: every decision call receives the source of the files recon flagged with
+content signals (read through the corpus guard; 12000 bytes per file, 120000 in
+total); research calls do not. turn3's likelihood wording points at that source.
+Spec: `prompts/dispatch/2026-10-13__playbook-agent-p4-source-evidence.md`.
+
+Result: with code to look at, turn3's removals became mostly right: 6 removed
+on Test 1 (5 absent classes), 3 on Test 2 (2 absent). Test 1 precision reached
+87.5%, but each test lost one present class to a removal, and Test 2 also never
+picked one present class. All excerpt files were read (none unreadable or
+blocked).
+
+Next: the agent sees only signal-flagged files (25 of 98 on Test 1). A class
+whose evidence sits in an unflagged file can only be rated low. P5 widens the
+excerpts to the whole codebase within a larger cap.
 
