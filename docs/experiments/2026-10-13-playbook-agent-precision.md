@@ -44,6 +44,7 @@ when one class is or is not picked, so single-run differences are noisy.
 | P3 | 4b37673 | turn3 rates each class's likelihood (high/medium/low) from recon evidence; code drops low | 5/8 | 5/10 (50.0%) | 3/7 | 3/8 (37.5%) | $0.0452 / $0.1654 |
 | P4 | 735a086 | decision calls see the source of signal-flagged files (12 KB per file, 120 KB total); turn3 rates from source and recon | 7/8 | 7/8 (87.5%) | 5/7 | 5/9 (55.6%) | $0.1046 / $0.1139 |
 | P5 | b7d0e6c | excerpts cover the whole codebase (flagged files first, 200 KB total) | 7/8 | 7/8 (87.5%) | 5/7 | 5/10 (50.0%) | $0.0419 / $0.1832 |
+| P6 | cf3675a | turn3 rates every built-in (unselected high/medium included); low requires a source check | 7/8 | 7/9 (77.8%) | 5/7 | 5/12 (41.7%) | $0.0662 / $0.1599 |
 
 The Test 1 checkpoint row is the last Test 1 run (`ab3f0bd`, same decision loop;
 its later commits changed research only, which Test 1 never reaches).
@@ -108,3 +109,49 @@ calls left out is never judged against the code. And "low" means "only the
 feature exists", a weak bar for removing a class. P6 makes turn3 rate every
 built-in, selected or not, and requires checking the source before rating low.
 
+### P6: turn3 rates every built-in; low needs a source check (cf3675a)
+
+Change: turn3 returns every built-in, selected or not, with a likelihood; an
+unselected built-in rated high or medium is included; low only after checking
+the relevant source. Spec:
+`prompts/dispatch/2026-10-13__playbook-agent-p6-turn3-rates-all-builtins.md`.
+
+Result: no gain. Test 1 kept one more absent class (7/9) and still lost the
+same present class. On Test 2 turn3 judged every built-in against the code and
+still rated the two missed present classes low.
+
+## Status: stopped, goal not met
+
+Stopped after six iterations (about ten individual changes), per the owner's
+limit. Goal: precision of at least 75% with recall 100% on both tests.
+
+Best configurations:
+
+- P4/P5 (source evidence plus turn3 likelihood): Test 1 precision 87.5%,
+  recall 7/8; Test 2 precision 50-56%, recall 5/7. P5 is cheaper on Test 1.
+- Checkpoint: recall 100% on both, precision 61.5% / 43.8%.
+
+What was learned:
+
+1. Recon-only judgement cannot separate present from absent classes. Recon is
+   summary-level; asked to rate likelihood from it (P3), the model removed
+   mostly present classes.
+2. Source code is the lever that works. With source excerpts (P4-P6) turn3's
+   removals were right 13 times out of 16 across both tests, and Test 1
+   precision reached 87.5%.
+3. The remaining recall loss is systematic, not noise: with the code in front
+   of it, the model rates the same present classes absent in every iteration
+   (one on Test 1, two on Test 2). Any generic rule that rescues them
+   would have to keep more classes in general, which costs the precision
+   gained. Fixing them specifically would need knowledge of the answer key,
+   which the protocol forbids.
+4. On Test 2 every additional class the agent has ever proposed (0 of 10
+   across all runs) scored as an unknown name. That alone caps Test 2
+   precision. Whether those classes are wrong, or are right but named outside
+   the scorer's taxonomy, is a question for the scorer and its aliases, not
+   for the agent's prompts.
+5. turn1 and turn2 (add-only) contributed almost nothing correct once the first
+   call and turn3 had source evidence.
+
+Single runs per test throughout; a one-class change moves Test 2 recall by
+about 14 points.
