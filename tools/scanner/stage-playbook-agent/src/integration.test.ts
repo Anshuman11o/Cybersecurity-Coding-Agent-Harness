@@ -29,6 +29,15 @@ const selectionOf = (builtin: string[], added: string[] = []): ClassSelection =>
   builtin, added, classes: [...builtin, ...added].sort(),
 })
 const huntUnion = (out: any) => [...new Set(out.lanes.filter((l: any) => l.disposition === 'hunt').flatMap((l: any) => l.classes))].sort()
+// An added class whose codes match no OWASP/CWE pattern; every stage must carry them as written.
+const freeId = 'mobile-platform-misuse', freeCodes = ['API10:2023', 'MASVS-PLATFORM'], freeText = 'Playbook text for a free-form-code fixture.\n'
+function freeFormOverlay(cache: string): ClassesOverlay {
+  const { playbook, codes, framework, model, sha256 } = writeCachedPlaybook(cache, freeText, {
+    class_id: freeId, playbook: freeId, framework: 'generic', model: 'test/model', codes: freeCodes, signals: ['deserialize'],
+    source_urls: ['https://example.test/mobile-platform'], queries: ['example query'], created_at: '2026-01-01T00:00:00Z',
+  }).meta
+  return { [freeId]: { playbook, codes, framework, model, sha256, signals: ['deserialize'] } }
+}
 
 function fixture(t: { after: (fn: () => void) => void }) {
   const root = mkdtempSync(join(tmpdir(), 'playbook-hooks-test-'))
@@ -386,6 +395,49 @@ test('stage entrypoint: additional-class codes outside the strict format complet
   assert.deepEqual(selection.classes, ['injection', added])
   const meta = JSON.parse(readFileSync(join(f.cache, added, 'generic', encodeURIComponent(overlay[added].model), 'meta.json'), 'utf8'))
   assert.deepEqual(meta.codes, codes)
+})
+
+test('Stage 0.5 agent mode, one file: an added class with free-form codes is accepted and reaches the hunt lane', t => {
+  const f = fixture(t)
+  f.publishSelection(['injection'], freeFormOverlay(f.cache))
+  const out = JSON.parse(f.runSelector())
+  assert.deepEqual(out.class_selection, { source: 'playbook-agent', classes: ['injection', freeId], unrouted: [] })
+  assert.equal(out.lanes[0].disposition, 'hunt')
+  assert.deepEqual(out.lanes[0].classes, ['injection', freeId])
+  assert.deepEqual(out.lanes[0].class_basis, { deserialize: ['injection', freeId] })
+})
+
+test('Stage 1 and Stage 2 accept free-form codes and carry them verbatim; no model call', t => {
+  const f = fixture(t)
+  const overlay = freeFormOverlay(f.cache)
+  const registry = { ...builtins }, sizes = new Map([['injection', 123]])
+  addOverlayPlaybookSizes(registry, sizes, overlay, signals, f.cache)
+  assert.deepEqual(registry[freeId].codes, freeCodes)
+  assert.equal(sizes.get(freeId), freeText.length)
+  // Stage 2 builds its registry with mergeClassTables over the shipped tables.
+  const merged = mergeClassTables(builtins, signals, overlay)
+  assert.deepEqual(merged.registry[freeId].codes, freeCodes)
+  assert.deepEqual(merged.signalMap.signals.deserialize, [...signals.signals.deserialize, freeId])
+  // The hunt executor's own load, import only: a finding of the class takes its codes from that registry.
+  f.publish(overlay)
+  const script = join(f.root, 'load.mts')
+  const resultFile = join(f.root, 'loaded.json')
+  writeFileSync(script, `
+    import { writeFileSync } from 'node:fs';
+    import { loadPlaybooksForClasses, describePlaybooks, mergeFindings } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/hunt-executor.ts'))};
+    const ids = [${JSON.stringify(freeId)}];
+    const loaded = await loadPlaybooksForClasses(ids);
+    const finding = { finding_id: 'f1', lane_id: 'l1', finding_classes: [{ class: ids[0], justified_by_step: 1 }], categories: [],
+      title: 'Finding', description: 'Finding.', severity_estimate: 'low', confidence: 0.5,
+      trace: [{ kind: 'entrypoint', file: 'worker.ts', line: 1, description: 'In.' }, { kind: 'sink', file: 'worker.ts', line: 2, description: 'Out.' }] };
+    const { merged } = mergeFindings([finding], [finding]);
+    writeFileSync(${JSON.stringify(resultFile)}, JSON.stringify({ loaded: [...loaded], records: describePlaybooks(ids, loaded), categories: merged[0].categories }));
+  `)
+  execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' })
+  const result = JSON.parse(readFileSync(resultFile, 'utf8'))
+  assert.equal(new Map(result.loaded).get(freeId), freeText)
+  assert.equal(result.records[0].sha256, textHash(freeText))
+  assert.deepEqual(result.categories, freeCodes)
 })
 
 test('loop switches: SCANNER_PLAYBOOK_LOOP=0 disables the turns; passes must be a positive integer', () => {

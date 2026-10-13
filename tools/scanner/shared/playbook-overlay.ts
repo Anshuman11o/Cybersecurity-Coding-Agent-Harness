@@ -32,11 +32,8 @@ export function assertSlug(value: string, label: string): void {
   }
 }
 
-/** Stages loading the overlay use the strict code format; 'free' (the playbook agent) takes any single-line code as written. */
-export function validateOverlay(
-  overlay: ClassesOverlay, builtins: ClassRegistry, map: SignalClassMap, opts: { codeFormat?: 'strict' | 'free' } = {},
-): void {
-  const free = opts.codeFormat === 'free'
+/** Every class carries at least one code; code text is free-form (non-blank, single-line, at most 100 chars) and kept as written. */
+export function validateOverlay(overlay: ClassesOverlay, builtins: ClassRegistry, map: SignalClassMap): void {
   if (!overlay || typeof overlay !== 'object' || Array.isArray(overlay)) throw new Error('Invalid classes overlay')
   for (const [id, entry] of Object.entries(overlay)) {
     assertSlug(id, 'class id')
@@ -44,9 +41,7 @@ export function validateOverlay(
     if (!entry || entry.playbook !== id) throw new Error(`Overlay playbook must equal class id ${id}`)
     assertSlug(entry.framework, 'framework')
     if (!Array.isArray(entry.codes) || !entry.codes.length ||
-        entry.codes.some(c => typeof c !== 'string' || (free
-          ? !c.trim() || c.length > 100 || /[\n\r\u2028\u2029]/.test(c)
-          : !/^(?:CWE-\d+|A\d{2}|API\d+|LLM\d{2})$/.test(c)))) {
+        entry.codes.some(c => typeof c !== 'string' || !c.trim() || c.length > 100 || /[\n\r\u2028\u2029]/.test(c))) {
       throw new Error(`Invalid codes for ${id}`)
     }
     if (!Array.isArray(entry.signals) || !entry.signals.length ||

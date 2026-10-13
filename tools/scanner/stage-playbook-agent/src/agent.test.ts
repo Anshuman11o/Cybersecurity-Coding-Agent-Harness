@@ -166,23 +166,16 @@ test('invalid additions fail before search: built-ins, traversal, unknown signal
   }
 })
 
-test('overlay codes: strict, the default, keeps the OWASP/CWE format; free takes any non-blank single-line code', () => {
+test('overlay codes: at least one, any non-blank single-line text of at most 100 characters', () => {
   const overlay = (codes: unknown) => ({ [proposed.id]: {
     playbook: proposed.id, codes, signals: proposed.signals, framework: proposed.framework, model: 'test-model', sha256: '0'.repeat(64),
   } }) as ClassesOverlay
-  const check = (codes: unknown, codeFormat?: 'strict' | 'free') => () =>
-    codeFormat ? validateOverlay(overlay(codes), builtins, signals, { codeFormat }) : validateOverlay(overlay(codes), builtins, signals)
+  const check = (codes: unknown) => () => validateOverlay(overlay(codes), builtins, signals)
   const invalid = { message: `Invalid codes for ${proposed.id}` }
-  for (const codes of [['API10:2023'], ['M3'], ['MASVS-STORAGE'], ['CWE-362', 'MASVS-STORAGE']]) {
-    assert.throws(check(codes), invalid)
-    assert.throws(check(codes, 'strict'), invalid)
-    assert.doesNotThrow(check(codes, 'free'))
-  }
-  for (const codes of [['CWE-362', 'A03', 'API1', 'LLM01'], ['x'.repeat(100)]]) assert.doesNotThrow(check(codes, 'free'))
-  assert.doesNotThrow(check(['CWE-362', 'A03', 'API1', 'LLM01']))
-  for (const codes of [[], 'CWE-362', null, [''], ['   '], [' \t'], [42], [null], ['x'.repeat(101)],
-    ['API10:2023\nM3'], ['M3\r'], ['API10:2023', '']]) {
-    assert.throws(check(codes, 'free'), invalid)
+  for (const codes of [['API10:2023'], ['M3'], ['MASVS-STORAGE'], ['CWE-79'], ['A03'],
+    ['API10:2023', 'M3', 'MASVS-STORAGE', 'CWE-79', 'A03'], ['x'.repeat(100)]]) assert.doesNotThrow(check(codes))
+  for (const codes of [[], 'CWE-79', null, [''], ['   '], [' \t'], [42], [null], ['x'.repeat(101)],
+    ['API10:2023\nM3'], ['M3\r'], ['M3\u2028'], ['\u2029M3'], ['API10:2023', '']]) {
     assert.throws(check(codes), invalid)
   }
 })

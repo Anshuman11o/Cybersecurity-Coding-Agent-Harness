@@ -173,7 +173,7 @@ function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOption
   }
   for (const c of d.classes) {
     if (!c || classes.has(c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
-    validateOverlay({ [c.id]: overlayEntry(c, o.model) }, o.builtins, o.signals, { codeFormat: 'free' })
+    validateOverlay({ [c.id]: overlayEntry(c, o.model) }, o.builtins, o.signals)
     classes.add(c.id)
   }
   if (turn && (!Array.isArray(d.changes) ||
@@ -318,7 +318,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     // using a fresh decision's possibly different codes or mapping.
     const { playbook, codes, signals, framework, model, sha256 } = entry.meta
     overlay[c.id] = { playbook, codes, signals, framework, model, sha256 }
-    validateOverlay(overlay, o.builtins, o.signals, { codeFormat: 'free' })
+    validateOverlay(overlay, o.builtins, o.signals)
     plan.classes.push({ ...c, codes, signals, cache: hit ? 'hit' : 'created', sha256 })
     plan.playbooks.push(agentPlaybookRecord(entry.meta))
   }
