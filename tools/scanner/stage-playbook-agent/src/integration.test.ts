@@ -353,6 +353,41 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   assert.deepEqual(out.class_selection.classes, selection.classes)
 })
 
+test('stage entrypoint: additional-class codes outside the strict format complete the run and are stored verbatim', t => {
+  const f = fixture(t)
+  const added = 'mobile-platform-misuse', codes = ['API10:2023', 'MASVS-PLATFORM']
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
+    const source = 'https://example.test/mobile-platform';
+    await main(async (request, purpose) => purpose.startsWith('research:') ? {
+      id: 'mock-research', model: request.model, status: 'completed', usage,
+      output: [{ type: 'web_search_call', status: 'completed', action: { type: 'search', queries: ['q'], sources: [{ type: 'url', url: source }] } }],
+      output_text: JSON.stringify({ playbook: playbook.replace('Playbook for Access Control', 'Playbook for Mobile Platform Misuse'), source_urls: [source] }),
+    } : {
+      id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
+      output_text: JSON.stringify({ reason: 'Platform API misuse is uncovered.',
+        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
+        classes: [{ id: ${JSON.stringify(added)}, framework: 'generic', codes: ${JSON.stringify(codes)}, signals: ['deserialize'], reason: 'Platform.' }],
+        changes: [] }),
+    });
+  `)
+  const log = execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }).toString()
+  assert.match(log, /Playbook agent: 2 class\(es\) selected \(1 built-in, 1 additional\)/)
+  assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 0)
+  const overlay = JSON.parse(readFileSync(join(f.agentDir, 'classes-overlay.json'), 'utf8'))
+  const selection = JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8'))
+  assert.deepEqual(Object.keys(overlay), [added])
+  assert.deepEqual(overlay[added].codes, codes)
+  assert.deepEqual(selection.added, [added])
+  assert.deepEqual(selection.classes, ['injection', added])
+  const meta = JSON.parse(readFileSync(join(f.cache, added, 'generic', encodeURIComponent(overlay[added].model), 'meta.json'), 'utf8'))
+  assert.deepEqual(meta.codes, codes)
+})
+
 test('loop switches: SCANNER_PLAYBOOK_LOOP=0 disables the turns; passes must be a positive integer', () => {
   assert.deepEqual(loopOptions({}), { enabled: true, maxPasses: 3 })
   assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP: '0' }), { enabled: false, maxPasses: 3 })

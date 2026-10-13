@@ -62,7 +62,9 @@ signal mappings, and available cached classes. It offers the Responses
 `web_search` tool (`tool_choice: 'auto'`, with any configured domain filter):
 the model searches when it judges the built-ins leave a surface recon shows
 uncovered, and no search is required. The model returns a reason, the selected
-built-ins and zero or more additional class definitions.
+built-ins and zero or more additional class definitions. Additional-class codes
+are stored as the model wrote them (non-empty strings); Stage 0.5, 1 and 2 still
+apply the strict OWASP/CWE code format when they load the overlay.
 
 A code-driven loop of review turns follows that initial decision:
 

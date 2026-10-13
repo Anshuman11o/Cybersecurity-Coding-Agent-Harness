@@ -10,6 +10,7 @@ import {
 } from './agent.js'
 import { PlaybookMeter } from './meter.js'
 import { readCachedPlaybook, cacheDirectory, textHash } from '../../shared/playbook-cache.js'
+import { validateOverlay, type ClassesOverlay } from '../../shared/playbook-overlay.js'
 import { productDefaultProvider, webSearchUsdPerCall } from '../../shared/provider.js'
 import { resolveRunContext } from '../../shared/run-context.js'
 
@@ -162,6 +163,27 @@ test('invalid additions fail before search: built-ins, traversal, unknown signal
     const h = harness(t, 'uncovered', [response({ reason: 'Uncovered.', builtin_classes: [], classes })])
     await assert.rejects(runPlaybookAgent(h.options), /built-in class|class id|signals|duplicate proposed/)
     assert.equal(h.requests.length, 1)
+  }
+})
+
+test('overlay codes: strict, the default, keeps the OWASP/CWE format; free takes any non-blank single-line code', () => {
+  const overlay = (codes: unknown) => ({ [proposed.id]: {
+    playbook: proposed.id, codes, signals: proposed.signals, framework: proposed.framework, model: 'test-model', sha256: '0'.repeat(64),
+  } }) as ClassesOverlay
+  const check = (codes: unknown, codeFormat?: 'strict' | 'free') => () =>
+    codeFormat ? validateOverlay(overlay(codes), builtins, signals, { codeFormat }) : validateOverlay(overlay(codes), builtins, signals)
+  const invalid = { message: `Invalid codes for ${proposed.id}` }
+  for (const codes of [['API10:2023'], ['M3'], ['MASVS-STORAGE'], ['CWE-362', 'MASVS-STORAGE']]) {
+    assert.throws(check(codes), invalid)
+    assert.throws(check(codes, 'strict'), invalid)
+    assert.doesNotThrow(check(codes, 'free'))
+  }
+  for (const codes of [['CWE-362', 'A03', 'API1', 'LLM01'], ['x'.repeat(100)]]) assert.doesNotThrow(check(codes, 'free'))
+  assert.doesNotThrow(check(['CWE-362', 'A03', 'API1', 'LLM01']))
+  for (const codes of [[], 'CWE-362', null, [''], ['   '], [' \t'], [42], [null], ['x'.repeat(101)],
+    ['API10:2023\nM3'], ['M3\r'], ['API10:2023', '']]) {
+    assert.throws(check(codes, 'free'), invalid)
+    assert.throws(check(codes), invalid)
   }
 })
 
