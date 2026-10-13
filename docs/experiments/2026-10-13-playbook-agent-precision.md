@@ -43,6 +43,7 @@ when one class is or is not picked, so single-run differences are noisy.
 | P2 | 8f07d9e | turn2 adds only with named recon evidence; turn3 re-thinks from turn2's evidence (keep, include, remove with explanation) | 8/8 | 8/13 (61.5%) | 6/7 | 6/13 (46.2%) | $0.0458 / $0.0822 |
 | P3 | 4b37673 | turn3 rates each class's likelihood (high/medium/low) from recon evidence; code drops low | 5/8 | 5/10 (50.0%) | 3/7 | 3/8 (37.5%) | $0.0452 / $0.1654 |
 | P4 | 735a086 | decision calls see the source of signal-flagged files (12 KB per file, 120 KB total); turn3 rates from source and recon | 7/8 | 7/8 (87.5%) | 5/7 | 5/9 (55.6%) | $0.1046 / $0.1139 |
+| P5 | b7d0e6c | excerpts cover the whole codebase (flagged files first, 200 KB total) | 7/8 | 7/8 (87.5%) | 5/7 | 5/10 (50.0%) | $0.0419 / $0.1832 |
 
 The Test 1 checkpoint row is the last Test 1 run (`ab3f0bd`, same decision loop;
 its later commits changed research only, which Test 1 never reaches).
@@ -91,4 +92,19 @@ blocked).
 Next: the agent sees only signal-flagged files (25 of 98 on Test 1). A class
 whose evidence sits in an unflagged file can only be rated low. P5 widens the
 excerpts to the whole codebase within a larger cap.
+
+### P5: whole-codebase source evidence (b7d0e6c)
+
+Change: excerpts take signal-flagged files first, then every other non-test
+source file by path (stylesheets and unflagged json excluded), cap 200000 bytes.
+Spec: `prompts/dispatch/2026-10-13__playbook-agent-p5-whole-codebase-evidence.md`.
+
+Result: Test 1 unchanged from P4 (one present class still removed). On Test 2
+every turn3 removal was now right, but two present classes were never picked
+by any call, and the three additional classes all scored as unknown names.
+
+Next: turn3 only re-rates what is already selected, so a class the earlier
+calls left out is never judged against the code. And "low" means "only the
+feature exists", a weak bar for removing a class. P6 makes turn3 rate every
+built-in, selected or not, and requires checking the source before rating low.
 
