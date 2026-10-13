@@ -16,6 +16,7 @@ import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '..
 import { loadRegistryModules } from '../../cli/src/registry.js'
 import { readRunPlaybooks } from '../../cli/src/playbooks.js'
 import { collectSourceExcerpts, EXCERPT_FILE_BYTES, EXCERPT_TOTAL_BYTES, loadRecon, loopOptions } from './main.js'
+import type { InventoryEntry } from '../../stage0-recon/src/recon-contract.js'
 
 const scanner = fileURLToPath(new URL('../..', import.meta.url))
 const tsx = join(scanner, 'stage-playbook-agent/node_modules/.bin/tsx')
@@ -616,7 +617,11 @@ const spyRead = (read: (p: string) => string | null) => {
   return { asked, read: (p: string) => { asked.push(p); return read(p) } }
 }
 
-test('source excerpts: content-signal files only, most distinct signals first then path; long files cut at a newline; unreadable reads counted', t => {
+// A recon inventory entry: a source file unless a flag says otherwise.
+const inv = (path: string, language = 'typescript', flags: Partial<Pick<InventoryEntry, 'test' | 'oversize' | 'empty'>> = {}): InventoryEntry =>
+  ({ path, language, bytes: 1, test: false, oversize: false, empty: false, ...flags })
+
+test('source excerpts: content-signal files first, most distinct signals first then path; long files cut at a newline; unreadable reads counted', t => {
   const f = fixture(t)
   const lines = Array.from({ length: 1500 }, (_, k) => `line ${String(k).padStart(4, '0')}`).join('\n') + '\n'
   const write = (p: string, text: string) => { mkdirSync(dirname(join(f.target, p)), { recursive: true }); writeFileSync(join(f.target, p), text) }
@@ -637,7 +642,8 @@ test('source excerpts: content-signal files only, most distinct signals first th
     'missing.ts': ['logging'], '../outside.ts': ['logging'], '.secscan/prior.json': ['logging'],
   }
   const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
-  const out = collectSourceExcerpts({ files, target_dir: f.target }, f.target, spy.read)
+  // No inventory: the signal-flagged group alone, exactly as before the unflagged group existed.
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, [], f.target, spy.read)
   const order = ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', '../outside.ts', '.secscan/prior.json', 'missing.ts', 'one.ts']
   assert.deepEqual(spy.asked, order.map(p => relative(REPO_ROOT, join(f.target, p))), 'dep_manifest-only and signal-less files are never read')
   assert.deepEqual(out.files.map(x => x.path), ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', 'one.ts'])
@@ -653,25 +659,75 @@ test('source excerpts: content-signal files only, most distinct signals first th
   for (const marker of ['MANIFEST_ONLY_MARKER', 'PRIOR_RUN_MARKER', 'OUTSIDE_CORPUS_MARKER']) assert.ok(!all.includes(marker), marker)
 })
 
-test('source excerpts: the set stops at the first file that would pass the total cap; the rest are counted as omitted', t => {
+test('source excerpts: flagged files first, then every other inventoried source file by path; tests, oversize, empty, css, unflagged json and manifest-only files excluded; no duplicates', t => {
+  const f = fixture(t)
+  const write = (p: string, text: string) => { mkdirSync(dirname(join(f.target, p)), { recursive: true }); writeFileSync(join(f.target, p), text) }
+  const sources: Record<string, string> = {
+    'many.ts': 'export const many = 1\n', 'one.ts': 'export const one = 1\n', 'config.json': '{"debug":true}\n',
+    'src/a.ts': 'export const a = 1\n', 'b.py': 'b = 1\n', 'zz/c.ts': 'export const c = 1\n', 'Z.go': 'package z\n',
+  }
+  for (const [p, text] of Object.entries(sources)) write(p, text)
+  const excluded: Record<string, string> = {
+    'spec/x.test.ts': 'TEST_MARKER', 'huge.ts': 'OVERSIZE_MARKER', 'blank.ts': 'EMPTY_MARKER', 'style.css': 'CSS_MARKER',
+    'data.json': 'JSON_MARKER', 'Gemfile': 'MANIFEST_ONLY_MARKER', 'package.json': 'PACKAGE_MARKER',
+  }
+  for (const [p, marker] of Object.entries(excluded)) write(p, marker + '\n')
+  const files: Record<string, string[]> = {
+    'one.ts': ['logging'], 'many.ts': ['route_handler', 'db_query'],
+    // A json file recon flagged with a content signal belongs to the flagged group.
+    'config.json': ['config_file'],
+    'Gemfile': ['dep_manifest'], 'package.json': ['dep_manifest', 'dep_manifest'],
+    // Recon recorded no signal for it: an unflagged source file.
+    'src/a.ts': [],
+  }
+  const inventory = [
+    inv('zz/c.ts'), inv('src/a.ts'), inv('one.ts'), inv('many.ts'), inv('config.json', 'json'), inv('b.py', 'python'), inv('Z.go', 'go'),
+    inv('missing.ts'), inv('src/a.ts'),
+    inv('spec/x.test.ts', 'typescript', { test: true }), inv('huge.ts', 'typescript', { oversize: true }),
+    inv('blank.ts', 'typescript', { empty: true }), inv('style.css', 'css'), inv('data.json', 'json'),
+    inv('Gemfile', 'manifest'), inv('package.json', 'json'),
+  ]
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, inventory, f.target, spy.read)
+  const order = ['many.ts', 'config.json', 'one.ts', 'Z.go', 'b.py', 'missing.ts', 'src/a.ts', 'zz/c.ts']
+  assert.deepEqual(spy.asked, order.map(p => relative(REPO_ROOT, join(f.target, p))), 'each path read once, in group order')
+  assert.deepEqual(out.files.map(x => x.path), order.filter(p => p !== 'missing.ts'))
+  assert.deepEqual([out.unreadable_files, out.omitted_files], [1, 0])
+  assert.deepEqual(out.files.find(x => x.path === 'config.json'), { path: 'config.json', signals: ['config_file'], truncated: false, text: sources['config.json'] })
+  for (const p of ['Z.go', 'b.py', 'src/a.ts', 'zz/c.ts']) {
+    assert.deepEqual(out.files.find(x => x.path === p), { path: p, signals: [], truncated: false, text: sources[p] }, p)
+  }
+  const all = JSON.stringify(out)
+  for (const marker of Object.values(excluded)) assert.ok(!all.includes(marker), marker)
+})
+
+test('source excerpts: the set stops at the first file that would pass the total cap, across both groups; the rest are counted as omitted', t => {
   const f = fixture(t)
   const files: Record<string, string[]> = {}
-  for (let k = 0; k < 12; k++) {
+  const inventory: InventoryEntry[] = []
+  for (let k = 0; k < 20; k++) {
     const p = `f${String(k).padStart(2, '0')}.ts`
     writeFileSync(join(f.target, p), `// ${p}\n` + 'x'.repeat(10990) + '\n')
-    files[p] = ['logging']
+    // The first ten are flagged; the rest reach the set only through the inventory.
+    if (k < 10) files[p] = ['logging']
+    inventory.push(inv(p))
   }
   // Small enough to fit, but after the stop: still omitted, never read.
   writeFileSync(join(f.target, 'z.ts'), 'export const z = 1\n')
-  files['z.ts'] = ['logging']
+  inventory.push(inv('z.ts'))
+  // Unreadable before the stop: counted, and no part of the cap.
+  inventory.push(inv('f10-missing.ts'))
   const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
-  const out = collectSourceExcerpts({ files, target_dir: f.target }, f.target, spy.read)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, inventory, f.target, spy.read)
   const each = Buffer.byteLength(readFileSync(join(f.target, 'f00.ts'), 'utf8'))
+  assert.equal(EXCERPT_TOTAL_BYTES, 200000)
   assert.equal(out.files.length, Math.floor(EXCERPT_TOTAL_BYTES / each))
-  assert.equal(out.files.length, 10)
+  assert.equal(out.files.length, 18)
+  assert.deepEqual(out.files.map(x => x.signals.length), [...Array(10).fill(1), ...Array(8).fill(0)])
   assert.ok(out.files.reduce((n, x) => n + Buffer.byteLength(x.text), 0) <= EXCERPT_TOTAL_BYTES)
-  assert.deepEqual([out.omitted_files, out.unreadable_files], [3, 0])
-  assert.equal(spy.asked.length, 11, 'reading stops at the file that would pass the cap')
+  // Read: f00-f09, then f10-missing ('-' sorts before '.'), f10-f17, and f18, which would pass the cap.
+  assert.deepEqual([out.omitted_files, out.unreadable_files], [3, 1])
+  assert.equal(spy.asked.length, 20, 'reading stops at the file that would pass the cap')
   assert.ok(out.files.every(x => !x.truncated))
 })
 
@@ -679,17 +735,28 @@ test('source excerpts in the benchmark: denylisted files are refused by the guar
   const bench = resolveRunContext({}, [], REPO_ROOT)
   const blind = SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).map(p => p.slice('target-apps/juice-shop-blind/'.length))
   assert.ok(blind.length > 0)
-  const spy = spyRead(makeReadGuard(bench).readCorpusFile)
-  const out = collectSourceExcerpts({ files: Object.fromEntries(blind.map(p => [p, ['db_query']])), target_dir: bench.targetRoot }, bench.targetRoot, spy.read)
-  // The guard's denylist is a raw string match: the paths asked for must be exactly the denylisted ones.
-  assert.deepEqual(spy.asked.sort(), SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).sort())
-  assert.deepEqual(out, { files: [], omitted_files: 0, unreadable_files: blind.length })
+  for (const viaInventory of [false, true]) {
+    const spy = spyRead(makeReadGuard(bench).readCorpusFile)
+    const out = viaInventory
+      ? collectSourceExcerpts({ files: {}, target_dir: bench.targetRoot }, blind.map(p => inv(p)), bench.targetRoot, spy.read)
+      : collectSourceExcerpts({ files: Object.fromEntries(blind.map(p => [p, ['db_query']])), target_dir: bench.targetRoot }, [], bench.targetRoot, spy.read)
+    // The guard's denylist is a raw string match: the paths asked for must be exactly the denylisted ones.
+    assert.deepEqual(spy.asked.sort(), SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).sort())
+    assert.deepEqual(out, { files: [], omitted_files: 0, unreadable_files: blind.length })
+  }
 })
 
-test('stage entrypoint: every decision call receives the target source; the plan records counts, no text', t => {
+test('stage entrypoint: every decision call receives the target source, flagged files then inventoried ones; the plan records counts, no text', t => {
   const f = fixture(t)
   writeFileSync(join(f.target, 'manifest.json'), '{"name":"MANIFEST_ONLY_MARKER"}\n')
+  writeFileSync(join(f.target, 'app.ts'), 'export const app = 1\n')
+  writeFileSync(join(f.target, 'site.css'), 'body { content: "CSS_MARKER" }\n')
   json(join(f.stage0, 'file-signals.json'), { target_dir: f.target, files: { 'worker.ts': ['deserialize'], 'manifest.json': ['dep_manifest'] } })
+  json(join(f.stage0, 'file-inventory.json'), {
+    target_dir: f.target, files: [['app.ts', 'typescript'], ['manifest.json', 'json'], ['site.css', 'css'], ['worker.ts', 'typescript']]
+      .map(([path, language]) => ({ path, language, bytes: 1, empty: false, test: false, oversize: false })),
+    totals: { test: 0, oversize: 0, empty: 0, excluded_files: 0, excluded_dirs: 0 }, options: { max_file_bytes: 200000 },
+  })
   const script = join(f.root, 'stage.mts'), inputs = join(f.root, 'inputs.json')
   writeFileSync(script, `
     import { writeFileSync } from 'node:fs';
@@ -710,14 +777,17 @@ test('stage entrypoint: every decision call receives the target source; the plan
   execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' })
   const seen = JSON.parse(readFileSync(inputs, 'utf8'))
   assert.deepEqual(Object.keys(seen), ['coverage', 'turn1', 'turn2:pass1', 'turn3'])
-  const worker = readFileSync(join(f.target, 'worker.ts'), 'utf8')
+  const worker = readFileSync(join(f.target, 'worker.ts'), 'utf8'), app = readFileSync(join(f.target, 'app.ts'), 'utf8')
   for (const purpose of Object.keys(seen)) {
     const excerpts = JSON.parse(seen[purpose]).source_excerpts
-    assert.deepEqual(excerpts.files, [{ path: 'worker.ts', signals: ['deserialize'], truncated: false, text: worker }], purpose)
+    assert.deepEqual(excerpts.files, [
+      { path: 'worker.ts', signals: ['deserialize'], truncated: false, text: worker },
+      { path: 'app.ts', signals: [], truncated: false, text: app },
+    ], purpose)
     assert.deepEqual([excerpts.omitted_files, excerpts.unreadable_files], [0, 0])
-    assert.ok(!seen[purpose].includes('MANIFEST_ONLY_MARKER'), purpose)
+    assert.ok(!seen[purpose].includes('MANIFEST_ONLY_MARKER') && !seen[purpose].includes('CSS_MARKER'), purpose)
   }
   const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
-  assert.deepEqual(plan.source_excerpts, { files: 1, bytes: Buffer.byteLength(worker), truncated: 0, omitted_files: 0, unreadable_files: 0 })
+  assert.deepEqual(plan.source_excerpts, { files: 2, bytes: Buffer.byteLength(worker) + Buffer.byteLength(app), truncated: 0, omitted_files: 0, unreadable_files: 0 })
   assert.ok(!readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8').includes('JSON.parse(message)'), 'no excerpt text in the plan')
 })

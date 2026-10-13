@@ -67,22 +67,30 @@ built-ins and zero or more additional class definitions. Every class carries at
 least one code; the text is free-form, stored as the model wrote it, and passes
 through all stages to findings unchanged.
 
-`source_excerpts` gives the decision calls the source of the files recon
-flagged with content signals: every file in recon's `file-signals.json` whose
-signal list holds at least one signal other than `dep_manifest`, ordered by its
-number of distinct signals (most first), then by path. `main.ts` reads each
+`source_excerpts` gives the decision calls the source of the target's files,
+in two groups. First the files recon flagged with content signals: every file
+in recon's `file-signals.json` whose signal list holds at least one signal
+other than `dep_manifest`, ordered by its number of distinct signals (most
+first), then by path. Then every other file in recon's `file-inventory.json`
+(read by `main.ts` from the same recon directory), ordered by path, except
+files marked `test`, `oversize` or `empty`, files whose `language` is `css` or
+`json`, and files whose recon signals are only `dep_manifest`. A json file
+recon flagged with a content signal, such as a config, is in the first group.
+A path appears at most once. `main.ts` reads each
 through `readCorpusFile` in `shared/read-guard.ts`, the same corpus guard
 Stage 2 uses (allowlisted roots, the benchmark seed denylist, product
 exclusions and recon's read allowlist); a refused or missing read is skipped
 and counted in `unreadable_files`. A file over 12000 bytes is cut at its last
 newline within the first 12000 bytes (at 12000 bytes, on a character boundary,
-when it has none) and marked `truncated: true`. The set holds at most 120000
+when it has none) and marked `truncated: true`. The set holds at most 200000
 bytes of text: it stops at the first file that would pass that, and that file
-and every later one are counted in `omitted_files` without being read. The caps
-are constants in `main.ts`; no environment variable changes them. Each entry is
-`{ path, signals, truncated, text }`, and the object carries a fixed `about`
-string that marks the text as evidence, not instructions. Only decision calls
-receive it; research and revision calls do not, and playbooks stay generic.
+and every later one, in either group, are counted in `omitted_files` without
+being read. The caps are constants in `main.ts`; no environment variable
+changes them. Each entry is `{ path, signals, truncated, text }`, with
+`signals` empty for a file from the second group, and the object carries a
+fixed `about` string that marks the text as evidence, not instructions. Only
+decision calls receive it; research and revision calls do not, and playbooks
+stay generic.
 
 A code-driven loop of review turns follows that initial decision:
 

@@ -11,6 +11,8 @@ import { cacheRoot } from '../../shared/playbook-cache.js'
 import { CLASS_SELECTION_FILE, PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
 import { runPlaybookAgent, type AgentOptions, type ReconInput, type SourceExcerpt, type SourceExcerpts, type UsageCall } from './agent.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+// Relative across packages: the contract has no runtime dependencies.
+import { FILE_INVENTORY_FILE, type FileInventoryArtifact, type InventoryEntry } from '../../stage0-recon/src/recon-contract.js'
 import { PlaybookMeter } from './meter.js'
 
 function writeJson(file: string, data: unknown) {
@@ -32,16 +34,33 @@ export function loadRecon(dir: string): ReconInput {
 
 /** Caps on the source decision calls receive: per file, then for the whole set. */
 export const EXCERPT_FILE_BYTES = 12000
-export const EXCERPT_TOTAL_BYTES = 120000
+export const EXCERPT_TOTAL_BYTES = 200000
 
-/** Source of every file recon flagged with a signal other than dep_manifest, most distinct signals first, then by path.
- *  Read through the corpus guard; a null read is skipped and counted. A file over the per-file cap is cut at its last
- *  newline within it; the set stops at the first file that would pass the total cap, and the rest are counted as omitted. */
-export function collectSourceExcerpts(fileSignals: ReconInput['file_signals'], targetDir: string,
+/** Inventoried languages whose files are not source unless recon flagged them. */
+const UNFLAGGED_EXCLUDED_LANGUAGES = new Set(['css', 'json'])
+const byPath = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
+/** Source of the target's files, in two groups. First every file recon flagged with a signal other than dep_manifest,
+ *  most distinct signals first, then by path. Then every other inventoried file that is not a test, oversize or empty,
+ *  whose language is not css or json and whose signals are not only dep_manifest, by path, with no signals. A path
+ *  appears once. Read through the corpus guard; a null read is skipped and counted. A file over the per-file cap is cut
+ *  at its last newline within it; the set stops at the first file that would pass the total cap, and the rest are
+ *  counted as omitted. */
+export function collectSourceExcerpts(fileSignals: ReconInput['file_signals'], inventory: InventoryEntry[], targetDir: string,
   read: (relPath: string) => string | null = readCorpusFile): SourceExcerpts {
-  const candidates = Object.entries(fileSignals.files)
+  const flagged = Object.entries(fileSignals.files)
     .filter(([, signals]) => signals.some(s => s !== 'dep_manifest'))
-    .sort(([a, x], [b, y]) => new Set(y).size - new Set(x).size || (a < b ? -1 : a > b ? 1 : 0))
+    .sort(([a, x], [b, y]) => new Set(y).size - new Set(x).size || byPath(a, b))
+  const seen = new Set(flagged.map(([path]) => path))
+  const unflagged: [string, string[]][] = []
+  for (const entry of [...inventory].sort((a, b) => byPath(a.path, b.path))) {
+    if (seen.has(entry.path) || entry.test || entry.oversize || entry.empty || UNFLAGGED_EXCLUDED_LANGUAGES.has(entry.language)) continue
+    const signals = fileSignals.files[entry.path] ?? []
+    if (signals.length > 0 && signals.every(s => s === 'dep_manifest')) continue
+    seen.add(entry.path)
+    unflagged.push([entry.path, []])
+  }
+  const candidates = [...flagged, ...unflagged]
   const files: SourceExcerpt[] = []
   let total = 0, unreadable = 0
   for (const [k, [path, signals]] of candidates.entries()) {
@@ -90,7 +109,9 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     assertUpstream(provider, 'stage0-recon')
     const recon = loadRecon(runPath(provider, 'stage0-recon'))
     if (recon.file_signals.target_dir !== getRunContext().targetRoot) throw new Error('Recon target differs from this run')
-    const sourceExcerpts = collectSourceExcerpts(recon.file_signals, getRunContext().targetRoot)
+    const inventory: FileInventoryArtifact = JSON.parse(readFileSync(join(runPath(provider, 'stage0-recon'), FILE_INVENTORY_FILE), 'utf8'))
+    if (inventory.target_dir !== getRunContext().targetRoot) throw new Error('Recon inventory target differs from this run')
+    const sourceExcerpts = collectSourceExcerpts(recon.file_signals, inventory.files, getRunContext().targetRoot)
     const shared = join(REPO_ROOT, 'tools/scanner/shared')
     const builtins: ClassRegistry = JSON.parse(readFileSync(join(shared, 'vuln-classes.json'), 'utf8'))
     const signals: SignalClassMap = JSON.parse(readFileSync(join(shared, 'signal-classes.json'), 'utf8'))
