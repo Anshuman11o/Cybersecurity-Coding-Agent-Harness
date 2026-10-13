@@ -155,3 +155,27 @@ What was learned:
 
 Single runs per test throughout; a one-class change moves Test 2 recall by
 about 14 points.
+
+## Decision: the checkpoint is the final architecture
+
+The project owner chose to keep the checkpoint architecture (scanner code
+`78cbf46`, full recall on both tests) as the playbook agent's final design. On
+`claude-anshuman/nifty-goldberg-q8g8lp` the whole of
+`tools/scanner/stage-playbook-agent/` was restored byte for byte to the
+checkpoint; nothing else under `tools/` had changed.
+
+Kept for future reference, not in force:
+
+- every change tried, as code: branch `claude-anshuman/playbook-agent-precision`
+  (P1 `c61dbe2`, P2 `8f07d9e`, P3 `4b37673`, P4 `735a086`, P5 `b7d0e6c`,
+  P6 `cf3675a`), and its draft PR against the checkpoint branch;
+- every change tried, as a spec: `prompts/dispatch/2026-10-13__playbook-agent-*`;
+- every run: aggregate rows in `results/eval-history/playbook-agent.jsonl`,
+  located detail in the answer-key repos under
+  `evaluations/2026-10-13-playbook-agent-luna6-*`;
+- the checkpoint itself: branch `claude-anshuman/playbook-agent-checkpoint-recall100`
+  at `914e5a7`.
+
+If precision work resumes, the most promising starting point is P4/P5 (source
+code evidence for the decision calls); see the status section above for the
+recall loss it still carries.

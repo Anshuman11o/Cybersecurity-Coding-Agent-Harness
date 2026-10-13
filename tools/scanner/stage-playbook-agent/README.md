@@ -58,8 +58,7 @@ silently. No full scan or paid call was used to test this implementation.
 `guidance.md` is loaded at runtime. A strict structured coverage call receives
 the architecture, languages, frameworks, manifest section of recon's repo map,
 file signals and counts, category applicability, built-in text and registry,
-signal mappings, available cached classes, and source excerpts from the
-target. It offers the Responses
+signal mappings, and available cached classes. It offers the Responses
 `web_search` tool (`tool_choice: 'auto'`, with any configured domain filter):
 the model searches when it judges the built-ins leave a surface recon shows
 uncovered, and no search is required. The model returns a reason, the selected
@@ -67,85 +66,31 @@ built-ins and zero or more additional class definitions. Every class carries at
 least one code; the text is free-form, stored as the model wrote it, and passes
 through all stages to findings unchanged.
 
-`source_excerpts` gives the decision calls the source of the target's files,
-in two groups. First the files recon flagged with content signals: every file
-in recon's `file-signals.json` whose signal list holds at least one signal
-other than `dep_manifest`, ordered by its number of distinct signals (most
-first), then by path. Then every other file in recon's `file-inventory.json`
-(read by `main.ts` from the same recon directory), ordered by path, except
-files marked `test`, `oversize` or `empty`, files whose `language` is `css` or
-`json`, and files whose recon signals are only `dep_manifest`. A json file
-recon flagged with a content signal, such as a config, is in the first group.
-A path appears at most once. `main.ts` reads each
-through `readCorpusFile` in `shared/read-guard.ts`, the same corpus guard
-Stage 2 uses (allowlisted roots, the benchmark seed denylist, product
-exclusions and recon's read allowlist); a refused or missing read is skipped
-and counted in `unreadable_files`. A file over 12000 bytes is cut at its last
-newline within the first 12000 bytes (at 12000 bytes, on a character boundary,
-when it has none) and marked `truncated: true`. The set holds at most 200000
-bytes of text: it stops at the first file that would pass that, and that file
-and every later one, in either group, are counted in `omitted_files` without
-being read. The caps are constants in `main.ts`; no environment variable
-changes them. Each entry is `{ path, signals, truncated, text }`, with
-`signals` empty for a file from the second group, and the object carries a
-fixed `about` string that marks the text as evidence, not instructions. Only
-decision calls receive it; research and revision calls do not, and playbooks
-stay generic.
-
 A code-driven loop of review turns follows that initial decision:
 
 | Purpose | Runs | Asks the model to |
 |---|---|---|
 | `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
-| `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; add one only when recon shows the target has its surface, naming that evidence in `changes`; the loop stops at the first pass that adds no class id |
-| `turn3` | once | re-select from `turn2_review`, the current classes, recon's data and the source in `source_excerpts`: return every built-in, selected or not, and every selected additional class, each rated `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged from that evidence (`high` for a concrete sink, risky pattern, unsafe configuration or missing control in the source or recon; `low` only after checking the relevant source and finding no such sink or path, or every one properly controlled); the final selection is every class rated `high` or `medium`, so an unselected built-in rated `high` or `medium` is included and classes rated `low` are removed; include an additional class not selected only with such evidence in `changes` |
+| `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 3) | reconsider every class not selected; the loop stops at the first pass that adds no class id |
+| `turn3` | once | check that every surface recon describes is covered and each additional class is distinct |
 
 Each turn is a decision call like the first, with web search available, and
-returns the same schema plus `changes` (`{ id, why }` per addition, or per
-inclusion and removal in turn3). turn3's schema alone also requires
-`likelihood` (`high`, `medium` or `low`) on every `builtin_classes` and
-`classes` item. Every
+returns the same schema plus `changes` (`{ id, why }` per addition). Every
 decision call's input starts with the same object (recon, signal counts,
-signal mappings, built-ins, cached classes, source excerpts) so the calls share a cacheable
-prefix; a turn appends the decision so far and the queries and sources
-of every earlier decision call. turn3 alone also receives, last,
-`turn2_review`: one `{ purpose, reason, changes }` entry per turn2 pass run, in
-order, with `reason` and `changes` as that pass's model returned them, before
-the union. `SCANNER_PLAYBOOK_LOOP=0` skips the turns and
+signal mappings, built-ins, cached classes) so the calls share a cacheable
+prefix; a turn appends the union decision so far and the queries and sources
+of every earlier decision call. `SCANNER_PLAYBOOK_LOOP=0` skips the turns and
 runs the initial call only; any other value, or none, keeps them.
 `SCANNER_PLAYBOOK_LOOP_PASSES` must be a positive integer; any other value fails
 the stage before any model call. The purposes above, with `coverage` and
 `research:<class-id>`, label each call in `usage.json` and the spend ledger.
 
-`turn1` and `turn2` can only add classes; `turn3` keeps, includes or removes
-them. Code enforces both. Each turn's output is validated like the initial
-decision, except that turn3 may return a class selected before it with a blank
-reason (it keeps its earlier one); a class turn3 newly includes needs one; and
-every class turn3 returns must carry one of the three likelihood values. A
-`turn1` or `turn2` output is then merged as a union: built-ins by id, keeping
-the first reason; additional classes by id, keeping the first definition
-(framework, codes, signals, reason), so a later turn cannot redefine one. A
-class such a turn omits stays selected and is listed in that turn's `restored`.
-A `turn3` output is merged by code. A class already selected that turn3
-returns rated `low` is removed and listed in its `removed`; the rating is its
-explanation, so no `changes` entry is needed. One rated `high` or `medium` is
-kept with its first definition and reason. A class it omits is removed only
-with an explained `changes` entry (one whose `why` is not blank), and listed in
-its `removed`. A built-in it returns that was not selected is included when
-rated `high` or `medium`, with or without a `changes` entry (the rating is its
-explanation, as for a `low`-rated removal), and listed in its `added`. An
-additional class it returns that was not selected is included only when
-explained and rated `high` or `medium`, and listed in its `added`. An included
-built-in takes turn3's entry, and an included additional class takes turn3's
-definition and is researched like any other uncached class (the rating is not
-part of either). A new class rated `low` is not included and not listed as
-unexplained. Any other unexplained removal or inclusion is not applied and is
-listed in the turn's `unexplained`. The turn records `ratings`, every id turn3
-returned with its rating. If the result would be empty, the set before turn3 is
-kept unchanged and the turn records `prune_rejected: "empty"`.
-The decision's `reason` is the latest merged turn's (turn3 keeps the earlier
-one if its own is blank). A removed additional class is not researched and does
-not reach the overlay.
+Turns can only add classes, and code enforces it. Each turn's output is
+validated like the initial decision, then merged as a union: built-ins by id,
+keeping the first reason; additional classes by id, keeping the first
+definition (framework, codes, signals, reason), so a later turn cannot redefine
+one. A class a turn omits stays selected and is listed in that turn's
+`restored`. The decision's `reason` is the latest turn's.
 
 Each uncached class in the final decision then gets a Responses call with
 `web_search` (required) and a strict playbook schema. It returns a plain-text
@@ -167,7 +112,7 @@ codes and signals together with their text; changing coverage cannot relabel
 an old entry.
 
 The decision calls also select the built-in classes that apply
-(`builtin_classes`, each with a reason). The final decision's selected built-ins
+(`builtin_classes`, each with a reason). The final union's selected built-ins
 plus its additional classes are the run's complete class set, recorded as
 `selected_classes` in the plan and written to `class-selection.json`. When that
 file exists, Stage 0.5 runs in agent mode: no floor classes; each hunt lane gets
@@ -191,22 +136,13 @@ hashes stop loading rather than silently supplying different guidance.
 
 `runPath(provider, 'stage-playbook-agent')` contains:
 
-- `playbook-plan.json`: the final decision and its reason, whether any
+- `playbook-plan.json`: the final union decision and its reason, whether any
   call searched, new classes and signal mappings, cache hits, all consulted
   playbooks with hashes and sources (an agent playbook's record carries the
   same verified/unverified labels as its cache entry). `turns` holds one entry per review turn
-  (purpose, the ids the union `added` and `restored` — for turn3, the ids it
-  included, and `restored` is `[]` — the ids turn3 `removed` — always present,
-  `[]` for turn1 and turn2 — the model's `changes`, and the turn's search
-  count, queries and sources; turn3 also records `unexplained`, the ids it
-  omitted, or the new additional classes it included, without an explained
-  `changes` entry, `ratings`, each
-  id it returned mapped to its `high`/`medium`/`low` likelihood, and
-  `prune_rejected: "empty"` when its result was rejected); `loop` records
-  `enabled`, `max_passes` and `passes_run`; `source_excerpts` records counts
-  only, never source text: `files` sent, their total `bytes`, how many were
-  `truncated`, `omitted_files` and `unreadable_files` (all zero when no
-  excerpts were collected).
+  (purpose, the ids the union `added` and `restored`, the model's `changes`,
+  and the turn's search count, queries and sources); `loop` records
+  `enabled`, `max_passes` and `passes_run`.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.
