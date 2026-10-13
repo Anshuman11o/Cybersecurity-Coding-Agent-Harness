@@ -571,10 +571,11 @@ test('stage entrypoint: loop off makes one decision call; an invalid pass count 
   assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls, [], 'no model call was made')
 })
 
-test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LOOP_PASSES; turn3 sees each pass and adds nothing unexplained', t => {
+test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LOOP_PASSES; turn3 sees each pass and includes the built-ins it rates', t => {
   const f = fixture(t)
   const script = join(f.root, 'stage.mts'), review = join(f.root, 'turn2-review.json')
-  // Every turn2 pass adds one built-in; turn3 returns all four rated high without changes, so any not yet selected are unexplained.
+  // Every turn2 pass adds one built-in; turn3 returns all four rated high without changes, so any not yet selected are
+  // included by their rating and listed in added.
   writeFileSync(script, `
     import { writeFileSync } from 'node:fs';
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
@@ -592,11 +593,12 @@ test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LO
       };
     });
   `)
-  for (const [env, passes, selected, unexplained] of [
-    [{}, 1, ['injection', 'ssrf'], ['access-control', 'integrity-failures']],
-    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '2' }, 2, ['access-control', 'injection', 'ssrf'], ['integrity-failures']],
-    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '3' }, 3, ['access-control', 'injection', 'integrity-failures', 'ssrf'], []],
-  ] as [Record<string, string>, number, string[], string[]][]) {
+  const selected = ['access-control', 'injection', 'integrity-failures', 'ssrf']
+  for (const [env, passes, added] of [
+    [{}, 1, ['access-control', 'integrity-failures']],
+    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '2' }, 2, ['integrity-failures']],
+    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '3' }, 3, []],
+  ] as [Record<string, string>, number, string[]][]) {
     execFileSync(tsx, [script], { env: { ...f.env, ...env }, stdio: 'pipe' })
     const passPurposes = Array.from({ length: passes }, (_, k) => `turn2:pass${k + 1}`)
     const usage = JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8'))
@@ -604,7 +606,7 @@ test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LO
     const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
     assert.deepEqual(plan.loop, { enabled: true, max_passes: passes, passes_run: passes })
     const turn3 = plan.turns.at(-1)
-    assert.deepEqual([turn3.added, turn3.removed, turn3.unexplained], [[], [], unexplained])
+    assert.deepEqual([turn3.added, turn3.removed, turn3.unexplained], [added, [], []])
     assert.deepEqual(JSON.parse(readFileSync(review, 'utf8')), passPurposes.map(purpose => ({ purpose, reason: purpose, changes: [] })))
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8')).classes, selected)
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8')).classes, selected)

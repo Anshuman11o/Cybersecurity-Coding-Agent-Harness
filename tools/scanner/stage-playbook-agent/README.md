@@ -98,7 +98,7 @@ A code-driven loop of review turns follows that initial decision:
 |---|---|---|
 | `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
 | `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; add one only when recon shows the target has its surface, naming that evidence in `changes`; the loop stops at the first pass that adds no class id |
-| `turn3` | once | re-think the selection from `turn2_review`, the current classes, recon's data and the source in `source_excerpts`: rate every class it returns `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged from that evidence (`high` for a concrete sink, risky pattern, unsafe configuration or missing control in the source or recon); classes rated `low` are removed; include a class not selected only with such evidence in `changes` |
+| `turn3` | once | re-select from `turn2_review`, the current classes, recon's data and the source in `source_excerpts`: return every built-in, selected or not, and every selected additional class, each rated `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged from that evidence (`high` for a concrete sink, risky pattern, unsafe configuration or missing control in the source or recon; `low` only after checking the relevant source and finding no such sink or path, or every one properly controlled); the final selection is every class rated `high` or `medium`, so an unselected built-in rated `high` or `medium` is included and classes rated `low` are removed; include an additional class not selected only with such evidence in `changes` |
 
 Each turn is a decision call like the first, with web search available, and
 returns the same schema plus `changes` (`{ id, why }` per addition, or per
@@ -131,8 +131,11 @@ returns rated `low` is removed and listed in its `removed`; the rating is its
 explanation, so no `changes` entry is needed. One rated `high` or `medium` is
 kept with its first definition and reason. A class it omits is removed only
 with an explained `changes` entry (one whose `why` is not blank), and listed in
-its `removed`. A class it returns that was not selected is included only when
-explained and rated `high` or `medium`, and listed in its `added`; an included
+its `removed`. A built-in it returns that was not selected is included when
+rated `high` or `medium`, with or without a `changes` entry (the rating is its
+explanation, as for a `low`-rated removal), and listed in its `added`. An
+additional class it returns that was not selected is included only when
+explained and rated `high` or `medium`, and listed in its `added`. An included
 built-in takes turn3's entry, and an included additional class takes turn3's
 definition and is researched like any other uncached class (the rating is not
 part of either). A new class rated `low` is not included and not listed as
@@ -196,7 +199,8 @@ hashes stop loading rather than silently supplying different guidance.
   included, and `restored` is `[]` — the ids turn3 `removed` — always present,
   `[]` for turn1 and turn2 — the model's `changes`, and the turn's search
   count, queries and sources; turn3 also records `unexplained`, the ids it
-  removed or included without an explained `changes` entry, `ratings`, each
+  omitted, or the new additional classes it included, without an explained
+  `changes` entry, `ratings`, each
   id it returned mapped to its `high`/`medium`/`low` likelihood, and
   `prune_rejected: "empty"` when its result was rejected); `loop` records
   `enabled`, `max_passes` and `passes_run`; `source_excerpts` records counts
