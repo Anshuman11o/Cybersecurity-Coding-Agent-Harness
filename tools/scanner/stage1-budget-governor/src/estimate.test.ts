@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,8 +10,9 @@ import { deriveConcurrency, NO_LIMITS } from './limits.js'
 import { API_PROFILE_SCHEMA, type ApiProfile } from '../../shared/api-profile.js'
 import { recordCalibration } from '../../shared/calibration.js'
 import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
+import { writeCachedPlaybook, cacheDirectory } from '../../shared/playbook-cache.js'
 import {
-  productDefaultProvider, defaultProvider, modelFor, pricingFor, targetFor, calibrationFor, outputTokenCap,
+  productDefaultProvider, defaultProvider, modelFor, pricingFor, targetFor, calibrationFor, outputTokenCap, apiKeyEnvFor,
 } from '../../shared/provider.js'
 import { FOLLOW_UP_INPUT_MULTIPLIER, reservationUnitUsd, scanCostUsd } from '../../shared/pricing.js'
 import {
@@ -240,5 +241,171 @@ test('Stage 1 sizes the hunt builders exact chunk prompts and uses ledger spend 
       followUpTemplateBytes: followUpTemplateBytes(lane.classes!),
       outputCap: outputTokenCap(provider, DEFAULT_OUTPUT_TOKEN_CAP), servedTier: 'default',
     }))
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+
+test('product risk order prioritizes routes, distinct signals and path; lab keeps inventory bytes', () => {
+  const input = planInput(6)
+  input.now = new Date(0)
+  const signals = [[], ['db_query', 'file_io', 'auth_check'], ['route_handler'],
+    ['route_handler', 'db_query'], ['route_handler', 'db_query'], ['db_query', 'db_query']]
+  input.lanes[3].target_file = 'src/z-route.ts'
+  input.lanes[4].target_file = 'src/a-route.ts'
+  const baseline = JSON.stringify(computeScanPlan(input))
+  input.laneRisk = new Map(input.lanes.map((l, i) => [l.lane_id, { signals: signals[i], chunks: i + 1 }]))
+  input.profile = 'benchmark'
+  assert.equal(JSON.stringify(computeScanPlan(input)), baseline)
+  input.profile = 'product'
+  const plan = computeScanPlan(input)
+  assert.deepEqual(plan.admitted.map(l => l.lane_id), ['file-4', 'file-3', 'file-2', 'file-1', 'file-5', 'file-0'])
+  assert.match(plan.order_basis!, /route_handler/)
+  assert.equal(plan.input_threshold_usd, plan.estimate!.spent_before_usd + plan.estimate!.input_usd)
+  assert.equal(plan.first_start_usd, plan.estimate!.spent_before_usd + 5 * plan.reservation_unit_usd!)
+  input.limits.max_cost_usd = input.estimation!.spentBeforeUsd + plan.admitted[0].projected_cost_usd! * 2.5
+  assert.equal(computeScanPlan(input).cap.lanes_within_cap, 2)
+})
+
+test('product thresholds and estimate price remaining work on resume without removing admitted lanes', () => {
+  const input = planInput(3)
+  input.profile = 'product'
+  input.laneRisk = new Map(input.lanes.map(l => [l.lane_id, { signals: [], chunks: 2 }]))
+  input.completedLaneIds = new Set(['file-0'])
+  const plan = computeScanPlan(input)
+  assert.equal(plan.admitted.length, 3)
+  assert.equal(plan.estimate!.files, 2)
+  assert.equal(plan.estimate!.input_tokens, 20_000)
+  assert.equal(plan.first_start_usd, 0.1 + 2 * plan.reservation_unit_usd!)
+  input.completedLaneIds = new Set(input.lanes.map(l => l.lane_id))
+  const done = computeScanPlan(input)
+  assert.equal(done.first_start_usd, null)
+  assert.equal(done.estimate!.total_usd, 0.1)
+  input.estimation!.profile = profile({ served_tier: 'unlisted-tier', tier_multiplier: null })
+  const unpriced = computeScanPlan(input)
+  assert.equal(unpriced.input_threshold_usd, null)
+  assert.equal(unpriced.first_start_usd, null)
+})
+
+
+test('the actual executor starts in reviewed risk order and keeps that order on resume', () => {
+  const root = mkdtempSync(join(tmpdir(), 'risk-executor-'))
+  try {
+    const target = join(root, 'target')
+    const runs = join(root, 'runs')
+    const assignmentsDir = join(runs, provider, 'stage05-lane-selector-perfile')
+    const planDir = join(runs, provider, 'stage1-budget-governor-perfile')
+    const outDir = join(runs, provider, 'stage2-hunt-lanes-perfile')
+    for (const dir of [target, assignmentsDir, planDir]) mkdirSync(dir, { recursive: true })
+    const lanes = ['plain', 'query', 'route'].map((id, i) => ({
+      lane_id: id, target_file: `${id}.ts`, disposition: 'hunt', skip_reason: null,
+      categories: [], classes: ['injection'], category_basis: null, file_bytes: 25,
+      file_lines: 1, estimated_prompt_tokens: 0,
+      signals: [[], ['db_query', 'file_io'], ['route_handler']][i],
+      chunk_plan: { required: false, total_chunks: 1, chunks: [{ index: 1, start_line: 1, end_line: 1 }] },
+    }))
+    for (const lane of lanes) writeFileSync(join(target, lane.target_file), `export const ${lane.lane_id} = 1;`)
+    const archPath = join(root, 'architecture.json')
+    writeFileSync(archPath, JSON.stringify({ route_table: { hand_written_routes: [], auto_crud_routes: [] } }))
+    writeFileSync(join(assignmentsDir, 'lane-assignments.json'), JSON.stringify({
+      generated_at: 'test', target_dir: target, source_stage0_run: archPath, lanes,
+      coverage_ledger: { total_files_in_inventory: 3, assigned_hunt: 3, assigned_skip: 0, unaccounted: 0 },
+    }))
+    writeFileSync(join(runs, 'read-allowlist.json'), JSON.stringify({
+      schema: 'secscan.read-allowlist/1', target_root: target, files: lanes.map(l => l.target_file),
+    }))
+    const ledger = new SpendLedger(ledgerPathFor(runs, provider))
+    ledger.append({ source: 'playbook', stage: 'playbook', label: 'synthetic research', lane_id: null,
+      attempt: 1, model, served_tier: 'default', usage: null, chars_sent: 0, cost_usd: 0.5, basis: 'reservation' })
+    const requests = join(root, 'requests.jsonl')
+    const mock = join(root, 'mock-fetch.mjs')
+    writeFileSync(mock, `import { appendFileSync } from 'node:fs';
+      globalThis.fetch = async (url, init) => {
+        appendFileSync(${JSON.stringify(requests)}, init.body + '\\n');
+        return new Response(JSON.stringify({ choices: [{ message: { content: '{"findings":[]}' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 100, completion_tokens: 20 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+      };`)
+    const env = { ...process.env, SCANNER_PROFILE: 'product', SCANNER_TARGET: target,
+      SCANNER_PROVIDER: provider, SCANNER_REPORTS_ROOT: root, SCANNER_RUNS_ROOT: runs,
+      SCANNER_EXCLUDE: '', SCANNER_MAX_COST: '', SCANNER_MAX_FILES: '', SCANNER_MAX_FILE_SIZE: '',
+      SCANNER_PATHS: '', SCANNER_INCLUDE: '', SCANNER_TIMEOUT: '', SCANNER_RESUME: '',
+      HUNT_CONCURRENCY: '1', HUNT_LOOP: 'none', HUNT_MAX_LANES: '1',
+      [apiKeyEnvFor(provider)]: 'fake-test-credential', NODE_OPTIONS: `--import=${mock}` }
+    const tsx = join(stageDir, 'node_modules/.bin/tsx')
+    const generate = () => {
+      const output = execFileSync(tsx, ['-e',
+        "import { computeScanPlanV2 } from './src/budget-governor.ts'; computeScanPlanV2().then(p => console.log(JSON.stringify(p)))",
+      ], { cwd: stageDir, env, encoding: 'utf8' })
+      const plan = JSON.parse(output.trim())
+      writeFileSync(join(planDir, 'scan-plan.json'), JSON.stringify(plan))
+      return plan
+    }
+    const execute = () => execFileSync(tsx, [join(stageDir, '../stage2-hunt-lanes-perfile/src/hunt-executor.ts')],
+      { cwd: stageDir, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    const plan = generate()
+    assert.deepEqual(plan.admitted.map((l: any) => l.lane_id), ['route', 'query', 'plain'])
+    execute()
+    let recorded = JSON.parse(readFileSync(join(outDir, 'budget-consumption.json'), 'utf8')).legacy_entries
+    assert.deepEqual(recorded.map((l: any) => l.lane_id), ['route'])
+    let progress = JSON.parse(readFileSync(join(outDir, 'progress.json'), 'utf8'))
+    assert.ok(Math.abs(progress.spend.estimate_usd - plan.estimate.total_usd) < 1e-10)
+    assert.equal(readFileSync(requests, 'utf8').trim().split('\n').length, 1)
+    env.SCANNER_RESUME = '1'
+    const resumed = generate()
+    assert.equal(resumed.estimate.files, 2)
+    assert.equal(resumed.first_start_usd, new SpendLedger(ledger.path).total() + resumed.reservation_unit_usd)
+    execute()
+    recorded = JSON.parse(readFileSync(join(outDir, 'budget-consumption.json'), 'utf8')).legacy_entries
+    assert.deepEqual(recorded.map((l: any) => l.lane_id), ['route', 'query'])
+    progress = JSON.parse(readFileSync(join(outDir, 'progress.json'), 'utf8'))
+    assert.ok(Math.abs(progress.spend.estimate_usd - resumed.estimate.total_usd) < 1e-10)
+    assert.equal(readFileSync(requests, 'utf8').trim().split('\n').length, 2)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+
+test('product planning never loads deleted overlay playbooks but still validates selected cache text', () => {
+  const root = mkdtempSync(join(tmpdir(), 'selected-playbooks-'))
+  try {
+    const target = join(root, 'target'), runs = join(root, 'runs')
+    const assignmentsDir = join(runs, provider, 'stage05-lane-selector-perfile')
+    const agentDir = join(runs, provider, 'stage-playbook-agent')
+    for (const dir of [target, assignmentsDir, agentDir]) mkdirSync(dir, { recursive: true })
+    writeFileSync(join(target, 'sample.ts'), 'export const sample = 1;')
+    const archPath = join(root, 'architecture.json')
+    writeFileSync(archPath, JSON.stringify({ route_table: { hand_written_routes: [], auto_crud_routes: [] } }))
+    writeFileSync(join(assignmentsDir, 'lane-assignments.json'), JSON.stringify({
+      generated_at: 'test', target_dir: target, source_stage0_run: archPath,
+      lanes: [{ lane_id: 'sample', target_file: 'sample.ts', disposition: 'hunt', skip_reason: null,
+        categories: [], classes: ['injection', 'selected-custom'], category_basis: null, file_bytes: 24,
+        file_lines: 1, estimated_prompt_tokens: 0, signals: ['db_query'],
+        chunk_plan: { required: false, total_chunks: 1, chunks: [{ index: 1, start_line: 1, end_line: 1 }] } }],
+    }))
+    writeFileSync(join(runs, 'read-allowlist.json'), JSON.stringify({
+      schema: 'secscan.read-allowlist/1', target_root: target, files: ['sample.ts'],
+    }))
+    const cache = join(root, 'playbooks')
+    const selected = writeCachedPlaybook(cache, 'Synthetic selected playbook text.', {
+      class_id: 'selected-custom', playbook: 'selected-custom', framework: 'synthetic', model,
+      codes: ['SYNTHETIC'], signals: ['db_query'], source_urls: [], queries: [], created_at: new Date(0).toISOString(),
+    })
+    const { playbook, framework, codes, signals, sha256 } = selected.meta
+    writeFileSync(join(agentDir, 'classes-overlay.json'), JSON.stringify({
+      'selected-custom': { playbook, framework, model, codes, signals, sha256 },
+      'deleted-custom': { playbook: 'deleted-custom', framework, model, codes, signals, sha256: '0'.repeat(64) },
+    }))
+    const env = { ...process.env, SCANNER_PROFILE: 'product', SCANNER_TARGET: target,
+      SCANNER_PROVIDER: provider, SCANNER_REPORTS_ROOT: root, SCANNER_RUNS_ROOT: runs,
+      SCANNER_EXCLUDE: '', SCANNER_MAX_COST: '', SCANNER_MAX_FILES: '', SCANNER_MAX_FILE_SIZE: '',
+      SCANNER_PATHS: '', SCANNER_INCLUDE: '', SCANNER_TIMEOUT: '', SCANNER_RESUME: '', HUNT_CONCURRENCY: '1', HUNT_LOOP: 'none' }
+    const run = () => execFileSync(join(stageDir, 'node_modules/.bin/tsx'), ['src/budget-governor.ts', '--v2', '--mode', 'estimate'],
+      { cwd: stageDir, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    run()
+    const planDir = join(runs, provider, 'stage1-budget-governor-perfile')
+    assert.equal(JSON.parse(readFileSync(join(planDir, 'scan-plan.json'), 'utf8')).admitted.length, 1)
+    const selectedPath = join(cacheDirectory(cache, 'selected-custom', framework, model), 'playbook.md')
+    writeFileSync(selectedPath, 'tampered selected text')
+    assert.throws(run, /Playbook cache identity or sha256 mismatch: selected-custom/)
+    rmSync(dirname(selectedPath), { recursive: true })
+    assert.throws(run, /Missing cached playbook for selected-custom/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

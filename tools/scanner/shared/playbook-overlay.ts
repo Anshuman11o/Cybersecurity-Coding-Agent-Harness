@@ -1,6 +1,6 @@
 /** Additive class overlays. No model calls; safe to import in deterministic stages. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync, rmSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { runPath, type Provider } from './run-paths.js'
 import { assertUpstream } from './meta.js'
 
@@ -94,4 +94,33 @@ export function readClassSelection(provider: Provider): ClassSelection | null {
   const builtins: ClassRegistry = JSON.parse(readFileSync(new URL('./vuln-classes.json', import.meta.url), 'utf8'))
   validateClassSelection(sel, builtins, readClassesOverlay(provider))
   return sel
+}
+
+/** Validate before publishing, so a rejected edit cannot corrupt the previous selection. */
+export function writeClassSelection(provider: Provider, selection: ClassSelection, builtins: ClassRegistry, overlay: ClassesOverlay | null): void {
+  validateClassSelection(selection, builtins, overlay)
+  writeOverlayJson(join(runPath(provider, PLAYBOOK_STAGE), CLASS_SELECTION_FILE), selection)
+}
+
+/** Overlays are append-only dictionaries; re-adding an identical entry is a no-op. */
+export function appendOverlayEntry(provider: Provider, id: string, entry: OverlayEntry, builtins: ClassRegistry, signals: SignalClassMap): ClassesOverlay {
+  const file = join(runPath(provider, PLAYBOOK_STAGE), 'classes-overlay.json')
+  const overlay: ClassesOverlay = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}
+  if (Object.hasOwn(overlay, id) && JSON.stringify(overlay[id]) !== JSON.stringify(entry)) {
+    throw new Error(`Overlay entry already exists: ${id}`)
+  }
+  const next = { ...overlay, [id]: entry }
+  validateOverlay(next, builtins, signals)
+  writeOverlayJson(file, next)
+  return next
+}
+
+/** Atomic publication shared by review artifacts. */
+export function writeOverlayJson(file: string, value: unknown): void {
+  mkdirSync(dirname(file), { recursive: true })
+  const tmp = `${file}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`
+  try {
+    writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n')
+    renameSync(tmp, file)
+  } finally { rmSync(tmp, { force: true }) }
 }

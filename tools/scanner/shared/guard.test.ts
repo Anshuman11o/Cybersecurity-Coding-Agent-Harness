@@ -941,6 +941,37 @@ console.log('\n-- task 2a: no model id, endpoint or credential variable in the n
   check(`new shared modules name no registry value${hits.length ? ` (found: ${hits.join('; ')})` : ''}`, hits.length === 0)
 }
 
+console.log('\n-- round 2: benchmark class selections have no human edits --')
+{
+  const { assertNoBenchmarkReviewEdits } = await import('./class-review-boundary.js')
+  const { BENCHMARK_RUNS_ROOT } = await import('./run-context.js')
+  const { existsSync, readdirSync, readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const accepts = (record: Parameters<typeof assertNoBenchmarkReviewEdits>[0]) => {
+    try { assertNoBenchmarkReviewEdits(record); return true } catch { return false }
+  }
+  check('pre-review benchmark records remain valid', accepts({}))
+  check('explicit empty benchmark edit audit is valid', accepts({ class_review: { edits: [] } }))
+  check('a benchmark human addition is rejected', !accepts({ class_review: { edits: [{ action: 'add', input: 'synthetic-class' }] } }))
+  check('a benchmark human deletion is rejected', !accepts({ class_review: { edits: [{ action: 'drop', input: 'synthetic-class' }] } }))
+  check('a malformed benchmark edit audit is rejected', !accepts({ class_review: {} }))
+  let records = 0
+  const violations: string[] = []
+  const visit = (dir: string) => {
+    if (!existsSync(dir)) return
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) visit(path)
+      else if (entry.isFile() && entry.name === 'run-record.json') {
+        records++
+        if (!accepts(JSON.parse(readFileSync(path, 'utf8')))) violations.push(path)
+      }
+    }
+  }
+  visit(BENCHMARK_RUNS_ROOT)
+  check(`no human class edits in ${records} benchmark run record(s)`, violations.length === 0)
+}
+
 console.log(`\n-- blocked attempts recorded: ${guardStats().blocked} --`)
 console.log(`\n${pass} passed, ${fail} failed\n`)
 process.exit(fail === 0 ? 0 : 1)

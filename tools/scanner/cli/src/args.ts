@@ -17,6 +17,12 @@ export interface ModelFlags {
   modelsFile?: string
 }
 
+/** Missing arrays inherit config; supplied arrays replace that config array. */
+export interface ClassEdits {
+  drop?: string[]
+  add?: string[]
+}
+
 export interface ScanArgs extends ModelFlags {
   command: 'scan'
   target: string
@@ -27,6 +33,7 @@ export interface ScanArgs extends ModelFlags {
   noConfig: boolean
   resume?: string | true
   out?: string
+  classes?: ClassEdits
 }
 
 export interface ModelsArgs extends ModelFlags {
@@ -63,6 +70,10 @@ Limits:
   --include <glob>          scan only files matching (repeatable)
   --exclude <glob>          skip files matching (repeatable)
 
+Classes:
+  --drop-class <id>         remove a selected vulnerability class (repeatable)
+  --add-class <text>        add a class by name, number or code (repeatable)
+
 Run:
   -y, --yes                 skip prompts; requires --budget unless resuming
   --out <dir>              reports folder (default: <dir>/.secscan)
@@ -95,6 +106,7 @@ export function parseArgs(argv: readonly string[]): Args {
   let noConfig = false
   let resume: string | true | undefined
   let out: string | undefined
+  let classes: ClassEdits | undefined
   const positional: string[] = []
 
   const push = (key: 'paths' | 'include' | 'exclude', vals: string[]) => {
@@ -138,6 +150,14 @@ export function parseArgs(argv: readonly string[]): Args {
       }
       case '--include': { const v = value(); wrap(() => compileGlob(v)); push('include', [v]); break }
       case '--exclude': { const v = value(); wrap(() => compileGlob(v)); push('exclude', [v]); break }
+      case '--drop-class': case '--add-class': {
+        const v = value()
+        if (!v.trim()) throw new UsageError(`${a} needs a non-empty value`)
+        const key = a === '--drop-class' ? 'drop' : 'add'
+        classes ??= {}
+        classes[key] = [...(classes[key] ?? []), v]
+        break
+      }
       case '-y': case '--yes': yes = true; break
       case '--all': all = true; break
       case '--config': configPath = value(); break
@@ -177,6 +197,7 @@ export function parseArgs(argv: readonly string[]): Args {
     noConfig,
     resume,
     out,
+    ...(classes ? { classes } : {}),
     ...model,
   }
 }

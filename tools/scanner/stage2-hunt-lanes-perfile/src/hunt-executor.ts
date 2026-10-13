@@ -1798,7 +1798,7 @@ function writeCheckpoint(
  * Returns { findings, consumption, completedLaneIds } if a valid checkpoint
  * exists, or null if there is nothing to resume from.
  */
-function loadCheckpoint(outDir: string): {
+export function loadCheckpoint(outDir: string, log = true): {
   findings: CandidateFinding[]
   consumption: BudgetConsumption[]
   completedLaneIds: Set<string>
@@ -1847,7 +1847,7 @@ function loadCheckpoint(outDir: string): {
       consumption.filter(c => !c.failed).map(c => c.lane_id),
     )
     const failedCount = consumption.filter(c => c.failed).length
-    if (failedCount > 0) {
+    if (failedCount > 0 && log) {
       console.log(`[RESUME] ${failedCount} lane(s) previously failed — they will be retried`)
     }
     return { findings, consumption, completedLaneIds, laneRecordsV2 }
@@ -1857,6 +1857,30 @@ function loadCheckpoint(outDir: string): {
 }
 
 // ── Scan plan, lane cost and progress helpers ─────────────────────────────
+
+/** Preserve the reviewed order while omitting completed lanes on resume. */
+export function lanesInPlanOrder(lanes: LaneAssignmentEntry[], plan: Pick<ScanPlan, 'admitted'>): LaneAssignmentEntry[] {
+  const byId = new Map(lanes.map(lane => [lane.lane_id, lane]))
+  return plan.admitted.flatMap(lane => {
+    const assignment = byId.get(lane.lane_id)
+    return assignment ? [assignment] : []
+  })
+}
+
+/** Current ledger spend plus work still to do, fixed before this invocation starts. */
+export function fullLedgerEstimate(
+  plan: ScanPlan | null, spentUsd: number, completed: ReadonlySet<string> = new Set(),
+): number | null {
+  if (!plan) return null
+  const remaining = plan.admitted.filter(l => !completed.has(l.lane_id))
+  if (remaining.some(l => l.projected_cost_usd == null)) return null
+  // Stage 1 rounds calibrated output tokens on the whole estimate. Preserve
+  // that exact figure when its estimate already describes the remaining set.
+  const inputTokens = remaining.reduce((sum, lane) => sum + lane.projected_input_tokens, 0)
+  const remainingCost = plan.estimate?.input_tokens === inputTokens
+    ? plan.estimate.scan_usd : remaining.reduce((sum, lane) => sum + lane.projected_cost_usd!, 0)
+  return spentUsd + remainingCost
+}
 
 /** The fixed reservation must describe the calls this process will make. */
 export function scanPlanCallMismatch(
@@ -2322,7 +2346,7 @@ async function main() {
     }
   }
   if (scanPlan) {
-    huntLanes = huntLanes.filter(l => admittedIds.has(l.lane_id))
+    huntLanes = lanesInPlanOrder(huntLanes, scanPlan)
     const cut = Object.entries(scanPlan.totals.excluded_by_reason).map(([r, n]) => `${n} ${r}`).join(', ')
     console.log(`\n[SCAN PLAN] ${scanPlan.admitted.length} of ${huntTotal} hunt lane(s) admitted` + (cut ? ` (${cut})` : ''))
   }
@@ -2331,6 +2355,7 @@ async function main() {
     ? [...checkpoint.completedLaneIds].filter(id => admittedIds.has(id)).length
     : 0
   const carriedSpend = spendLedger.total()
+  const totalEstimate = fullLedgerEstimate(scanPlan, carriedSpend, checkpoint?.completedLaneIds)
 
   // ── Chunk bound ─────────────────────────────────────────────────────────
   // HUNT_MAX_LANES stops this pass after N *newly executed* lanes and exits
@@ -2384,7 +2409,7 @@ async function main() {
   console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
 
   // ── Lane scheduler: bounded concurrency behind the spend gate ───────────
-  // Lanes start in assignment order when slots and fixed reservations permit.
+  // Lanes start in scan-plan order when slots and fixed reservations permit.
   // Calls in flight finish; retries need another reservation — see spend-gate.ts.
   const stageStart = Date.now()
   const gate = new SpendGate(
@@ -2451,7 +2476,7 @@ async function main() {
       spend: {
         spent_usd: priced ? gate.spentUsd() : null,
         ledger_spent_usd: priced ? spendLedger.total() : null,
-        estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
+        estimate_usd: totalEstimate,
         cap_usd: limits.max_cost_usd,
       },
       concurrency: { current: callPolicy.currentConcurrency, initial: callPolicy.initialConcurrency },
@@ -2474,7 +2499,7 @@ async function main() {
     const remaining = Math.max(0, admittedTotal - done - failedThisPass)
     const eta = finished > 0 && remaining > 0 ? formatSeconds((elapsed / finished) * remaining) : '-'
     const sev = findingsBySeverity()
-    const est = scanPlan?.totals.projected_cost_usd
+    const est = totalEstimate
     console.log(
       `[PROGRESS] ${done}/${admittedTotal} lanes` + (failedThisPass ? `, ${failedThisPass} failed` : '') +
       ` | spent ` + (priced ? `$${gate.spentUsd().toFixed(2)}` : 'unpriced') +
@@ -2547,7 +2572,7 @@ async function main() {
       spend: {
         spent_usd: priced ? gate.spentUsd() : null,
         ledger_spent_usd: priced ? spendLedger.total() : null,
-        estimate_usd: scanPlan?.totals.projected_cost_usd ?? null,
+        estimate_usd: totalEstimate,
         cap_usd: limits.max_cost_usd,
         calibration: gate.calibration(),
       },

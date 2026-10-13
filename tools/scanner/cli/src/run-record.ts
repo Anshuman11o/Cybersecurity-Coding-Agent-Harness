@@ -93,6 +93,8 @@ export interface RunRecord {
   findings_total: number | null
   /** Text hashes and sources for built-in and generated guidance. */
   playbooks?: PlaybookRecord[]
+  /** Immutable agent pick and the reviewed class set, including failed attempts. */
+  class_review?: import('../../stage-playbook-agent/src/review.js').ClassReview & { review_spend_usd?: number }
   artifacts: Record<string, string>
   /** The command that continues this run; null when there is nothing left to do. */
   resume_command: string | null

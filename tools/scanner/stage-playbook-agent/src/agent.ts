@@ -161,7 +161,7 @@ const revisionTask = (bytes: number, missing: string[], titleOk: boolean) => `Yo
 /** Revision calls after a first research output that fails a playbook check. */
 const MAX_REVISIONS = 2
 
-function recordedUsage(raw: unknown): UsageCall['usage'] {
+export function recordedUsage(raw: unknown): UsageCall['usage'] {
   const usage = normalizeUsage(raw)
   return usage ? {
     input_tokens: usage.prompt_tokens,
@@ -287,6 +287,72 @@ function unionDecision(before: CoverageDecision, turn: CoverageDecision): { deci
   return { decision, added: classIds(decision).filter(id => !had.has(id)), restored: [...had].filter(id => !own.has(id)) }
 }
 
+/** Shared research/validation/cache path. Review retries whole attempts and disables revisions. */
+export async function researchPlaybook(
+  o: Pick<AgentOptions, 'recon' | 'model' | 'cacheRoot' | 'recordResearchFailure' | 'log'>,
+  c: ProposedClass,
+  call: (purpose: string, input: string, schema: Record<string, unknown>, kind: 'research' | 'revision') => Promise<{ text: string; trace: UsageCall }>,
+  exampleFormat: string,
+  purposePrefix = `research:${c.id}`,
+  maxRevisions = MAX_REVISIONS,
+) {
+  const stack = {
+    languages: o.recon.architecture.file_inventory?.by_language,
+    frameworks: o.recon.architecture.architecture?.frameworks,
+    dependencies: o.recon.architecture.dependencies,
+  }, example_format = exampleFormat
+  // The attempt under check: the first research call, then each revision in turn.
+  let purpose = purposePrefix
+  let { text, trace } = await call(purpose, JSON.stringify({ task: researchTask, class: c, stack, example_format }), playbookSchema, 'research')
+  // Labels and cached queries use the searches of the first call and all its revisions.
+  const queries = [...trace.queries], searched = [...trace.source_urls]
+  // Every failed check leaves a debug record of the rejected output before the stage fails.
+  let value: any = undefined, attempts: ResearchAttempt[] | undefined
+  const failed = (check: ResearchCheck, error: unknown) => {
+    o.recordResearchFailure(researchFailure(c.id, purpose, check, error, text, value, trace, attempts))
+    return error
+  }
+  const parse = (tail: string) => {
+    try { value = JSON.parse(text) } catch (error) {
+      o.log?.(progress(trace, tail))
+      throw failed('json', error)
+    }
+    // Kept as cited, in order; an empty or absent list is not a failure.
+    return Array.isArray(value?.source_urls) ? value.source_urls.filter((s: unknown) => typeof s === 'string') as string[] : []
+  }
+  let cited = parse('bytes=- unverified=-')
+  o.log?.(progress(trace, `bytes=${bytesOf(value?.playbook) ?? '-'} ` +
+    `unverified=${labelSourceUrls(cited, trace.source_urls).unverified_source_urls.length}`))
+  if (trace.web_search_calls === 0) throw failed('no_search', new Error(`No web search performed for ${c.id}`))
+  let problems = playbookProblems(value?.playbook)
+  attempts = [{ purpose, bytes: bytesOf(value?.playbook), problems }]
+  for (let n = 1; n <= maxRevisions && problems.length; n++) {
+    const before = bytesOf(value?.playbook), missing = missingSections(value?.playbook), titleOk = !problems.includes('format')
+    purpose = `${purposePrefix}:revise${n}`
+    ;({ text, trace } = await call(purpose, JSON.stringify({
+      task: revisionTask(before ?? 0, missing, titleOk), class: c, stack, example_format,
+      previous_playbook: value?.playbook ?? null, previous_source_urls: cited,
+      problems: { bytes: before ?? 0, size_bounds: [...PLAYBOOK_BYTES], missing_sections: missing, title_line_ok: titleOk },
+    }), playbookSchema, 'revision'))
+    for (const q of trace.queries) if (!queries.includes(q)) queries.push(q)
+    for (const s of trace.source_urls) if (!searched.includes(s)) searched.push(s)
+    value = undefined
+    cited = parse(`bytes=${before ?? '-'}->- problems=-`)
+    problems = playbookProblems(value?.playbook)
+    attempts.push({ purpose, bytes: bytesOf(value?.playbook), problems })
+    o.log?.(progress(trace, `bytes=${before ?? '-'}->${bytesOf(value?.playbook) ?? '-'} problems=${problems.join(',') || '-'}`))
+  }
+  try { validatePlaybook(value.playbook) } catch (error) {
+    throw failed(problems[0] ?? 'format', error)
+  }
+  const meta = {
+    ...overlayEntry(c, o.model), class_id: c.id, source_urls: cited, ...labelSourceUrls(cited, searched),
+    queries, created_at: new Date().toISOString(),
+    revisions: { attempts: attempts.length, sizes: attempts.map(a => a.bytes) } satisfies PlaybookRevisions,
+  }
+  return writeCachedPlaybook(o.cacheRoot, value.playbook, meta)
+}
+
 export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay; selection: ClassSelection }> {
   // Read on every invocation so changing guidance changes the next run.
   const guidance = readFileSync(new URL('../guidance.md', import.meta.url), 'utf8')
@@ -408,61 +474,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     let entry = readCachedPlaybook(o.cacheRoot, c.id, c.framework, o.model)
     const hit = entry !== null
     if (!entry) {
-      const stack = {
-        languages: o.recon.architecture.file_inventory?.by_language,
-        frameworks: o.recon.architecture.architecture?.frameworks,
-        dependencies: o.recon.architecture.dependencies,
-      }, example_format = builtinGuidance[0].text
-      // The attempt under check: the first research call, then each revision in turn.
-      let purpose = `research:${c.id}`
-      let { text, trace } = await call(purpose, JSON.stringify({ task: researchTask, class: c, stack, example_format }), playbookSchema, 'research')
-      // Labels and cached queries use the searches of the first call and all its revisions.
-      const queries = [...trace.queries], searched = [...trace.source_urls]
-      // Every failed check leaves a debug record of the rejected output before the stage fails.
-      let value: any = undefined, attempts: ResearchAttempt[] | undefined
-      const failed = (check: ResearchCheck, error: unknown) => {
-        o.recordResearchFailure(researchFailure(c.id, purpose, check, error, text, value, trace, attempts))
-        return error
-      }
-      const parse = (tail: string) => {
-        try { value = JSON.parse(text) } catch (error) {
-          o.log?.(progress(trace, tail))
-          throw failed('json', error)
-        }
-        // Kept as cited, in order; an empty or absent list is not a failure.
-        return Array.isArray(value?.source_urls) ? value.source_urls.filter((s: unknown) => typeof s === 'string') as string[] : []
-      }
-      let cited = parse('bytes=- unverified=-')
-      o.log?.(progress(trace, `bytes=${bytesOf(value?.playbook) ?? '-'} ` +
-        `unverified=${labelSourceUrls(cited, trace.source_urls).unverified_source_urls.length}`))
-      if (trace.web_search_calls === 0) throw failed('no_search', new Error(`No web search performed for ${c.id}`))
-      let problems = playbookProblems(value?.playbook)
-      attempts = [{ purpose, bytes: bytesOf(value?.playbook), problems }]
-      for (let n = 1; n <= MAX_REVISIONS && problems.length; n++) {
-        const before = bytesOf(value?.playbook), missing = missingSections(value?.playbook), titleOk = !problems.includes('format')
-        purpose = `research:${c.id}:revise${n}`
-        ;({ text, trace } = await call(purpose, JSON.stringify({
-          task: revisionTask(before ?? 0, missing, titleOk), class: c, stack, example_format,
-          previous_playbook: value?.playbook ?? null, previous_source_urls: cited,
-          problems: { bytes: before ?? 0, size_bounds: [...PLAYBOOK_BYTES], missing_sections: missing, title_line_ok: titleOk },
-        }), playbookSchema, 'revision'))
-        for (const q of trace.queries) if (!queries.includes(q)) queries.push(q)
-        for (const s of trace.source_urls) if (!searched.includes(s)) searched.push(s)
-        value = undefined
-        cited = parse(`bytes=${before ?? '-'}->- problems=-`)
-        problems = playbookProblems(value?.playbook)
-        attempts.push({ purpose, bytes: bytesOf(value?.playbook), problems })
-        o.log?.(progress(trace, `bytes=${before ?? '-'}->${bytesOf(value?.playbook) ?? '-'} problems=${problems.join(',') || '-'}`))
-      }
-      try { validatePlaybook(value.playbook) } catch (error) {
-        throw failed(problems[0] ?? 'format', error)
-      }
-      const meta = {
-        ...overlayEntry(c, o.model), class_id: c.id, source_urls: cited, ...labelSourceUrls(cited, searched),
-        queries, created_at: new Date().toISOString(),
-        revisions: { attempts: attempts.length, sizes: attempts.map(a => a.bytes) } satisfies PlaybookRevisions,
-      }
-      entry = writeCachedPlaybook(o.cacheRoot, value.playbook, meta)
+      entry = await researchPlaybook(o, c, call, builtinGuidance[0].text)
     }
     // The cached class definition and text are a pair; never relabel old text
     // using a fresh decision's possibly different codes or mapping.
