@@ -34,7 +34,7 @@ const tasks = {
   turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
   turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
 }
-const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used.'
+const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
 const loopPurposes = ['coverage', 'turn1', 'turn2:pass1', 'turn3']
 
 interface Search { query: string; url: string }
@@ -509,10 +509,11 @@ test('ledger labels are the call purposes, and searches in decision calls are pr
 test('the final union is recorded once, after the last decision call and before any research call', async t => {
   const start = decision('Start.', [pick('injection')])
   const added = decision('Added.', [pick('access-control')], [proposed])
-  for (const last of [research(), response({ playbook: 'too short', source_urls: [source] }, true)]) {
-    const h = harness(t, 'uncovered', [response(start), turn(added, [{ id: proposed.id, why: 'Replay.' }]), turn(added), turn(added), last])
+  const short = () => response({ playbook: 'too short', source_urls: [source] }, true)
+  for (const last of [[research()], [short(), short(), short()]]) {
+    const h = harness(t, 'uncovered', [response(start), turn(added, [{ id: proposed.id, why: 'Replay.' }]), turn(added), turn(added), ...last])
     const run = runPlaybookAgent(h.options)
-    if (last.output_text.includes('too short')) await assert.rejects(run, { message: 'Generated playbook does not match the built-in section format' })
+    if (last.length > 1) await assert.rejects(run, { message: 'Generated playbook does not match the built-in section format' })
     else await run
     assert.equal(h.decisions.length, 1)
     const [{ decision: d, after }] = h.decisions
@@ -581,15 +582,17 @@ test('every failed research check leaves a debug record of the rejected output; 
       error: { message: `No web search performed for ${proposed.id}` }, text: generated, absent: [source], searches: 0 },
   ]
   for (const c of cases) {
-    const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), c.reply])
+    // A playbook check fails only after two revisions that return the same output; the record is the last attempt's.
+    const revised = c.check !== 'no_search'
+    const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), ...Array(revised ? 3 : 1).fill(c.reply)])
     await assert.rejects(runPlaybookAgent(h.options), c.error, c.name)
     assert.equal(h.failures.length, 1, c.name)
     const f = h.failures[0]
     assert.deepEqual(Object.keys(f), ['class_id', 'purpose', 'error', 'check', 'byte_size', 'char_size', 'size_bounds',
       'missing_sections', 'cited_urls_absent_from_search', 'web_search_calls', 'queries', 'search_source_urls',
-      'cited_source_urls', 'response_status', 'output_tokens', 'reasoning_tokens', 'playbook_text'])
+      'cited_source_urls', 'response_status', 'output_tokens', 'reasoning_tokens', 'playbook_text', ...(revised ? ['attempts'] : [])])
     assert.equal(f.class_id, proposed.id)
-    assert.equal(f.purpose, `research:${proposed.id}`)
+    assert.equal(f.purpose, revised ? `research:${proposed.id}:revise2` : `research:${proposed.id}`)
     assert.equal(f.check, c.check, c.name)
     assert.equal(f.playbook_text, c.text, 'the rejected text, verbatim')
     assert.equal(f.byte_size, Buffer.byteLength(c.text))
@@ -638,4 +641,114 @@ test('one progress line per completed model call; the research line carries the 
   const bad = harness(t, 'covered', [{ ...response({}), status: 'incomplete' } as Response])
   await assert.rejects(runPlaybookAgent(bad.options), /response incomplete/)
   assert.deepEqual(bad.logs, ['[playbook-agent] coverage incomplete in=120 out=50 searches=0 added=-'])
+})
+
+// The revision template from the spec, character for character; the clauses are added only for those problems.
+const revisionHead = (bytes: number) => `Your playbook is ${bytes} bytes; it must be between 1500 and 8000 bytes`
+const revisionTail = '. Revise it to fit: keep the same class, the same five sections in the same order and the most important sink patterns and checks; shorten or merge the least important points. Do not add new content beyond what a missing or incomplete section needs. If a section is missing or incomplete, use web search to look up the information it needs, only if needed. Return the full revised playbook in the same schema.'
+const titleClause = ', and does not start with the required "Playbook for <Class name> (<codes>)" title line followed by a line of = characters'
+// A well-formed playbook padded to exactly `bytes`.
+const sized = (bytes: number) => generated + '\n' + 'x'.repeat(bytes - Buffer.byteLength(generated) - 1)
+const revise = (n: number) => `research:${proposed.id}:revise${n}`
+
+test('an oversized first playbook is revised once: the revision is cached and both sizes recorded', async t => {
+  const first = sized(9029), second = sized(6000)
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
+    response({ playbook: first, source_urls: [source] }, true), response({ playbook: second, source_urls: [source] })])
+  const { plan, overlay } = await runPlaybookAgent(h.options)
+  assert.deepEqual(h.failures, [])
+  assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`, revise(1)])
+  assert.equal(h.input(`research:${proposed.id}`).task, researchTask)
+  const r = h.request(revise(1)), research = h.request(`research:${proposed.id}`)
+  assert.equal(r.tool_choice, 'auto')
+  for (const key of ['instructions', 'tools', 'include', 'text', 'reasoning', 'max_output_tokens'] as const) assert.deepEqual(r[key], research[key], key)
+  const input = h.input(revise(1)), researchInput = h.input(`research:${proposed.id}`)
+  assert.deepEqual(Object.keys(input), ['task', 'class', 'stack', 'example_format', 'previous_playbook', 'previous_source_urls', 'problems'])
+  assert.equal(input.task, revisionHead(9029) + revisionTail)
+  for (const key of ['class', 'stack', 'example_format']) assert.deepEqual(input[key], researchInput[key], key)
+  assert.equal(input.previous_playbook, first)
+  assert.deepEqual(input.previous_source_urls, [source])
+  assert.deepEqual(input.problems, { bytes: 9029, size_bounds: [1500, 8000], missing_sections: [], title_line_ok: true })
+  const cached = readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!
+  assert.equal(cached.text, second)
+  assert.equal(overlay[proposed.id].sha256, textHash(second))
+  assert.deepEqual((cached.meta as any).revisions, { attempts: 2, sizes: [9029, 6000] })
+  assert.deepEqual(plan.playbooks.at(-1)!.revisions, { attempts: 2, sizes: [9029, 6000] })
+  // A revision is not required to search; its cited URL stays verified by the first call's search.
+  assert.equal(h.usage.at(-1)!.web_search_calls, 0)
+  assert.deepEqual(cached.meta.verified_source_urls, [source])
+  assert.equal(h.logs.at(-1), `[playbook-agent] ${revise(1)} completed in=120 out=50 searches=0 bytes=9029->6000 problems=-`)
+})
+
+test('the revision task carries the missing-sections and title clauses only for those problems', async t => {
+  const missing = generated.replace('## Hunting Discipline', '## Discipline')
+  const untitled = generated.replace('Playbook for', 'Guide for')
+  const cases: [string, string, string[], boolean][] = [
+    [missing, `, and is missing these sections: ## Hunting Discipline`, ['## Hunting Discipline'], true],
+    [untitled, titleClause, [], false],
+    ['Guide\n', ', and is missing these sections: Scope:, ## OWASP Categories Covered, ## Sink Patterns to Hunt For, ' +
+      '## Distinguishing Real Findings from False Positives, ## Hunting Discipline' + titleClause,
+      ['Scope:', '## OWASP Categories Covered', '## Sink Patterns to Hunt For', '## Distinguishing Real Findings from False Positives',
+        '## Hunting Discipline'], false],
+  ]
+  for (const [text, clauses, missingSections, titleOk] of cases) {
+    const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
+      response({ playbook: text, source_urls: [] }, true), response({ playbook: generated, source_urls: [] })])
+    await runPlaybookAgent(h.options)
+    const bytes = Buffer.byteLength(text), input = h.input(revise(1))
+    assert.equal(input.task, revisionHead(bytes) + clauses + revisionTail)
+    assert.deepEqual(input.problems, { bytes, size_bounds: [1500, 8000], missing_sections: missingSections, title_line_ok: titleOk })
+    assert.equal(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!.text, generated)
+  }
+})
+
+test('a revision that searches: its sources verify cited URLs and its queries join the cached queries', async t => {
+  const other = { query: 'worker replay revision', url: 'https://example.test/replay' }
+  const absent = 'https://example.test/not-retrieved'
+  const cited = [source, other.url, absent]
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
+    response({ playbook: sized(9029), source_urls: [source] }, true), response({ playbook: generated, source_urls: cited }, [other])])
+  const { plan } = await runPlaybookAgent(h.options)
+  const { meta } = readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!
+  assert.deepEqual(meta.source_urls, cited)
+  assert.deepEqual(meta.verified_source_urls, [source, other.url])
+  assert.deepEqual(meta.unverified_source_urls, [absent])
+  assert.deepEqual(meta.queries, ['worker epoch security', other.query])
+  const record = plan.playbooks.at(-1)!
+  assert.deepEqual([record.verified_source_urls, record.queries], [[source, other.url], ['worker epoch security', other.query]])
+  assert.match(h.logs.at(-1)!, / searches=1 bytes=9029->\d+ problems=-$/)
+})
+
+test('still failing after two revisions: three research-type calls, every attempt recorded, today\'s error', async t => {
+  const long = sized(9029), missing = generated.replace('## Hunting Discipline', '## Discipline')
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
+    response({ playbook: long, source_urls: [source] }, true), response({ playbook: sized(8500), source_urls: [source] }),
+    response({ playbook: missing, source_urls: [source] })])
+  await assert.rejects(runPlaybookAgent(h.options), { message: 'Generated playbook does not match the built-in section format' })
+  assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`, revise(1), revise(2)])
+  assert.equal(h.failures.length, 1)
+  const f = h.failures[0]
+  assert.equal(f.purpose, revise(2))
+  assert.equal(f.check, 'sections')
+  assert.equal(f.playbook_text, missing)
+  assert.deepEqual(f.missing_sections, ['## Hunting Discipline'])
+  assert.deepEqual(f.attempts, [
+    { purpose: `research:${proposed.id}`, bytes: 9029, problems: ['size'] },
+    { purpose: revise(1), bytes: 8500, problems: ['size'] },
+    { purpose: revise(2), bytes: Buffer.byteLength(missing), problems: ['sections'] },
+  ])
+  // The second revision is told the first revision's size.
+  assert.equal(h.input(revise(2)).task, revisionHead(8500) + revisionTail)
+  assert.equal(h.input(revise(2)).previous_playbook, sized(8500))
+  assert.equal(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model'), null)
+  assert.equal(h.logs.at(-1), `[playbook-agent] ${revise(2)} completed in=120 out=50 searches=0 bytes=8500->${Buffer.byteLength(missing)} problems=sections`)
+})
+
+test('a first playbook that passes makes no revision call and records a single attempt', async t => {
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), research()])
+  const { plan } = await runPlaybookAgent(h.options)
+  assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`])
+  const revisions = { attempts: 1, sizes: [Buffer.byteLength(generated)] }
+  assert.deepEqual((readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!.meta as any).revisions, revisions)
+  assert.deepEqual(plan.playbooks.at(-1)!.revisions, revisions)
 })

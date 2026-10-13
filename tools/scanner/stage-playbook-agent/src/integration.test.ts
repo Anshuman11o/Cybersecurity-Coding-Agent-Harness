@@ -424,9 +424,16 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   assert.equal(record.reasoning_tokens, 7)
   assert.match(log, /^\[playbook-agent\] decision saved: 2 classes \(1 built-in, 1 additional\)$/m)
   assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} completed in=100 out=20 searches=1 bytes=${record.byte_size} unverified=0$`, 'm'))
-  assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} FAILED check=size bytes=${record.byte_size} \\(bounds 1500-8000\\) missing=-$`, 'm'))
+  // Both revisions return the same oversized playbook; the record is the last attempt's and lists every attempt.
+  for (const n of [1, 2]) {
+    assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id}:revise${n} completed in=100 out=20 searches=1 bytes=${record.byte_size}->${record.byte_size} problems=size$`, 'm'))
+  }
+  assert.equal(record.purpose, `research:${id}:revise2`)
+  assert.deepEqual(record.attempts, ['', ':revise1', ':revise2'].map(s => ({ purpose: `research:${id}${s}`, bytes: record.byte_size, problems: ['size'] })))
+  assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id}:revise2 FAILED check=size bytes=${record.byte_size} \\(bounds 1500-8000\\) missing=-$`, 'm'))
   const usage = JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8'))
-  assert.deepEqual(usage.calls.map((c: any) => c.purpose), ['coverage', 'turn1', 'turn2:pass1', 'turn3', `research:${id}`])
+  assert.deepEqual(usage.calls.map((c: any) => c.purpose), ['coverage', 'turn1', 'turn2:pass1', 'turn3', `research:${id}`,
+    `research:${id}:revise1`, `research:${id}:revise2`])
 })
 
 test('stage entrypoint removes a stale class decision before anything else', t => {

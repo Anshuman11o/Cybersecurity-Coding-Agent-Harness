@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { normalizeUsage } from '../../shared/pricing.js'
 import {
   agentPlaybookRecord, builtinPlaybookRecord, listCachedPlaybooks, readCachedPlaybook,
-  writeCachedPlaybook, type PlaybookRecord,
+  writeCachedPlaybook, type PlaybookMeta, type PlaybookRecord,
 } from '../../shared/playbook-cache.js'
 import {
   validateClassSelection, validateOverlay, type ClassRegistry, type ClassesOverlay, type ClassSelection,
@@ -70,8 +70,10 @@ export interface PlaybookPlan {
   /** The run's complete class set: selected built-ins plus additional classes, sorted. */
   selected_classes: string[]
   classes: (ProposedClass & { cache: 'hit' | 'created'; sha256: string })[]
-  playbooks: PlaybookRecord[]
+  playbooks: (PlaybookRecord & { revisions?: PlaybookRevisions })[]
 }
+/** Research attempts behind a cached playbook: the first call plus its revisions, with each output's bytes. */
+export interface PlaybookRevisions { attempts: number; sizes: (number | null)[] }
 /** The final union, recorded before any research call so a research failure cannot lose it. */
 export interface ClassDecision {
   schema: 'secscan.class-decision/1'
@@ -105,7 +107,10 @@ export interface ResearchFailure {
   reasoning_tokens: number | null
   /** The rejected playbook verbatim, or the raw output text when there is no playbook string. */
   playbook_text: string
+  /** Present once the first output reached the playbook checks: every attempt, in order. */
+  attempts?: ResearchAttempt[]
 }
+export interface ResearchAttempt { purpose: string; bytes: number | null; problems: PlaybookCheck[] }
 export interface AgentOptions {
   recon: ReconInput
   builtins: ClassRegistry
@@ -150,6 +155,11 @@ const tasks = {
   turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
   turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
 }
+const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
+// Each bracketed clause of the revision template appears only when that problem exists.
+const revisionTask = (bytes: number, missing: string[], titleOk: boolean) => `Your playbook is ${bytes} bytes; it must be between 1500 and 8000 bytes${missing.length ? `, and is missing these sections: ${missing.join(', ')}` : ''}${titleOk ? '' : ', and does not start with the required "Playbook for <Class name> (<codes>)" title line followed by a line of = characters'}. Revise it to fit: keep the same class, the same five sections in the same order and the most important sink patterns and checks; shorten or merge the least important points. Do not add new content beyond what a missing or incomplete section needs. If a section is missing or incomplete, use web search to look up the information it needs, only if needed. Return the full revised playbook in the same schema.`
+/** Revision calls after a first research output that fails a playbook check. */
+const MAX_REVISIONS = 2
 
 function recordedUsage(raw: unknown): UsageCall['usage'] {
   const usage = normalizeUsage(raw)
@@ -218,8 +228,10 @@ export function labelSourceUrls(cited: string[], searched: string[]): { verified
   return { verified_source_urls: cited.filter(verified), unverified_source_urls: cited.filter(url => !verified(url)) }
 }
 
+const bytesOf = (playbook: unknown) => typeof playbook === 'string' ? Buffer.byteLength(playbook) : null
+
 function researchFailure(classId: string, purpose: string, check: ResearchCheck, error: unknown,
-  raw: string, value: any, trace: UsageCall): ResearchFailure {
+  raw: string, value: any, trace: UsageCall, attempts?: ResearchAttempt[]): ResearchFailure {
   const playbook = typeof value?.playbook === 'string' ? value.playbook as string : null
   const cited: string[] = Array.isArray(value?.source_urls) ? value.source_urls : []
   const text = playbook ?? raw
@@ -233,6 +245,7 @@ function researchFailure(classId: string, purpose: string, check: ResearchCheck,
     output_tokens: trace.usage?.output_tokens ?? null,
     reasoning_tokens: trace.usage?.output_tokens_details.reasoning_tokens ?? null,
     playbook_text: text,
+    ...(attempts ? { attempts } : {}),
   }
 }
 
@@ -282,8 +295,9 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   if (!Number.isSafeInteger(loop.maxPasses) || loop.maxPasses < 1) throw new Error('Loop max passes must be a positive integer')
   const cached = listCachedPlaybooks(o.cacheRoot, o.model)
   const calls: UsageCall[] = []
-  // Every call may search. Decision calls leave it to the model; research calls must search.
-  const call = async (purpose: string, input: string, schema: Record<string, unknown>, research: boolean) => {
+  // Every call may search. Decision and revision calls leave it to the model; research calls must search.
+  const call = async (purpose: string, input: string, schema: Record<string, unknown>, kind: 'decision' | 'research' | 'revision') => {
+    const research = kind !== 'decision'
     const started = new Date().toISOString()
     const { reasoning_effort, ...sampling } = o.sampling ?? {}
     const request: ResponseCreateParamsNonStreaming = {
@@ -293,7 +307,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
       ...(reasoning_effort ? { reasoning: { effort: reasoning_effort as any } } : {}),
       text: { format: { type: 'json_schema', name: research ? 'playbook' : 'coverage_decision', strict: true, schema } },
       tools: [{ type: 'web_search', ...(allowedDomains.length ? { filters: { allowed_domains: allowedDomains } } : {}) }],
-      tool_choice: research ? 'required' : 'auto',
+      tool_choice: kind === 'research' ? 'required' : 'auto',
       include: ['web_search_call.action.sources'],
     }
     let response: Response
@@ -315,7 +329,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     calls.push(record)
     o.recordUsage(record) // Persist paid usage even if parsing or validation fails next.
     if (response.status !== 'completed') {
-      o.log?.(progress(record, research ? 'bytes=- unverified=-' : 'added=-'))
+      o.log?.(progress(record, { decision: 'added=-', research: 'bytes=- unverified=-', revision: 'bytes=- problems=-' }[kind]))
       throw new Error(`Playbook ${purpose} response ${response.status}`)
     }
     const text = response.output_text || (response.output ?? []).flatMap(item =>
@@ -342,7 +356,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   let decision!: CoverageDecision
   const decide = async (purpose: string, task: string, turn: boolean) => {
     const extra = turn ? { current_decision: decision, searches_so_far: searches } : {}
-    const { text, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, false)
+    const { text, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, 'decision')
     const value = JSON.parse(text)
     for (const key of ['queries', 'source_urls'] as const) for (const s of trace[key]) if (!searches[key].includes(s)) searches[key].push(s)
     validateDecision(value, purpose, turn, o)
@@ -394,38 +408,61 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     let entry = readCachedPlaybook(o.cacheRoot, c.id, c.framework, o.model)
     const hit = entry !== null
     if (!entry) {
-      const purpose = `research:${c.id}`
-      const { text, trace } = await call(purpose, JSON.stringify({
-        task: 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used.',
-        class: c, stack: {
-          languages: o.recon.architecture.file_inventory?.by_language,
-          frameworks: o.recon.architecture.architecture?.frameworks,
-          dependencies: o.recon.architecture.dependencies,
-        }, example_format: builtinGuidance[0].text,
-      }), playbookSchema, true)
+      const stack = {
+        languages: o.recon.architecture.file_inventory?.by_language,
+        frameworks: o.recon.architecture.architecture?.frameworks,
+        dependencies: o.recon.architecture.dependencies,
+      }, example_format = builtinGuidance[0].text
+      // The attempt under check: the first research call, then each revision in turn.
+      let purpose = `research:${c.id}`
+      let { text, trace } = await call(purpose, JSON.stringify({ task: researchTask, class: c, stack, example_format }), playbookSchema, 'research')
+      // Labels and cached queries use the searches of the first call and all its revisions.
+      const queries = [...trace.queries], searched = [...trace.source_urls]
       // Every failed check leaves a debug record of the rejected output before the stage fails.
-      let value: any = undefined
+      let value: any = undefined, attempts: ResearchAttempt[] | undefined
       const failed = (check: ResearchCheck, error: unknown) => {
-        o.recordResearchFailure(researchFailure(c.id, purpose, check, error, text, value, trace))
+        o.recordResearchFailure(researchFailure(c.id, purpose, check, error, text, value, trace, attempts))
         return error
       }
-      try { value = JSON.parse(text) } catch (error) {
-        o.log?.(progress(trace, 'bytes=- unverified=-'))
-        throw failed('json', error)
+      const parse = (tail: string) => {
+        try { value = JSON.parse(text) } catch (error) {
+          o.log?.(progress(trace, tail))
+          throw failed('json', error)
+        }
+        // Kept as cited, in order; an empty or absent list is not a failure.
+        return Array.isArray(value?.source_urls) ? value.source_urls.filter((s: unknown) => typeof s === 'string') as string[] : []
       }
-      // Kept as cited, in order; an empty or absent list is not a failure.
-      const cited: string[] = Array.isArray(value?.source_urls) ? value.source_urls.filter((s: unknown) => typeof s === 'string') : []
-      const labels = labelSourceUrls(cited, trace.source_urls)
-      o.log?.(progress(trace, `bytes=${typeof value?.playbook === 'string' ? Buffer.byteLength(value.playbook) : '-'} ` +
-        `unverified=${labels.unverified_source_urls.length}`))
+      let cited = parse('bytes=- unverified=-')
+      o.log?.(progress(trace, `bytes=${bytesOf(value?.playbook) ?? '-'} ` +
+        `unverified=${labelSourceUrls(cited, trace.source_urls).unverified_source_urls.length}`))
       if (trace.web_search_calls === 0) throw failed('no_search', new Error(`No web search performed for ${c.id}`))
-      try { validatePlaybook(value.playbook) } catch (error) {
-        throw failed(playbookProblems(value?.playbook)[0] ?? 'format', error)
+      let problems = playbookProblems(value?.playbook)
+      attempts = [{ purpose, bytes: bytesOf(value?.playbook), problems }]
+      for (let n = 1; n <= MAX_REVISIONS && problems.length; n++) {
+        const before = bytesOf(value?.playbook), missing = missingSections(value?.playbook), titleOk = !problems.includes('format')
+        purpose = `research:${c.id}:revise${n}`
+        ;({ text, trace } = await call(purpose, JSON.stringify({
+          task: revisionTask(before ?? 0, missing, titleOk), class: c, stack, example_format,
+          previous_playbook: value?.playbook ?? null, previous_source_urls: cited,
+          problems: { bytes: before ?? 0, size_bounds: [...PLAYBOOK_BYTES], missing_sections: missing, title_line_ok: titleOk },
+        }), playbookSchema, 'revision'))
+        for (const q of trace.queries) if (!queries.includes(q)) queries.push(q)
+        for (const s of trace.source_urls) if (!searched.includes(s)) searched.push(s)
+        value = undefined
+        cited = parse(`bytes=${before ?? '-'}->- problems=-`)
+        problems = playbookProblems(value?.playbook)
+        attempts.push({ purpose, bytes: bytesOf(value?.playbook), problems })
+        o.log?.(progress(trace, `bytes=${before ?? '-'}->${bytesOf(value?.playbook) ?? '-'} problems=${problems.join(',') || '-'}`))
       }
-      entry = writeCachedPlaybook(o.cacheRoot, value.playbook, {
-        ...overlayEntry(c, o.model), class_id: c.id, source_urls: cited, ...labels,
-        queries: trace.queries, created_at: new Date().toISOString(),
-      })
+      try { validatePlaybook(value.playbook) } catch (error) {
+        throw failed(problems[0] ?? 'format', error)
+      }
+      const meta = {
+        ...overlayEntry(c, o.model), class_id: c.id, source_urls: cited, ...labelSourceUrls(cited, searched),
+        queries, created_at: new Date().toISOString(),
+        revisions: { attempts: attempts.length, sizes: attempts.map(a => a.bytes) } satisfies PlaybookRevisions,
+      }
+      entry = writeCachedPlaybook(o.cacheRoot, value.playbook, meta)
     }
     // The cached class definition and text are a pair; never relabel old text
     // using a fresh decision's possibly different codes or mapping.
@@ -433,7 +470,9 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     overlay[c.id] = { playbook, codes, signals, framework, model, sha256 }
     validateOverlay(overlay, o.builtins, o.signals)
     plan.classes.push({ ...c, codes, signals, cache: hit ? 'hit' : 'created', sha256 })
-    plan.playbooks.push(agentPlaybookRecord(entry.meta))
+    // Entries cached before revisions were recorded carry none, and none is invented.
+    const { revisions } = entry.meta as PlaybookMeta & { revisions?: PlaybookRevisions }
+    plan.playbooks.push({ ...agentPlaybookRecord(entry.meta), ...(revisions ? { revisions } : {}) })
   }
   plan.searched = calls.some(c => c.web_search_calls > 0)
   const selection: ClassSelection = {
