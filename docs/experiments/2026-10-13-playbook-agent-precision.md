@@ -137,7 +137,7 @@ What was learned:
    summary-level; asked to rate likelihood from it (P3), the model removed
    mostly present classes.
 2. Source code is the lever that works. With source excerpts (P4-P6) turn3's
-   removals were right 13 times out of 16 across both tests, and Test 1
+   removals were right 16 times out of 20 across both tests, and Test 1
    precision reached 87.5%.
 3. The remaining recall loss is systematic, not noise: with the code in front
    of it, the model rates the same present classes absent in every iteration
