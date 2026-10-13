@@ -39,18 +39,20 @@ test('playbook metering keeps recon spend, pins its tier, and includes cache, re
     ledgerTotal: () => readLedgerTotals(ledger.path).total_usd })
   assert.equal(gate.decide(0.02).action, 'start')
   let calls = 0
-  const meter = new PlaybookMeter(provider, ctx, 'https://eu.api.openai.com/v1', 'flex', async body => {
+  const meter = new PlaybookMeter(provider, ctx, 'https://eu.api.openai.com/v1', 'flex', async (body, purpose) => {
     calls++
     assert.equal(body.service_tier, 'flex')
+    assert.equal(purpose, 'turn2:pass1')
     return response()
   })
-  await meter.call(request)
+  await meter.call(request, 'turn2:pass1')
   assert.equal(calls, 1)
   const entries = new SpendLedger(ledger.path).list()
   assert.equal(entries.length, 2)
   assert.equal(entries[0].source, 'recon')
   assert.equal(entries[1].source, 'playbook')
   assert.equal(entries[1].stage, 'stage-playbook-agent')
+  assert.equal(entries[1].label, 'turn2:pass1', 'the label is the caller\'s purpose, whatever the request carries')
   const expected = ((90 * 0.1 + 20 * 0.01 + 10 * 0.125 + 50 * 0.5) * 0.5 * 1.1) / 1e6 + 0.01
   assert.equal(entries[1].cost_usd, expected)
   assert.equal(entries[1].usage!.cache_write_tokens, 10)
@@ -64,14 +66,14 @@ test('missing-usage calls and failed requests reserve spend, and resumes append 
     calls++
     throw new Error('synthetic failure without usage')
   })
-  await assert.rejects(failed.call(request), /synthetic failure/)
+  await assert.rejects(failed.call(request, 'research:example-class'), /synthetic failure/)
   const first = failed.ledger.total()
   assert.ok(first > 0)
   const resumed = new PlaybookMeter(provider, ctx, null, 'default', async () => {
     calls++
     return response({ usage: undefined, service_tier: 'default' })
   })
-  await resumed.call(request)
+  await resumed.call(request, 'research:example-class')
   const totals = readLedgerTotals(resumed.ledger.path)
   assert.equal(calls, 2)
   assert.equal(totals.reserved_calls, 2)
@@ -84,8 +86,9 @@ test('failed requests carrying usage are booked at actual cost', async t => {
   const meter = new PlaybookMeter(provider, ctx, null, 'flex', async () => {
     throw { error: { usage: response().usage, service_tier: 'flex' } }
   })
-  await assert.rejects(meter.call(request))
+  await assert.rejects(meter.call(request, 'coverage'))
   const entry = meter.ledger.list()[0]
+  assert.equal(entry.label, 'coverage')
   assert.equal(entry.basis, 'actual')
   assert.equal(entry.usage!.completion_tokens, 50)
   assert.equal(entry.usage!.cache_write_tokens, 10)
@@ -95,7 +98,7 @@ test('failed requests carrying usage are booked at actual cost', async t => {
 test('an unpriced served tier stops after recording the attempted call', async t => {
   const ctx = context(t)
   const meter = new PlaybookMeter(provider, ctx, null, 'default', async () => response({ service_tier: 'ultrafast' }))
-  await assert.rejects(meter.call(request), /unpriced_service_tier/)
+  await assert.rejects(meter.call(request, 'coverage'), /unpriced_service_tier/)
   assert.equal(meter.ledger.list().length, 1)
   assert.equal(meter.ledger.list()[0].served_tier, 'ultrafast')
   assert.equal(meter.ledger.list()[0].cost_usd, null)

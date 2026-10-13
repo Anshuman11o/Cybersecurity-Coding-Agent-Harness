@@ -5,6 +5,7 @@ import { runPath, type Provider } from './run-paths.js'
 import { assertUpstream } from './meta.js'
 
 export const PLAYBOOK_STAGE = 'stage-playbook-agent' as const
+export const CLASS_SELECTION_FILE = 'class-selection.json'
 export interface ClassEntry { playbook: string; codes: string[] }
 export type ClassRegistry = Record<string, ClassEntry>
 export interface SignalClassMap { floor: string[]; signals: Record<string, string[]> }
@@ -15,6 +16,15 @@ export interface OverlayEntry extends ClassEntry {
   sha256: string
 }
 export type ClassesOverlay = Record<string, OverlayEntry>
+/** The agent's complete class set for a run: selected built-ins plus additional classes. */
+export interface ClassSelection {
+  schema: 'secscan.class-selection/1'
+  created_at: string
+  model: string
+  builtin: string[]
+  added: string[]
+  classes: string[]
+}
 
 export function assertSlug(value: string, label: string): void {
   if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9-]{0,95}$/.test(value)) {
@@ -22,6 +32,7 @@ export function assertSlug(value: string, label: string): void {
   }
 }
 
+/** Every class carries at least one code; code text is free-form (non-blank, single-line, at most 100 chars) and kept as written. */
 export function validateOverlay(overlay: ClassesOverlay, builtins: ClassRegistry, map: SignalClassMap): void {
   if (!overlay || typeof overlay !== 'object' || Array.isArray(overlay)) throw new Error('Invalid classes overlay')
   for (const [id, entry] of Object.entries(overlay)) {
@@ -30,7 +41,7 @@ export function validateOverlay(overlay: ClassesOverlay, builtins: ClassRegistry
     if (!entry || entry.playbook !== id) throw new Error(`Overlay playbook must equal class id ${id}`)
     assertSlug(entry.framework, 'framework')
     if (!Array.isArray(entry.codes) || !entry.codes.length ||
-        entry.codes.some(c => typeof c !== 'string' || !/^(?:CWE-\d+|A\d{2}|API\d+|LLM\d{2})$/.test(c))) {
+        entry.codes.some(c => typeof c !== 'string' || !c.trim() || c.length > 100 || /[\n\r\u2028\u2029]/.test(c))) {
       throw new Error(`Invalid codes for ${id}`)
     }
     if (!Array.isArray(entry.signals) || !entry.signals.length ||
@@ -61,4 +72,26 @@ export function readClassesOverlay(provider: Provider): ClassesOverlay | null {
   if (!existsSync(file)) return null
   assertUpstream(provider, PLAYBOOK_STAGE)
   return JSON.parse(readFileSync(file, 'utf8'))
+}
+
+export function validateClassSelection(sel: ClassSelection, builtins: ClassRegistry, overlay: ClassesOverlay | null): void {
+  if (!sel || sel.schema !== 'secscan.class-selection/1') throw new Error('Invalid class selection schema')
+  if (![sel.builtin, sel.added, sel.classes].every(Array.isArray)) throw new Error('Invalid class selection')
+  for (const id of sel.builtin) if (!Object.hasOwn(builtins, id)) throw new Error(`Selected built-in class ${id} is not a built-in`)
+  for (const id of sel.added) {
+    if (Object.hasOwn(builtins, id) || !overlay || !Object.hasOwn(overlay, id)) throw new Error(`Selected additional class ${id} is not in the overlay`)
+  }
+  const all = [...sel.builtin, ...sel.added]
+  if (new Set(all).size !== all.length) throw new Error('Duplicate class in selection')
+  if (JSON.stringify(sel.classes) !== JSON.stringify([...all].sort())) throw new Error('Selection classes must be the sorted union of builtin and added')
+}
+
+export function readClassSelection(provider: Provider): ClassSelection | null {
+  const file = join(runPath(provider, PLAYBOOK_STAGE), CLASS_SELECTION_FILE)
+  if (!existsSync(file)) return null
+  assertUpstream(provider, PLAYBOOK_STAGE)
+  const sel: ClassSelection = JSON.parse(readFileSync(file, 'utf8'))
+  const builtins: ClassRegistry = JSON.parse(readFileSync(new URL('./vuln-classes.json', import.meta.url), 'utf8'))
+  validateClassSelection(sel, builtins, readClassesOverlay(provider))
+  return sel
 }

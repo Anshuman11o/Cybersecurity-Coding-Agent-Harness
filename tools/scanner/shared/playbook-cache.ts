@@ -7,7 +7,11 @@ import { assertSlug, validateOverlay, type ClassRegistry, type ClassesOverlay, t
 
 export interface PlaybookMeta extends OverlayEntry {
   class_id: string
+  /** Every URL the research output cited, in order; may be empty. */
   source_urls: string[]
+  /** Cited URLs labelled against that call's own search sources. Entries cached before labelling lack both. */
+  verified_source_urls?: string[]
+  unverified_source_urls?: string[]
   queries: string[]
   created_at: string
 }
@@ -16,6 +20,8 @@ export interface PlaybookRecord {
   class_id: string
   kind: 'builtin' | 'agent'
   source_urls: string[]
+  verified_source_urls?: string[]
+  unverified_source_urls?: string[]
   source_file: string | null
   sha256: string
   framework: string | null
@@ -60,8 +66,11 @@ export function readCachedPlaybook(root: string, id: string, framework: string, 
       textHash(text) !== meta.sha256 || (expectedHash && expectedHash !== meta.sha256)) {
     throw new Error(`Playbook cache identity or sha256 mismatch: ${id}/${framework}/${model}`)
   }
-  if (!Array.isArray(meta.source_urls) || !meta.source_urls.length || !Array.isArray(meta.queries) ||
-      !Number.isFinite(Date.parse(meta.created_at))) throw new Error(`Missing provenance for ${id}`)
+  const strings = (v: unknown) => Array.isArray(v) && v.every(s => typeof s === 'string')
+  if (!strings(meta.source_urls) || !Array.isArray(meta.queries) || !Number.isFinite(Date.parse(meta.created_at)) ||
+      [meta.verified_source_urls, meta.unverified_source_urls].some(v => v !== undefined && !strings(v))) {
+    throw new Error(`Missing provenance for ${id}`)
+  }
   return { text, meta }
 }
 
@@ -102,6 +111,9 @@ export function listCachedPlaybooks(root: string, model: string): PlaybookMeta[]
 export function agentPlaybookRecord(meta: PlaybookMeta): PlaybookRecord {
   return {
     class_id: meta.class_id, kind: 'agent', source_urls: meta.source_urls,
+    // Never invented for an entry cached before labelling.
+    ...(meta.verified_source_urls ? { verified_source_urls: meta.verified_source_urls } : {}),
+    ...(meta.unverified_source_urls ? { unverified_source_urls: meta.unverified_source_urls } : {}),
     source_file: null, sha256: meta.sha256, framework: meta.framework,
     model: meta.model, queries: meta.queries, created_at: meta.created_at,
   }
