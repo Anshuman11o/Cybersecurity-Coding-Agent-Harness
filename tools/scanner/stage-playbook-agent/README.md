@@ -96,6 +96,16 @@ Each uncached class in the final decision then gets a Responses call with
 `web_search` (required) and a strict playbook schema. It returns a plain-text
 playbook in the built-in format plus source URLs. The caller captures queries
 from `output[].action.queries`.
+
+Citing source URLs is optional. Every URL the output cites is kept as cited, in
+order, in `source_urls`, which may be empty; no cited URL is a reason to fail.
+Each is labelled against that call's own search sources:
+`verified_source_urls` holds the well-formed http(s) URLs found among them,
+`unverified_source_urls` every other cited URL, including malformed ones. The
+research progress line reports `unverified=<n>`. The call must still perform a
+web search, and the playbook must still pass the format, section and size
+checks; a failure writes `research-failures/<class-id>.json` (which lists any
+cited URL absent from the search as information) and stops the stage.
 Repeated runs still assess current coverage, but reuse matching cached entries
 instead of researching them again. Cached definitions keep their original
 codes and signals together with their text; changing coverage cannot relabel
@@ -116,8 +126,9 @@ Product reports roots use `SCANNER_REPORTS_ROOT` (the CLI's `--out`), defaulting
 to `<target>/.secscan`. They are shared across run IDs even when
 `SCANNER_RUNS_ROOT` relocates per-run outputs. The benchmark reports root is its
 configured runs root. The model path segment is percent-encoded. Each entry
-contains `playbook.md` and `meta.json` with source URLs, sha256 of the UTF-8
-text, creation time, model, queries, class codes, and signal mappings. Cache
+contains `playbook.md` and `meta.json` with the cited source URLs and their
+verified/unverified labels (absent from entries cached before labelling, which
+still load), sha256 of the UTF-8 text, creation time, model, queries, class codes, and signal mappings. Cache
 publication is atomic; existing entries are immutable. Missing or mismatching
 hashes stop loading rather than silently supplying different guidance.
 
@@ -127,7 +138,8 @@ hashes stop loading rather than silently supplying different guidance.
 
 - `playbook-plan.json`: the final union decision and its reason, whether any
   call searched, new classes and signal mappings, cache hits, all consulted
-  playbooks with hashes and sources. `turns` holds one entry per review turn
+  playbooks with hashes and sources (an agent playbook's record carries the
+  same verified/unverified labels as its cache entry). `turns` holds one entry per review turn
   (purpose, the ids the union `added` and `restored`, the model's `changes`,
   and the turn's search count, queries and sources); `loop` records
   `enabled`, `max_passes` and `passes_run`.

@@ -83,8 +83,8 @@ export interface ClassDecision {
   turns: DecisionTurn[]
   loop: PlaybookPlan['loop']
 }
-export type PlaybookCheck = 'format' | 'sections' | 'size' | 'sources'
-export type ResearchCheck = 'json' | PlaybookCheck | 'no_search' | 'cited_url_absent'
+export type PlaybookCheck = 'format' | 'sections' | 'size'
+export type ResearchCheck = 'json' | PlaybookCheck | 'no_search'
 /** Debug record for a research output that failed a check; the stage still fails. */
 export interface ResearchFailure {
   class_id: string
@@ -188,13 +188,12 @@ const playbookErrors: Record<PlaybookCheck, string> = {
   format: 'Generated playbook does not match the built-in section format',
   sections: 'Generated playbook does not match the built-in section format',
   size: 'Generated playbook must be roughly 2–6 KB',
-  sources: 'Generated playbook needs web source URLs',
 }
 export const missingSections = (text: unknown): string[] =>
   PLAYBOOK_SECTIONS.filter(h => typeof text !== 'string' || !text.includes(h))
 
-/** Every failed playbook check, in validation order. A non-string has no size to check. */
-export function playbookProblems(text: unknown, sources: unknown): PlaybookCheck[] {
+/** Every failed playbook check, in validation order. A non-string has no size to check. Cited URLs are never checked. */
+export function playbookProblems(text: unknown): PlaybookCheck[] {
   const problems: PlaybookCheck[] = []
   if (typeof text !== 'string' || !/^\s*Playbook for .+\n=+/m.test(text)) problems.push('format')
   if (missingSections(text).length) problems.push('sections')
@@ -202,15 +201,21 @@ export function playbookProblems(text: unknown, sources: unknown): PlaybookCheck
     const size = Buffer.byteLength(text)
     if (size < PLAYBOOK_BYTES[0] || size > PLAYBOOK_BYTES[1]) problems.push('size')
   }
-  if (!Array.isArray(sources) || !sources.length || sources.some(s => {
-    try { return !['https:', 'http:'].includes(new URL(s).protocol) } catch { return true }
-  })) problems.push('sources')
   return problems
 }
 
-export function validatePlaybook(text: string, sources: string[]): void {
-  const [problem] = playbookProblems(text, sources)
+export function validatePlaybook(text: string): void {
+  const [problem] = playbookProblems(text)
   if (problem) throw new Error(playbookErrors[problem])
+}
+
+/** Citing is optional and every cited URL is kept. A label, never a check: a URL is verified only when
+ *  it is a well-formed http(s) URL among the call's own search sources; otherwise it is unverified. */
+export function labelSourceUrls(cited: string[], searched: string[]): { verified_source_urls: string[]; unverified_source_urls: string[] } {
+  const verified = (url: string) => {
+    try { return ['https:', 'http:'].includes(new URL(url).protocol) && searched.includes(url) } catch { return false }
+  }
+  return { verified_source_urls: cited.filter(verified), unverified_source_urls: cited.filter(url => !verified(url)) }
 }
 
 function researchFailure(classId: string, purpose: string, check: ResearchCheck, error: unknown,
@@ -310,7 +315,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     calls.push(record)
     o.recordUsage(record) // Persist paid usage even if parsing or validation fails next.
     if (response.status !== 'completed') {
-      o.log?.(progress(record, research ? 'bytes=-' : 'added=-'))
+      o.log?.(progress(record, research ? 'bytes=- unverified=-' : 'added=-'))
       throw new Error(`Playbook ${purpose} response ${response.status}`)
     }
     const text = response.output_text || (response.output ?? []).flatMap(item =>
@@ -405,19 +410,20 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
         return error
       }
       try { value = JSON.parse(text) } catch (error) {
-        o.log?.(progress(trace, 'bytes=-'))
+        o.log?.(progress(trace, 'bytes=- unverified=-'))
         throw failed('json', error)
       }
-      o.log?.(progress(trace, `bytes=${typeof value?.playbook === 'string' ? Buffer.byteLength(value.playbook) : '-'}`))
+      // Kept as cited, in order; an empty or absent list is not a failure.
+      const cited: string[] = Array.isArray(value?.source_urls) ? value.source_urls.filter((s: unknown) => typeof s === 'string') : []
+      const labels = labelSourceUrls(cited, trace.source_urls)
+      o.log?.(progress(trace, `bytes=${typeof value?.playbook === 'string' ? Buffer.byteLength(value.playbook) : '-'} ` +
+        `unverified=${labels.unverified_source_urls.length}`))
       if (trace.web_search_calls === 0) throw failed('no_search', new Error(`No web search performed for ${c.id}`))
-      try { validatePlaybook(value.playbook, value.source_urls) } catch (error) {
-        throw failed(playbookProblems(value?.playbook, value?.source_urls)[0] ?? 'format', error)
-      }
-      if (value.source_urls.some((url: string) => !trace.source_urls.includes(url))) {
-        throw failed('cited_url_absent', new Error(`Playbook ${c.id} cites a URL absent from the search sources/citations`))
+      try { validatePlaybook(value.playbook) } catch (error) {
+        throw failed(playbookProblems(value?.playbook)[0] ?? 'format', error)
       }
       entry = writeCachedPlaybook(o.cacheRoot, value.playbook, {
-        ...overlayEntry(c, o.model), class_id: c.id, source_urls: value.source_urls,
+        ...overlayEntry(c, o.model), class_id: c.id, source_urls: cited, ...labels,
         queries: trace.queries, created_at: new Date().toISOString(),
       })
     }

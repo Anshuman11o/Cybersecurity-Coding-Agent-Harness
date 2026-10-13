@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Response, ResponseCreateParamsNonStreaming } from 'openai/resources/responses/responses'
@@ -9,7 +9,7 @@ import {
   type DecisionChange, type ProposedClass, type ResearchFailure, type SelectedBuiltin, type UsageCall,
 } from './agent.js'
 import { PlaybookMeter } from './meter.js'
-import { readCachedPlaybook, cacheDirectory, textHash } from '../../shared/playbook-cache.js'
+import { readCachedPlaybook, cacheDirectory, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
 import { validateOverlay, type ClassesOverlay } from '../../shared/playbook-overlay.js'
 import { productDefaultProvider, webSearchUsdPerCall } from '../../shared/provider.js'
 import { resolveRunContext } from '../../shared/run-context.js'
@@ -123,6 +123,8 @@ test('uncovered recon: research, full usage, plain text cache and subsequent reu
   assert.equal(cached.text, generated)
   assert.equal(cached.meta.sha256, textHash(generated))
   assert.deepEqual(cached.meta.source_urls, [source])
+  assert.deepEqual(cached.meta.verified_source_urls, [source])
+  assert.deepEqual(cached.meta.unverified_source_urls, [])
   assert.deepEqual(cached.meta.queries, ['worker epoch security'])
   assert.ok(Number.isFinite(Date.parse(cached.meta.created_at)))
   assert.equal(plan.playbooks.at(-1)!.sha256, overlay[proposed.id].sha256)
@@ -144,12 +146,79 @@ test('configured domains use Responses filters.allowed_domains on decision and r
   for (const r of h.requests) assert.deepEqual(r.tools, [{ type: 'web_search', filters: { allowed_domains: ['example.test'] } }])
 })
 
-test('research cannot claim source URLs absent from returned search evidence', async t => {
+test('cited URLs absent from the search sources complete the run, kept in order and labelled unverified', async t => {
+  const absent = ['https://example.test/not-retrieved', 'https://example.test/also-not-retrieved']
+  const cited = [absent[0], source, absent[1]]
   const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
-    response({ playbook: generated, source_urls: ['https://example.test/not-retrieved'] }, true)])
-  await assert.rejects(runPlaybookAgent(h.options), /absent from the search sources/)
-  assert.equal(h.usage.length, 5)
-  assert.equal(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model'), null)
+    response({ playbook: generated, source_urls: cited }, true)])
+  const { plan, overlay } = await runPlaybookAgent(h.options)
+  assert.deepEqual(h.failures, [])
+  assert.equal(plan.classes[0].cache, 'created')
+  const { meta } = readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!
+  assert.deepEqual(meta.source_urls, cited)
+  assert.deepEqual(meta.verified_source_urls, [source])
+  assert.deepEqual(meta.unverified_source_urls, absent)
+  const onDisk = JSON.parse(readFileSync(join(cacheDirectory(h.root, proposed.id, proposed.framework, 'test-model'), 'meta.json'), 'utf8'))
+  assert.deepEqual([onDisk.source_urls, onDisk.verified_source_urls, onDisk.unverified_source_urls], [cited, [source], absent])
+  const record = plan.playbooks.at(-1)!
+  assert.equal(record.sha256, overlay[proposed.id].sha256)
+  assert.deepEqual([record.source_urls, record.verified_source_urls, record.unverified_source_urls], [cited, [source], absent])
+  assert.match(h.logs.at(-1)!, / bytes=\d+ unverified=2$/)
+})
+
+test('a research output citing no URLs completes and is cached with empty source lists', async t => {
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), response({ playbook: generated, source_urls: [] }, true)])
+  const { plan } = await runPlaybookAgent(h.options)
+  assert.deepEqual(h.failures, [])
+  const { meta } = readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!
+  assert.deepEqual([meta.source_urls, meta.verified_source_urls, meta.unverified_source_urls], [[], [], []])
+  const record = plan.playbooks.at(-1)!
+  assert.deepEqual([record.source_urls, record.verified_source_urls, record.unverified_source_urls], [[], [], []])
+  assert.match(h.logs.at(-1)!, / unverified=0$/)
+})
+
+test('a malformed cited URL completes and is listed as unverified, even when it appears among the search sources', async t => {
+  const ftp = 'ftp://example.test/x'
+  const cited = ['not a url', ftp, source, '']
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])),
+    response({ playbook: generated, source_urls: cited }, [{ query: 'worker epoch security', url: source }, { query: 'ftp', url: ftp }])])
+  const { plan } = await runPlaybookAgent(h.options)
+  assert.deepEqual(h.failures, [])
+  const { meta } = readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!
+  assert.deepEqual(meta.source_urls, cited)
+  assert.deepEqual(meta.verified_source_urls, [source])
+  assert.deepEqual(meta.unverified_source_urls, ['not a url', ftp, ''])
+  assert.deepEqual(plan.playbooks.at(-1)!.unverified_source_urls, ['not a url', ftp, ''])
+  assert.match(h.logs.at(-1)!, / unverified=3$/)
+})
+
+test('a cache entry written before URL labelling still loads, is reused and sized, and gains no invented labels', async t => {
+  const h = harness(t, 'uncovered', unchanged(decision('Uncovered.', [], [proposed])))
+  const dir = cacheDirectory(h.root, proposed.id, proposed.framework, 'test-model')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'playbook.md'), generated)
+  // The exact key set the cache wrote before this change.
+  const legacy = { playbook: proposed.id, codes: proposed.codes, signals: proposed.signals, framework: proposed.framework,
+    model: 'test-model', sha256: textHash(generated), class_id: proposed.id, source_urls: [source],
+    queries: ['worker epoch security'], created_at: '2026-01-01T00:00:00.000Z' }
+  writeFileSync(join(dir, 'meta.json'), JSON.stringify(legacy, null, 2) + '\n')
+  assert.deepEqual(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!.meta, legacy)
+  const { plan, overlay } = await runPlaybookAgent(h.options)
+  assert.equal(h.requests.length, 4, 'a cache hit: no research call')
+  assert.equal(plan.classes[0].cache, 'hit')
+  const record = plan.playbooks.at(-1)!
+  assert.deepEqual(record.source_urls, [source])
+  assert.ok(!('verified_source_urls' in record) && !('unverified_source_urls' in record))
+  // Stage 1's hook loads the same entry.
+  const registry = { ...builtins }, sizes = new Map<string, number>()
+  addOverlayPlaybookSizes(registry, sizes, overlay, signals, h.root)
+  assert.equal(sizes.get(proposed.id), generated.length)
+  // The source lists must still be arrays of strings when present.
+  for (const bad of [{ source_urls: 'https://example.test/' }, { source_urls: [42] }, { verified_source_urls: 'x' },
+    { unverified_source_urls: [null] }]) {
+    writeFileSync(join(dir, 'meta.json'), JSON.stringify({ ...legacy, ...bad }))
+    assert.throws(() => readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model'), /Missing provenance/)
+  }
 })
 
 test('cache hash mismatch is a failure, never used as guidance', async t => {
@@ -467,32 +536,28 @@ test('a decision call that fails never records a decision', async t => {
 
 test('validatePlaybook messages are unchanged; playbookProblems lists every failed check in order', () => {
   const format = 'Generated playbook does not match the built-in section format'
-  const size = 'Generated playbook must be roughly 2–6 KB', sources = 'Generated playbook needs web source URLs'
+  const size = 'Generated playbook must be roughly 2–6 KB'
   const short = 'Playbook for X\n=====\nScope: x\n## OWASP Categories Covered\n## Sink Patterns to Hunt For\n' +
     '## Distinguishing Real Findings from False Positives\n## Hunting Discipline\n'
-  const cases: [unknown, unknown, string | null, string[]][] = [
-    [generated, [source], null, []],
-    [42, [source], format, ['format', 'sections']],
-    [generated.replace('Playbook for', 'Guide for'), [source], format, ['format']],
-    [generated.replace('## Hunting Discipline', '## Discipline'), [source], format, ['sections']],
-    ['Guide\n', [], format, ['format', 'sections', 'size', 'sources']],
-    [short, [source], size, ['size']],
-    [generated + 'x'.repeat(6000), [source], size, ['size']],
-    [generated, ['ftp://example.test/x'], sources, ['sources']],
-    [generated, [], sources, ['sources']],
-    [generated, 'https://example.test/', sources, ['sources']],
-    [generated, ['not a url'], sources, ['sources']],
+  const cases: [unknown, string | null, string[]][] = [
+    [generated, null, []],
+    [42, format, ['format', 'sections']],
+    [generated.replace('Playbook for', 'Guide for'), format, ['format']],
+    [generated.replace('## Hunting Discipline', '## Discipline'), format, ['sections']],
+    ['Guide\n', format, ['format', 'sections', 'size']],
+    [short, size, ['size']],
+    [generated + 'x'.repeat(6000), size, ['size']],
   ]
-  for (const [text, urls, message, problems] of cases) {
-    assert.deepEqual(playbookProblems(text, urls), problems)
-    const check = () => validatePlaybook(text as string, urls as string[])
+  for (const [text, message, problems] of cases) {
+    assert.deepEqual(playbookProblems(text), problems)
+    const check = () => validatePlaybook(text as string)
     if (message) assert.throws(check, { message })
     else assert.doesNotThrow(check)
   }
   // The bounds are bytes, not characters.
   const multibyte = short + '\u2013'.repeat(500)
   assert.ok(multibyte.length < 1500 && Buffer.byteLength(multibyte) >= 1500)
-  assert.deepEqual(playbookProblems(multibyte, [source]), [])
+  assert.deepEqual(playbookProblems(multibyte), [])
 })
 
 test('every failed research check leaves a debug record of the rejected output; the error is today\'s', async t => {
@@ -505,16 +570,13 @@ test('every failed research check leaves a debug record of the rejected output; 
     '## Distinguishing Real Findings from False Positives', '## Hunting Discipline']
   const cases: { name: string; reply: Response; check: string; error: RegExp | { message: string }; text: string;
     missing?: string[]; absent?: string[]; searches?: number }[] = [
-    { name: 'too short', reply: response({ playbook: short, source_urls: [source] }, true), check: 'size',
-      error: { message: 'Generated playbook must be roughly 2–6 KB' }, text: short },
+    // Cited URLs absent from the search are recorded as information on a failure for another reason.
+    { name: 'too short', reply: response({ playbook: short, source_urls: [source, absent] }, true), check: 'size',
+      error: { message: 'Generated playbook must be roughly 2–6 KB' }, text: short, absent: [absent] },
     { name: 'too long', reply: response({ playbook: long, source_urls: [source] }, true), check: 'size',
       error: { message: 'Generated playbook must be roughly 2–6 KB' }, text: long },
     { name: 'missing section', reply: response({ playbook: missing, source_urls: [source] }, true), check: 'sections',
       error: { message: 'Generated playbook does not match the built-in section format' }, text: missing, missing: ['## Hunting Discipline'] },
-    { name: 'no source urls', reply: response({ playbook: generated, source_urls: [] }, true), check: 'sources',
-      error: { message: 'Generated playbook needs web source URLs' }, text: generated },
-    { name: 'cites absent url', reply: response({ playbook: generated, source_urls: [source, absent] }, true), check: 'cited_url_absent',
-      error: { message: `Playbook ${proposed.id} cites a URL absent from the search sources/citations` }, text: generated, absent: [absent] },
     { name: 'no search', reply: response({ playbook: generated, source_urls: [source] }), check: 'no_search',
       error: { message: `No web search performed for ${proposed.id}` }, text: generated, absent: [source], searches: 0 },
   ]
@@ -567,7 +629,7 @@ test('one progress line per completed model call; the research line carries the 
   const line = (purpose: string, searches: number, tail: string) => `[playbook-agent] ${purpose} completed in=120 out=50 searches=${searches} ${tail}`
   assert.deepEqual(h.logs, [
     line('coverage', 0, `added=injection,${proposed.id}`), line('turn1', 0, 'added=-'), line('turn2:pass1', 0, 'added=-'),
-    line('turn3', 0, 'added=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)}`),
+    line('turn3', 0, 'added=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)} unverified=0`),
   ])
   const grown = harness(t, 'covered', [response(decision('Start.')), turn(decision('Grown.', [pick('injection'), pick('ssrf')])), turn(decision('Same.')), turn(decision('Same.'))])
   await runPlaybookAgent(grown.options)
