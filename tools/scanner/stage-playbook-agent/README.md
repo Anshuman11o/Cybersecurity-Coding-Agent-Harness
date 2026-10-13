@@ -58,20 +58,50 @@ silently. No full scan or paid call was used to test this implementation.
 `guidance.md` is loaded at runtime. A strict structured coverage call receives
 the architecture, languages, frameworks, manifest section of recon's repo map,
 file signals and counts, category applicability, built-in text and registry,
-signal mappings, and available cached classes. It has no web tool. The model
-returns a reason plus zero or more additional class definitions.
+signal mappings, and available cached classes. It offers the Responses
+`web_search` tool (`tool_choice: 'auto'`, with any configured domain filter):
+the model searches when it judges the built-ins leave a surface recon shows
+uncovered, and no search is required. The model returns a reason, the selected
+built-ins and zero or more additional class definitions.
 
-Each uncached class then gets a Responses call with `web_search` and a strict
-playbook schema. It returns a plain-text playbook in the built-in format plus
-source URLs. The caller captures queries from `output[].action.queries`.
+A code-driven loop of review turns follows that initial decision:
+
+| Purpose | Runs | Asks the model to |
+|---|---|---|
+| `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
+| `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 3) | reconsider every class not selected; the loop stops at the first pass that adds no class id |
+| `turn3` | once | check that every surface recon describes is covered and each additional class is distinct |
+
+Each turn is a decision call like the first, with web search available, and
+returns the same schema plus `changes` (`{ id, why }` per addition). Every
+decision call's input starts with the same object (recon, signal counts,
+signal mappings, built-ins, cached classes) so the calls share a cacheable
+prefix; a turn appends the union decision so far and the queries and sources
+of every earlier decision call. `SCANNER_PLAYBOOK_LOOP=0` skips the turns and
+runs the initial call only; any other value, or none, keeps them.
+`SCANNER_PLAYBOOK_LOOP_PASSES` must be a positive integer; any other value fails
+the stage before any model call. The purposes above, with `coverage` and
+`research:<class-id>`, label each call in `usage.json` and the spend ledger.
+
+Turns can only add classes, and code enforces it. Each turn's output is
+validated like the initial decision, then merged as a union: built-ins by id,
+keeping the first reason; additional classes by id, keeping the first
+definition (framework, codes, signals, reason), so a later turn cannot redefine
+one. A class a turn omits stays selected and is listed in that turn's
+`restored`. The decision's `reason` is the latest turn's.
+
+Each uncached class in the final decision then gets a Responses call with
+`web_search` (required) and a strict playbook schema. It returns a plain-text
+playbook in the built-in format plus source URLs. The caller captures queries
+from `output[].action.queries`.
 Repeated runs still assess current coverage, but reuse matching cached entries
 instead of researching them again. Cached definitions keep their original
 codes and signals together with their text; changing coverage cannot relabel
 an old entry.
 
-The same coverage call also selects the built-in classes that apply
-(`builtin_classes`, each with a reason). The selected built-ins plus the
-additional classes are the run's complete class set, recorded as
+The decision calls also select the built-in classes that apply
+(`builtin_classes`, each with a reason). The final union's selected built-ins
+plus its additional classes are the run's complete class set, recorded as
 `selected_classes` in the plan and written to `class-selection.json`. When that
 file exists, Stage 0.5 runs in agent mode: no floor classes; each hunt lane gets
 the selected classes its file's signals reach; selected classes no hunt-eligible
@@ -93,9 +123,12 @@ hashes stop loading rather than silently supplying different guidance.
 
 `runPath(provider, 'stage-playbook-agent')` contains:
 
-- `playbook-plan.json`: coverage decision and reason, whether search ran,
-  new classes and signal mappings, cache hits, all consulted playbooks with
-  hashes and sources.
+- `playbook-plan.json`: the final union decision and its reason, whether any
+  call searched, new classes and signal mappings, cache hits, all consulted
+  playbooks with hashes and sources. `turns` holds one entry per review turn
+  (purpose, the ids the union `added` and `restored`, the model's `changes`,
+  and the turn's search count, queries and sources); `loop` records
+  `enabled`, `max_passes` and `passes_run`.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.

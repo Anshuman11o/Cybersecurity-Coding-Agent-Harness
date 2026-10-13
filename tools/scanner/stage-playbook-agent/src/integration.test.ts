@@ -10,10 +10,11 @@ import {
 } from '../../shared/playbook-overlay.js'
 import { writeCachedPlaybook, cacheRoot, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
 import { resolveRunContext } from '../../shared/run-context.js'
+import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
 import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '../../shared/provider.js'
 import { loadRegistryModules } from '../../cli/src/registry.js'
 import { readRunPlaybooks } from '../../cli/src/playbooks.js'
-import { loadRecon } from './main.js'
+import { loadRecon, loopOptions } from './main.js'
 
 const scanner = fileURLToPath(new URL('../..', import.meta.url))
 const tsx = join(scanner, 'stage-playbook-agent/node_modules/.bin/tsx')
@@ -35,7 +36,8 @@ function fixture(t: { after: (fn: () => void) => void }) {
   const target = join(root, 'target')
   mkdirSync(target)
   writeFileSync(join(target, 'worker.ts'), 'export const handle = (message: string) => JSON.parse(message)\n')
-  const env = { ...process.env, SCANNER_PROFILE: 'product', SCANNER_TARGET: target,
+  // The loop switches are unset unless a test sets them: the default loop is under test.
+  const env = { ...process.env, SCANNER_PLAYBOOK_LOOP: undefined, SCANNER_PLAYBOOK_LOOP_PASSES: undefined, SCANNER_PROFILE: 'product', SCANNER_TARGET: target,
     SCANNER_RUN_ID: 'unit', SCANNER_RUNS_ROOT: join(root, 'runs'), SCANNER_PROVIDER: provider }
   const ctx = resolveRunContext(env, [])
   const stage0 = join(ctx.runsRoot, provider, 'stage0-recon')
@@ -208,14 +210,14 @@ test('stage entrypoint saves plan, overlay and per-call usage; a failed retry in
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     await main(async request => ({
       id: 'mock-covered', model: request.model, status: 'completed', output: [],
-      output_text: JSON.stringify({ reason: 'Covered by the built-ins.', builtin_classes: [], classes: [] }),
+      output_text: JSON.stringify({ reason: 'Covered by the built-ins.', builtin_classes: [], classes: [], changes: [] }),
       usage: { input_tokens: 200, input_tokens_details: { cached_tokens: 50, cache_write_tokens: 10 },
         output_tokens: 25, output_tokens_details: { reasoning_tokens: 5 } },
     }));
   `)
   execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' })
   const usage = JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8'))
-  assert.equal(usage.calls.length, 1)
+  assert.deepEqual(usage.calls.map((c: any) => c.purpose), ['coverage', 'turn1', 'turn2:pass1', 'turn3'])
   assert.equal(usage.calls[0].usage.input_tokens_details.cache_write_tokens, 10)
   assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'classes-overlay.json'), 'utf8')), {})
   const records = readRunPlaybooks(join(f.root, 'no-hunt'), f.agentDir)
@@ -322,7 +324,7 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
     const source = 'https://example.test/worker-security';
-    await main(async request => request.tools?.length ? {
+    await main(async (request, purpose) => purpose.startsWith('research:') ? {
       id: 'mock-research', model: request.model, status: 'completed', usage,
       output: [{ type: 'web_search_call', status: 'completed', action: { type: 'search', queries: ['q'], sources: [{ type: 'url', url: source }] } }],
       output_text: JSON.stringify({ playbook: playbook.replace('Playbook for Access Control', 'Playbook for Worker Epoch Confusion'), source_urls: [source] }),
@@ -330,18 +332,57 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
         builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }],
-        classes: [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }] }),
+        classes: [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        changes: [] }),
     });
   `)
   const log = execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }).toString()
-  assert.match(log, /Playbook agent: 3 class\(es\) selected \(2 built-in, 1 additional\); searched=true/)
+  assert.match(log, /Playbook agent: 3 class\(es\) selected \(2 built-in, 1 additional\); turns=3; searches=1/)
+  const labels = new SpendLedger(ledgerPathFor(f.ctx.runsRoot, provider)).list().map(e => e.label)
+  assert.deepEqual(labels, ['coverage', 'turn1', 'turn2:pass1', 'turn3', `research:${id}`])
   const selection = JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8'))
   const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
   assert.deepEqual(selection.classes, ['injection', 'integrity-failures', id])
   assert.deepEqual(selection.builtin, ['injection', 'integrity-failures'])
   assert.deepEqual(selection.added, [id])
   assert.deepEqual(plan.selected_classes, selection.classes)
+  assert.deepEqual(plan.loop, { enabled: true, max_passes: 3, passes_run: 1 })
+  assert.deepEqual(plan.turns.map((x: any) => x.purpose), ['turn1', 'turn2:pass1', 'turn3'])
   const out = JSON.parse(f.runSelector())
   assert.deepEqual(out.lanes[0].classes, selection.classes)
   assert.deepEqual(out.class_selection.classes, selection.classes)
+})
+
+test('loop switches: SCANNER_PLAYBOOK_LOOP=0 disables the turns; passes must be a positive integer', () => {
+  assert.deepEqual(loopOptions({}), { enabled: true, maxPasses: 3 })
+  assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP: '0' }), { enabled: false, maxPasses: 3 })
+  for (const on of ['1', 'false', 'off', '']) assert.equal(loopOptions({ SCANNER_PLAYBOOK_LOOP: on }).enabled, true)
+  assert.deepEqual(loopOptions({ SCANNER_PLAYBOOK_LOOP_PASSES: '5' }), { enabled: true, maxPasses: 5 })
+  for (const bad of ['0', '-1', '1.5', '2x', ' 2', 'abc', '', '99999999999999999999']) {
+    assert.throws(() => loopOptions({ SCANNER_PLAYBOOK_LOOP_PASSES: bad }), /SCANNER_PLAYBOOK_LOOP_PASSES must be a positive integer/)
+  }
+})
+
+test('stage entrypoint: loop off makes one decision call; an invalid pass count fails at startup with no model call', t => {
+  const f = fixture(t)
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    await main(async request => ({
+      id: 'mock-covered', model: request.model, status: 'completed', output: [],
+      output_text: JSON.stringify({ reason: 'Covered by the built-ins.', builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }], classes: [] }),
+      usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+        output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
+    }));
+  `)
+  const log = execFileSync(tsx, [script], { env: { ...f.env, SCANNER_PLAYBOOK_LOOP: '0' }, stdio: 'pipe' }).toString()
+  assert.match(log, /Playbook agent: 1 class\(es\) selected \(1 built-in, 0 additional\); turns=0; searches=0/)
+  const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
+  assert.deepEqual(plan.loop, { enabled: false, max_passes: 3, passes_run: 0 })
+  assert.deepEqual(plan.turns, [])
+  assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls.length, 1)
+  assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_PLAYBOOK_LOOP_PASSES: 'three' }, stdio: 'pipe' }),
+    /SCANNER_PLAYBOOK_LOOP_PASSES must be a positive integer/)
+  assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
+  assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls, [], 'no model call was made')
 })

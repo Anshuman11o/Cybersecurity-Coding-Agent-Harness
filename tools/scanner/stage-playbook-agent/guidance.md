@@ -26,11 +26,15 @@ from a new framework name: injection already covers template injection, and
 api-property-auth already covers mass assignment. Add a distinct class only
 when existing guidance does not cover the vulnerability family well.
 
-Search when recon hints at an uncovered framework/runtime family or technology
-surface (GraphQL, WebSockets, message queues, mobile, smart contracts or
-infrastructure as code), or signals map to few applicable classes. Decide which
-families matter and how to research them yourself. When every surface is
-covered, return no new classes and explain why. Always record the reason.
+Use web_search during the class decision whenever you judge that the
+built-in classes do not cover a surface recon shows: an uncovered
+framework/runtime family or technology surface (GraphQL, WebSockets, message
+queues, mobile, smart contracts or infrastructure as code), or signals that map
+to few applicable classes. Use it to find which vulnerability families apply to
+that surface and to confirm a family is distinct from the built-ins before
+proposing it. Decide which families matter and how to research them yourself.
+When every surface is covered, return no new classes and explain why. Always
+record the reason.
 
 Choose stable lowercase kebab-case class and framework identifiers. Use
 `generic` when framework-specific variants are unnecessary. Reuse matching

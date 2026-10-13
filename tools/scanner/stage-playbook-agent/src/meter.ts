@@ -21,7 +21,8 @@ export class PlaybookMeter {
     this.ledger = new SpendLedger(ledgerPathFor(ctx.runsRoot, provider))
   }
 
-  async call(request: ResponseCreateParamsNonStreaming): Promise<Response> {
+  /** `purpose` is the agent's name for the call (coverage, turn1, research:<id>, ...) and the ledger label. */
+  async call(request: ResponseCreateParamsNonStreaming, purpose: string): Promise<Response> {
     if (tierInfo(this.provider, this.servedTier).multiplier === null) {
       throw new Error(`unpriced_service_tier: ${this.servedTier}`)
     }
@@ -33,8 +34,6 @@ export class PlaybookMeter {
     const chars = (typeof body.instructions === 'string' ? body.instructions.length : 0) +
       (typeof body.input === 'string' ? body.input.length : JSON.stringify(body.input ?? '').length)
     const promptBytes = Buffer.byteLength(JSON.stringify(body))
-    const input = typeof body.input === 'string' ? JSON.parse(body.input) : null
-    const label = body.tools?.length ? `research:${input?.class?.id ?? 'class'}` : 'coverage'
 
     const book = (response: any, failed: boolean) => {
       const usage = normalizeUsage(response?.usage)
@@ -45,7 +44,7 @@ export class PlaybookMeter {
         promptBytes, outputCap: body.max_output_tokens ?? 0, servedTier, baseURL: this.baseURL,
       })
       this.ledger.append({
-        source: 'playbook', stage: PLAYBOOK_STAGE, label, lane_id: null, attempt: 1,
+        source: 'playbook', stage: PLAYBOOK_STAGE, label: purpose, lane_id: null, attempt: 1,
         model: body.model, served_tier: servedTier, usage, chars_sent: chars,
         cost_usd: usage ? cost.cost_usd
           : reservation === null ? null : reservation + searches * (webSearchUsdPerCall(this.provider) ?? 0),
@@ -60,7 +59,7 @@ export class PlaybookMeter {
     }
 
     let response: Response
-    try { response = await this.create(body) } catch (error: any) {
+    try { response = await this.create(body, purpose) } catch (error: any) {
       book(error?.usage ? error : error?.error, true)
       throw error
     }

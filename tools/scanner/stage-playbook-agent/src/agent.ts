@@ -26,6 +26,17 @@ export interface ProposedClass {
 }
 export interface SelectedBuiltin { id: string; reason: string }
 export interface CoverageDecision { reason: string; builtin_classes: SelectedBuiltin[]; classes: ProposedClass[] }
+export interface DecisionChange { id: string; why: string }
+/** One review turn after the initial decision: what the no-drop union added and restored. */
+export interface DecisionTurn {
+  purpose: string
+  added: string[]
+  restored: string[]
+  changes: DecisionChange[]
+  web_search_calls: number
+  queries: string[]
+  source_urls: string[]
+}
 export interface UsageCall {
   purpose: string
   model: string
@@ -50,7 +61,10 @@ export interface PlaybookPlan {
   model: string
   searched: boolean
   reason: string
+  /** The final union of the initial decision and every review turn. */
   decision: CoverageDecision
+  turns: DecisionTurn[]
+  loop: { enabled: boolean; max_passes: number; passes_run: number }
   allowed_domains: string[]
   builtin_classes: SelectedBuiltin[]
   /** The run's complete class set: selected built-ins plus additional classes, sorted. */
@@ -68,7 +82,9 @@ export interface AgentOptions {
   allowedDomains?: string[]
   maxOutputTokens: number
   sampling?: Record<string, number | string>
-  create: (request: ResponseCreateParamsNonStreaming) => Promise<Response>
+  /** Review turns after the initial decision; main.ts reads the env. Default: on, 3 turn-2 passes. */
+  loop?: { enabled: boolean; maxPasses: number }
+  create: (request: ResponseCreateParamsNonStreaming, purpose: string) => Promise<Response>
   recordUsage: (call: UsageCall) => void
 }
 
@@ -76,7 +92,7 @@ const object = (properties: Record<string, unknown>) => ({
   type: 'object', additionalProperties: false, properties, required: Object.keys(properties),
 })
 const strings = { type: 'array', items: { type: 'string' } }
-const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry) => object({
+const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry, turn: boolean) => object({
   reason: { type: 'string' },
   builtin_classes: { type: 'array', items: object({
     id: { type: 'string', enum: Object.keys(builtins) }, reason: { type: 'string' },
@@ -86,8 +102,16 @@ const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry) => obj
     signals: { type: 'array', minItems: 1, items: { type: 'string', enum: Object.keys(signals.signals) } },
     reason: { type: 'string' },
   }) },
+  ...(turn ? { changes: { type: 'array', items: object({ id: { type: 'string' }, why: { type: 'string' } }) } } : {}),
 })
 const playbookSchema = object({ playbook: { type: 'string' }, source_urls: strings })
+// Decision-call tasks. Each follows the shared input prefix built in runPlaybookAgent.
+const tasks = {
+  coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
+  turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
+  turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
+  turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
+}
 
 function recordedUsage(raw: unknown): UsageCall['usage'] {
   const usage = normalizeUsage(raw)
@@ -132,13 +156,51 @@ export function validatePlaybook(text: string, sources: string[]): void {
   })) throw new Error('Generated playbook needs web source URLs')
 }
 
+const overlayEntry = (c: ProposedClass, model: string): OverlayEntry =>
+  ({ playbook: c.id, codes: c.codes, signals: c.signals, framework: c.framework, model, sha256: '0'.repeat(64) })
+const classIds = (d: CoverageDecision) => [...d.builtin_classes.map(b => b.id), ...d.classes.map(c => c.id)]
+
+/** Every decision call is checked alike, before it joins the union and before any research or cache write. */
+function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOptions): void {
+  if (!d || typeof d.reason !== 'string' || !d.reason.trim() || !Array.isArray(d.classes) ||
+      !Array.isArray(d.builtin_classes)) throw new Error(`Invalid ${purpose} decision`)
+  const builtins = new Set<string>(), classes = new Set<string>()
+  for (const b of d.builtin_classes) {
+    if (!b || !Object.hasOwn(o.builtins, b.id) || builtins.has(b.id) || typeof b.reason !== 'string' || !b.reason.trim()) {
+      throw new Error('Invalid or duplicate selected built-in class')
+    }
+    builtins.add(b.id)
+  }
+  for (const c of d.classes) {
+    if (!c || classes.has(c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
+    validateOverlay({ [c.id]: overlayEntry(c, o.model) }, o.builtins, o.signals)
+    classes.add(c.id)
+  }
+  if (turn && (!Array.isArray(d.changes) ||
+      d.changes.some((c: any) => typeof c?.id !== 'string' || typeof c?.why !== 'string'))) throw new Error(`Invalid ${purpose} changes`)
+}
+
+/** Code-enforced no-drop: a turn can only add ids. The first definition and reason of an id stand. */
+function unionDecision(before: CoverageDecision, turn: CoverageDecision): { decision: CoverageDecision; added: string[]; restored: string[] } {
+  const builtins = new Map(before.builtin_classes.map(b => [b.id, b]))
+  const classes = new Map(before.classes.map(c => [c.id, c]))
+  for (const b of turn.builtin_classes) if (!builtins.has(b.id)) builtins.set(b.id, b)
+  for (const c of turn.classes) if (!classes.has(c.id)) classes.set(c.id, c)
+  const decision = { reason: turn.reason, builtin_classes: [...builtins.values()], classes: [...classes.values()] }
+  const had = new Set(classIds(before)), own = new Set(classIds(turn))
+  return { decision, added: classIds(decision).filter(id => !had.has(id)), restored: [...had].filter(id => !own.has(id)) }
+}
+
 export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay; selection: ClassSelection }> {
   // Read on every invocation so changing guidance changes the next run.
   const guidance = readFileSync(new URL('../guidance.md', import.meta.url), 'utf8')
   const allowedDomains = o.allowedDomains ?? []
+  const loop = o.loop ?? { enabled: true, maxPasses: 3 }
+  if (!Number.isSafeInteger(loop.maxPasses) || loop.maxPasses < 1) throw new Error('Loop max passes must be a positive integer')
   const cached = listCachedPlaybooks(o.cacheRoot, o.model)
   const calls: UsageCall[] = []
-  const call = async (purpose: string, input: string, schema: Record<string, unknown>, search: boolean) => {
+  // Every call may search. Decision calls leave it to the model; research calls must search.
+  const call = async (purpose: string, input: string, schema: Record<string, unknown>, research: boolean) => {
     const started = new Date().toISOString()
     const { reasoning_effort, ...sampling } = o.sampling ?? {}
     const request: ResponseCreateParamsNonStreaming = {
@@ -146,13 +208,13 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
       max_output_tokens: o.maxOutputTokens,
       ...sampling,
       ...(reasoning_effort ? { reasoning: { effort: reasoning_effort as any } } : {}),
-      text: { format: { type: 'json_schema', name: search ? 'playbook' : 'coverage_decision', strict: true, schema } },
-      tools: search ? [{ type: 'web_search', ...(allowedDomains.length ? { filters: { allowed_domains: allowedDomains } } : {}) }] : [],
-      tool_choice: search ? 'required' : 'none',
-      ...(search ? { include: ['web_search_call.action.sources'] } : {}),
+      text: { format: { type: 'json_schema', name: research ? 'playbook' : 'coverage_decision', strict: true, schema } },
+      tools: [{ type: 'web_search', ...(allowedDomains.length ? { filters: { allowed_domains: allowedDomains } } : {}) }],
+      tool_choice: research ? 'required' : 'auto',
+      include: ['web_search_call.action.sources'],
     }
     let response: Response
-    try { response = await o.create(request) } catch (error: any) {
+    try { response = await o.create(request, purpose) } catch (error: any) {
       const raw = error?.usage ? error : error?.error
       o.recordUsage({ purpose, model: o.model, response_id: null, started_at: started,
         ended_at: new Date().toISOString(), status: 'request_failed', usage: recordedUsage(raw?.usage),
@@ -186,36 +248,49 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   for (const signals of Object.values(o.recon.file_signals.files)) {
     for (const signal of new Set(signals)) signalCounts[signal] = (signalCounts[signal] ?? 0) + 1
   }
-  const { value: decision } = await call('coverage', JSON.stringify({
-    task: 'Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes; no web search on this call. Reuse cached identifiers.',
-    recon: o.recon, signal_counts: signalCounts, signal_classes: o.signals,
-    builtins: builtinGuidance, cached_classes: cached,
-  }), decisionSchema(o.signals, o.builtins), false) as { value: CoverageDecision }
-  if (typeof decision.reason !== 'string' || !decision.reason.trim() || !Array.isArray(decision.classes) ||
-      !Array.isArray(decision.builtin_classes)) throw new Error('Invalid coverage decision')
+
+  // Every decision call's input starts with this same prefix, so it can be served from the prompt cache.
+  const base = { recon: o.recon, signal_counts: signalCounts, signal_classes: o.signals, builtins: builtinGuidance, cached_classes: cached }
+  const schemas = { coverage: decisionSchema(o.signals, o.builtins, false), turn: decisionSchema(o.signals, o.builtins, true) }
+  const searches = { queries: [] as string[], source_urls: [] as string[] }
+  let decision!: CoverageDecision
+  const decide = async (purpose: string, task: string, turn: boolean) => {
+    const extra = turn ? { current_decision: decision, searches_so_far: searches } : {}
+    const { value, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, false)
+    for (const key of ['queries', 'source_urls'] as const) for (const s of trace[key]) if (!searches[key].includes(s)) searches[key].push(s)
+    validateDecision(value, purpose, turn, o)
+    return { value, trace }
+  }
+  const turns: DecisionTurn[] = []
+  const review = async (purpose: string, task: string) => {
+    const { value, trace } = await decide(purpose, task, true)
+    const next = unionDecision(decision, value)
+    turns.push({ purpose, added: next.added, restored: next.restored, changes: value.changes,
+      web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls })
+    return next
+  }
+  const { value: initial } = await decide('coverage', tasks.coverage, false)
+  decision = { reason: initial.reason, builtin_classes: initial.builtin_classes, classes: initial.classes }
+  let passes = 0
+  if (loop.enabled) {
+    decision = (await review('turn1', tasks.turn1)).decision
+    while (passes < loop.maxPasses) {
+      const next = await review(`turn2:pass${++passes}`, tasks.turn2)
+      if (!next.added.length) break
+      decision = next.decision
+    }
+    decision = (await review('turn3', tasks.turn3)).decision
+  }
 
   const overlay: ClassesOverlay = {}
   const plan: PlaybookPlan = {
     schema: 'secscan.playbook-plan/1', created_at: new Date().toISOString(), model: o.model,
-    searched: false, reason: decision.reason, decision, allowed_domains: allowedDomains,
+    searched: false, reason: decision.reason, decision, turns,
+    loop: { enabled: loop.enabled, max_passes: loop.maxPasses, passes_run: passes },
+    allowed_domains: allowedDomains,
     builtin_classes: decision.builtin_classes,
-    selected_classes: [...new Set([...decision.builtin_classes.map(b => b.id), ...decision.classes.map(c => c.id)])].sort(),
+    selected_classes: [...new Set(classIds(decision))].sort(),
     classes: [], playbooks: builtinRecords,
-  }
-  // Validate the entire decision before performing any searches or cache writes.
-  const selectedBuiltins = new Set<string>()
-  for (const b of decision.builtin_classes) {
-    if (!b || !Object.hasOwn(o.builtins, b.id) || selectedBuiltins.has(b.id) || typeof b.reason !== 'string' || !b.reason.trim()) {
-      throw new Error('Invalid or duplicate selected built-in class')
-    }
-    selectedBuiltins.add(b.id)
-  }
-  const proposed: ClassesOverlay = {}
-  for (const c of decision.classes) {
-    if (!c || Object.hasOwn(proposed, c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
-    const entry: OverlayEntry = { playbook: c.id, codes: c.codes, signals: c.signals, framework: c.framework, model: o.model, sha256: '0'.repeat(64) }
-    validateOverlay({ [c.id]: entry }, o.builtins, o.signals)
-    proposed[c.id] = entry
   }
   for (const c of decision.classes) {
     let entry = readCachedPlaybook(o.cacheRoot, c.id, c.framework, o.model)
@@ -235,7 +310,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
         throw new Error(`Playbook ${c.id} cites a URL absent from the search sources/citations`)
       }
       entry = writeCachedPlaybook(o.cacheRoot, value.playbook, {
-        ...proposed[c.id], class_id: c.id, source_urls: value.source_urls,
+        ...overlayEntry(c, o.model), class_id: c.id, source_urls: value.source_urls,
         queries: trace.queries, created_at: new Date().toISOString(),
       })
     }
@@ -250,7 +325,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   plan.searched = calls.some(c => c.web_search_calls > 0)
   const selection: ClassSelection = {
     schema: 'secscan.class-selection/1', created_at: plan.created_at, model: o.model,
-    builtin: [...selectedBuiltins].sort(), added: Object.keys(overlay).sort(), classes: plan.selected_classes,
+    builtin: decision.builtin_classes.map(b => b.id).sort(), added: Object.keys(overlay).sort(), classes: plan.selected_classes,
   }
   validateClassSelection(selection, o.builtins, overlay)
   return { plan, overlay, selection }

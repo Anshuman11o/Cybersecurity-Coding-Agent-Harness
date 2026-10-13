@@ -29,6 +29,16 @@ export function loadRecon(dir: string): ReconInput {
   }
 }
 
+/** The decision-loop switches. Read here so the agent itself reads no environment. */
+export function loopOptions(env: NodeJS.ProcessEnv = process.env): NonNullable<AgentOptions['loop']> {
+  const passes = env.SCANNER_PLAYBOOK_LOOP_PASSES
+  const maxPasses = passes === undefined ? 3 : Number(passes)
+  if (passes !== undefined && (!/^[1-9][0-9]*$/.test(passes) || !Number.isSafeInteger(maxPasses))) {
+    throw new Error(`SCANNER_PLAYBOOK_LOOP_PASSES must be a positive integer, got ${JSON.stringify(passes)}`)
+  }
+  return { enabled: env.SCANNER_PLAYBOOK_LOOP !== '0', maxPasses }
+}
+
 export async function main(createResponse?: AgentOptions['create']): Promise<void> {
   const provider = resolveProvider('playbook')
   const model = modelFor(provider)
@@ -40,6 +50,7 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
   writeMeta(provider, PLAYBOOK_STAGE, model, started, 1)
   writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls })
   try {
+    const loop = loopOptions()
     assertUpstream(provider, 'stage0-recon')
     const recon = loadRecon(runPath(provider, 'stage0-recon'))
     if (recon.file_signals.target_dir !== getRunContext().targetRoot) throw new Error('Recon target differs from this run')
@@ -63,16 +74,17 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     const { plan, overlay, selection } = await runPlaybookAgent({
       recon, builtins, builtinTexts, signals, model, cacheRoot: cacheRoot(),
       allowedDomains: (process.env.SCANNER_PLAYBOOK_ALLOWED_DOMAINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
-      maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider),
-      create: request => meter.call(request),
+      maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider), loop,
+      create: (request, purpose) => meter.call(request, purpose),
       recordUsage: call => { calls.push(call); writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls }) },
     })
     writeJson(join(dir, 'playbook-plan.json'), plan)
     writeJson(join(dir, 'classes-overlay.json'), overlay)
     writeJson(join(dir, CLASS_SELECTION_FILE), selection)
     writeMeta(provider, PLAYBOOK_STAGE, model, started)
+    const searches = calls.reduce((n, c) => n + c.web_search_calls, 0)
     console.log(`Playbook agent: ${selection.classes.length} class(es) selected (${selection.builtin.length} built-in, ` +
-      `${selection.added.length} additional); searched=${plan.searched}`)
+      `${selection.added.length} additional); turns=${plan.turns.length}; searches=${searches}`)
   } catch (error) {
     writeMeta(provider, PLAYBOOK_STAGE, model, started, 1)
     throw error
