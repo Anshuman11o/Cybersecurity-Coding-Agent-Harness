@@ -357,9 +357,86 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   assert.deepEqual(plan.selected_classes, selection.classes)
   assert.deepEqual(plan.loop, { enabled: true, max_passes: 3, passes_run: 1 })
   assert.deepEqual(plan.turns.map((x: any) => x.purpose), ['turn1', 'turn2:pass1', 'turn3'])
+  const decision = JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8'))
+  assert.equal(decision.schema, 'secscan.class-decision/1')
+  assert.deepEqual(decision.classes, selection.classes)
+  assert.deepEqual(decision.builtin, selection.builtin)
+  assert.deepEqual(decision.added.map((c: any) => c.id), selection.added)
+  assert.deepEqual(decision.turns, plan.turns)
+  assert.deepEqual(decision.loop, plan.loop)
+  assert.match(log, /^\[playbook-agent\] decision saved: 3 classes \(2 built-in, 1 additional\)$/m)
+  assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} completed in=100 out=20 searches=1 bytes=\\d+$`, 'm'))
+  assert.ok(log.indexOf('decision saved') < log.indexOf(`research:${id}`), 'the decision is saved before research')
+  assert.ok(!existsSync(join(f.agentDir, 'research-failures')))
   const out = JSON.parse(f.runSelector())
   assert.deepEqual(out.lanes[0].classes, selection.classes)
   assert.deepEqual(out.class_selection.classes, selection.classes)
+})
+
+test('stage entrypoint: a failed research call keeps the decision and a debug record, and the stage still fails', t => {
+  const f = fixture(t)
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      output_tokens: 20, output_tokens_details: { reasoning_tokens: 7 } };
+    const source = 'https://example.test/worker-security';
+    const long = playbook.replace('Playbook for Access Control', 'Playbook for Worker Epoch Confusion') + 'Padding line for size.\\n'.repeat(300);
+    await main(async (request, purpose) => purpose.startsWith('research:') ? {
+      id: 'mock-research', model: request.model, status: 'completed', usage,
+      output: [{ type: 'web_search_call', status: 'completed', action: { type: 'search', queries: ['q'], sources: [{ type: 'url', url: source }] } }],
+      output_text: JSON.stringify({ playbook: long, source_urls: [source] }),
+    } : {
+      id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
+      output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
+        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
+        classes: [{ id: ${JSON.stringify(id)}, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        changes: [] }),
+    });
+  `)
+  let failure: any
+  try { execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }) } catch (error) { failure = error }
+  assert.ok(failure, 'the stage fails')
+  assert.equal(failure.status, 1)
+  assert.match(failure.stderr.toString(), /Generated playbook must be roughly 2–6 KB/)
+  const log = failure.stdout.toString()
+  assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
+  const decision = JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8'))
+  assert.deepEqual(decision.classes, ['injection', id])
+  assert.deepEqual(decision.builtin, ['injection'])
+  assert.deepEqual(decision.added, [{ id, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }])
+  assert.deepEqual(decision.loop, { enabled: true, max_passes: 3, passes_run: 1 })
+  for (const file of ['playbook-plan.json', 'classes-overlay.json', CLASS_SELECTION_FILE]) assert.ok(!existsSync(join(f.agentDir, file)), file)
+  const record = JSON.parse(readFileSync(join(f.agentDir, 'research-failures', `${id}.json`), 'utf8'))
+  assert.equal(record.check, 'size')
+  assert.equal(record.error, 'Generated playbook must be roughly 2–6 KB')
+  assert.ok(record.byte_size > 8000)
+  assert.equal(record.byte_size, Buffer.byteLength(record.playbook_text))
+  assert.match(record.playbook_text, /^\s*Playbook for Worker Epoch Confusion/)
+  assert.match(record.playbook_text, /(Padding line for size\.\n){300}$/)
+  assert.deepEqual(record.missing_sections, [])
+  assert.deepEqual(record.size_bounds, [1500, 8000])
+  assert.deepEqual(record.search_source_urls, ['https://example.test/worker-security'])
+  assert.equal(record.reasoning_tokens, 7)
+  assert.match(log, /^\[playbook-agent\] decision saved: 2 classes \(1 built-in, 1 additional\)$/m)
+  assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} completed in=100 out=20 searches=1 bytes=${record.byte_size}$`, 'm'))
+  assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} FAILED check=size bytes=${record.byte_size} \\(bounds 1500-8000\\) missing=-$`, 'm'))
+  const usage = JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8'))
+  assert.deepEqual(usage.calls.map((c: any) => c.purpose), ['coverage', 'turn1', 'turn2:pass1', 'turn3', `research:${id}`])
+})
+
+test('stage entrypoint removes a stale class decision before anything else', t => {
+  const f = fixture(t)
+  json(join(f.agentDir, 'class-decision.json'), { schema: 'secscan.class-decision/1', classes: ['stale'] })
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    await main(async () => { throw new Error('mock request failure') });
+  `)
+  assert.throws(() => execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }), /mock request failure/)
+  assert.ok(!existsSync(join(f.agentDir, 'class-decision.json')), 'a stale decision never survives into a new attempt')
+  assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
 })
 
 test('stage entrypoint: additional-class codes outside the strict format complete the run and are stored verbatim', t => {

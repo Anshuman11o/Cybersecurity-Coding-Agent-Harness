@@ -72,6 +72,40 @@ export interface PlaybookPlan {
   classes: (ProposedClass & { cache: 'hit' | 'created'; sha256: string })[]
   playbooks: PlaybookRecord[]
 }
+/** The final union, recorded before any research call so a research failure cannot lose it. */
+export interface ClassDecision {
+  schema: 'secscan.class-decision/1'
+  created_at: string
+  model: string
+  builtin: string[]
+  added: ProposedClass[]
+  classes: string[]
+  turns: DecisionTurn[]
+  loop: PlaybookPlan['loop']
+}
+export type PlaybookCheck = 'format' | 'sections' | 'size' | 'sources'
+export type ResearchCheck = 'json' | PlaybookCheck | 'no_search' | 'cited_url_absent'
+/** Debug record for a research output that failed a check; the stage still fails. */
+export interface ResearchFailure {
+  class_id: string
+  purpose: string
+  error: string
+  check: ResearchCheck
+  byte_size: number | null
+  char_size: number | null
+  size_bounds: [number, number]
+  missing_sections: string[]
+  cited_urls_absent_from_search: string[]
+  web_search_calls: number
+  queries: string[]
+  search_source_urls: string[]
+  cited_source_urls: string[]
+  response_status: string
+  output_tokens: number | null
+  reasoning_tokens: number | null
+  /** The rejected playbook verbatim, or the raw output text when there is no playbook string. */
+  playbook_text: string
+}
 export interface AgentOptions {
   recon: ReconInput
   builtins: ClassRegistry
@@ -86,6 +120,10 @@ export interface AgentOptions {
   loop?: { enabled: boolean; maxPasses: number }
   create: (request: ResponseCreateParamsNonStreaming, purpose: string) => Promise<Response>
   recordUsage: (call: UsageCall) => void
+  recordDecision: (decision: ClassDecision) => void
+  recordResearchFailure: (failure: ResearchFailure) => void
+  /** One progress line per completed model call. */
+  log?: (line: string) => void
 }
 
 const object = (properties: Record<string, unknown>) => ({
@@ -142,19 +180,59 @@ export function searchTrace(response: Response): { queries: string[]; source_url
   return { queries: [...queries], source_urls: [...sources], web_search_calls: calls }
 }
 
-export function validatePlaybook(text: string, sources: string[]): void {
-  if (typeof text !== 'string' || !/^\s*Playbook for .+\n=+/m.test(text) ||
-      !['Scope:', '## OWASP Categories Covered', '## Sink Patterns to Hunt For',
-        '## Distinguishing Real Findings from False Positives', '## Hunting Discipline'].every(h => text.includes(h))) {
-    throw new Error('Generated playbook does not match the built-in section format')
+const PLAYBOOK_SECTIONS = ['Scope:', '## OWASP Categories Covered', '## Sink Patterns to Hunt For',
+  '## Distinguishing Real Findings from False Positives', '## Hunting Discipline']
+// Guidance asks for roughly 2–6 KB; tolerate modest variation around it.
+const PLAYBOOK_BYTES: [number, number] = [1500, 8000]
+const playbookErrors: Record<PlaybookCheck, string> = {
+  format: 'Generated playbook does not match the built-in section format',
+  sections: 'Generated playbook does not match the built-in section format',
+  size: 'Generated playbook must be roughly 2–6 KB',
+  sources: 'Generated playbook needs web source URLs',
+}
+export const missingSections = (text: unknown): string[] =>
+  PLAYBOOK_SECTIONS.filter(h => typeof text !== 'string' || !text.includes(h))
+
+/** Every failed playbook check, in validation order. A non-string has no size to check. */
+export function playbookProblems(text: unknown, sources: unknown): PlaybookCheck[] {
+  const problems: PlaybookCheck[] = []
+  if (typeof text !== 'string' || !/^\s*Playbook for .+\n=+/m.test(text)) problems.push('format')
+  if (missingSections(text).length) problems.push('sections')
+  if (typeof text === 'string') {
+    const size = Buffer.byteLength(text)
+    if (size < PLAYBOOK_BYTES[0] || size > PLAYBOOK_BYTES[1]) problems.push('size')
   }
-  // Guidance asks for roughly 2–6 KB; tolerate modest variation around it.
-  const size = Buffer.byteLength(text)
-  if (size < 1500 || size > 8000) throw new Error('Generated playbook must be roughly 2–6 KB')
   if (!Array.isArray(sources) || !sources.length || sources.some(s => {
     try { return !['https:', 'http:'].includes(new URL(s).protocol) } catch { return true }
-  })) throw new Error('Generated playbook needs web source URLs')
+  })) problems.push('sources')
+  return problems
 }
+
+export function validatePlaybook(text: string, sources: string[]): void {
+  const [problem] = playbookProblems(text, sources)
+  if (problem) throw new Error(playbookErrors[problem])
+}
+
+function researchFailure(classId: string, purpose: string, check: ResearchCheck, error: unknown,
+  raw: string, value: any, trace: UsageCall): ResearchFailure {
+  const playbook = typeof value?.playbook === 'string' ? value.playbook as string : null
+  const cited: string[] = Array.isArray(value?.source_urls) ? value.source_urls : []
+  const text = playbook ?? raw
+  return {
+    class_id: classId, purpose, error: error instanceof Error ? error.message : String(error), check,
+    byte_size: playbook === null ? null : Buffer.byteLength(playbook), char_size: playbook?.length ?? null,
+    size_bounds: [...PLAYBOOK_BYTES], missing_sections: missingSections(text),
+    cited_urls_absent_from_search: cited.filter(url => !trace.source_urls.includes(url)),
+    web_search_calls: trace.web_search_calls, queries: trace.queries, search_source_urls: trace.source_urls,
+    cited_source_urls: cited, response_status: trace.status,
+    output_tokens: trace.usage?.output_tokens ?? null,
+    reasoning_tokens: trace.usage?.output_tokens_details.reasoning_tokens ?? null,
+    playbook_text: text,
+  }
+}
+
+const progress = (t: UsageCall, tail: string) => `[playbook-agent] ${t.purpose} ${t.status} ` +
+  `in=${t.usage?.input_tokens ?? '-'} out=${t.usage?.output_tokens ?? '-'} searches=${t.web_search_calls} ${tail}`
 
 const overlayEntry = (c: ProposedClass, model: string): OverlayEntry =>
   ({ playbook: c.id, codes: c.codes, signals: c.signals, framework: c.framework, model, sha256: '0'.repeat(64) })
@@ -231,10 +309,13 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     }
     calls.push(record)
     o.recordUsage(record) // Persist paid usage even if parsing or validation fails next.
-    if (response.status !== 'completed') throw new Error(`Playbook ${purpose} response ${response.status}`)
+    if (response.status !== 'completed') {
+      o.log?.(progress(record, research ? 'bytes=-' : 'added=-'))
+      throw new Error(`Playbook ${purpose} response ${response.status}`)
+    }
     const text = response.output_text || (response.output ?? []).flatMap(item =>
       item.type === 'message' ? item.content.filter(c => c.type === 'output_text').map(c => c.text) : []).join('')
-    return { value: JSON.parse(text), trace: record }
+    return { text, trace: record }
   }
 
   const builtinRecords: PlaybookRecord[] = []
@@ -256,7 +337,8 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   let decision!: CoverageDecision
   const decide = async (purpose: string, task: string, turn: boolean) => {
     const extra = turn ? { current_decision: decision, searches_so_far: searches } : {}
-    const { value, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, false)
+    const { text, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, false)
+    const value = JSON.parse(text)
     for (const key of ['queries', 'source_urls'] as const) for (const s of trace[key]) if (!searches[key].includes(s)) searches[key].push(s)
     validateDecision(value, purpose, turn, o)
     return { value, trace }
@@ -267,10 +349,13 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     const next = unionDecision(decision, value)
     turns.push({ purpose, added: next.added, restored: next.restored, changes: value.changes,
       web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls })
+    o.log?.(progress(trace, `added=${next.added.join(',') || '-'}`))
     return next
   }
-  const { value: initial } = await decide('coverage', tasks.coverage, false)
+  const { value: initial, trace: first } = await decide('coverage', tasks.coverage, false)
   decision = { reason: initial.reason, builtin_classes: initial.builtin_classes, classes: initial.classes }
+  // Against an empty start, the initial decision adds every id it selects.
+  o.log?.(progress(first, `added=${classIds(decision).join(',') || '-'}`))
   let passes = 0
   if (loop.enabled) {
     decision = (await review('turn1', tasks.turn1)).decision
@@ -282,21 +367,30 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     decision = (await review('turn3', tasks.turn3)).decision
   }
 
+  const selected = [...new Set(classIds(decision))].sort()
+  const loopRecord = { enabled: loop.enabled, max_passes: loop.maxPasses, passes_run: passes }
+  // Persist the finished decision before any research call can fail the stage.
+  o.recordDecision({
+    schema: 'secscan.class-decision/1', created_at: new Date().toISOString(), model: o.model,
+    builtin: decision.builtin_classes.map(b => b.id).sort(), added: decision.classes, classes: selected,
+    turns, loop: loopRecord,
+  })
   const overlay: ClassesOverlay = {}
   const plan: PlaybookPlan = {
     schema: 'secscan.playbook-plan/1', created_at: new Date().toISOString(), model: o.model,
     searched: false, reason: decision.reason, decision, turns,
-    loop: { enabled: loop.enabled, max_passes: loop.maxPasses, passes_run: passes },
+    loop: loopRecord,
     allowed_domains: allowedDomains,
     builtin_classes: decision.builtin_classes,
-    selected_classes: [...new Set(classIds(decision))].sort(),
+    selected_classes: selected,
     classes: [], playbooks: builtinRecords,
   }
   for (const c of decision.classes) {
     let entry = readCachedPlaybook(o.cacheRoot, c.id, c.framework, o.model)
     const hit = entry !== null
     if (!entry) {
-      const { value, trace } = await call(`research:${c.id}`, JSON.stringify({
+      const purpose = `research:${c.id}`
+      const { text, trace } = await call(purpose, JSON.stringify({
         task: 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used.',
         class: c, stack: {
           languages: o.recon.architecture.file_inventory?.by_language,
@@ -304,10 +398,23 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
           dependencies: o.recon.architecture.dependencies,
         }, example_format: builtinGuidance[0].text,
       }), playbookSchema, true)
-      if (trace.web_search_calls === 0) throw new Error(`No web search performed for ${c.id}`)
-      validatePlaybook(value.playbook, value.source_urls)
+      // Every failed check leaves a debug record of the rejected output before the stage fails.
+      let value: any = undefined
+      const failed = (check: ResearchCheck, error: unknown) => {
+        o.recordResearchFailure(researchFailure(c.id, purpose, check, error, text, value, trace))
+        return error
+      }
+      try { value = JSON.parse(text) } catch (error) {
+        o.log?.(progress(trace, 'bytes=-'))
+        throw failed('json', error)
+      }
+      o.log?.(progress(trace, `bytes=${typeof value?.playbook === 'string' ? Buffer.byteLength(value.playbook) : '-'}`))
+      if (trace.web_search_calls === 0) throw failed('no_search', new Error(`No web search performed for ${c.id}`))
+      try { validatePlaybook(value.playbook, value.source_urls) } catch (error) {
+        throw failed(playbookProblems(value?.playbook, value?.source_urls)[0] ?? 'format', error)
+      }
       if (value.source_urls.some((url: string) => !trace.source_urls.includes(url))) {
-        throw new Error(`Playbook ${c.id} cites a URL absent from the search sources/citations`)
+        throw failed('cited_url_absent', new Error(`Playbook ${c.id} cites a URL absent from the search sources/citations`))
       }
       entry = writeCachedPlaybook(o.cacheRoot, value.playbook, {
         ...overlayEntry(c, o.model), class_id: c.id, source_urls: value.source_urls,

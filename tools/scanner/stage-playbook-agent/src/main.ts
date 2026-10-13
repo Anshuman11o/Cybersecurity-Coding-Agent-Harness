@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveProvider, clientConfigFor, modelFor, outputTokenCap, samplingParams, transportFor } from '../../shared/provider.js'
@@ -49,6 +49,8 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
   // Mark failure first: a crash must not leave old overlays looking current.
   writeMeta(provider, PLAYBOOK_STAGE, model, started, 1)
   writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls })
+  // An earlier attempt's decision must never be read as this run's.
+  rmSync(join(dir, 'class-decision.json'), { force: true })
   try {
     const loop = loopOptions()
     assertUpstream(provider, 'stage0-recon')
@@ -77,6 +79,18 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
       maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider), loop,
       create: (request, purpose) => meter.call(request, purpose),
       recordUsage: call => { calls.push(call); writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls }) },
+      recordDecision: decision => {
+        writeJson(join(dir, 'class-decision.json'), decision)
+        console.log(`[playbook-agent] decision saved: ${decision.classes.length} classes ` +
+          `(${decision.builtin.length} built-in, ${decision.added.length} additional)`)
+      },
+      recordResearchFailure: failure => {
+        mkdirSync(join(dir, 'research-failures'), { recursive: true })
+        writeJson(join(dir, 'research-failures', `${failure.class_id}.json`), failure)
+        console.log(`[playbook-agent] ${failure.purpose} FAILED check=${failure.check} bytes=${failure.byte_size ?? '-'} ` +
+          `(bounds ${failure.size_bounds.join('-')}) missing=${failure.missing_sections.join(', ') || '-'}`)
+      },
+      log: line => console.log(line),
     })
     writeJson(join(dir, 'playbook-plan.json'), plan)
     writeJson(join(dir, 'classes-overlay.json'), overlay)

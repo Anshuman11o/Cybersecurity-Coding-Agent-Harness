@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Response, ResponseCreateParamsNonStreaming } from 'openai/resources/responses/responses'
 import {
-  runPlaybookAgent, type AgentOptions, type CoverageDecision, type DecisionChange, type ProposedClass, type SelectedBuiltin,
-  type UsageCall,
+  playbookProblems, runPlaybookAgent, validatePlaybook, type AgentOptions, type ClassDecision, type CoverageDecision,
+  type DecisionChange, type ProposedClass, type ResearchFailure, type SelectedBuiltin, type UsageCall,
 } from './agent.js'
 import { PlaybookMeter } from './meter.js'
 import { readCachedPlaybook, cacheDirectory, textHash } from '../../shared/playbook-cache.js'
@@ -59,6 +59,8 @@ function harness(t: { after: (fn: () => void) => void }, fixture: string, replie
   const root = mkdtempSync(join(tmpdir(), 'playbook-agent-test-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const requests: ResponseCreateParamsNonStreaming[] = [], purposes: string[] = [], usage: UsageCall[] = []
+  // Each decision is kept with the number of requests made when it was recorded.
+  const decisions: { decision: ClassDecision; after: number }[] = [], failures: ResearchFailure[] = [], logs: string[] = []
   const options: AgentOptions = {
     recon: JSON.parse(readFileSync(new URL(`./fixtures/${fixture}.json`, import.meta.url), 'utf8')),
     builtins, builtinTexts: texts, signals, model: 'test-model', cacheRoot: root, maxOutputTokens: 8000,
@@ -69,10 +71,13 @@ function harness(t: { after: (fn: () => void) => void }, fixture: string, replie
       return replies.shift()!
     },
     recordUsage: r => usage.push(r),
+    recordDecision: decision => decisions.push({ decision, after: requests.length }),
+    recordResearchFailure: f => failures.push(f),
+    log: line => logs.push(line),
   }
   const request = (purpose: string) => requests[purposes.indexOf(purpose)]
   const input = (purpose: string) => JSON.parse(request(purpose).input as string)
-  return { options, requests, purposes, usage, replies, root, request, input }
+  return { options, requests, purposes, usage, replies, root, request, input, decisions, failures, logs }
 }
 
 test('covered recon: decision calls only, reason and all 14 built-ins recorded', async t => {
@@ -430,4 +435,145 @@ test('ledger labels are the call purposes, and searches in decision calls are pr
   // Every reply has the same usage, so a call's cost differs from a search-free turn's only by its searches.
   assert.ok(Math.abs(entries[0].cost_usd! - entries[1].cost_usd! - 2 * rate) < 1e-12, 'coverage call: two searches priced')
   assert.ok(Math.abs(entries[4].cost_usd! - entries[1].cost_usd! - rate) < 1e-12, 'research call: one search priced')
+})
+
+test('the final union is recorded once, after the last decision call and before any research call', async t => {
+  const start = decision('Start.', [pick('injection')])
+  const added = decision('Added.', [pick('access-control')], [proposed])
+  for (const last of [research(), response({ playbook: 'too short', source_urls: [source] }, true)]) {
+    const h = harness(t, 'uncovered', [response(start), turn(added, [{ id: proposed.id, why: 'Replay.' }]), turn(added), turn(added), last])
+    const run = runPlaybookAgent(h.options)
+    if (last.output_text.includes('too short')) await assert.rejects(run, { message: 'Generated playbook does not match the built-in section format' })
+    else await run
+    assert.equal(h.decisions.length, 1)
+    const [{ decision: d, after }] = h.decisions
+    assert.equal(after, loopPurposes.length, 'recorded before the research request')
+    assert.equal(d.schema, 'secscan.class-decision/1')
+    assert.equal(d.model, 'test-model')
+    assert.ok(Number.isFinite(Date.parse(d.created_at)))
+    assert.deepEqual(d.builtin, ['access-control', 'injection'])
+    assert.deepEqual(d.added, [proposed])
+    assert.deepEqual(d.classes, ['access-control', 'injection', proposed.id])
+    assert.deepEqual(d.turns.map(x => [x.purpose, x.added]), [['turn1', ['access-control', proposed.id]], ['turn2:pass1', []], ['turn3', []]])
+    assert.deepEqual(d.loop, { enabled: true, max_passes: 3, passes_run: 1 })
+  }
+})
+
+test('a decision call that fails never records a decision', async t => {
+  const h = harness(t, 'uncovered', [response(decision('Start.')), response({ ...decision('Bad.'), reason: ' ', changes: [] })])
+  await assert.rejects(runPlaybookAgent(h.options), /Invalid turn1 decision/)
+  assert.deepEqual(h.decisions, [])
+})
+
+test('validatePlaybook messages are unchanged; playbookProblems lists every failed check in order', () => {
+  const format = 'Generated playbook does not match the built-in section format'
+  const size = 'Generated playbook must be roughly 2–6 KB', sources = 'Generated playbook needs web source URLs'
+  const short = 'Playbook for X\n=====\nScope: x\n## OWASP Categories Covered\n## Sink Patterns to Hunt For\n' +
+    '## Distinguishing Real Findings from False Positives\n## Hunting Discipline\n'
+  const cases: [unknown, unknown, string | null, string[]][] = [
+    [generated, [source], null, []],
+    [42, [source], format, ['format', 'sections']],
+    [generated.replace('Playbook for', 'Guide for'), [source], format, ['format']],
+    [generated.replace('## Hunting Discipline', '## Discipline'), [source], format, ['sections']],
+    ['Guide\n', [], format, ['format', 'sections', 'size', 'sources']],
+    [short, [source], size, ['size']],
+    [generated + 'x'.repeat(6000), [source], size, ['size']],
+    [generated, ['ftp://example.test/x'], sources, ['sources']],
+    [generated, [], sources, ['sources']],
+    [generated, 'https://example.test/', sources, ['sources']],
+    [generated, ['not a url'], sources, ['sources']],
+  ]
+  for (const [text, urls, message, problems] of cases) {
+    assert.deepEqual(playbookProblems(text, urls), problems)
+    const check = () => validatePlaybook(text as string, urls as string[])
+    if (message) assert.throws(check, { message })
+    else assert.doesNotThrow(check)
+  }
+  // The bounds are bytes, not characters.
+  const multibyte = short + '\u2013'.repeat(500)
+  assert.ok(multibyte.length < 1500 && Buffer.byteLength(multibyte) >= 1500)
+  assert.deepEqual(playbookProblems(multibyte, [source]), [])
+})
+
+test('every failed research check leaves a debug record of the rejected output; the error is today\'s', async t => {
+  const missing = generated.replace('## Hunting Discipline', '## Discipline')
+  const short = 'Playbook for Worker Epoch Confusion\n=====\nScope: x\n## OWASP Categories Covered\n## Sink Patterns to Hunt For\n' +
+    '## Distinguishing Real Findings from False Positives\n## Hunting Discipline\n'
+  const long = generated + '\n' + 'Padding line for size.\n'.repeat(300)
+  const absent = 'https://example.test/not-retrieved'
+  const sections = ['Scope:', '## OWASP Categories Covered', '## Sink Patterns to Hunt For',
+    '## Distinguishing Real Findings from False Positives', '## Hunting Discipline']
+  const cases: { name: string; reply: Response; check: string; error: RegExp | { message: string }; text: string;
+    missing?: string[]; absent?: string[]; searches?: number }[] = [
+    { name: 'too short', reply: response({ playbook: short, source_urls: [source] }, true), check: 'size',
+      error: { message: 'Generated playbook must be roughly 2–6 KB' }, text: short },
+    { name: 'too long', reply: response({ playbook: long, source_urls: [source] }, true), check: 'size',
+      error: { message: 'Generated playbook must be roughly 2–6 KB' }, text: long },
+    { name: 'missing section', reply: response({ playbook: missing, source_urls: [source] }, true), check: 'sections',
+      error: { message: 'Generated playbook does not match the built-in section format' }, text: missing, missing: ['## Hunting Discipline'] },
+    { name: 'no source urls', reply: response({ playbook: generated, source_urls: [] }, true), check: 'sources',
+      error: { message: 'Generated playbook needs web source URLs' }, text: generated },
+    { name: 'cites absent url', reply: response({ playbook: generated, source_urls: [source, absent] }, true), check: 'cited_url_absent',
+      error: { message: `Playbook ${proposed.id} cites a URL absent from the search sources/citations` }, text: generated, absent: [absent] },
+    { name: 'no search', reply: response({ playbook: generated, source_urls: [source] }), check: 'no_search',
+      error: { message: `No web search performed for ${proposed.id}` }, text: generated, absent: [source], searches: 0 },
+  ]
+  for (const c of cases) {
+    const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), c.reply])
+    await assert.rejects(runPlaybookAgent(h.options), c.error, c.name)
+    assert.equal(h.failures.length, 1, c.name)
+    const f = h.failures[0]
+    assert.deepEqual(Object.keys(f), ['class_id', 'purpose', 'error', 'check', 'byte_size', 'char_size', 'size_bounds',
+      'missing_sections', 'cited_urls_absent_from_search', 'web_search_calls', 'queries', 'search_source_urls',
+      'cited_source_urls', 'response_status', 'output_tokens', 'reasoning_tokens', 'playbook_text'])
+    assert.equal(f.class_id, proposed.id)
+    assert.equal(f.purpose, `research:${proposed.id}`)
+    assert.equal(f.check, c.check, c.name)
+    assert.equal(f.playbook_text, c.text, 'the rejected text, verbatim')
+    assert.equal(f.byte_size, Buffer.byteLength(c.text))
+    assert.equal(f.char_size, c.text.length)
+    assert.deepEqual(f.size_bounds, [1500, 8000])
+    assert.deepEqual(f.missing_sections, c.missing ?? [], c.name)
+    assert.deepEqual(f.cited_urls_absent_from_search, c.absent ?? [], c.name)
+    assert.equal(f.web_search_calls, c.searches ?? 1)
+    assert.deepEqual(f.search_source_urls, c.searches === 0 ? [] : [source])
+    assert.deepEqual(f.queries, c.searches === 0 ? [] : ['worker epoch security'])
+    assert.equal(f.response_status, 'completed')
+    assert.equal(f.output_tokens, 50)
+    assert.equal(f.reasoning_tokens, 15)
+    assert.equal(h.decisions.length, 1, 'the decision was recorded before research')
+    assert.equal(readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model'), null)
+  }
+  assert.ok(Buffer.byteLength(cases[0].text) < 1500 && Buffer.byteLength(cases[1].text) > 8000)
+  // A response that is not JSON: the raw output is kept and no size is claimed.
+  const raw = '{"playbook": "Playbook for Worker Epoch Confusion\\n===\\nScope: x\\n## OWASP Categories Covered'
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [], [proposed])), { ...research(), output_text: raw } as Response])
+  await assert.rejects(runPlaybookAgent(h.options), SyntaxError)
+  assert.equal(h.failures.length, 1)
+  const f = h.failures[0]
+  assert.equal(f.check, 'json')
+  assert.match(f.error, /JSON/)
+  assert.equal(f.playbook_text, raw)
+  assert.equal(f.byte_size, null)
+  assert.equal(f.char_size, null)
+  assert.deepEqual(f.missing_sections, sections.slice(2), 'headings are looked for in the raw output')
+  assert.deepEqual(f.cited_source_urls, [])
+  assert.deepEqual(f.search_source_urls, [source])
+})
+
+test('one progress line per completed model call; the research line carries the playbook size', async t => {
+  const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [pick('injection')], [proposed])), research()])
+  await runPlaybookAgent(h.options)
+  const line = (purpose: string, searches: number, tail: string) => `[playbook-agent] ${purpose} completed in=120 out=50 searches=${searches} ${tail}`
+  assert.deepEqual(h.logs, [
+    line('coverage', 0, `added=injection,${proposed.id}`), line('turn1', 0, 'added=-'), line('turn2:pass1', 0, 'added=-'),
+    line('turn3', 0, 'added=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)}`),
+  ])
+  const grown = harness(t, 'covered', [response(decision('Start.')), turn(decision('Grown.', [pick('injection'), pick('ssrf')])), turn(decision('Same.')), turn(decision('Same.'))])
+  await runPlaybookAgent(grown.options)
+  assert.equal(grown.logs[1], line('turn1', 0, 'added=injection,ssrf'))
+  assert.equal(grown.logs[0], line('coverage', 0, 'added=-'))
+  const bad = harness(t, 'covered', [{ ...response({}), status: 'incomplete' } as Response])
+  await assert.rejects(runPlaybookAgent(bad.options), /response incomplete/)
+  assert.deepEqual(bad.logs, ['[playbook-agent] coverage incomplete in=120 out=50 searches=0 added=-'])
 })
