@@ -27,7 +27,7 @@ export interface ProposedClass {
 export interface SelectedBuiltin { id: string; reason: string }
 export interface CoverageDecision { reason: string; builtin_classes: SelectedBuiltin[]; classes: ProposedClass[] }
 export interface DecisionChange { id: string; why: string }
-/** One review turn after the initial decision: what the no-drop union added and restored, or what turn3's prune removed. */
+/** One review turn after the initial decision: what the no-drop union added and restored, or what turn3 included and removed. */
 export interface DecisionTurn {
   purpose: string
   added: string[]
@@ -37,11 +37,13 @@ export interface DecisionTurn {
   web_search_calls: number
   queries: string[]
   source_urls: string[]
-  /** turn3 only: ids it returned that were not selected before it, never added. */
-  ignored?: string[]
-  /** turn3 only: its prune would have left no class, so the set before it was kept. */
+  /** turn3 only: ids it removed or included without an explained changes entry; not applied. */
+  unexplained?: string[]
+  /** turn3 only: its result would have left no class, so the set before it was kept. */
   prune_rejected?: 'empty'
 }
+/** One turn2 pass's own output, as turn3 receives it. */
+export interface TurnReview { purpose: string; reason: string; changes: DecisionChange[] }
 export interface UsageCall {
   purpose: string
   model: string
@@ -66,7 +68,7 @@ export interface PlaybookPlan {
   model: string
   searched: boolean
   reason: string
-  /** The final decision: the union of the initial decision and turn1/turn2, pruned by turn3. */
+  /** The final decision: the union of the initial decision and turn1/turn2, re-thought by turn3. */
   decision: CoverageDecision
   turns: DecisionTurn[]
   loop: { enabled: boolean; max_passes: number; passes_run: number }
@@ -157,8 +159,8 @@ const playbookSchema = object({ playbook: { type: 'string' }, source_urls: strin
 const tasks = {
   coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
   turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
-  turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
-  turn3: "Review every selected class against recon's data. For each, name the recon evidence (signal, dependency, framework, category verdict or architecture element) that shows the target has a surface it applies to. Remove a class when you can name no such evidence. Return the final decision in the same schema, listing each removed class and why.",
+  turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it only if recon shows the target has that surface, and name the recon evidence in changes. Do not add a class only because recon does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
+  turn3: "Re-think the class selection using turn2_review (turn2's reasoning and the recon evidence it named for each class it added), the current class list and recon's data. For each selected class decide whether to keep or remove it, and for each class not selected decide whether to include it; web search is available if needed. Keep a class without explanation. Remove a class only when you can name no recon evidence of a surface it applies to, and include a class only when recon shows such a surface. List every class you remove or include in changes, with the recon evidence and why. Return the final decision in the same schema.",
 }
 const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
 // Each bracketed clause of the revision template appears only when that problem exists.
@@ -261,19 +263,21 @@ const overlayEntry = (c: ProposedClass, model: string): OverlayEntry =>
   ({ playbook: c.id, codes: c.codes, signals: c.signals, framework: c.framework, model, sha256: '0'.repeat(64) })
 const classIds = (d: CoverageDecision) => [...d.builtin_classes.map(b => b.id), ...d.classes.map(c => c.id)]
 
-/** Every decision call is checked alike, before it is merged and before any research or cache write. */
-function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOptions): void {
+/** Every decision call is checked alike, before it is merged and before any research or cache write.
+ *  turn3 alone passes `kept`: an id selected before it may come back with a blank reason, since it keeps its earlier one. */
+function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOptions, kept = new Set<string>()): void {
   if (!d || typeof d.reason !== 'string' || !d.reason.trim() || !Array.isArray(d.classes) ||
       !Array.isArray(d.builtin_classes)) throw new Error(`Invalid ${purpose} decision`)
   const builtins = new Set<string>(), classes = new Set<string>()
   for (const b of d.builtin_classes) {
-    if (!b || !Object.hasOwn(o.builtins, b.id) || builtins.has(b.id) || typeof b.reason !== 'string' || !b.reason.trim()) {
+    if (!b || !Object.hasOwn(o.builtins, b.id) || builtins.has(b.id) || typeof b.reason !== 'string' ||
+        (!b.reason.trim() && !kept.has(b.id))) {
       throw new Error('Invalid or duplicate selected built-in class')
     }
     builtins.add(b.id)
   }
   for (const c of d.classes) {
-    if (!c || classes.has(c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
+    if (!c || classes.has(c.id) || typeof c.reason !== 'string' || (!c.reason.trim() && !kept.has(c.id))) throw new Error('Invalid or duplicate proposed class')
     validateOverlay({ [c.id]: overlayEntry(c, o.model) }, o.builtins, o.signals)
     classes.add(c.id)
   }
@@ -292,15 +296,22 @@ function unionDecision(before: CoverageDecision, turn: CoverageDecision): { deci
   return { decision, added: classIds(decision).filter(id => !had.has(id)), restored: [...had].filter(id => !own.has(id)) }
 }
 
-/** Code-enforced prune for turn3: an intersection. A kept id keeps its first definition and reason; a new id is
- *  ignored, never added. A prune that would leave no class is rejected and the set before it kept. */
-function pruneDecision(before: CoverageDecision, turn: CoverageDecision): { decision: CoverageDecision; removed: string[]; ignored: string[]; rejected: boolean } {
+/** Code-enforced merge for turn3: a kept id keeps its earlier definition and reason; a removal or inclusion is applied
+ *  only with a changes entry giving a non-blank why, otherwise it is recorded as unexplained. A result with no class
+ *  is rejected and the set before it kept. */
+function rethinkDecision(before: CoverageDecision, turn: CoverageDecision & { changes: DecisionChange[] }):
+  { decision: CoverageDecision; added: string[]; removed: string[]; unexplained: string[]; rejected: boolean } {
   const had = new Set(classIds(before)), own = new Set(classIds(turn))
-  const ignored = classIds(turn).filter(id => !had.has(id))
-  const decision = { reason: turn.reason, builtin_classes: before.builtin_classes.filter(b => own.has(b.id)),
-    classes: before.classes.filter(c => own.has(c.id)) }
-  if (!classIds(decision).length) return { decision: before, removed: [], ignored, rejected: true }
-  return { decision, removed: classIds(before).filter(id => !own.has(id)), ignored, rejected: false }
+  const explained = new Set(turn.changes.filter(c => c.why.trim()).map(c => c.id))
+  const dropped = classIds(before).filter(id => !own.has(id)), fresh = classIds(turn).filter(id => !had.has(id))
+  const removed = dropped.filter(id => explained.has(id)), added = fresh.filter(id => explained.has(id))
+  const unexplained = [...dropped, ...fresh].filter(id => !explained.has(id))
+  const keep = (id: string) => !removed.includes(id), take = (id: string) => added.includes(id)
+  const decision = { reason: turn.reason.trim() ? turn.reason : before.reason,
+    builtin_classes: [...before.builtin_classes.filter(b => keep(b.id)), ...turn.builtin_classes.filter(b => take(b.id))],
+    classes: [...before.classes.filter(c => keep(c.id)), ...turn.classes.filter(c => take(c.id))] }
+  if (!classIds(decision).length) return { decision: before, added: [], removed: [], unexplained, rejected: true }
+  return { decision, added, removed, unexplained, rejected: false }
 }
 
 export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: PlaybookPlan; overlay: ClassesOverlay; selection: ClassSelection }> {
@@ -345,7 +356,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     calls.push(record)
     o.recordUsage(record) // Persist paid usage even if parsing or validation fails next.
     if (response.status !== 'completed') {
-      o.log?.(progress(record, { decision: purpose === 'turn3' ? 'removed=-' : 'added=-', research: 'bytes=- unverified=-', revision: 'bytes=- problems=-' }[kind]))
+      o.log?.(progress(record, { decision: purpose === 'turn3' ? 'added=- removed=-' : 'added=-', research: 'bytes=- unverified=-', revision: 'bytes=- problems=-' }[kind]))
       throw new Error(`Playbook ${purpose} response ${response.status}`)
     }
     const text = response.output_text || (response.output ?? []).flatMap(item =>
@@ -370,12 +381,13 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   const schemas = { coverage: decisionSchema(o.signals, o.builtins, false), turn: decisionSchema(o.signals, o.builtins, true) }
   const searches = { queries: [] as string[], source_urls: [] as string[] }
   let decision!: CoverageDecision
-  const decide = async (purpose: string, task: string, turn: boolean) => {
-    const extra = turn ? { current_decision: decision, searches_so_far: searches } : {}
+  // turn3 alone passes `last` (appended after the shared fields) and `kept`.
+  const decide = async (purpose: string, task: string, turn: boolean, last: Record<string, unknown> = {}, kept?: Set<string>) => {
+    const extra = turn ? { current_decision: decision, searches_so_far: searches, ...last } : {}
     const { text, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, 'decision')
     const value = JSON.parse(text)
     for (const key of ['queries', 'source_urls'] as const) for (const s of trace[key]) if (!searches[key].includes(s)) searches[key].push(s)
-    validateDecision(value, purpose, turn, o)
+    validateDecision(value, purpose, turn, o, kept)
     return { value, trace }
   }
   const turns: DecisionTurn[] = []
@@ -385,16 +397,17 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     turns.push({ purpose, added: next.added, restored: next.restored, removed: [], changes: value.changes,
       web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls })
     o.log?.(progress(trace, `added=${next.added.join(',') || '-'}`))
-    return next
+    return { ...next, value }
   }
-  // turn3 is the only turn that can remove, and the only one that cannot add.
-  const prune = async (purpose: string, task: string) => {
-    const { value, trace } = await decide(purpose, task, true)
-    const next = pruneDecision(decision, value)
-    turns.push({ purpose, added: [], restored: [], removed: next.removed, changes: value.changes,
+  // turn3 is the only turn that can remove; it sees each turn2 pass's own reason and changes.
+  const turn2Review: TurnReview[] = []
+  const rethink = async (purpose: string, task: string) => {
+    const { value, trace } = await decide(purpose, task, true, { turn2_review: turn2Review }, new Set(classIds(decision)))
+    const next = rethinkDecision(decision, value)
+    turns.push({ purpose, added: next.added, restored: [], removed: next.removed, changes: value.changes,
       web_search_calls: trace.web_search_calls, queries: trace.queries, source_urls: trace.source_urls,
-      ignored: next.ignored, ...(next.rejected ? { prune_rejected: 'empty' as const } : {}) })
-    o.log?.(progress(trace, `removed=${next.removed.join(',') || '-'}`))
+      unexplained: next.unexplained, ...(next.rejected ? { prune_rejected: 'empty' as const } : {}) })
+    o.log?.(progress(trace, `added=${next.added.join(',') || '-'} removed=${next.removed.join(',') || '-'}`))
     return next.decision
   }
   const { value: initial, trace: first } = await decide('coverage', tasks.coverage, false)
@@ -405,11 +418,12 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   if (loop.enabled) {
     decision = (await review('turn1', tasks.turn1)).decision
     while (passes < loop.maxPasses) {
-      const next = await review(`turn2:pass${++passes}`, tasks.turn2)
+      const purpose = `turn2:pass${++passes}`, next = await review(purpose, tasks.turn2)
+      turn2Review.push({ purpose, reason: next.value.reason, changes: next.value.changes })
       if (!next.added.length) break
       decision = next.decision
     }
-    decision = await prune('turn3', tasks.turn3)
+    decision = await rethink('turn3', tasks.turn3)
   }
 
   const selected = [...new Set(classIds(decision))].sort()

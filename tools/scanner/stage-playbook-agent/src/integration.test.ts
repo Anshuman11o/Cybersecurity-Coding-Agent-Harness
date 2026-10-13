@@ -562,24 +562,29 @@ test('stage entrypoint: loop off makes one decision call; an invalid pass count 
   assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'usage.json'), 'utf8')).calls, [], 'no model call was made')
 })
 
-test('stage entrypoint: one turn2 pass by default, three with SCANNER_PLAYBOOK_LOOP_PASSES=3; turn3 never adds', t => {
+test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LOOP_PASSES; turn3 sees each pass and adds nothing unexplained', t => {
   const f = fixture(t)
-  const script = join(f.root, 'stage.mts')
-  // Every turn2 pass adds one built-in; turn3 returns all four, so any not yet selected are ignored.
+  const script = join(f.root, 'stage.mts'), review = join(f.root, 'turn2-review.json')
+  // Every turn2 pass adds one built-in; turn3 returns all four without changes, so any not yet selected are unexplained.
   writeFileSync(script, `
+    import { writeFileSync } from 'node:fs';
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     const ids = ['injection', 'ssrf', 'access-control', 'integrity-failures'];
     const n = (purpose) => purpose === 'turn3' ? 4 : purpose.startsWith('turn2:pass') ? Number(purpose.slice(10)) + 1 : 1;
-    await main(async (request, purpose) => ({
-      id: 'mock', model: request.model, status: 'completed', output: [],
-      output_text: JSON.stringify({ reason: purpose, builtin_classes: ids.slice(0, n(purpose)).map(id => ({ id, reason: 'Recon.' })),
-        classes: [], changes: [] }),
-      usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
-        output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
-    }));
+    await main(async (request, purpose) => {
+      if (purpose === 'turn3') writeFileSync(${JSON.stringify(review)}, JSON.stringify(JSON.parse(request.input).turn2_review));
+      return {
+        id: 'mock', model: request.model, status: 'completed', output: [],
+        output_text: JSON.stringify({ reason: purpose, builtin_classes: ids.slice(0, n(purpose)).map(id => ({ id, reason: 'Recon.' })),
+          classes: [], changes: [] }),
+        usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+          output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
+      };
+    });
   `)
-  for (const [env, passes, selected, ignored] of [
+  for (const [env, passes, selected, unexplained] of [
     [{}, 1, ['injection', 'ssrf'], ['access-control', 'integrity-failures']],
+    [{ SCANNER_PLAYBOOK_LOOP_PASSES: '2' }, 2, ['access-control', 'injection', 'ssrf'], ['integrity-failures']],
     [{ SCANNER_PLAYBOOK_LOOP_PASSES: '3' }, 3, ['access-control', 'injection', 'integrity-failures', 'ssrf'], []],
   ] as [Record<string, string>, number, string[], string[]][]) {
     execFileSync(tsx, [script], { env: { ...f.env, ...env }, stdio: 'pipe' })
@@ -589,7 +594,8 @@ test('stage entrypoint: one turn2 pass by default, three with SCANNER_PLAYBOOK_L
     const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
     assert.deepEqual(plan.loop, { enabled: true, max_passes: passes, passes_run: passes })
     const turn3 = plan.turns.at(-1)
-    assert.deepEqual([turn3.added, turn3.removed, turn3.ignored], [[], [], ignored])
+    assert.deepEqual([turn3.added, turn3.removed, turn3.unexplained], [[], [], unexplained])
+    assert.deepEqual(JSON.parse(readFileSync(review, 'utf8')), passPurposes.map(purpose => ({ purpose, reason: purpose, changes: [] })))
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8')).classes, selected)
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8')).classes, selected)
   }

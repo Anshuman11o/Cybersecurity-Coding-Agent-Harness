@@ -71,35 +71,45 @@ A code-driven loop of review turns follows that initial decision:
 | Purpose | Runs | Asks the model to |
 |---|---|---|
 | `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
-| `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; the loop stops at the first pass that adds no class id |
-| `turn3` | once | review every selected class against recon's data; remove any class it can name no recon evidence for |
+| `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; add one only when recon shows the target has its surface, naming that evidence in `changes`; the loop stops at the first pass that adds no class id |
+| `turn3` | once | re-think the selection from `turn2_review`, the current classes and recon's data: keep a class without explanation, include or remove one only with recon evidence in `changes` |
 
 Each turn is a decision call like the first, with web search available, and
 returns the same schema plus `changes` (`{ id, why }` per addition, or per
-removal in turn3). Every
+inclusion and removal in turn3). Every
 decision call's input starts with the same object (recon, signal counts,
 signal mappings, built-ins, cached classes) so the calls share a cacheable
 prefix; a turn appends the decision so far and the queries and sources
-of every earlier decision call. `SCANNER_PLAYBOOK_LOOP=0` skips the turns and
+of every earlier decision call. turn3 alone also receives, last,
+`turn2_review`: one `{ purpose, reason, changes }` entry per turn2 pass run, in
+order, with `reason` and `changes` as that pass's model returned them, before
+the union. `SCANNER_PLAYBOOK_LOOP=0` skips the turns and
 runs the initial call only; any other value, or none, keeps them.
 `SCANNER_PLAYBOOK_LOOP_PASSES` must be a positive integer; any other value fails
 the stage before any model call. The purposes above, with `coverage` and
 `research:<class-id>`, label each call in `usage.json` and the spend ledger.
 
-`turn1` and `turn2` can only add classes; `turn3` can only remove them. Code
-enforces both. Each turn's output is validated like the initial decision. A
+`turn1` and `turn2` can only add classes; `turn3` keeps, includes or removes
+them. Code enforces both. Each turn's output is validated like the initial
+decision, except that turn3 may return a class selected before it with a blank
+reason (it keeps its earlier one); a class turn3 newly includes needs one. A
 `turn1` or `turn2` output is then merged as a union: built-ins by id, keeping
 the first reason; additional classes by id, keeping the first definition
 (framework, codes, signals, reason), so a later turn cannot redefine one. A
 class such a turn omits stays selected and is listed in that turn's `restored`.
-A `turn3` output is merged as an intersection: a class stays selected only if
-turn3 returns its id, and keeps its first definition and reason. A class turn3
-omits is removed and listed in its `removed`; an id turn3 returns that was not
-already selected is not added and is listed in its `ignored`. If the
-intersection would be empty, the set before turn3 is kept unchanged and the
-turn records `prune_rejected: "empty"`. The decision's `reason` is the latest
-merged turn's. A removed additional class is not researched and does not reach
-the overlay.
+A `turn3` output is merged so that code applies an inclusion or removal only
+with an explained `changes` entry (one whose `why` is not blank). A class turn3
+returns that was already selected keeps its first definition and reason. A
+class it omits is removed only when explained, and listed in its `removed`. A
+class it returns that was not selected is included only when explained, and
+listed in its `added`; an included built-in takes turn3's entry, and an
+included additional class takes turn3's definition and is researched like any
+other uncached class. An unexplained removal or inclusion is not applied and is
+listed in the turn's `unexplained`. If the result would be empty, the set
+before turn3 is kept unchanged and the turn records `prune_rejected: "empty"`.
+The decision's `reason` is the latest merged turn's (turn3 keeps the earlier
+one if its own is blank). A removed additional class is not researched and does
+not reach the overlay.
 
 Each uncached class in the final decision then gets a Responses call with
 `web_search` (required) and a strict playbook schema. It returns a plain-text
@@ -149,12 +159,13 @@ hashes stop loading rather than silently supplying different guidance.
   call searched, new classes and signal mappings, cache hits, all consulted
   playbooks with hashes and sources (an agent playbook's record carries the
   same verified/unverified labels as its cache entry). `turns` holds one entry per review turn
-  (purpose, the ids the union `added` and `restored`, the ids turn3's prune
-  `removed` — always present, `[]` for turn1 and turn2 — the model's
-  `changes`, and the turn's search count, queries and sources; turn3 also
-  records the new ids it returned as `ignored`, and `prune_rejected: "empty"`
-  when its prune was rejected); `loop` records `enabled`, `max_passes` and
-  `passes_run`.
+  (purpose, the ids the union `added` and `restored` — for turn3, the ids it
+  included, and `restored` is `[]` — the ids turn3 `removed` — always present,
+  `[]` for turn1 and turn2 — the model's `changes`, and the turn's search
+  count, queries and sources; turn3 also records `unexplained`, the ids it
+  removed or included without an explained `changes` entry, and
+  `prune_rejected: "empty"` when its result was rejected); `loop` records
+  `enabled`, `max_passes` and `passes_run`.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.

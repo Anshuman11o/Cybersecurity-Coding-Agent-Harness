@@ -31,8 +31,8 @@ const source = 'https://example.test/worker-security'
 const tasks = {
   coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
   turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
-  turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
-  turn3: "Review every selected class against recon's data. For each, name the recon evidence (signal, dependency, framework, category verdict or architecture element) that shows the target has a surface it applies to. Remove a class when you can name no such evidence. Return the final decision in the same schema, listing each removed class and why.",
+  turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it only if recon shows the target has that surface, and name the recon evidence in changes. Do not add a class only because recon does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
+  turn3: "Re-think the class selection using turn2_review (turn2's reasoning and the recon evidence it named for each class it added), the current class list and recon's data. For each selected class decide whether to keep or remove it, and for each class not selected decide whether to include it; web search is available if needed. Keep a class without explanation. Remove a class only when you can name no recon evidence of a surface it applies to, and include a class only when recon shows such a surface. List every class you remove or include in changes, with the recon evidence and why. Return the final decision in the same schema.",
 }
 const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
 const loopPurposes = ['coverage', 'turn1', 'turn2:pass1', 'turn3']
@@ -374,9 +374,11 @@ test('decision tasks are the specified strings, and every decision input starts 
   assert.equal(base.builtins.length, 14)
   const prefix = JSON.stringify(base).slice(0, -1) + ',"task":'
   for (const i of inputs) assert.ok(i.startsWith(prefix), 'decision input must start with the shared base')
-  for (const i of inputs.slice(1)) {
+  for (const i of inputs.slice(1, -1)) {
     assert.deepEqual(Object.keys(JSON.parse(i)), [...Object.keys(base), 'task', 'current_decision', 'searches_so_far'])
   }
+  // turn3 alone appends turn2_review, after the fields every turn shares.
+  assert.deepEqual(Object.keys(JSON.parse(inputs.at(-1)!)), [...Object.keys(base), 'task', 'current_decision', 'searches_so_far', 'turn2_review'])
 })
 
 test('review turns receive the union decision so far and the searches of all earlier decision calls', async t => {
@@ -483,52 +485,119 @@ const other: ProposedClass = {
 }
 const classIdsOf = (d: CoverageDecision) => [...d.builtin_classes.map(b => b.id), ...d.classes.map(c => c.id)]
 
-test('turn3 prunes: an omitted built-in and additional class are gone from every artifact, and the removed class is not researched', async t => {
+test('turn3 receives turn2_review: each turn2 pass\'s own reason and changes, in order, after searches_so_far', async t => {
+  const start = decision('Start.', [pick('injection')], [proposed])
+  const grown = decision('Grown.', [pick('injection'), pick('ssrf')], [proposed])
+  // Pass 1 omits the additional class and adds ssrf; pass 2 adds access-control. Each review carries the pass's own output.
+  const pass1 = { ...decision('Pass one reasoning.', [pick('injection'), pick('ssrf')]), changes: [{ id: 'ssrf', why: 'http_outbound signal in recon.' }] }
+  const pass2 = { ...decision('Pass two reasoning.', [...grown.builtin_classes, pick('access-control')], [proposed]),
+    changes: [{ id: 'access-control', why: 'Route handlers in architecture.' }] }
+  const h = harness(t, 'uncovered', [response(start), turn(start), response(pass1), response(pass2), turn(start), research()])
+  h.options.loop = { enabled: true, maxPasses: 2 }
+  await runPlaybookAgent(h.options)
+  assert.deepEqual(h.purposes, ['coverage', 'turn1', 'turn2:pass1', 'turn2:pass2', 'turn3', `research:${proposed.id}`])
+  const input = h.input('turn3')
+  assert.deepEqual(Object.keys(input).slice(-3), ['current_decision', 'searches_so_far', 'turn2_review'])
+  assert.deepEqual(input.turn2_review, [
+    { purpose: 'turn2:pass1', reason: pass1.reason, changes: pass1.changes },
+    { purpose: 'turn2:pass2', reason: pass2.reason, changes: pass2.changes },
+  ])
+  for (const purpose of ['turn1', 'turn2:pass1', 'turn2:pass2']) assert.ok(!('turn2_review' in h.input(purpose)), purpose)
+  // A pass that adds nothing ends the loop and is still reviewed.
+  const one = harness(t, 'uncovered', [response(start), turn(start), turn(decision('Nothing to add.')), turn(start), research()])
+  one.options.loop = { enabled: true, maxPasses: 2 }
+  await runPlaybookAgent(one.options)
+  assert.deepEqual(one.input('turn3').turn2_review, [{ purpose: 'turn2:pass1', reason: 'Nothing to add.', changes: [] }])
+})
+
+test('turn3 removes an explained built-in and additional class: gone from every artifact, and the removed class is not researched', async t => {
   const start = decision('Start.', [pick('injection'), pick('access-control')], [proposed, other])
-  const kept = decision('Pruned.', [pick('injection')], [proposed])
-  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start),
-    turn(kept, [{ id: 'access-control', why: 'No route evidence.' }, { id: other.id, why: 'No cache dependency.' }]), research()])
+  const kept = decision('Re-thought.', [pick('injection')], [proposed])
+  const changes = [{ id: 'access-control', why: 'No route evidence.' }, { id: other.id, why: 'No cache dependency.' }]
+  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(kept, changes), research()])
   const { plan, overlay, selection } = await runPlaybookAgent(h.options)
   assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`], 'no research call for the removed class')
   const turn3 = plan.turns.at(-1)!
-  assert.deepEqual([turn3.purpose, turn3.removed, turn3.added, turn3.restored, turn3.ignored], ['turn3', ['access-control', other.id], [], [], []])
-  assert.ok(!('prune_rejected' in turn3))
-  assert.deepEqual(turn3.changes, [{ id: 'access-control', why: 'No route evidence.' }, { id: other.id, why: 'No cache dependency.' }])
+  assert.deepEqual([turn3.purpose, turn3.removed, turn3.added, turn3.restored, turn3.unexplained], ['turn3', ['access-control', other.id], [], [], []])
+  assert.ok(!('prune_rejected' in turn3) && !('ignored' in turn3))
+  assert.deepEqual(turn3.changes, changes)
   assert.deepEqual(plan.turns.slice(0, -1).map(x => x.removed), [[], []])
+  assert.ok(plan.turns.slice(0, -1).every(x => !('unexplained' in x)))
   const [{ decision: d }] = h.decisions
   assert.deepEqual([d.builtin, d.added, d.classes], [['injection'], [proposed], ['injection', proposed.id]])
   assert.deepEqual(d.turns, plan.turns)
   assert.deepEqual([selection.builtin, selection.added, selection.classes], [['injection'], [proposed.id], ['injection', proposed.id]])
-  assert.deepEqual(plan.decision, { reason: 'Pruned.', builtin_classes: [pick('injection')], classes: [proposed] })
-  assert.equal(plan.reason, 'Pruned.')
+  assert.deepEqual(plan.decision, { reason: 'Re-thought.', builtin_classes: [pick('injection')], classes: [proposed] })
+  assert.equal(plan.reason, 'Re-thought.')
   assert.deepEqual(plan.builtin_classes, [pick('injection')])
   assert.deepEqual(plan.selected_classes, ['injection', proposed.id])
   assert.deepEqual(plan.classes.map(c => c.id), [proposed.id])
   assert.ok(!plan.playbooks.some(p => p.class_id === other.id))
   assert.deepEqual(Object.keys(overlay), [proposed.id])
   assert.equal(readCachedPlaybook(h.root, other.id, other.framework, 'test-model'), null)
-  assert.equal(h.logs[3], `[playbook-agent] turn3 completed in=120 out=50 searches=0 removed=access-control,${other.id}`)
+  assert.equal(h.logs[3], `[playbook-agent] turn3 completed in=120 out=50 searches=0 added=- removed=access-control,${other.id}`)
 })
 
-test('turn3 cannot add: a new built-in or additional class is ignored, listed, and never researched', async t => {
-  const start = decision('Start.', [pick('injection')], [proposed])
-  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start),
-    turn(decision('Final.', [pick('injection'), pick('ssrf')], [proposed, other])), research()])
+test('turn3 includes an explained new built-in and additional class: both selected, the new class researched with turn3\'s definition', async t => {
+  const start = decision('Start.', [pick('injection')])
+  const final = decision('Included.', [{ id: 'injection', reason: ' ' }, pick('ssrf')], [other])
+  const changes = [{ id: 'ssrf', why: 'http_outbound signal.' }, { id: other.id, why: 'Cache dependency in the manifest.' }]
+  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(final, changes),
+    response({ playbook: generated, source_urls: [source] }, true)])
   const { plan, overlay, selection } = await runPlaybookAgent(h.options)
-  assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`])
+  assert.deepEqual(h.purposes, [...loopPurposes, `research:${other.id}`])
+  assert.deepEqual(h.input(`research:${other.id}`).class, other)
   const turn3 = plan.turns.at(-1)!
-  assert.deepEqual([turn3.added, turn3.removed, turn3.ignored], [[], [], ['ssrf', other.id]])
-  assert.deepEqual(selection.classes, ['injection', proposed.id])
-  assert.deepEqual(h.decisions[0].decision.classes, ['injection', proposed.id])
-  assert.deepEqual(Object.keys(overlay), [proposed.id])
+  assert.deepEqual([turn3.added, turn3.removed, turn3.restored, turn3.unexplained], [['ssrf', other.id], [], [], []])
+  assert.deepEqual(plan.decision, { reason: 'Included.', builtin_classes: [pick('injection'), pick('ssrf')], classes: [other] })
+  assert.deepEqual([selection.builtin, selection.added, selection.classes], [['injection', 'ssrf'], [other.id], [other.id, 'injection', 'ssrf']])
+  assert.deepEqual(h.decisions[0].decision.classes, selection.classes)
+  assert.deepEqual(h.decisions[0].decision.added, [other])
+  assert.deepEqual([overlay[other.id].codes, overlay[other.id].signals, overlay[other.id].framework], [other.codes, other.signals, other.framework])
+  assert.equal(plan.classes[0].cache, 'created')
+  assert.equal(h.logs[3], `[playbook-agent] turn3 completed in=120 out=50 searches=0 added=ssrf,${other.id} removed=-`)
+})
+
+test('turn3 applies no unexplained change: an omitted class stays selected, a new one is not added; both recorded', async t => {
+  const start = decision('Start.', [pick('injection'), pick('access-control')], [proposed])
+  // access-control has no changes entry; ssrf's why is blank; other is explained and included.
+  const final = decision('Final.', [pick('injection'), pick('ssrf')], [proposed, other])
+  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start),
+    turn(final, [{ id: 'ssrf', why: ' ' }, { id: other.id, why: 'Cache dependency.' }]), research(), research()])
+  const { plan, selection } = await runPlaybookAgent(h.options)
+  const turn3 = plan.turns.at(-1)!
+  assert.deepEqual([turn3.added, turn3.removed, turn3.unexplained], [[other.id], [], ['access-control', 'ssrf']])
+  assert.deepEqual(selection.classes, ['access-control', other.id, 'injection', proposed.id])
+  assert.deepEqual(plan.decision.builtin_classes, start.builtin_classes)
   assert.equal(plan.reason, 'Final.')
+  assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`, `research:${other.id}`])
+})
+
+test('turn3 validation: a kept class may come back with a blank reason and keeps its earlier one; a new class may not', async t => {
+  const start = decision('Start.', [pick('injection')], [proposed])
+  const blank = decision('Kept.', [{ id: 'injection', reason: '' }], [{ ...proposed, reason: ' ' }])
+  const h = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(blank), research()])
+  const { plan } = await runPlaybookAgent(h.options)
+  assert.deepEqual(plan.decision.builtin_classes, [pick('injection')])
+  assert.deepEqual(plan.decision.classes, [proposed])
+  for (const [bad, error] of [
+    [decision('New.', [pick('injection'), { id: 'ssrf', reason: ' ' }], [proposed]), /selected built-in/],
+    [decision('New.', [pick('injection')], [proposed, { ...other, reason: '' }]), /proposed class/],
+  ] as [CoverageDecision, RegExp][]) {
+    const failing = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(bad, [{ id: 'ssrf', why: 'x' }, { id: other.id, why: 'x' }])])
+    await assert.rejects(runPlaybookAgent(failing.options), error)
+    assert.deepEqual(failing.decisions, [])
+  }
+  // turn1 and turn2 are unchanged: a blank reason fails even for a class already selected.
+  const strict = harness(t, 'uncovered', [response(start), turn(blank)])
+  await assert.rejects(runPlaybookAgent(strict.options), /selected built-in/)
 })
 
 test('turn3 cannot redefine a kept class: its earlier definition and reason stand', async t => {
   const start = decision('Start.', [pick('injection')], [proposed])
   const redefined = { ...proposed, framework: 'other-queue', codes: ['CWE-400'], signals: ['http_outbound'], reason: 'Redefined.' }
   const h = harness(t, 'uncovered', [response(start), turn(start), turn(start),
-    turn(decision('Final.', [{ id: 'injection', reason: 'A later, different reason.' }], [redefined])), research()])
+    turn(decision('Final.', [{ id: 'injection', reason: 'A later, different reason.' }], [redefined]), [{ id: proposed.id, why: 'Redefined.' }]), research()])
   const { plan, overlay } = await runPlaybookAgent(h.options)
   assert.deepEqual(plan.decision.builtin_classes, [pick('injection')])
   assert.deepEqual(plan.decision.classes, [proposed])
@@ -536,14 +605,15 @@ test('turn3 cannot redefine a kept class: its earlier definition and reason stan
   assert.deepEqual(h.input(`research:${proposed.id}`).class, proposed)
   assert.deepEqual([overlay[proposed.id].codes, overlay[proposed.id].signals, overlay[proposed.id].framework],
     [proposed.codes, proposed.signals, proposed.framework])
-  assert.deepEqual(plan.turns.at(-1)!.removed, [])
+  assert.deepEqual([plan.turns.at(-1)!.removed, plan.turns.at(-1)!.added, plan.turns.at(-1)!.unexplained], [[], [], []])
 })
 
-test('turn3 returning no class is rejected: the set before it is kept and prune_rejected recorded', async t => {
+test('turn3 leaving no class is rejected: the set before it is kept and prune_rejected recorded', async t => {
   const start = decision('Start.', [pick('injection'), pick('access-control')], [proposed])
-  // Only new ids: the intersection with the set before turn3 is just as empty.
-  for (const final of [decision('Nothing applies.'), decision('Only new.', [pick('ssrf')])]) {
-    const h = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(final), research()])
+  const all = classIdsOf(start).map(id => ({ id, why: 'No recon evidence.' }))
+  // Every removal explained; in the second case the only new id is unexplained, so it is not added either.
+  for (const [final, unexplained] of [[decision('Nothing applies.'), []], [decision('Only new.', [pick('ssrf')]), ['ssrf']]] as [CoverageDecision, string[]][]) {
+    const h = harness(t, 'uncovered', [response(start), turn(start), turn(start), turn(final, all), research()])
     const { plan, selection } = await runPlaybookAgent(h.options)
     const before = h.input('turn3').current_decision
     assert.deepEqual(plan.decision, before, 'the pre-turn3 decision, reason included')
@@ -551,9 +621,8 @@ test('turn3 returning no class is rejected: the set before it is kept and prune_
     assert.deepEqual(h.decisions[0].decision.classes, selection.classes)
     const turn3 = plan.turns.at(-1)!
     assert.equal(turn3.prune_rejected, 'empty')
-    assert.deepEqual([turn3.removed, turn3.added, turn3.restored], [[], [], []])
-    assert.deepEqual(turn3.ignored, classIdsOf(final))
-    assert.match(h.logs[3], / removed=-$/)
+    assert.deepEqual([turn3.removed, turn3.added, turn3.restored, turn3.unexplained], [[], [], [], unexplained])
+    assert.match(h.logs[3], / added=- removed=-$/)
   }
 })
 
@@ -716,7 +785,7 @@ test('one progress line per completed model call; the research line carries the 
   const line = (purpose: string, searches: number, tail: string) => `[playbook-agent] ${purpose} completed in=120 out=50 searches=${searches} ${tail}`
   assert.deepEqual(h.logs, [
     line('coverage', 0, `added=injection,${proposed.id}`), line('turn1', 0, 'added=-'), line('turn2:pass1', 0, 'added=-'),
-    line('turn3', 0, 'removed=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)} unverified=0`),
+    line('turn3', 0, 'added=- removed=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)} unverified=0`),
   ])
   const grown = harness(t, 'covered', [response(decision('Start.')), turn(decision('Grown.', [pick('injection'), pick('ssrf')])), turn(decision('Same.')), turn(decision('Same.'))])
   await runPlaybookAgent(grown.options)
@@ -728,7 +797,7 @@ test('one progress line per completed model call; the research line carries the 
   const start = decision('Start.', [pick('injection')])
   const badTurn3 = harness(t, 'covered', [response(start), turn(start), turn(start), { ...turn(start), status: 'incomplete' } as Response])
   await assert.rejects(runPlaybookAgent(badTurn3.options), /turn3 response incomplete/)
-  assert.equal(badTurn3.logs.at(-1), '[playbook-agent] turn3 incomplete in=120 out=50 searches=0 removed=-')
+  assert.equal(badTurn3.logs.at(-1), '[playbook-agent] turn3 incomplete in=120 out=50 searches=0 added=- removed=-')
 })
 
 // The revision template from the spec, character for character; the clauses are added only for those problems.
