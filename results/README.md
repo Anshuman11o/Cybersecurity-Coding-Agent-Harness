@@ -11,6 +11,11 @@ is derived from it.
   readable companion is `docs/patcher/RUN-HISTORY.md`; the located per-case
   evidence lives in the answer-key repo, never here.
 - `external-baseline.jsonl` — the third-party tool comparison (frozen)
+- `playbook-agent.jsonl` — playbook-agent evaluations: recon plus the playbook
+  agent on a held-out target, scored by that target's private answer-key scorer
+  at the combined class level. Counts, rates and cost only; written by
+  `tools/eval/record_playbook_eval.py`, which runs the same publishability guard.
+  Class-by-class detail stays in the answer-key repo the row names.
 
 Rows are **aggregate only**. A patcher row in particular is written by
 `tools/patcher/src/archive_run.py`, which builds it from an allowlist of fields
