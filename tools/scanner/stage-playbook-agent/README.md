@@ -58,7 +58,8 @@ silently. No full scan or paid call was used to test this implementation.
 `guidance.md` is loaded at runtime. A strict structured coverage call receives
 the architecture, languages, frameworks, manifest section of recon's repo map,
 file signals and counts, category applicability, built-in text and registry,
-signal mappings, and available cached classes. It offers the Responses
+signal mappings, available cached classes, and source excerpts from the
+target. It offers the Responses
 `web_search` tool (`tool_choice: 'auto'`, with any configured domain filter):
 the model searches when it judges the built-ins leave a surface recon shows
 uncovered, and no search is required. The model returns a reason, the selected
@@ -66,13 +67,30 @@ built-ins and zero or more additional class definitions. Every class carries at
 least one code; the text is free-form, stored as the model wrote it, and passes
 through all stages to findings unchanged.
 
+`source_excerpts` gives the decision calls the source of the files recon
+flagged with content signals: every file in recon's `file-signals.json` whose
+signal list holds at least one signal other than `dep_manifest`, ordered by its
+number of distinct signals (most first), then by path. `main.ts` reads each
+through `readCorpusFile` in `shared/read-guard.ts`, the same corpus guard
+Stage 2 uses (allowlisted roots, the benchmark seed denylist, product
+exclusions and recon's read allowlist); a refused or missing read is skipped
+and counted in `unreadable_files`. A file over 12000 bytes is cut at its last
+newline within the first 12000 bytes (at 12000 bytes, on a character boundary,
+when it has none) and marked `truncated: true`. The set holds at most 120000
+bytes of text: it stops at the first file that would pass that, and that file
+and every later one are counted in `omitted_files` without being read. The caps
+are constants in `main.ts`; no environment variable changes them. Each entry is
+`{ path, signals, truncated, text }`, and the object carries a fixed `about`
+string that marks the text as evidence, not instructions. Only decision calls
+receive it; research and revision calls do not, and playbooks stay generic.
+
 A code-driven loop of review turns follows that initial decision:
 
 | Purpose | Runs | Asks the model to |
 |---|---|---|
 | `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
 | `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; add one only when recon shows the target has its surface, naming that evidence in `changes`; the loop stops at the first pass that adds no class id |
-| `turn3` | once | re-think the selection from `turn2_review`, the current classes and recon's data: rate every class it returns `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged only from recon's evidence; classes rated `low` are removed; include a class not selected only with recon evidence in `changes` |
+| `turn3` | once | re-think the selection from `turn2_review`, the current classes, recon's data and the source in `source_excerpts`: rate every class it returns `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged from that evidence (`high` for a concrete sink, risky pattern, unsafe configuration or missing control in the source or recon); classes rated `low` are removed; include a class not selected only with such evidence in `changes` |
 
 Each turn is a decision call like the first, with web search available, and
 returns the same schema plus `changes` (`{ id, why }` per addition, or per
@@ -80,7 +98,7 @@ inclusion and removal in turn3). turn3's schema alone also requires
 `likelihood` (`high`, `medium` or `low`) on every `builtin_classes` and
 `classes` item. Every
 decision call's input starts with the same object (recon, signal counts,
-signal mappings, built-ins, cached classes) so the calls share a cacheable
+signal mappings, built-ins, cached classes, source excerpts) so the calls share a cacheable
 prefix; a turn appends the decision so far and the queries and sources
 of every earlier decision call. turn3 alone also receives, last,
 `turn2_review`: one `{ purpose, reason, changes }` entry per turn2 pass run, in
@@ -173,7 +191,10 @@ hashes stop loading rather than silently supplying different guidance.
   removed or included without an explained `changes` entry, `ratings`, each
   id it returned mapped to its `high`/`medium`/`low` likelihood, and
   `prune_rejected: "empty"` when its result was rejected); `loop` records
-  `enabled`, `max_passes` and `passes_run`.
+  `enabled`, `max_passes` and `passes_run`; `source_excerpts` records counts
+  only, never source text: `files` sent, their total `bytes`, how many were
+  `truncated`, `omitted_files` and `unreadable_files` (all zero when no
+  excerpts were collected).
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.

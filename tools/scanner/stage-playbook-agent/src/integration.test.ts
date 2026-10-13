@@ -3,18 +3,19 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   CLASS_SELECTION_FILE, mergeClassTables, validateClassSelection, type ClassesOverlay, type ClassSelection,
 } from '../../shared/playbook-overlay.js'
 import { writeCachedPlaybook, cacheRoot, textHash, addOverlayPlaybookSizes } from '../../shared/playbook-cache.js'
-import { resolveRunContext } from '../../shared/run-context.js'
+import { resolveRunContext, REPO_ROOT } from '../../shared/run-context.js'
+import { makeReadGuard, SEED_DENYLIST } from '../../shared/read-guard.js'
 import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
 import { defaultProvider, productDefaultProvider, modelFor, targetFor } from '../../shared/provider.js'
 import { loadRegistryModules } from '../../cli/src/registry.js'
 import { readRunPlaybooks } from '../../cli/src/playbooks.js'
-import { loadRecon, loopOptions } from './main.js'
+import { collectSourceExcerpts, EXCERPT_FILE_BYTES, EXCERPT_TOTAL_BYTES, loadRecon, loopOptions } from './main.js'
 
 const scanner = fileURLToPath(new URL('../..', import.meta.url))
 const tsx = join(scanner, 'stage-playbook-agent/node_modules/.bin/tsx')
@@ -607,4 +608,116 @@ test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LO
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8')).classes, selected)
     assert.deepEqual(JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8')).classes, selected)
   }
+})
+
+// A guard read that records every path it is asked for.
+const spyRead = (read: (p: string) => string | null) => {
+  const asked: string[] = []
+  return { asked, read: (p: string) => { asked.push(p); return read(p) } }
+}
+
+test('source excerpts: content-signal files only, most distinct signals first then path; long files cut at a newline; unreadable reads counted', t => {
+  const f = fixture(t)
+  const lines = Array.from({ length: 1500 }, (_, k) => `line ${String(k).padStart(4, '0')}`).join('\n') + '\n'
+  const write = (p: string, text: string) => { mkdirSync(dirname(join(f.target, p)), { recursive: true }); writeFileSync(join(f.target, p), text) }
+  write('many.ts', 'export const many = 1\n')
+  write('pair.ts', 'export const pair = 1\n')
+  write('big.ts', lines)
+  write('one.ts', 'export const one = 1\n')
+  write('mixed.json', '{"name":"mixed"}\n')
+  write('package.json', '{"name":"MANIFEST_ONLY_MARKER"}\n')
+  write('empty.ts', 'export const none = 1\n')
+  write('.secscan/prior.json', 'PRIOR_RUN_MARKER\n')
+  writeFileSync(join(f.root, 'outside.ts'), 'OUTSIDE_CORPUS_MARKER\n')
+  const files: Record<string, string[]> = {
+    'one.ts': ['logging'], 'many.ts': ['route_handler', 'db_query', 'logging'],
+    // Distinct signals count: a repeated one counts once, so pair.ts ranks with the other two-signal files.
+    'pair.ts': ['route_handler', 'route_handler', 'db_query'], 'big.ts': ['http_outbound', 'deserialize'],
+    'mixed.json': ['dep_manifest', 'config_file'], 'package.json': ['dep_manifest'], 'empty.ts': [],
+    'missing.ts': ['logging'], '../outside.ts': ['logging'], '.secscan/prior.json': ['logging'],
+  }
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, f.target, spy.read)
+  const order = ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', '../outside.ts', '.secscan/prior.json', 'missing.ts', 'one.ts']
+  assert.deepEqual(spy.asked, order.map(p => relative(REPO_ROOT, join(f.target, p))), 'dep_manifest-only and signal-less files are never read')
+  assert.deepEqual(out.files.map(x => x.path), ['many.ts', 'big.ts', 'mixed.json', 'pair.ts', 'one.ts'])
+  assert.deepEqual([out.unreadable_files, out.omitted_files], [3, 0])
+  assert.deepEqual(out.files[0], { path: 'many.ts', signals: files['many.ts'], truncated: false, text: 'export const many = 1\n' })
+  const big = out.files[1]
+  assert.equal(big.truncated, true)
+  assert.ok(Buffer.byteLength(lines) > EXCERPT_FILE_BYTES)
+  assert.ok(Buffer.byteLength(big.text) <= EXCERPT_FILE_BYTES && Buffer.byteLength(big.text) > EXCERPT_FILE_BYTES - 10)
+  assert.ok(big.text.endsWith('\n') && lines.startsWith(big.text), 'cut at the last newline within the cap')
+  assert.ok(out.files.every(x => x.path === 'big.ts' || !x.truncated))
+  const all = JSON.stringify(out)
+  for (const marker of ['MANIFEST_ONLY_MARKER', 'PRIOR_RUN_MARKER', 'OUTSIDE_CORPUS_MARKER']) assert.ok(!all.includes(marker), marker)
+})
+
+test('source excerpts: the set stops at the first file that would pass the total cap; the rest are counted as omitted', t => {
+  const f = fixture(t)
+  const files: Record<string, string[]> = {}
+  for (let k = 0; k < 12; k++) {
+    const p = `f${String(k).padStart(2, '0')}.ts`
+    writeFileSync(join(f.target, p), `// ${p}\n` + 'x'.repeat(10990) + '\n')
+    files[p] = ['logging']
+  }
+  // Small enough to fit, but after the stop: still omitted, never read.
+  writeFileSync(join(f.target, 'z.ts'), 'export const z = 1\n')
+  files['z.ts'] = ['logging']
+  const spy = spyRead(makeReadGuard(f.ctx).readCorpusFile)
+  const out = collectSourceExcerpts({ files, target_dir: f.target }, f.target, spy.read)
+  const each = Buffer.byteLength(readFileSync(join(f.target, 'f00.ts'), 'utf8'))
+  assert.equal(out.files.length, Math.floor(EXCERPT_TOTAL_BYTES / each))
+  assert.equal(out.files.length, 10)
+  assert.ok(out.files.reduce((n, x) => n + Buffer.byteLength(x.text), 0) <= EXCERPT_TOTAL_BYTES)
+  assert.deepEqual([out.omitted_files, out.unreadable_files], [3, 0])
+  assert.equal(spy.asked.length, 11, 'reading stops at the file that would pass the cap')
+  assert.ok(out.files.every(x => !x.truncated))
+})
+
+test('source excerpts in the benchmark: denylisted files are refused by the guard and counted unreadable', () => {
+  const bench = resolveRunContext({}, [], REPO_ROOT)
+  const blind = SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).map(p => p.slice('target-apps/juice-shop-blind/'.length))
+  assert.ok(blind.length > 0)
+  const spy = spyRead(makeReadGuard(bench).readCorpusFile)
+  const out = collectSourceExcerpts({ files: Object.fromEntries(blind.map(p => [p, ['db_query']])), target_dir: bench.targetRoot }, bench.targetRoot, spy.read)
+  // The guard's denylist is a raw string match: the paths asked for must be exactly the denylisted ones.
+  assert.deepEqual(spy.asked.sort(), SEED_DENYLIST.filter(p => p.startsWith('target-apps/juice-shop-blind/')).sort())
+  assert.deepEqual(out, { files: [], omitted_files: 0, unreadable_files: blind.length })
+})
+
+test('stage entrypoint: every decision call receives the target source; the plan records counts, no text', t => {
+  const f = fixture(t)
+  writeFileSync(join(f.target, 'manifest.json'), '{"name":"MANIFEST_ONLY_MARKER"}\n')
+  json(join(f.stage0, 'file-signals.json'), { target_dir: f.target, files: { 'worker.ts': ['deserialize'], 'manifest.json': ['dep_manifest'] } })
+  const script = join(f.root, 'stage.mts'), inputs = join(f.root, 'inputs.json')
+  writeFileSync(script, `
+    import { writeFileSync } from 'node:fs';
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    const seen = {};
+    await main(async (request, purpose) => {
+      seen[purpose] = request.input;
+      writeFileSync(${JSON.stringify(inputs)}, JSON.stringify(seen));
+      return {
+        id: 'mock', model: request.model, status: 'completed', output: [],
+        output_text: JSON.stringify({ reason: 'Covered.', builtin_classes: [{ id: 'injection', reason: 'Parsed input.',
+          ...(purpose === 'turn3' ? { likelihood: 'high' } : {}) }], classes: [], changes: [] }),
+        usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+          output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },
+      };
+    });
+  `)
+  execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' })
+  const seen = JSON.parse(readFileSync(inputs, 'utf8'))
+  assert.deepEqual(Object.keys(seen), ['coverage', 'turn1', 'turn2:pass1', 'turn3'])
+  const worker = readFileSync(join(f.target, 'worker.ts'), 'utf8')
+  for (const purpose of Object.keys(seen)) {
+    const excerpts = JSON.parse(seen[purpose]).source_excerpts
+    assert.deepEqual(excerpts.files, [{ path: 'worker.ts', signals: ['deserialize'], truncated: false, text: worker }], purpose)
+    assert.deepEqual([excerpts.omitted_files, excerpts.unreadable_files], [0, 0])
+    assert.ok(!seen[purpose].includes('MANIFEST_ONLY_MARKER'), purpose)
+  }
+  const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
+  assert.deepEqual(plan.source_excerpts, { files: 1, bytes: Buffer.byteLength(worker), truncated: 0, omitted_files: 0, unreadable_files: 0 })
+  assert.ok(!readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8').includes('JSON.parse(message)'), 'no excerpt text in the plan')
 })

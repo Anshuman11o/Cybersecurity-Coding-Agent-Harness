@@ -1,14 +1,15 @@
 import OpenAI from 'openai'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveProvider, clientConfigFor, modelFor, outputTokenCap, samplingParams, transportFor } from '../../shared/provider.js'
 import { runPath, REPO_ROOT } from '../../shared/run-paths.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { readCorpusFile } from '../../shared/read-guard.js'
 import { assertUpstream, writeMeta } from '../../shared/meta.js'
 import { cacheRoot } from '../../shared/playbook-cache.js'
 import { CLASS_SELECTION_FILE, PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
-import { runPlaybookAgent, type AgentOptions, type ReconInput, type UsageCall } from './agent.js'
+import { runPlaybookAgent, type AgentOptions, type ReconInput, type SourceExcerpt, type SourceExcerpts, type UsageCall } from './agent.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
 import { PlaybookMeter } from './meter.js'
 
@@ -27,6 +28,39 @@ export function loadRecon(dir: string): ReconInput {
     file_signals: read('file-signals.json'),
     dependency_manifests: map.match(/^## Dependency manifests\n([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1] ?? '',
   }
+}
+
+/** Caps on the source decision calls receive: per file, then for the whole set. */
+export const EXCERPT_FILE_BYTES = 12000
+export const EXCERPT_TOTAL_BYTES = 120000
+
+/** Source of every file recon flagged with a signal other than dep_manifest, most distinct signals first, then by path.
+ *  Read through the corpus guard; a null read is skipped and counted. A file over the per-file cap is cut at its last
+ *  newline within it; the set stops at the first file that would pass the total cap, and the rest are counted as omitted. */
+export function collectSourceExcerpts(fileSignals: ReconInput['file_signals'], targetDir: string,
+  read: (relPath: string) => string | null = readCorpusFile): SourceExcerpts {
+  const candidates = Object.entries(fileSignals.files)
+    .filter(([, signals]) => signals.some(s => s !== 'dep_manifest'))
+    .sort(([a, x], [b, y]) => new Set(y).size - new Set(x).size || (a < b ? -1 : a > b ? 1 : 0))
+  const files: SourceExcerpt[] = []
+  let total = 0, unreadable = 0
+  for (const [k, [path, signals]] of candidates.entries()) {
+    const content = read(relative(REPO_ROOT, join(targetDir, path)))
+    if (content === null) { unreadable++; continue }
+    let bytes = Buffer.from(content)
+    const truncated = bytes.length > EXCERPT_FILE_BYTES
+    if (truncated) {
+      // No newline within the cap (one long line): cut at the cap, backed off to a UTF-8 character boundary.
+      const newline = bytes.lastIndexOf(0x0a, EXCERPT_FILE_BYTES - 1)
+      let cut = newline >= 0 ? newline + 1 : EXCERPT_FILE_BYTES
+      while (newline < 0 && cut > 0 && (bytes[cut] & 0xc0) === 0x80) cut--
+      bytes = bytes.subarray(0, cut)
+    }
+    if (total + bytes.length > EXCERPT_TOTAL_BYTES) return { files, omitted_files: candidates.length - k, unreadable_files: unreadable }
+    total += bytes.length
+    files.push({ path, signals, truncated, text: bytes.toString('utf8') })
+  }
+  return { files, omitted_files: 0, unreadable_files: unreadable }
 }
 
 /** The decision-loop switches. Read here so the agent itself reads no environment. */
@@ -56,6 +90,7 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     assertUpstream(provider, 'stage0-recon')
     const recon = loadRecon(runPath(provider, 'stage0-recon'))
     if (recon.file_signals.target_dir !== getRunContext().targetRoot) throw new Error('Recon target differs from this run')
+    const sourceExcerpts = collectSourceExcerpts(recon.file_signals, getRunContext().targetRoot)
     const shared = join(REPO_ROOT, 'tools/scanner/shared')
     const builtins: ClassRegistry = JSON.parse(readFileSync(join(shared, 'vuln-classes.json'), 'utf8'))
     const signals: SignalClassMap = JSON.parse(readFileSync(join(shared, 'signal-classes.json'), 'utf8'))
@@ -74,7 +109,7 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
     const profile = readApiProfile(join(runPath(provider, 'stage0-recon'), API_PROFILE_FILE))
     const meter = new PlaybookMeter(provider, getRunContext(), config.baseURL ?? null, profile?.served_tier ?? null, createResponse)
     const { plan, overlay, selection } = await runPlaybookAgent({
-      recon, builtins, builtinTexts, signals, model, cacheRoot: cacheRoot(),
+      recon, builtins, builtinTexts, signals, model, cacheRoot: cacheRoot(), sourceExcerpts,
       allowedDomains: (process.env.SCANNER_PLAYBOOK_ALLOWED_DOMAINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
       maxOutputTokens: outputTokenCap(provider, 16000), sampling: samplingParams(provider), loop,
       create: (request, purpose) => meter.call(request, purpose),
