@@ -330,6 +330,8 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
     const source = 'https://example.test/worker-security';
@@ -340,8 +342,8 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }],
-        classes: [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }, { id: 'integrity-failures', reason: 'Deserialization.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(id)}, framework: 'generic', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }]),
         changes: [] }),
     });
   `)
@@ -360,6 +362,7 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
     [['https://example.test/worker-security'], ['https://example.test/worker-security'], []])
   assert.deepEqual(plan.loop, { enabled: true, max_passes: 1, passes_run: 1 })
   assert.deepEqual(plan.turns.map((x: any) => x.purpose), ['turn1', 'turn2:pass1', 'turn3'])
+  assert.deepEqual(plan.turns.at(-1).ratings, { injection: 'high', 'integrity-failures': 'high', [id]: 'high' })
   const decision = JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8'))
   assert.equal(decision.schema, 'secscan.class-decision/1')
   assert.deepEqual(decision.classes, selection.classes)
@@ -382,6 +385,8 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 7 } };
     const source = 'https://example.test/worker-security';
@@ -393,8 +398,8 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Queue replay is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
-        classes: [{ id: ${JSON.stringify(id)}, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(id)}, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }]),
         changes: [] }),
     });
   `)
@@ -456,6 +461,8 @@ test('stage entrypoint: additional-class codes outside the strict format complet
   writeFileSync(script, `
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
     import { playbook } from ${JSON.stringify(join(scanner, 'stage2-hunt-lanes-perfile/src/playbooks/access-control.ts'))};
+    // turn3 alone rates every class it returns.
+    const rate = (purpose, entries) => purpose === 'turn3' ? entries.map(e => ({ ...e, likelihood: 'high' })) : entries;
     const usage = { input_tokens: 100, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 } };
     const source = 'https://example.test/mobile-platform';
@@ -466,8 +473,8 @@ test('stage entrypoint: additional-class codes outside the strict format complet
     } : {
       id: 'mock-coverage', model: request.model, status: 'completed', output: [], usage,
       output_text: JSON.stringify({ reason: 'Platform API misuse is uncovered.',
-        builtin_classes: [{ id: 'injection', reason: 'Parsed input.' }],
-        classes: [{ id: ${JSON.stringify(added)}, framework: 'generic', codes: ${JSON.stringify(codes)}, signals: ['deserialize'], reason: 'Platform.' }],
+        builtin_classes: rate(purpose, [{ id: 'injection', reason: 'Parsed input.' }]),
+        classes: rate(purpose, [{ id: ${JSON.stringify(added)}, framework: 'generic', codes: ${JSON.stringify(codes)}, signals: ['deserialize'], reason: 'Platform.' }]),
         changes: [] }),
     });
   `)
@@ -565,7 +572,7 @@ test('stage entrypoint: loop off makes one decision call; an invalid pass count 
 test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LOOP_PASSES; turn3 sees each pass and adds nothing unexplained', t => {
   const f = fixture(t)
   const script = join(f.root, 'stage.mts'), review = join(f.root, 'turn2-review.json')
-  // Every turn2 pass adds one built-in; turn3 returns all four without changes, so any not yet selected are unexplained.
+  // Every turn2 pass adds one built-in; turn3 returns all four rated high without changes, so any not yet selected are unexplained.
   writeFileSync(script, `
     import { writeFileSync } from 'node:fs';
     import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
@@ -575,7 +582,8 @@ test('stage entrypoint: one turn2 pass by default, more with SCANNER_PLAYBOOK_LO
       if (purpose === 'turn3') writeFileSync(${JSON.stringify(review)}, JSON.stringify(JSON.parse(request.input).turn2_review));
       return {
         id: 'mock', model: request.model, status: 'completed', output: [],
-        output_text: JSON.stringify({ reason: purpose, builtin_classes: ids.slice(0, n(purpose)).map(id => ({ id, reason: 'Recon.' })),
+        output_text: JSON.stringify({ reason: purpose, builtin_classes: ids.slice(0, n(purpose))
+          .map(id => ({ id, reason: 'Recon.', ...(purpose === 'turn3' ? { likelihood: 'high' } : {}) })),
           classes: [], changes: [] }),
         usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
           output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 } },

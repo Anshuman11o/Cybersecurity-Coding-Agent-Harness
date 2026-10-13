@@ -72,11 +72,13 @@ A code-driven loop of review turns follows that initial decision:
 |---|---|---|
 | `turn1` | once | reconcile each excluded built-in with recon's evidence; propose classes for surfaces no built-in covers |
 | `turn2:pass<N>` | up to `SCANNER_PLAYBOOK_LOOP_PASSES` (default 1) | reconsider every class not selected; add one only when recon shows the target has its surface, naming that evidence in `changes`; the loop stops at the first pass that adds no class id |
-| `turn3` | once | re-think the selection from `turn2_review`, the current classes and recon's data: keep a class without explanation, include or remove one only with recon evidence in `changes` |
+| `turn3` | once | re-think the selection from `turn2_review`, the current classes and recon's data: rate every class it returns `high`, `medium` or `low` for how likely the target contains an exploitable vulnerability of that class, judged only from recon's evidence; classes rated `low` are removed; include a class not selected only with recon evidence in `changes` |
 
 Each turn is a decision call like the first, with web search available, and
 returns the same schema plus `changes` (`{ id, why }` per addition, or per
-inclusion and removal in turn3). Every
+inclusion and removal in turn3). turn3's schema alone also requires
+`likelihood` (`high`, `medium` or `low`) on every `builtin_classes` and
+`classes` item. Every
 decision call's input starts with the same object (recon, signal counts,
 signal mappings, built-ins, cached classes) so the calls share a cacheable
 prefix; a turn appends the decision so far and the queries and sources
@@ -92,21 +94,26 @@ the stage before any model call. The purposes above, with `coverage` and
 `turn1` and `turn2` can only add classes; `turn3` keeps, includes or removes
 them. Code enforces both. Each turn's output is validated like the initial
 decision, except that turn3 may return a class selected before it with a blank
-reason (it keeps its earlier one); a class turn3 newly includes needs one. A
+reason (it keeps its earlier one); a class turn3 newly includes needs one; and
+every class turn3 returns must carry one of the three likelihood values. A
 `turn1` or `turn2` output is then merged as a union: built-ins by id, keeping
 the first reason; additional classes by id, keeping the first definition
 (framework, codes, signals, reason), so a later turn cannot redefine one. A
 class such a turn omits stays selected and is listed in that turn's `restored`.
-A `turn3` output is merged so that code applies an inclusion or removal only
-with an explained `changes` entry (one whose `why` is not blank). A class turn3
-returns that was already selected keeps its first definition and reason. A
-class it omits is removed only when explained, and listed in its `removed`. A
-class it returns that was not selected is included only when explained, and
-listed in its `added`; an included built-in takes turn3's entry, and an
-included additional class takes turn3's definition and is researched like any
-other uncached class. An unexplained removal or inclusion is not applied and is
-listed in the turn's `unexplained`. If the result would be empty, the set
-before turn3 is kept unchanged and the turn records `prune_rejected: "empty"`.
+A `turn3` output is merged by code. A class already selected that turn3
+returns rated `low` is removed and listed in its `removed`; the rating is its
+explanation, so no `changes` entry is needed. One rated `high` or `medium` is
+kept with its first definition and reason. A class it omits is removed only
+with an explained `changes` entry (one whose `why` is not blank), and listed in
+its `removed`. A class it returns that was not selected is included only when
+explained and rated `high` or `medium`, and listed in its `added`; an included
+built-in takes turn3's entry, and an included additional class takes turn3's
+definition and is researched like any other uncached class (the rating is not
+part of either). A new class rated `low` is not included and not listed as
+unexplained. Any other unexplained removal or inclusion is not applied and is
+listed in the turn's `unexplained`. The turn records `ratings`, every id turn3
+returned with its rating. If the result would be empty, the set before turn3 is
+kept unchanged and the turn records `prune_rejected: "empty"`.
 The decision's `reason` is the latest merged turn's (turn3 keeps the earlier
 one if its own is blank). A removed additional class is not researched and does
 not reach the overlay.
@@ -163,7 +170,8 @@ hashes stop loading rather than silently supplying different guidance.
   included, and `restored` is `[]` — the ids turn3 `removed` — always present,
   `[]` for turn1 and turn2 — the model's `changes`, and the turn's search
   count, queries and sources; turn3 also records `unexplained`, the ids it
-  removed or included without an explained `changes` entry, and
+  removed or included without an explained `changes` entry, `ratings`, each
+  id it returned mapped to its `high`/`medium`/`low` likelihood, and
   `prune_rejected: "empty"` when its result was rejected); `loop` records
   `enabled`, `max_passes` and `passes_run`.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
