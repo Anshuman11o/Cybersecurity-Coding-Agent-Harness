@@ -4,22 +4,24 @@
  *
  *   secscan models                 the registry: price, measured/unmeasured, key status
  *   secscan scan [dir] [flags]     recon, plan, confirm, hunt with live progress
+ *   secscan report [run-id]        rebuild a run's report.html and findings.json
  *
  * A scan runs Stage 0 (recon), 0.5 (lanes) and 1 (scan plan and estimate)
  * first; those make up to five recon model calls, counted against the budget. It then shows the
  * confirmation screen and spends nothing on the hunt until the user starts it
  * (or --yes says so). The hunt runs behind Stage 1's spend gate with live
  * progress; a limit or Ctrl-C ends it cleanly, and either way the run record
- * says COMPLETE or INCOMPLETE and lists what was not scanned.
+ * says COMPLETE or INCOMPLETE and lists what was not scanned. The report
+ * (Task 1d) is then written next to the run record and opened.
  *
  * Nothing here names a model, an endpoint or a credential: the registry
  * (shared/models.json) and the user's flags supply all three.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { parseArgs, usage, UsageError, type ScanArgs } from './args.js'
+import { parseArgs, usage, UsageError, type ReportArgs, type ScanArgs } from './args.js'
 import { applyModelFlags, loadRegistryModules, genericNames } from './registry.js'
 import { CONFIG_FILENAME, loadConfig, configFromRun, writeConfig, type LoadedConfig } from './config.js'
 import { buildSummary, type ConfirmationSummary, type LaneLite } from './confirm.js'
@@ -45,6 +47,8 @@ import { PRODUCT_DIRNAME } from '../../shared/run-context.js'
 import { readRunPlaybooks } from './playbooks.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
 import { recordCalibration } from '../../shared/calibration.js'
+import { generateReport, isRunId, listRunIds, type GenerateResult } from '../../report/src/write.js'
+import { openInBrowser } from '../../report/src/open.js'
 
 const EXIT = { complete: 0, failure: 1, usage: 2, incomplete: 3, interrupted: 130 } as const
 const HUNT = 'stage2-hunt-lanes-perfile'
@@ -68,6 +72,21 @@ function readJson<T>(path: string): T | null {
   } catch {
     return null
   }
+}
+
+function cliVersion(): string {
+  return readJson<{ version: string }>(new URL('../package.json', import.meta.url).pathname)?.version ?? 'unknown'
+}
+
+/** Print where the report went and open it; a run with no report says why. */
+function announceReport(result: GenerateResult, noOpen: boolean): void {
+  if (!result.written) {
+    say(`No report: ${result.why}.`)
+    return
+  }
+  say(`Report:   ${result.html}`)
+  say(`Findings: ${result.json}`)
+  if (!noOpen && process.stdout.isTTY) openInBrowser(result.html)
 }
 
 function merge(base: RunLimits, over: Partial<RunLimits>): RunLimits {
@@ -105,10 +124,10 @@ async function main(argv: string[]): Promise<number> {
     return EXIT.complete
   }
   if (args.command === 'version') {
-    const pkg = readJson<{ version: string }>(new URL('../package.json', import.meta.url).pathname)
-    say(pkg?.version ?? 'unknown')
+    say(cliVersion())
     return EXIT.complete
   }
+  if (args.command === 'report') return report(args)
   if (args.command === 'models') {
     applyModelFlags(args)
     const reg = await loadRegistryModules()
@@ -398,7 +417,6 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
       const s = progress.findings.by_severity
       say(`Findings: ${progress.findings.total} (${s.critical} critical, ${s.high} high, ${s.medium} medium, ${s.low} low) — ` +
         'candidates from static reasoning, not verified')
-      say(`  ${join(stageDir(HUNT), 'candidate-findings.json')}`)
     }
     if (totals.calls || fresh) {
       say(`Spend: ${usd(record.spend.spent_usd)}` +
@@ -407,6 +425,17 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
     }
     say(`Run record: ${join(runsRoot, RUN_RECORD_FILE)}`)
     if (record.resume_command) say(`Continue: ${record.resume_command}`)
+
+    // ── Report ────────────────────────────────────────────────────────────
+    // The run record above is the verdict; the report is how it is read, so a
+    // report that cannot be written never changes the exit code.
+    try {
+      const result = generateReport({ runDir: runsRoot, reportsRoot, stageDir, secscanVersion: cliVersion() })
+      if (result.written || !cancelled) announceReport(result, args.noOpen)
+    } catch (e: any) {
+      err(`the report could not be written: ${e?.message ?? e}\n` +
+        `Rebuild it with: secscan report ${runId} --out ${shellQuote(reportsRoot)}`)
+    }
 
     if (record.status === 'COMPLETE') return EXIT.complete
     if (cancelled) return EXIT.complete
@@ -608,6 +637,48 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
     await runOne('reconcile-v2')
   }
   return finish(false)
+}
+
+/**
+ * `secscan report [run-id]`: rebuild a run's report from what is on disk,
+ * after the CLI was killed before writing it, or to re-render an older run.
+ * Stage directories are resolved through runPath() under the run's own
+ * context, exactly as the scan resolved them.
+ */
+async function report(args: ReportArgs): Promise<number> {
+  const reportsRoot = resolve(args.out ?? join(process.cwd(), PRODUCT_DIRNAME))
+  if (args.runId !== undefined && !isRunId(args.runId)) throw new UsageError(`"${args.runId}" is not a run id`)
+  const runId = args.runId ?? listRunIds(reportsRoot)[0]
+  if (!runId) throw new UsageError(`no runs in ${reportsRoot}; pass --out <reports folder>`)
+  const runDir = join(reportsRoot, 'runs', runId)
+  if (!existsSync(runDir)) throw new UsageError(`no run ${runId} in ${reportsRoot}`)
+  const record = readJson<RunRecord>(join(runDir, RUN_RECORD_FILE))
+  const allowlist = readJson<{ target_root?: string }>(join(runDir, 'read-allowlist.json'))
+  // Without a record, the run's one model folder names the provider.
+  const modelDirs = readdirSync(runDir).filter(d => existsSync(join(runDir, d, HUNT)) || existsSync(join(runDir, d, 'stage0-recon')))
+  const modelKey = record?.model.key ?? (modelDirs.length === 1 ? modelDirs[0] : undefined)
+  const target = record?.target.root ?? allowlist?.target_root
+  if (!modelKey || !target) throw new UsageError(`run ${runId} has no run record or allowlist to rebuild a report from`)
+
+  const progress = readProgress(join(runDir, modelKey, HUNT, PROGRESS_FILE))
+  if (progress && (progress.status === 'running' || progress.status === 'stopping') &&
+      Date.now() - Date.parse(progress.updated_at) < 120_000) {
+    throw new UsageError(`run ${runId} is still scanning; rebuild its report once it ends`)
+  }
+
+  if (record) restoreModelEnv(record)
+  process.env.SCANNER_TARGET = target
+  process.env.SCANNER_PROFILE = 'product'
+  process.env.SCANNER_RUN_ID = runId
+  process.env.SCANNER_REPORTS_ROOT = reportsRoot
+  process.env.SCANNER_RUNS_ROOT = runDir
+  const paths = await import('../../shared/run-paths.js')
+  const result = generateReport({
+    runDir, reportsRoot, modelKey, secscanVersion: cliVersion(),
+    stageDir: stage => paths.runPath(modelKey, stage),
+  })
+  announceReport(result, args.noOpen)
+  return result.written ? EXIT.complete : EXIT.failure
 }
 
 /** Draw progress only from a progress.json written by this hunt, not an earlier pass. */

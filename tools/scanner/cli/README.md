@@ -47,6 +47,7 @@ the stages. A non-interactive run requires the key to be set already.
 | `secscan` | Scan the current directory, with round-1 prompts |
 | `secscan scan <dir>` | Scan the supplied target |
 | `secscan models [--all]` | List registry models and credential presence; `--all` includes lab-only transports |
+| `secscan report [run-id]` | Rebuild a run's `report.html` and `findings.json` from disk; default the newest run in `./.secscan` (`--out` selects another reports folder) |
 | `--budget <usd>` | Total run budget, including recon and earlier passes; alias `--max-cost` |
 | `--out <dir>` | Reports folder; default `<target>/.secscan/` |
 | `--exclude <path-or-glob>` | Exclude files or folders, repeatable |
@@ -58,6 +59,7 @@ the stages. A non-interactive run requires the key to be set already.
 | `--max-files`, `--max-file-size`, `--timeout` | Other run limits |
 | `--concurrency <n>` | Override concurrency derived after recon |
 | `--config <path>`, `--no-config` | Select or disable the target's `secscan.config.json` |
+| `--no-open` | Do not open `report.html` in the browser when the run ends |
 
 For example, from this directory:
 
@@ -92,7 +94,10 @@ guard, including previous runs and calibration data. The stages receive
 <reports>/
   .gitignore
   calibration.json
+  index.html                  every run with a report, newest first
   runs/<run-id>/
+    report.html               summary and per-finding view
+    findings.json             run facts, summary and every finding
     run-record.json
     secscan.log
     read-allowlist.json
@@ -108,8 +113,36 @@ guard, including previous runs and calibration data. The stages receive
 
 `run-record.json` records status, incomplete reasons, unscanned files, scope
 exclusions, limits, confirmation, coverage, ledger spend, stage invocations
-and a resume command. This task produces stage artifacts and the run record;
-the report stage is a separate task.
+and a resume command.
+
+## Report
+
+When a run ends, the CLI writes the report next to the run record, prints
+both paths and opens `report.html` in the default browser (only when attached
+to a terminal; `--no-open` turns it off). The report makes no model calls and
+reads only what the run already wrote; the code is in `tools/scanner/report/`.
+
+- `findings.json` (`secscan.findings/1`): run facts, scan gaps, summary counts,
+  every file not scanned with its reason, the resume command, then every
+  Stage 2 finding exactly as written plus one field, `location`, copied from
+  the trace's last step. Findings are in report order: severity, then
+  confidence, then file and line.
+- `report.html`: one self-contained page rendered from that same data, with no
+  network requests. The summary shows status, scan gaps, counts by severity,
+  the ten findings to review first, counts by vulnerability type, the top
+  files, coverage, spend against budget and token usage. The findings view
+  filters and sorts every finding, groups findings that share a line, shows
+  each trace and copies a finding's JSON.
+- `<reports>/index.html`: rebuilt from every run's `findings.json`.
+
+A stopped run gets a partial report covering exactly the files that finished,
+marked INCOMPLETE with the reasons and the resume command. A run that scanned
+no files gets a report only when it failed (a stage crash or a provider
+refusal); quitting at confirmation, a Ctrl-C before any file finished, or a
+budget too small for the first file writes none. A resume replaces the run's
+report with one covering every pass; a resume cancelled at confirmation leaves
+it as it was. A report that cannot be written never changes the exit code;
+`secscan report <run-id>` rebuilds it, including after the CLI was killed.
 
 ## Estimate, ledger and budget
 
