@@ -251,3 +251,13 @@ Every delta is inside the ±7-entry nondeterminism floor. **Qualification:** not
 single-variable against run 6. Besides Task 1a, the tree carries post-run-6
 Stage 2 and registry commits (output cap 24000 to 64000, chunk bounds,
 failed-lane reporting, checkpoint fix).
+
+## Held-out targets
+
+Full Stage 0–2 v2 runs on separately pinned public targets belong here. These
+results have their own ground-truth denominators and are not directly comparable
+to the Juice Shop table above. Class-selection-only evaluations do not qualify.
+No held-out full-scan results have been recorded in this table yet.
+
+| Target | Target commit | Harness commit / run id | Ground truth | Recall | Localization | File-level | Precision proxy (category-aware) | Hedging | Notes |
+|---|---|---|---|---|---|---|---|---|---|

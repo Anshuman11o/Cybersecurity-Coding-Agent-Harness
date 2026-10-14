@@ -17,7 +17,7 @@
     "config_file":    ["misconfiguration", "vulnerable-components"],
     "dep_manifest":   ["vulnerable-components"]
   },
-  "_doc": "sink_patterns: content signals for files in these six languages, which do not use the JS/TS detectors in stage0-recon/src/signal-detector.ts. Each value is a list of JavaScript RegExp sources compiled with flag \"m\"; a signal fires when any of its patterns matches the file. Only signal names from \"signals\" above. route_handler also fires when the file exports a route-table handler name (symbols.json).",
+  "_doc": "sink_patterns: content signals for files in the listed languages, which do not use the JS/TS detectors in stage0-recon/src/signal-detector.ts. Each value is a list of JavaScript RegExp sources compiled with flag \"m\"; a signal fires when any of its patterns matches the file. Only signal names from \"signals\" above. route_handler also fires when the file exports a route-table handler name (symbols.json).",
   "sink_patterns": {
     "python": {
       "route_handler": [
@@ -613,6 +613,57 @@
         "\\b_?(?:Log|log)\\.(?:Warning|Error|Fatal|Warn|Critical)\\(",
         "\\bILogger(?:<\\w+>)?\\b|\\bILoggerFactory\\b|\\b(?:Serilog|NLog|log4net)\\b|\\bLogManager\\.Get\\w*Logger\\(",
         "\\bConsole\\.Error\\.Write|\\bEventLog\\.WriteEntry\\(|\\bTrace\\.(?:TraceError|TraceWarning)\\("
+      ]
+    },
+    "terraform": {
+      "route_handler": [
+        "\\b(?:cidr_blocks|ipv6_cidr_blocks|source_ranges)\\s*=\\s*\\[[^\\]\\n]*(?:0\\.0\\.0\\.0/0|::/0)",
+        "\\bresource\\s+\"(?:aws_api_gateway_[\\w]+|aws_lb_listener|google_compute_firewall)\""
+      ],
+      "db_query": [
+        "\\b(?:query|sql|statement)\\s*="
+      ],
+      "model_schema": [
+        "\\bresource\\s+\"(?:aws_db_instance|aws_rds_cluster|aws_dynamodb_table|google_sql_database_instance)\""
+      ],
+      "model_write": [
+        "\\b(?:initialization|migration|seed)_sql\\s*="
+      ],
+      "http_outbound": [
+        "\\bdata\\s+\"http\"",
+        "\\b(?:url|endpoint)\\s*=\\s*\"https?://"
+      ],
+      "auth_check": [
+        "\\b(?:[Aa]ctions?|[Pp]rincipals?|[Rr]esources?)\\s*[:=]\\s*(?:\\[\\s*)?\"\\*\"",
+        "\\b(?:identifiers|actions)\\s*=\\s*\\[\\s*\"\\*\"",
+        "\\b(?:acl|predefined_acl)\\s*=\\s*\"public-[\\w-]+\"",
+        "\\b(?:block_public_acls|block_public_policy|restrict_public_buckets|ignore_public_acls)\\s*=\\s*false\\b"
+      ],
+      "crypto_op": [
+        "\\b(?:storage_encrypted|encrypted|enable_encryption)\\s*=\\s*false\\b",
+        "\\b(?:password|secret|secret_key|access_key|api_key|private_key)\\s*=\\s*\"[^\"\\n]+\"",
+        "\\b(?:kms_key_id|kms_key_arn|sse_algorithm)\\s*="
+      ],
+      "html_sink": [
+        "\\btemplatefile\\(\\s*\"[^\"\\n]*\\.html\""
+      ],
+      "dynamic_exec": [
+        "\\bprovisioner\\s+\"(?:local-exec|remote-exec)\"",
+        "\\b(?:command|interpreter)\\s*="
+      ],
+      "deserialize": [
+        "\\b(?:jsondecode|yamldecode|csvdecode)\\s*\\("
+      ],
+      "file_io": [
+        "\\b(?:file|filebase64|templatefile|fileset)\\s*\\(",
+        "\\bresource\\s+\"(?:local_file|local_sensitive_file)\""
+      ],
+      "llm_call": [
+        "\\bresource\\s+\"(?:aws_bedrockagent_[\\w]+|aws_sagemaker_endpoint|google_vertex_ai_[\\w]+)\""
+      ],
+      "logging": [
+        "\\b(?:debug|DEBUG|enable_debug|TF_LOG)\\s*=\\s*(?:true|\"(?:true|DEBUG|TRACE)\")",
+        "\\b(?:logging|access_logs|flow_log)\\s*\\{"
       ]
     }
   }

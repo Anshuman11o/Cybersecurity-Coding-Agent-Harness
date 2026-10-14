@@ -341,10 +341,12 @@ function runsRootInside(root: string, runsRoot: string | null): string | null {
 
 export const selectFiles: SelectFiles = (targetDir, options = {}) => {
   const ctx = getRunContext()
-  return selectFilesWithRunsRoot(targetDir, options, ctx.runsRoot, { reportsRoot: ctx.reportsRoot })
+  return selectFilesWithRunsRoot(targetDir, options, ctx.runsRoot, { reportsRoot: ctx.reportsRoot, profile: ctx.profile })
 }
 
 interface SelectionScope {
+  /** Preserve the historical benchmark corpus; new languages are product opt-ins. */
+  profile?: 'benchmark' | 'product'
   reportsRoot?: string | null
   env?: Record<string, string | undefined>
 }
@@ -401,7 +403,10 @@ export function selectFilesWithRunsRoot(
     // Before the language check: most lockfiles (yarn.lock, go.sum) have no
     // language, and the receipt should still say what they are.
     if (isLockfile(rel)) return exclude('lockfile', 'files', rel)
-    const language = languageForPath(rel)
+    const detectedLanguage = languageForPath(rel)
+    const language = scope.profile === 'benchmark' &&
+      (detectedLanguage === 'terraform' || detectedLanguage === 'key-material')
+      ? null : detectedLanguage
     if (language === null) {
       // The repo map reads one root README even though prose is not a hunt
       // language. Admit it through the same path rules and content-size cap.

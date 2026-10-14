@@ -10,7 +10,7 @@ import {
   type Signal,
 } from './signal-detector.js'
 import { initSymbolParsers, extractFileSymbols } from './symbols.js'
-import type { FileSymbols, SymbolTableArtifact } from './recon-contract.js'
+import { EXTENSION_LANGUAGES, type FileSymbols, type SymbolTableArtifact } from './recon-contract.js'
 
 let pass = 0, fail = 0
 function check(name: string, cond: boolean) {
@@ -18,7 +18,7 @@ function check(name: string, cond: boolean) {
   else { fail++; console.log(`  FAIL  ${name}`) }
 }
 
-const SIX = ['python', 'java', 'go', 'ruby', 'php', 'csharp']
+const FIXTURE_LANGUAGES = ['python', 'java', 'go', 'ruby', 'php', 'csharp']
 const CONTENT_SIGNALS: Signal[] = [
   'route_handler', 'db_query', 'model_schema', 'model_write', 'http_outbound', 'auth_check',
   'crypto_op', 'html_sink', 'dynamic_exec', 'deserialize', 'file_io', 'llm_call', 'logging',
@@ -30,8 +30,10 @@ const classesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../
 const classes = JSON.parse(fs.readFileSync(classesPath, 'utf-8'))
 {
   check('floor and signals still present', Array.isArray(classes.floor) && Object.keys(classes.signals).length === 15)
-  check('sink_patterns covers exactly the six languages', JSON.stringify(Object.keys(classes.sink_patterns).sort()) === JSON.stringify([...SIX].sort()))
-  check('detector serves the same six', JSON.stringify([...SINK_PATTERN_LANGUAGES].sort()) === JSON.stringify([...SIX].sort()))
+  check('every sink_patterns key is a language produced by EXTENSION_LANGUAGES, and every key defines every content signal',
+    Object.entries<Record<string, string[]>>(classes.sink_patterns).every(([language, signals]) =>
+      Object.values(EXTENSION_LANGUAGES).includes(language) && CONTENT_SIGNALS.every(signal => Array.isArray(signals[signal]))))
+  check('detector serves every registered language', JSON.stringify([...SINK_PATTERN_LANGUAGES].sort()) === JSON.stringify(Object.keys(classes.sink_patterns).sort()))
   let total = 0, bad: string[] = [], unknown: string[] = []
   for (const [lang, sigs] of Object.entries<Record<string, string[]>>(classes.sink_patterns)) {
     for (const [sig, pats] of Object.entries(sigs)) {
@@ -45,7 +47,7 @@ const classes = JSON.parse(fs.readFileSync(classesPath, 'utf-8'))
   check(`every sink pattern compiles with flag m (${total} patterns)`, total > 0 && bad.length === 0)
   for (const b of bad) console.log(`        does not compile: ${b}`)
   check('only existing content signal names', unknown.length === 0)
-  for (const lang of SIX) {
+  for (const lang of Object.keys(classes.sink_patterns)) {
     const missing = CONTENT_SIGNALS.filter((s) => !(classes.sink_patterns[lang][s]?.length > 0))
     check(`${lang}: patterns for all 13 content signals`, missing.length === 0)
   }
@@ -574,7 +576,7 @@ const FIXTURES: Record<string, Cases> = {
   },
 }
 
-for (const lang of SIX) {
+for (const lang of FIXTURE_LANGUAGES) {
   console.log(`\n-- ${lang}: positive and negative fixtures --`)
   const cases = FIXTURES[lang]
   check(`${lang}: fixtures for all 13 content signals`, CONTENT_SIGNALS.every((s) => (cases[s]?.pos.length ?? 0) > 0 && (cases[s]?.neg.length ?? 0) > 0))
@@ -606,7 +608,7 @@ console.log('\n-- sink patterns stay linear on 1 MB inputs (the byte cap) --')
     detectSinkSignals(lang, input)
     return performance.now() - t0
   }
-  for (const lang of SIX) {
+  for (const lang of Object.keys(classes.sink_patterns)) {
     const slow = Object.entries(shapes).filter(([, make]) => time(lang, make(64_000)) > 500).map(([s]) => s)
     check(`${lang}: linear on every shape at 64 KB${slow.length ? ` (slow: ${slow.join(', ')})` : ''}`, slow.length === 0)
     if (slow.length) continue

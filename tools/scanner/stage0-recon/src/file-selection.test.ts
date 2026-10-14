@@ -42,6 +42,20 @@ const sorted = (xs: string[]) => xs.every((x, i) => i === 0 || xs[i - 1] < x)
 const CODE = 'export const x = 1\n'
 
 try {
+  const infra = fixture('infrastructure', {
+    'main.tf': 'resource "example" "x" {}', 'settings.tfvars': 'debug = true',
+    'policy.hcl': 'enabled = true', 'server.pem': 'fixture key',
+    'server.key': 'fixture key', 'server.crt': 'fixture certificate',
+    '.terraform.lock.hcl': 'generated lock',
+  })
+  const product = selectFilesWithRunsRoot(infra, {}, null, { profile: 'product' })
+  check('product inventories infrastructure and key material', product.files.length === 6 &&
+    product.files.filter(f => f.language === 'terraform').length === 3 &&
+    product.files.filter(f => f.language === 'key-material').length === 3)
+  check('infrastructure lockfiles stay excluded', exFile(product, 'lockfile', '.terraform.lock.hcl'))
+  const benchmark = selectFilesWithRunsRoot(infra, {}, null, { profile: 'benchmark' })
+  check('benchmark preserves its pre-extension corpus', benchmark.files.length === 0 && benchmark.unsupported.count === 6)
+
   // -------------------------------------------------------------------------
   console.log('\n-- ignore files: .gitignore (nested, negation) and .secscanignore --')
   {
@@ -271,6 +285,7 @@ try {
     syncBuiltinESMExports()
     let a: FileInventoryArtifact
     try {
+
       a = selectFiles(root, { max_file_bytes: 100 })
     } finally {
       fsCjs.readFileSync = orig.readFileSync
@@ -446,6 +461,7 @@ try {
     syncBuiltinESMExports()
     let a: FileInventoryArtifact
     try {
+
       a = selectFilesWithRunsRoot(root, {}, null, {
         reportsRoot: path.join(root, 'reports'),
         env: { SCANNER_EXCLUDE: 'explicit.ts\nprivate-dir\nglob-dir/**\nordinary/pyvenv.cfg' },

@@ -17,14 +17,19 @@ pass, are `record-run` and `docs/protocols/run-record-keeping.md`. Those are
 where runs have actually been lost — including two patcher scores that were
 produced and never written down.
 
-> **One output location, both tracks.** Every stage — v1 (`stage0-recon`,
-> `stage05-lane-selector`, `stage1-budget-governor`, `stage2-hunt-lanes`,
-> `stage3-validate`) and v2 (`stage05-lane-selector-perfile`,
-> `stage1-budget-governor-perfile`, `stage2-hunt-lanes-perfile`) — writes to
-> `tools/scanner/runs/<provider>/<stage>/`, and those artifacts are
-> **committed**, not gitignored. Only `logs/` is ignored. See
-> `docs/architecture/multi-model-architecture.md`. The per-stage `output/`
-> directories the v2 stages used to write to are gone; do not look for them.
+Resolve the actual artifact root from the completed run's `meta.json`
+`run_context` before copying anything. Do not infer it from a target name:
+
+- Benchmark: `tools/scanner/runs/<provider>/<stage>/` by default.
+- Product: `<reports-root>/runs/<run-id>/<provider>/<stage>/`, where
+  `SCANNER_REPORTS_ROOT` may put reports outside both target and harness.
+- `SCANNER_RUNS_ROOT` overrides either root; the recorded `runs_root` is authoritative.
+
+Set `SOURCE_RUNS_ROOT` to that recorded root and `PROVIDER` to the recorded
+provider. Require every consumed stage's metadata to agree on profile, target,
+run id and root, or explain historical/carried-over metadata in the manifest.
+Product artifacts stay outside the harness. Never copy target source or private
+scoring details into the harness while archiving.
 
 ## 0. Before launching a run: clear the previous checkpoint
 
@@ -45,7 +50,7 @@ at launch time.
 
     SHA=$(git rev-parse --short HEAD)
     TS=$(date -u +%Y-%m-%dT%H-%MZ)
-    RUN="/home/user/harness-private/runs/${TS}__<variant>__${SHA}"
+    RUN="${PRIVATE_RUN_STORE:?set an absolute private archive root}/${TS}__<variant>__${SHA}"
 
 `<variant>` names the architecture that ran, e.g. `stage2-v2-perfile` or
 `stage0-2-v1`. The directory name must sort chronologically, name the variant,
@@ -53,8 +58,9 @@ and pin the commit, so any number can be traced back to reproducible inputs.
 
 ## 2. Snapshot every stage output
 
-Copy `tools/scanner/runs/<provider>/*/` — this now covers both tracks, v1 and
-v2 alike — into `$RUN/<stage>/`, one subdirectory per stage. Keep each stage's
+Copy `"$SOURCE_RUNS_ROOT/$PROVIDER/"` into `$RUN/`, preserving one subdirectory
+per stage and checking file counts and hashes against the source. This covers
+both tracks and both profiles, including reports roots outside the repository. Keep each stage's
 `meta.json` — it names the provider, model and commit the artifacts came from.
 Include stages that did not run in this pass but whose outputs were consumed as
 inputs — the run is not reproducible without them. Label carried-over outputs as
@@ -63,7 +69,7 @@ such in the manifest.
 ## 3. Copy the run logs
 
 Runs launched through `tools/scanner/run.sh` tee their logs into
-`tools/scanner/runs/<provider>/<stage>/logs/`, which is gitignored; anything
+`$SOURCE_RUNS_ROOT/$PROVIDER/<stage>/logs/`; anything
 launched by hand leaves logs in `/tmp`, which dies with the container. Either
 way they are not durable — copy every log the run produced. If a run was restarted, copy each segment; they are the only record of
 retries, rate limits and partial failures.
@@ -78,7 +84,8 @@ scanner repository.** The private store is the only correct home for it.
 
 Make the run self-describing without opening any JSON:
 
-- date, harness commit, architecture variant, target, ground-truth set, model
+- date, harness commit, architecture variant, target name and full target commit, ground-truth set, model
+- profile, reports root, runs root, run id, provider and all path overrides
 - which stages actually ran, and which outputs were carried over
 - headline metrics (recall, localization, precision proxy, findings, tokens,
   lanes completed, failures)
@@ -108,6 +115,10 @@ collapse that reads like a reasoning regression.
 Add one line to `results/eval-history/scanner.jsonl` with the universal fields
 from `docs/protocols/eval-framework.md`: run_id, timestamp, component, version,
 ground_truth_set, models_used, tokens, wall_clock_time, metrics, notes.
+For held-out product runs also include `target_name` and `target_commit`. Use the
+actual ground-truth denominator; never assume the reference benchmark's size.
+Publish these rows only in the separate Held-out targets table in
+`docs/benchmarking-results.md`, never its Juice Shop comparison table.
 
 The metrics block must carry the class-model fields alongside the headline
 numbers, or the headline numbers cannot be read:
@@ -153,7 +164,8 @@ The PDF is generated from the history files, never hand-edited.
 
 ## 8. Save the dispatch prompt
 
-Copy the prompt that drove the run into `prompts/dispatch/` as
+After checking that it contains no private key paths, ground-truth content or
+located evaluation details, copy the prompt that drove the run into `prompts/dispatch/` as
 `<YYYY-MM-DD>__<short-description>.md`. These prompts are the architecture of
 the LLM stages; losing them loses reproducibility.
 
