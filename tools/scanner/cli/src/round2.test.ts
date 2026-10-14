@@ -58,7 +58,12 @@ test('budget boundaries use ledger total, input threshold and exact first-file r
   assert.equal(message(2).requires_confirmation, true)
   assert.equal(message(1.999).kind, 'blocked')
   assert.equal(message(1.999).can_start, false)
-  assert.match(message(1).text, /already spent/)
+  assert.equal(message(10).text, 'Budget covers the estimated cost of all 9 files.')
+  assert.equal(message(5).text, 'Budget will not cover all 9 files.\nEstimated coverage: 3 of 9 files, scanned by severity first.\nRaise the budget to $10.00 to cover the full estimated scan.\nThe report will be INCOMPLETE if the budget stops the scan.')
+  assert.equal(message(2).text, 'Budget will not cover even the estimated input cost for all files.\nRaise the total budget to cover at least partial scan.\nStarting now will allow only a partial scan.')
+  const blocked = 'Scan cannot start with this budget.\nRaise the total budget to at least complete partial scan.'
+  assert.equal(message(1.999).text, blocked)
+  assert.equal(message(1).text, blocked)
 })
 
 test('summary rows count admitted files and record all-files routing and live spend', () => {
@@ -70,6 +75,10 @@ test('summary rows count admitted files and record all-files routing and live sp
   s.classes![0].added_by_user = true
   s.classes![0].source = 'web'
   assert.match(renderSummary(s), /added by you \(web\).*all files/)
+  const estimate = 'Total estimate: $1.10, ~1 min\n  $0.10 spent + input $0.40 + output $0.60.\n  Can vary widely (fewer than 10 files).'
+  assert.ok(renderSummary(s).includes(`${estimate}\nCurrent budget: $10.00\n${s.budget_message!.text}`))
+  s.estimate.cap_usd = null
+  assert.ok(renderSummary(s).includes(`${estimate}\nCurrent budget: Unlimited\n${s.budget_message!.text}`))
 })
 
 test('delete last row disables Enter; catalog undo replans and restores start', async () => {

@@ -18,3 +18,18 @@ Coordinate exported APIs directly before integrating. Artifacts stay under runPa
 ## Verification
 
 Run stage-playbook-agent, stage0-recon, Stage 0.5 golden fixture, stage1-budget-governor, stage2 affected tests, cli, shared guard and foundation. Test every budget boundary and ledger failure path, scripted edits and resume behavior. Compare lab lane output and scan plan admitted order with baseline main. Verify git merge-base HEAD origin/main and actual source before creating the PR. Do not claim live inference or accuracy validation.
+
+## Budget wording follow-up (2026-10-14)
+
+CLI owner: update confirmation copy and existing tests. Show `Total estimate:`
+and `Current budget:` immediately before the coverage message. Explicitly say
+when the budget will not cover all files or even their estimated input cost.
+Partial coverage uses `scanned by severity first`. The low-budget recommendation
+is exactly `Raise the total budget to cover at least partial scan.` The blocked
+message is exactly `Scan cannot start with this budget.` followed by
+`Raise the total budget to at least complete partial scan.` Do not show a
+recommended monetary threshold or reservation breakdown in low/blocked messages.
+Keep displayed estimate/current budget figures and existing start/confirmation
+rules. This is a wording change; the existing route-handler/signal-count ordering
+still applies. Integration owner updates implementation docs, independently runs
+CLI tests and renderer previews, and commits/pushes with visible PR documentation.

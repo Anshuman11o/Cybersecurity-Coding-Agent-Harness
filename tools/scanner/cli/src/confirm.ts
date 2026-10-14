@@ -49,16 +49,16 @@ export function budgetMessage(input: {
     ({ ...base, kind, text, can_start, requires_confirmation })
   if (input.noClasses) return result('empty', 'No classes selected; add a class before starting.', false)
   if (input.files === 0) return result('empty', 'No files remain to scan.', false)
-  if (input.cap != null && input.cap <= input.spent) return result('blocked', `Budget must exceed ${usd(input.spent)} already spent.`, false)
+  if (input.cap != null && input.cap <= input.spent) return result('blocked', 'Scan cannot start with this budget.\nRaise the total budget to at least complete partial scan.', false)
   if (input.cap != null && input.firstStart != null && input.cap < input.firstStart) {
-    return result('blocked', `The scan can't start: the first file alone may cost up to ${usd(input.firstStart - input.spent)}; raise the total budget to ${usd(input.firstStart)}.`, false)
+    return result('blocked', 'Scan cannot start with this budget.\nRaise the total budget to at least complete partial scan.', false)
   }
   if (input.total == null) return result('unpriced', 'The scan estimate is unavailable.', false)
-  if (input.cap == null || input.cap >= input.total) return result('full', 'Budget covers the full scan.')
+  if (input.cap == null || input.cap >= input.total) return result('full', `Budget covers the estimated cost of all ${input.files} files.`)
   if (input.inputThreshold != null && input.cap < input.inputThreshold) {
-    return result('low', `Budget too low: raise to at least ${usd(input.inputThreshold)} for a useful scan.`, true, true)
+    return result('low', 'Budget will not cover even the estimated input cost for all files.\nRaise the total budget to cover at least partial scan.\nStarting now will allow only a partial scan.', true, true)
   }
-  return result('partial', `Budget covers about ${input.withinCap ?? 0} of ${input.files} files, riskiest first; raise to ${usd(input.total)} for all. The report will be INCOMPLETE if the budget stops the scan.`)
+  return result('partial', `Budget will not cover all ${input.files} files.\nEstimated coverage: ${input.withinCap ?? 0} of ${input.files} files, scanned by severity first.\nRaise the budget to ${usd(input.total)} to cover the full estimated scan.\nThe report will be INCOMPLETE if the budget stops the scan.`)
 }
 
 export interface ConfirmationSummary {
@@ -270,18 +270,27 @@ export function renderSummary(s: ConfirmationSummary): string {
     (s.model.base_url ? ` at ${s.model.base_url}` : '') +
     `, ${s.model.measured ? 'measured' : 'unmeasured'}   Extra guidance: ${s.guidance}`)
 
-  const est = `~${usd(s.estimate.usd)}, ~${Math.max(1, Math.round(s.estimate.seconds / 60))} min`
-  const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
-  out.push(`Estimate: ${est}    Cap: ${cap}`)
   const detail = s.estimate.breakdown
-  if (detail) {
-    out.push(`  Total ${usd(detail.total_usd)}: ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
-    out.push(`  ${detail.band_pct == null ? 'Can vary widely (fewer than 10 files).' : `Accuracy band: ±${detail.band_pct}% (90%).`}`)
-  }
-  if (s.budget_message) out.push(s.budget_message.text)
-  else if (s.estimate.exceeds_cap) {
-    out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
-      `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)
+  const minutes = Math.max(1, Math.round(s.estimate.seconds / 60))
+  const band = detail && (detail.band_pct == null ? 'Can vary widely (fewer than 10 files).' : `Accuracy band: ±${detail.band_pct}% (90%).`)
+  if (s.budget_message) {
+    out.push(`Total estimate: ${usd(s.estimate.usd)}, ~${minutes} min`)
+    if (detail) out.push(`  ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
+    if (band) out.push(`  ${band}`)
+    out.push(`Current budget: ${s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'Unlimited'}`)
+    out.push(s.budget_message.text)
+  } else {
+    const est = `~${usd(s.estimate.usd)}, ~${minutes} min`
+    const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
+    out.push(`Estimate: ${est}    Cap: ${cap}`)
+    if (detail) {
+      out.push(`  Total ${usd(detail.total_usd)}: ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
+      out.push(`  ${band}`)
+    }
+    if (s.estimate.exceeds_cap) {
+      out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
+        `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)
+    }
   }
   const l = s.limits
   const lim = [

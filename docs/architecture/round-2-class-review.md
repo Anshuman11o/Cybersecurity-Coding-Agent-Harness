@@ -54,6 +54,9 @@ as "under a second").
 
 ### Round 2 screen (illustrative numbers)
 
+See [captured renderer and scripted-session previews](round-2-budget-previews.md)
+for all budget states after the 2026-10-14 wording revision.
+
 ```
 Recon and planning done · spent so far $0.06 (recon $0.01, playbook agent $0.05)
 Target: ./my-app (commit a1b2c3d, 1,204 files) · Model: GPT-6 Luna (OPENAI_API_KEY found)
@@ -67,8 +70,14 @@ Vulnerability classes for this repo                       files
  12  sensitive-business-flows     no matching signal      541  (all files)
 
 Scan 541 files, skip 663 (not code 640, no selected class 23)
-Estimate: $2.12 total  ($0.06 spent + input $0.85 + output $1.21), accuracy ±7%
-Budget $1.50: covers about 380 of 541 files, riskiest first; raise to $2.12 for all
+Total estimate: $2.12
+  $0.06 spent + input $0.85 + output $1.21.
+  Accuracy band: ±7% (90%).
+Current budget: $1.50
+Budget will not cover all 541 files.
+Estimated coverage: 378 of 541 files, scanned by severity first.
+Raise the budget to $2.12 to cover the full estimated scan.
+The report will be INCOMPLETE if the budget stops the scan.
 
 [Enter] start  [d] delete a class  [a] add a class  [b] budget  [e] limits  [s] save  [q] quit
 ```
@@ -92,10 +101,21 @@ Add a class (name, number or code): prototype pollution
 
 | Condition | Message | Enter |
 |---|---|---|
-| `B >= total estimate` | "covers the full scan" | starts |
-| `spent + input cost <= B < total` | "covers about N of M files, riskiest first; raise to $X for all" | starts |
-| `spent + first file's reservation <= B < spent + input cost` | "too low: raise to at least $Y for a useful scan" (a warning, not a block; on GPT-6 Luna input is about 42% of the scan, derived from the registry, not hardcoded) | starts after a `[y/N]` |
-| `B < spent + first file's reservation` | "the scan can't start: the first file alone may cost up to $Z" | disabled |
+| `B >= total estimate` | "Budget covers the estimated cost of all M files." | starts |
+| `spent + input cost <= B < total` | "Budget will not cover all M files." / "Estimated coverage: N of M files, scanned by severity first." / "Raise the budget to $X to cover the full estimated scan." / "The report will be INCOMPLETE if the budget stops the scan." | starts |
+| `spent + first file's reservation <= B < spent + input cost` | "Budget will not cover even the estimated input cost for all files." / "Raise the total budget to cover at least partial scan." / "Starting now will allow only a partial scan." | starts after `Start with this low budget? [y/N]` |
+| `B < spent + first file's reservation` (or `B <= spent`) | "Scan cannot start with this budget." / "Raise the total budget to at least complete partial scan." | disabled |
+
+`Total estimate:` includes spend so far plus estimated remaining input and output.
+`Current budget:` appears immediately before the coverage message so users can
+compare the two amounts; an uncapped budget displays `Unlimited`. Low and blocked
+messages do not recommend a monetary threshold or display reservation amounts.
+The estimate and current budget remain visible in those states.
+
+The phrase "scanned by severity first" labels the existing planning heuristic:
+route handlers first, then distinct risk-signal count descending, then path. It
+does not imply that finding severities have been determined before the hunt.
+The wording revision changes no ordering, accounting, reservation or start rules.
 
 - N comes from the existing cumulative walk (`lanes_within_cap`, `scan-plan.ts:282-291`), now over risk order.
 - The first file's reservation is `chunks × U` for the first lane in risk order. That is the exact condition the spend gate uses to refuse a start (`spend-gate.ts:48-62`).
