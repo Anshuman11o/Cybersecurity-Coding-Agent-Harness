@@ -135,3 +135,27 @@ the report module never builds a stage path itself.
    disappears on the next rebuild.
 
 Plus the existing cli and shared suites, unchanged and green.
+
+## Amendment, 2026-10-14: owner review of the first real report
+
+After the end-to-end run (`scanner-2026-10-14-luna6-e2e-product`) the owner
+reviewed its report. Changes, applied by rebuilding that run's report from
+disk with `secscan report`, no new scan:
+
+- Critical shows only when the run has a critical finding: no `critical`
+  count in `findings.json`, no Critical tile, chip or column otherwise. Stage 2
+  can still write critical (earlier runs by other models did), so it is kept
+  for those runs rather than dropped. Severity values themselves are unchanged.
+- The severity tiles carry a heading, "Severity range".
+- The header drops the Pass field (`run.passes` stays in `findings.json`).
+- Review first becomes a table with one field per column: rank, severity,
+  vulnerability, file, line, confidence, confidence band, titled "Top 10 most
+  severe vulnerabilities to review first". Rows are findings, not files: one
+  file can appear twice.
+- The type table's code column is headed by the code families present ("OWASP
+  codes", "OWASP and CWE codes", "OWASP and other codes"), and each code shows
+  its name once ("A01: Broken Access Control", not "A01 A01: ...").
+- Section descriptions sit beside their title ("Top files  Files with the most
+  findings"); action hints stay on the right.
+- The CLI's and Stage 2's progress lines name critical only when there is one.
+

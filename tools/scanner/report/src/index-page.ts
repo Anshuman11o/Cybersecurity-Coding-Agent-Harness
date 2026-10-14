@@ -9,7 +9,7 @@
  *
  * Zero dependencies.
  */
-import { SEVERITIES, type IndexEntry, type SeverityCounts } from './types.js'
+import { SEVERITIES, type IndexEntry, type Severity, type SeverityCounts } from './types.js'
 import {
   h, raw, BASE_CSS, CSP_META, FAVICON_LINK, BRAND_ICON, UNKNOWN,
   fmtInt, fmtUsd, timeEl, branchAtCommit, statusBadge,
@@ -71,9 +71,11 @@ const INDEX_JS = String.raw`
 
 const SEV_SHORT: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
 
-function split(by: SeverityCounts) {
-  return h`<span class="split">${SEVERITIES.map(s =>
-    h`<span class="sevnum sev-${s}${by[s] === 0 ? ' zero' : ''}" title="${SEV_SHORT[s]}">${fmtInt(by[s])}</span>`)}</span>`
+function split(by: SeverityCounts, sevs: readonly Severity[]) {
+  return h`<span class="split">${sevs.map(s => {
+    const n = isNum(by[s]) ? by[s] : 0
+    return h`<span class="sevnum sev-${s}${n === 0 ? ' zero' : ''}" title="${SEV_SHORT[s]}">${fmtInt(n)}</span>`
+  })}</span>`
 }
 
 function scannedText(e: IndexEntry): string {
@@ -86,12 +88,12 @@ function costText(e: IndexEntry): string {
   return isNum(e.budget_usd) ? `${fmtUsd(e.spent_usd)} of ${fmtUsd(e.budget_usd)}` : fmtUsd(e.spent_usd)
 }
 
-function row(e: IndexEntry) {
+function row(e: IndexEntry, sevs: readonly Severity[]) {
   return h`<tr>
     <td data-label="Run"><span class="two"><span class="primary">${timeEl(e.started_at)}</span><span class="secondary mono">${e.run_id}</span></span></td>
     <td data-label="Status">${statusBadge(e.status)}</td>
     <td data-label="Target" class="wrapok"><span class="two"><span class="primary mono">${e.target_root ?? UNKNOWN}</span><span class="secondary mono">${branchAtCommit(e.branch, e.commit)}</span></span></td>
-    <td data-label="Vulnerabilities"><span class="vulns"><span class="total">${fmtInt(e.findings_total)}</span>${split(e.by_severity)}</span></td>
+    <td data-label="Vulnerabilities"><span class="vulns"><span class="total">${fmtInt(e.findings_total)}</span>${split(e.by_severity, sevs)}</span></td>
     <td data-label="Scanned" class="num">${scannedText(e)}</td>
     <td data-label="Cost" class="num">${costText(e)}</td>
     <td data-label="Report" class="num"><a class="open" href="${relativeHref(e.href)}">Open report</a></td>
@@ -99,11 +101,13 @@ function row(e: IndexEntry) {
 }
 
 export function renderIndexHtml(entries: IndexEntry[], generatedAt: string): string {
+  // Critical gets a column only when some run listed has a critical finding.
+  const sevs = entries.some(e => (e.by_severity?.critical ?? 0) > 0) ? SEVERITIES : SEVERITIES.filter(s => s !== 'critical')
   const body = entries.length === 0
     ? h`<div class="card empty">No reports yet.</div>`
     : h`<div class="card"><div class="table-scroll"><table class="data runs">
   <thead><tr><th>Run</th><th>Status</th><th>Target</th><th>Vulnerabilities</th><th class="num">Scanned</th><th class="num">Cost</th><th><span class="sr">Report</span></th></tr></thead>
-  <tbody>${entries.map(row)}</tbody>
+  <tbody>${entries.map(e => row(e, sevs))}</tbody>
 </table></div></div>`
   const page = h`<!doctype html>
 <html lang="en">

@@ -15,7 +15,7 @@
  *
  * Zero dependencies.
  */
-import { SEVERITIES, confidenceBand, type FindingsReport, type ReportFinding, type SeverityCounts } from './types.js'
+import { confidenceBand, shownSeverities, type FindingsReport, type ReportFinding, type Severity, type SeverityCounts } from './types.js'
 
 // ── Escaping and the safe template tag ─────────────────────────────────────
 
@@ -144,20 +144,27 @@ function plural(n: number, one: string, many: string): string {
   return `${fmtInt(n)} ${n === 1 ? one : many}`
 }
 
-function fmtConfidence(c: unknown): string {
-  return isNum(c) ? `${c.toFixed(2)} · ${confidenceBand(c)}` : UNKNOWN
-}
-
-function locText(file: unknown, line: unknown): string {
-  return line === null || line === undefined ? String(file) : `${String(file)}:${String(line)}`
-}
-
 const SEV_LABEL: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
 function sevKey(s: unknown): string {
   return typeof s === 'string' && hasOwn(SEV_LABEL, s) ? s : 'other'
 }
 function sevLabel(s: unknown): string {
   return typeof s === 'string' && hasOwn(SEV_LABEL, s) ? SEV_LABEL[s] : String(s)
+}
+
+function countOf(by: SeverityCounts, s: Severity): number {
+  const n = by[s]
+  return isNum(n) ? n : 0
+}
+
+/** One column per severity in a counts table: "High · Medium · Low", with Critical first only when it is shown. */
+function severityHeading(sevs: Severity[]): string {
+  return sevs.map(s => SEV_LABEL[s]).join(' · ')
+}
+
+/** A section heading: the title with its description right beside it, and an optional action hint on the right. */
+function sectionHead(id: string, title: string, sub?: string, hint?: string): Html {
+  return h`<div class="section-h"><div class="section-t"><h2 id="${id}">${title}</h2>${sub ? h`<span class="sub">${sub}</span>` : ''}</div>${hint ? h`<span class="hint">${hint}</span>` : ''}</div>`
 }
 
 export function sevBadge(severity: unknown): Html {
@@ -218,8 +225,28 @@ export function notScannedBreakdown(byReason: Record<string, number> | null | un
     .join(', ')
 }
 
-function codeLabel(code: string, names: Record<string, string>): string {
-  return hasOwn(names, code) && names[code] ? `${code} ${names[code]}` : code
+/** A code with its display name, once: the lane plan's names already start with the code ("A01: Broken Access Control"). */
+export function codeLabel(code: string, names: Record<string, string>): string {
+  const name = hasOwn(names, code) ? names[code] : ''
+  if (!name) return code
+  return name.startsWith(code) ? name : `${code}: ${name}`
+}
+
+/** OWASP Top 10 families (web, API, LLM, mobile, Kubernetes) by their short code, or any code naming OWASP. */
+const OWASP_CODE = /^(?:A\d{2}|API\d{1,2}|LLM\d{2}|M\d{1,2}|K\d{2})$|^OWASP\b/i
+const CWE_CODE = /^CWE-\d+$/i
+
+/**
+ * The heading for a list of codes, naming the families actually present:
+ * "OWASP codes", "OWASP and CWE codes", "OWASP and other codes", and so on.
+ */
+export function codesHeading(codes: Iterable<string>): string {
+  const families = new Set<string>()
+  for (const c of codes) families.add(OWASP_CODE.test(c) ? 'OWASP' : CWE_CODE.test(c) ? 'CWE' : 'other')
+  const named = ['OWASP', 'CWE', 'other'].filter(f => families.has(f))
+  if (!named.length || (named.length === 1 && named[0] === 'other')) return 'Codes'
+  const list = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`
+  return `${list} codes`
 }
 
 function basename(path: string): string {
@@ -386,9 +413,11 @@ const REPORT_CSS = String.raw`
 }
 main.wrap { padding-top: 22px; }
 .view > * + * { margin-top: 16px; }
-.section-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 18px 10px; flex-wrap: wrap; }
+.section-h { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding: 14px 18px 10px; flex-wrap: wrap; }
+.section-t { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; min-width: 0; }
 .section-h h2 { font-size: 15px; font-weight: 650; }
-.section-h .sub { color: var(--muted); font-size: 12.5px; }
+.section-h .sub, .tiles-h .sub { color: var(--muted); font-size: 12.5px; }
+.section-h .hint { color: var(--muted); font-size: 12px; }
 .note { color: var(--muted); font-size: 12.5px; padding: 10px 18px 14px; margin: 0; border-top: 1px solid var(--border); }
 
 /* Header */
@@ -414,7 +443,10 @@ main.wrap { padding-top: 22px; }
 .headline-text strong { color: var(--text); font-weight: 750; font-size: 26px; letter-spacing: -.01em; }
 .headline-empty { margin: 0; font-size: 20px; font-weight: 650; }
 .headline-empty-sub { margin: 6px 0 0; color: var(--muted); }
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.tiles-h { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; margin-top: 18px; }
+.tiles-title { font-size: 14px; font-weight: 650; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.tiles.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tile {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   padding: 14px 16px 12px; border: 1px solid var(--border); border-radius: var(--radius);
@@ -458,17 +490,15 @@ main.wrap { padding-top: 22px; }
 .btn-link:disabled { color: var(--muted); cursor: default; opacity: .6; }
 
 /* Review first */
-.review-list { list-style: none; margin: 0; padding: 0; }
-.review-row {
-  display: grid; grid-template-columns: 74px 104px minmax(0, 1fr); gap: 14px; align-items: center;
-  padding: 10px 18px; border-top: 1px solid var(--border); color: inherit; text-decoration: none;
+table.data.review td { color: var(--text-2); }
+table.data.review td.c-title { color: var(--text); }
+table.data.review .row-link { font-weight: 550; }
+table.data.review td.c-file { font-size: 12.5px; overflow-wrap: anywhere; }
+table.data.review td.c-band { white-space: nowrap; }
+@media (min-width: 641px) {
+  table.data.review td.c-title { min-width: 240px; }
+  table.data.review td.c-file { min-width: 150px; }
 }
-.review-row:hover { background: var(--surface-2); }
-.review-row:hover .rr-title { color: var(--accent); }
-.rr-conf { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rr-main { min-width: 0; }
-.rr-title { display: block; font-weight: 550; }
-.rr-loc { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 
 /* Tables */
 tr.clickable { cursor: pointer; }
@@ -476,6 +506,7 @@ tr.clickable:hover td { background: var(--surface-2); }
 .row-link { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-weight: 600; color: var(--text); }
 tr.clickable:hover .row-link { color: var(--accent); }
 .row-link.mono { font-weight: 500; overflow-wrap: anywhere; }
+a.row-link { display: inline; text-decoration: none; }
 td.file-cell { min-width: 220px; }
 @media (max-width: 640px) { td.file-cell { min-width: 0; } }
 .codes { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -632,10 +663,9 @@ td.file-cell { min-width: 220px; }
   .run-header, .headline { padding: 16px; }
   .headline-text { font-size: 16px; }
   .headline-text strong { font-size: 22px; }
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tiles { gap: 10px; }
+  .tiles.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile-n { font-size: 26px; }
-  .review-row { grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; padding: 10px 16px; }
-  .rr-main { grid-column: 1 / -1; }
   .section-h { padding: 12px 16px 8px; }
   .finding { padding: 12px 14px 10px; }
   .f-head { flex-wrap: wrap; }
@@ -656,6 +686,13 @@ td.file-cell { min-width: 220px; }
   table.data.stack td { display: block; padding: 0; border: 0; min-width: 0; }
   table.data.stack td.c-name, table.data.stack td.c-codes { grid-column: 1 / -1; }
   table.data.stack .countcell { min-width: 0; }
+  table.data.labelled thead { display: none; }
+  table.data.labelled, table.data.labelled tbody { display: block; }
+  table.data.labelled tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  table.data.labelled tr:last-child { border-bottom: 0; }
+  table.data.labelled td { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; border: 0; min-width: 0; text-align: left; }
+  table.data.labelled td::before { content: attr(data-label); font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  table.data.review td.c-title, table.data.review td.c-file { grid-column: 1 / -1; }
 }
 @media print {
   .topbar, .toolbar { display: none !important; }
@@ -668,7 +705,7 @@ td.file-cell { min-width: 220px; }
   .trace[hidden] { display: block !important; }
   .trace-toggle::before { display: none; }
   .finding { break-inside: avoid; box-shadow: none; }
-  .run-header, .headline, .gaps, .partial, .facts .card, .review-row { break-inside: avoid; }
+  .run-header, .headline, .gaps, .partial, .facts .card, table.data tr { break-inside: avoid; }
   .section-h { break-after: avoid; }
   table.data td, table.data th { padding: 6px 10px; }
   .countcell { min-width: 110px; }
@@ -687,7 +724,6 @@ td.file-cell { min-width: 220px; }
 const REPORT_JS = String.raw`
 (function () {
   'use strict';
-  var SEVS = ['critical', 'high', 'medium', 'low'];
   var SEV_LABEL = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
   var hasOwn = Object.prototype.hasOwnProperty;
   var data = JSON.parse(document.getElementById('report-data').textContent);
@@ -709,7 +745,21 @@ const REPORT_JS = String.raw`
   function locText(file, line) { return line === null || line === undefined ? String(file) : file + ':' + line; }
   function sevKey(s) { return typeof s === 'string' && hasOwn.call(SEV_LABEL, s) ? s : 'other'; }
   function sevLabel(s) { return typeof s === 'string' && hasOwn.call(SEV_LABEL, s) ? SEV_LABEL[s] : String(s); }
-  function codeLabel(c) { return hasOwn.call(catNames, c) && catNames[c] ? c + ' ' + catNames[c] : String(c); }
+  // Mirror codeLabel() and codesHeading() in html.ts.
+  function codeLabel(c) {
+    var n = hasOwn.call(catNames, c) && catNames[c] ? String(catNames[c]) : '';
+    return !n ? String(c) : n.indexOf(String(c)) === 0 ? n : c + ': ' + n;
+  }
+  function codesHeading(codes) {
+    var has = {};
+    for (var i = 0; i < codes.length; i++) {
+      var c = String(codes[i]);
+      has[/^(?:A\d{2}|API\d{1,2}|LLM\d{2}|M\d{1,2}|K\d{2})$|^OWASP\b/i.test(c) ? 'OWASP' : /^CWE-\d+$/i.test(c) ? 'CWE' : 'other'] = true;
+    }
+    var named = ['OWASP', 'CWE', 'other'].filter(function (f) { return has[f]; });
+    if (!named.length || (named.length === 1 && named[0] === 'other')) return 'Codes';
+    return (named.length === 1 ? named[0] : named.slice(0, -1).join(', ') + ' and ' + named[named.length - 1]) + ' codes';
+  }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
   function vscodeHref(file, line) {
     if (!root || line === null || line === undefined || file === null || file === undefined) return null;
@@ -919,7 +969,7 @@ const REPORT_JS = String.raw`
         for (var i = 0; i < rec.classes.length; i++) tags.appendChild(tag(rec.classes[i]));
       }
       if (cats.length) {
-        tags.appendChild(el('span', 'f-tags-label', 'OWASP'));
+        tags.appendChild(el('span', 'f-tags-label', codesHeading(cats)));
         for (var k = 0; k < cats.length; k++) tags.appendChild(tag(codeLabel(cats[k]), 'code'));
       }
       card.appendChild(tags);
@@ -1192,6 +1242,12 @@ const REPORT_JS = String.raw`
       if (f && decodeHash() === String(f.finding_id)) { e.preventDefault(); goTo(idx); }
       return;
     }
+    var gr = target.closest('tr[data-goto-row]');
+    if (gr) {
+      var link = gr.querySelector('a[data-goto]');
+      if (link) link.click();
+      return;
+    }
     var sev = target.closest('[data-filter-sev]');
     if (sev) {
       var s = sev.getAttribute('data-filter-sev');
@@ -1244,7 +1300,6 @@ function headerCard(r: FindingsReport): Html {
     <div><dt>Branch</dt><dd class="mono">${branchAtCommit(run.target.branch, run.target.commit)}</dd></div>
     <div><dt>Started</dt><dd>${timeEl(run.started_at || r.generated_at)}</dd></div>
     <div><dt>Run</dt><dd class="mono">${run.id}</dd></div>
-    ${run.passes !== null && run.passes !== undefined ? h`<div><dt>Pass</dt><dd>${fmtInt(run.passes)}</dd></div>` : ''}
     <div><dt>Model</dt><dd>${model}</dd></div>
     <div><dt>secscan</dt><dd class="mono">${r.secscan_version}</dd></div>
   </dl>
@@ -1258,10 +1313,12 @@ function partialLine(r: FindingsReport): Html | '' {
 }
 
 function severityTiles(counts: SeverityCounts): Html {
-  return h`<div class="tiles">${SEVERITIES.map(s => {
-    const n = isNum(counts[s]) ? counts[s] : 0
+  const sevs = shownSeverities(counts)
+  return h`<div class="tiles-h"><h2 class="tiles-title">Severity range</h2><span class="sub">Number of vulnerabilities in each severity band</span></div>
+  <div class="tiles cols-${sevs.length}">${sevs.map(s => {
+    const n = countOf(counts, s)
     return h`<button type="button" class="tile sev-${s}" data-filter-sev="${s}"${n === 0 ? raw(' disabled') : ''} aria-label="${`Show ${plural(n, s + ' vulnerability', s + ' vulnerabilities')}`}">
-      <span class="tile-label">${SEV_LABEL[s]}</span><span class="tile-n">${fmtInt(counts[s])}</span><span class="tile-cta no-print">${n === 0 ? 'None' : 'View in Findings'}</span>
+      <span class="tile-label">${SEV_LABEL[s]}</span><span class="tile-n">${fmtInt(n)}</span><span class="tile-cta no-print">${n === 0 ? 'None' : 'View in Findings'}</span>
     </button>`
   })}</div>`
 }
@@ -1299,7 +1356,7 @@ function gapsBox(r: FindingsReport): Html | '' {
     return r.resume_command ? h`<section class="card resume-only" aria-label="Continue">${resumeBlock(r.resume_command)}</section>` : ''
   }
   return h`<section class="card gaps" aria-labelledby="s-gaps">
-  <div class="section-h"><h2 id="s-gaps">Scan gaps</h2></div>
+  ${sectionHead('s-gaps', 'Scan gaps')}
   <ul>${r.scan_gaps.map(g => h`<li>${g.detail}</li>`)}</ul>
   ${r.resume_command ? resumeBlock(r.resume_command) : ''}
 </section>`
@@ -1312,48 +1369,58 @@ function reviewFirst(r: FindingsReport): Html | '' {
     .map(id => index.get(id))
     .filter((i): i is number => i !== undefined)
   if (!rows.length) return ''
+  const title = rows.length === 1 ? 'The most severe vulnerability to review first' : `Top ${rows.length} most severe vulnerabilities to review first`
   return h`<section class="card" aria-labelledby="s-review">
-  <div class="section-h"><h2 id="s-review">Review first</h2><span class="sub">Most severe, then most confident</span></div>
-  <ol class="review-list">${rows.map(i => {
-    const f: ReportFinding = r.findings[i]
-    return h`<li><a class="review-row" href="#${encodeURIComponent(f.finding_id)}" data-goto="${i}">
-      ${sevBadge(f.severity_estimate)}
-      <span class="rr-conf">${fmtConfidence(f.confidence)}</span>
-      <span class="rr-main"><span class="rr-title">${f.title}</span><span class="rr-loc mono">${locText(f.location.file, f.location.line)}</span></span>
-    </a></li>`
-  })}</ol>
+  ${sectionHead('s-review', title, 'Ranked by severity, then confidence', 'Select a row to open it')}
+  <div class="table-scroll"><table class="data labelled review">
+    <thead><tr><th class="num">#</th><th>Severity</th><th>Vulnerability</th><th>File</th><th class="num">Line</th><th class="num">Confidence</th><th>Confidence band</th></tr></thead>
+    <tbody>${rows.map((i, n) => {
+      const f: ReportFinding = r.findings[i]
+      const c = f.confidence
+      return h`<tr class="clickable" data-goto-row>
+      <td class="num c-rank" data-label="#">${fmtInt(n + 1)}</td>
+      <td class="c-sev" data-label="Severity">${sevBadge(f.severity_estimate)}</td>
+      <td class="c-title" data-label="Vulnerability"><a class="row-link" href="#${encodeURIComponent(f.finding_id)}" data-goto="${i}">${f.title}</a></td>
+      <td class="c-file mono" data-label="File">${f.location.file}</td>
+      <td class="num c-line" data-label="Line">${f.location.line === null ? '-' : fmtInt(f.location.line)}</td>
+      <td class="num c-conf" data-label="Confidence">${isNum(c) ? c.toFixed(2) : UNKNOWN}</td>
+      <td class="c-band" data-label="Confidence band">${isNum(c) ? confidenceBand(c) : UNKNOWN}</td>
+    </tr>`
+    })}</tbody>
+  </table></div>
 </section>`
 }
 
-function countCell(count: number, by: SeverityCounts, max: number): Html {
-  const total = SEVERITIES.reduce((a, s) => a + (isNum(by[s]) ? by[s] : 0), 0)
+function countCell(count: number, by: SeverityCounts, max: number, sevs: Severity[]): Html {
+  const total = sevs.reduce((a, s) => a + countOf(by, s), 0)
   const width = max > 0 && isNum(count) ? Math.min(100, (count / max) * 100) : 0
   const segs = total > 0
-    ? SEVERITIES.filter(s => isNum(by[s]) && by[s] > 0).map(s =>
-      h`<span class="b-${s}" style="width:${((by[s] / total) * 100).toFixed(2)}%"></span>`)
+    ? sevs.filter(s => countOf(by, s) > 0).map(s =>
+      h`<span class="b-${s}" style="width:${((countOf(by, s) / total) * 100).toFixed(2)}%"></span>`)
     : []
   return h`<div class="countcell"><span class="n">${fmtInt(count)}</span><span class="track"><span class="bar" style="width:${width.toFixed(2)}%">${segs}</span></span></div>`
 }
 
-function splitCells(by: SeverityCounts): Html {
-  return h`<span class="split">${SEVERITIES.map(s =>
-    h`<span class="sevnum sev-${s}${by[s] === 0 ? ' zero' : ''}" title="${SEV_LABEL[s]}">${fmtInt(by[s])}</span>`)}</span>`
+function splitCells(by: SeverityCounts, sevs: Severity[]): Html {
+  return h`<span class="split">${sevs.map(s =>
+    h`<span class="sevnum sev-${s}${countOf(by, s) === 0 ? ' zero' : ''}" title="${SEV_LABEL[s]}">${fmtInt(countOf(by, s))}</span>`)}</span>`
 }
 
 function byClass(r: FindingsReport): Html | '' {
   const rows = r.summary.by_class
   if (!rows.length) return ''
   const names = r.summary.category_names
+  const sevs = shownSeverities(r.summary.by_severity)
   const max = Math.max(0, ...rows.map(x => (isNum(x.count) ? x.count : 0)))
   return h`<section class="card" aria-labelledby="s-types">
-  <div class="section-h"><h2 id="s-types">By vulnerability type</h2><span class="sub">Select a row to see those findings</span></div>
+  ${sectionHead('s-types', 'By vulnerability type', undefined, 'Select a row to see those findings')}
   <div class="table-scroll"><table class="data stack">
-    <thead><tr><th>Type</th><th>OWASP</th><th>Vulnerabilities</th><th>Critical · High · Medium · Low</th></tr></thead>
+    <thead><tr><th>Type</th><th>${codesHeading(rows.flatMap(x => x.codes))}</th><th>Vulnerabilities</th><th>${severityHeading(sevs)}</th></tr></thead>
     <tbody>${rows.map((row, i) => h`<tr class="clickable" data-filter-class="${i}">
       <td class="c-name"><button type="button" class="row-link">${row.class}</button></td>
       <td class="c-codes"><span class="codes">${row.codes.length ? row.codes.map(c => h`<span class="tag code">${codeLabel(c, names)}</span>`) : h`<span class="muted">none</span>`}</span></td>
-      <td class="c-count">${countCell(row.count, row.by_severity, max)}</td>
-      <td class="c-split">${splitCells(row.by_severity)}</td>
+      <td class="c-count">${countCell(row.count, row.by_severity, max, sevs)}</td>
+      <td class="c-split">${splitCells(row.by_severity, sevs)}</td>
     </tr>`)}</tbody>
   </table></div>
   <p class="note">A finding counts under every type it carries.</p>
@@ -1363,15 +1430,16 @@ function byClass(r: FindingsReport): Html | '' {
 function topFiles(r: FindingsReport): Html | '' {
   const rows = r.summary.top_files
   if (!rows.length) return ''
+  const sevs = shownSeverities(r.summary.by_severity)
   const max = Math.max(0, ...rows.map(x => (isNum(x.count) ? x.count : 0)))
   return h`<section class="card" aria-labelledby="s-files">
-  <div class="section-h"><h2 id="s-files">Top files</h2><span class="sub">Files with the most findings</span></div>
+  ${sectionHead('s-files', 'Top files', 'Files with the most findings', 'Select a row to see those findings')}
   <div class="table-scroll"><table class="data stack">
-    <thead><tr><th>File</th><th>Vulnerabilities</th><th>Critical · High · Medium · Low</th></tr></thead>
+    <thead><tr><th>File</th><th>Vulnerabilities</th><th>${severityHeading(sevs)}</th></tr></thead>
     <tbody>${rows.map((row, i) => h`<tr class="clickable" data-filter-file="${i}">
       <td class="file-cell c-name"><button type="button" class="row-link mono">${row.file}</button></td>
-      <td class="c-count">${countCell(row.count, row.by_severity, max)}</td>
-      <td class="c-split">${splitCells(row.by_severity)}</td>
+      <td class="c-count">${countCell(row.count, row.by_severity, max, sevs)}</td>
+      <td class="c-split">${splitCells(row.by_severity, sevs)}</td>
     </tr>`)}</tbody>
   </table></div>
 </section>`
@@ -1398,7 +1466,7 @@ function facts(r: FindingsReport): Html {
   const pct = isNum(c.scanned) && isNum(c.in_scope) && c.in_scope > 0 ? Math.round((c.scanned / c.in_scope) * 100) : null
   return h`<div class="facts">
   <section class="card" aria-labelledby="s-coverage">
-    <div class="section-h"><h2 id="s-coverage">Coverage</h2></div>
+    ${sectionHead('s-coverage', 'Coverage')}
     ${meter(c.scanned, c.in_scope, `${fmtInt(c.scanned)} of ${fmtInt(c.in_scope)} in-scope files scanned (${pct}%)`)}
     <dl class="kv">
       ${kvRow('Files in repo', fmtInt(c.files_in_repo))}
@@ -1411,12 +1479,12 @@ function facts(r: FindingsReport): Html {
     </dl>
   </section>
   <section class="card" aria-labelledby="s-cost">
-    <div class="section-h"><h2 id="s-cost">Cost</h2></div>
+    ${sectionHead('s-cost', 'Cost')}
     <p class="stat-line">${costLine}</p>
     ${meter(spent, budget, isNum(spent) && isNum(budget) && budget > 0 ? `${Math.round((spent / budget) * 100)}% of budget used` : '')}
   </section>
   <section class="card" aria-labelledby="s-usage">
-    <div class="section-h"><h2 id="s-usage">Usage</h2></div>
+    ${sectionHead('s-usage', 'Usage')}
     <dl class="kv">
       <div><dt>Input tokens</dt><dd title="${fmtInt(u.input_tokens)}">${fmtTokens(u.input_tokens)}</dd></div>
       <div><dt>Output tokens</dt><dd title="${fmtInt(u.output_tokens)}">${fmtTokens(u.output_tokens)}</dd></div>
@@ -1452,7 +1520,7 @@ function findingsView(r: FindingsReport): Html {
   return h`<div class="toolbar no-print" id="toolbar">
   <div class="tb-row">
     <label class="search">${raw(SEARCH_ICON)}<input type="search" id="f-q" placeholder="Search title, description or file" aria-label="Search findings" autocomplete="off"></label>
-    <div class="chips" role="group" aria-label="Severity">${SEVERITIES.map(s =>
+    <div class="chips" role="group" aria-label="Severity">${shownSeverities(r.summary.by_severity).map(s =>
       h`<button type="button" class="chip sev-${s}" data-sev-chip="${s}" aria-pressed="false">${SEV_LABEL[s]} <span class="chip-n"></span></button>`)}</div>
   </div>
   <div class="tb-row">

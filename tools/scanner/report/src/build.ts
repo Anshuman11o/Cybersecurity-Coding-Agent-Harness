@@ -231,24 +231,28 @@ export function buildReport(input: BuildInput): BuildResult {
   const usedCodes = new Set<string>()
   for (const f of findings) {
     const sev = f.severity_estimate
-    if (isSeverity(sev)) bySeverity[sev]++
+    if (isSeverity(sev)) bySeverity[sev] = (bySeverity[sev] ?? 0) + 1
     locations.add(`${f.location.file}\u0000${f.location.line}`)
     const row = files.get(f.location.file) ?? { file: f.location.file, count: 0, by_severity: zero() }
     row.count++
-    if (isSeverity(sev)) row.by_severity[sev]++
+    if (isSeverity(sev)) row.by_severity[sev] = (row.by_severity[sev] ?? 0) + 1
     files.set(f.location.file, row)
     for (const c of f.categories ?? []) usedCodes.add(c)
     // A finding counts once under each distinct class it carries.
     for (const id of new Set((f.finding_classes ?? []).map(c => c.class))) {
       const cls = classes.get(id) ?? { class: id, codes: codesFor.get(id) ?? [], count: 0, by_severity: zero() }
       cls.count++
-      if (isSeverity(sev)) cls.by_severity[sev]++
+      if (isSeverity(sev)) cls.by_severity[sev] = (cls.by_severity[sev] ?? 0) + 1
       classes.set(id, cls)
     }
   }
   for (const c of classes.values()) for (const code of c.codes) usedCodes.add(code)
+  // Critical stays only in a run that has a critical finding.
+  if (!bySeverity.critical) {
+    for (const counts of [bySeverity, ...[...files.values(), ...classes.values()].map(r => r.by_severity)]) delete counts.critical
+  }
   const bySeverityDesc = (a: SeverityCounts, b: SeverityCounts) =>
-    b.critical - a.critical || b.high - a.high || b.medium - a.medium || b.low - a.low
+    (b.critical ?? 0) - (a.critical ?? 0) || b.high - a.high || b.medium - a.medium || b.low - a.low
   const categoryNames: Record<string, string> = {}
   for (const entry of [...(lanePlan?.category_universe ?? [])].sort((a, b) => a.code.localeCompare(b.code))) {
     if (usedCodes.has(entry.code) && entry.name && !(entry.code in categoryNames)) categoryNames[entry.code] = entry.name

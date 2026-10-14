@@ -98,7 +98,7 @@ function zero(): SeverityCounts {
   return { critical: 0, high: 0, medium: 0, low: 0 }
 }
 function bump(c: SeverityCounts, sev: string): void {
-  if (sev in c) c[sev as keyof SeverityCounts]++
+  if (sev in c) c[sev as keyof SeverityCounts]! += 1
 }
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -152,6 +152,10 @@ export function makeReport(input: ReportFinding[], o: ReportOptions = {}): Findi
     fr.count++
     bump(fr.by_severity, f.severity_estimate)
     files.set(f.location.file, fr)
+  }
+  // As build.ts: Critical stays only in a run that has a critical finding.
+  if (!bySeverity.critical) {
+    for (const counts of [bySeverity, ...[...classes.values(), ...files.values()].map(r => r.by_severity)]) delete counts.critical
   }
   const names = o.category_names ?? CATEGORY_NAMES
   const categoryNames: Record<string, string> = {}

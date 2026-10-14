@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { renderReportHtml, escapeHtml, embedJson, fmtTokens, fmtDuration, fmtUsd } from './html.js'
+import { renderReportHtml, escapeHtml, embedJson, fmtTokens, fmtDuration, fmtUsd, codeLabel, codesHeading } from './html.js'
 import { renderIndexHtml, relativeHref } from './index-page.js'
 import { makeFinding, makeReport, realisticReport, indexEntryFor } from './fixtures.js'
 import type { FindingsReport, IndexEntry } from './types.js'
@@ -157,16 +157,65 @@ test('partial run: partial line, gaps, resume command, breakdown and cost', () =
   assert.ok(html.includes('No selected class after review'))
 })
 
-test('review first lists at most ten rows, each linking to its finding', () => {
+test('review first is a table of at most ten rows, one field per column, each linking to its finding', () => {
   const r = realisticReport()
   const html = renderReportHtml(r)
-  const rows = html.match(/class="review-row" href="#([^"]+)" data-goto="(\d+)"/g) ?? []
+  assert.ok(html.includes('<h2 id="s-review">Top 10 most severe vulnerabilities to review first</h2><span class="sub">Ranked by severity, then confidence</span>'))
+  assert.ok(html.includes('<thead><tr><th class="num">#</th><th>Severity</th><th>Vulnerability</th><th>File</th><th class="num">Line</th><th class="num">Confidence</th><th>Confidence band</th></tr></thead>'))
+  const rows = html.match(/<tr class="clickable" data-goto-row>[\s\S]*?<\/tr>/g) ?? []
   assert.equal(rows.length, 10)
   r.summary.review_first.forEach((id, i) => {
     const idx = r.findings.findIndex(f => f.finding_id === id)
+    const f = r.findings[idx]
     assert.ok(rows[i].includes(`href="#${encodeURIComponent(id)}" data-goto="${idx}"`))
+    assert.ok(rows[i].includes(`data-label="#">${i + 1}<`))
+    assert.ok(rows[i].includes(`data-label="Line">${f.location.line}<`))
+    assert.ok(rows[i].includes(`data-label="Confidence">${f.confidence.toFixed(2)}<`))
+    assert.ok(/data-label="Confidence band">(High|Medium|Low)</.test(rows[i]))
+    assert.ok(!rows[i].includes(' · '), 'no two fields share a cell')
   })
-  assert.ok(html.includes('0.96 · High') || /0\.\d\d · (High|Medium|Low)/.test(html))
+})
+
+test('a run with no critical finding shows High, Medium and Low only; one that has one shows Critical', () => {
+  const plain = makeReport([
+    makeFinding({ id: 'F1', title: 'A', severity: 'high', confidence: 0.9, file: 'a.ts', line: 1, classes: ['sql-injection'] }),
+    makeFinding({ id: 'F2', title: 'B', severity: 'medium', confidence: 0.6, file: 'b.ts', line: 2, classes: ['xss'] }),
+    makeFinding({ id: 'F3', title: 'C', severity: 'low', confidence: 0.3, file: 'b.ts', line: 3, classes: ['xss'] }),
+  ])
+  assert.ok(!('critical' in plain.summary.by_severity))
+  const html = renderReportHtml(plain)
+  const page = withoutData(html)
+  assert.ok(!page.includes('data-filter-sev="critical"') && !page.includes('data-sev-chip="critical"'))
+  assert.ok(!/>Critical</.test(page.replace(/<script>[\s\S]*?<\/script>/, '')), 'no Critical label in the markup')
+  assert.ok(page.includes('<div class="tiles cols-3">'))
+  assert.equal(count(page, '<th>High · Medium · Low</th>'), 2, 'type and file tables')
+  assert.ok(page.includes('<h2 class="tiles-title">Severity range</h2><span class="sub">Number of vulnerabilities in each severity band</span>'))
+  const withCritical = renderReportHtml(realisticReport())
+  assert.ok(withCritical.includes('data-filter-sev="critical"') && withCritical.includes('<div class="tiles cols-4">'))
+  assert.ok(withCritical.includes('<th>Critical · High · Medium · Low</th>'))
+})
+
+test('header has no Pass field; top files says what it lists beside its title', () => {
+  const html = renderReportHtml(realisticReport())
+  assert.ok(!html.includes('<dt>Pass</dt>'))
+  assert.ok(html.includes('<h2 id="s-files">Top files</h2><span class="sub">Files with the most findings</span>'))
+})
+
+test('codes column names the families present, and each code shows its name once', () => {
+  assert.equal(codesHeading(['A01', 'API1', 'LLM05', 'OWASP SCSVS', 'OWASP API10:2023 Unsafe Consumption of APIs']), 'OWASP codes')
+  assert.equal(codesHeading(['A03', 'CWE-89']), 'OWASP and CWE codes')
+  assert.equal(codesHeading(['A03', 'NIST SSDF PW.5']), 'OWASP and other codes')
+  assert.equal(codesHeading(['A03', 'CWE-79', 'PCI DSS 6.2']), 'OWASP, CWE and other codes')
+  assert.equal(codesHeading(['CWE-79']), 'CWE codes')
+  assert.equal(codesHeading(['PCI DSS 6.2']), 'Codes')
+  assert.equal(codeLabel('A01', { A01: 'A01: Broken Access Control' }), 'A01: Broken Access Control')
+  assert.equal(codeLabel('A03', { A03: 'Injection' }), 'A03: Injection')
+  assert.equal(codeLabel('OWASP SCSVS', {}), 'OWASP SCSVS')
+  const r = realisticReport()
+  r.summary.category_names = { ...r.summary.category_names, A03: 'A03: Injection' }
+  const html = renderReportHtml(r)
+  assert.ok(html.includes('<th>OWASP codes</th>'))
+  assert.ok(html.includes('>A03: Injection<') && !html.includes('A03 A03'))
 })
 
 test('null numbers render as unknown, never 0', () => {

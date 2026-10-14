@@ -14,9 +14,19 @@ export const FINDINGS_FILE = 'findings.json'
 export const REPORT_FILE = 'report.html'
 export const INDEX_FILE = 'index.html'
 
+/** Every severity Stage 2 may write, most severe first. */
 export const SEVERITIES = ['critical', 'high', 'medium', 'low'] as const
 export type Severity = (typeof SEVERITIES)[number]
-export type SeverityCounts = Record<Severity, number>
+/**
+ * Findings per severity. `critical` is present only when the run has a critical
+ * finding; otherwise the report carries and shows High, Medium and Low alone.
+ */
+export type SeverityCounts = { critical?: number; high: number; medium: number; low: number }
+
+/** The severities to show for these counts: Critical only when there is one. */
+export function shownSeverities(counts: Partial<Record<Severity, number>> | null | undefined): Severity[] {
+  return (counts?.critical ?? 0) > 0 ? [...SEVERITIES] : SEVERITIES.filter(s => s !== 'critical')
+}
 
 /** Confidence bands, for display next to a finding's confidence. Never written into a finding. */
 export type ConfidenceBand = 'High' | 'Medium' | 'Low'

@@ -39,8 +39,13 @@ export function progressLine(p: Stage2Progress, nowMs: number, plannedSeconds: n
     (p.lanes.failed ? ` · ${p.lanes.failed} failed` : '') +
     (p.lanes.in_flight ? ` · ${p.lanes.in_flight} in flight` : '') +
     ` · ${spend} · ${duration(elapsed)} elapsed, ETA ${eta}` +
-    ` · findings ${p.findings.total} (${sev.critical} critical, ${sev.high} high, ${sev.medium} medium, ${sev.low} low)` +
+    ` · findings ${p.findings.total} (${severityText(sev)})` +
     state
+}
+
+/** "27 high, 105 medium, 53 low", naming critical only when there is one. */
+export function severityText(by: { critical?: number; high: number; medium: number; low: number }): string {
+  return (by.critical ? `${by.critical} critical, ` : '') + `${by.high} high, ${by.medium} medium, ${by.low} low`
 }
 
 export interface ProgressHandle {

@@ -28,7 +28,7 @@ import { buildSummary, type ConfirmationSummary, type LaneLite } from './confirm
 import { roundTwo } from './round2.js'
 import type { InputIO } from './inputs.js'
 import { launchStage, signalStage, type RunningStage } from './stages.js'
-import { startProgress, readProgress } from './progress.js'
+import { startProgress, readProgress, severityText } from './progress.js'
 import { roundOneInputs, terminalIO, InputCancelled, findResume, askNewBudget, tierNotice, reconRefusal, assertSameReadScope } from './inputs.js'
 import {
   RUN_RECORD_FILE, RUN_RECORD_SCHEMA, decideStatus, writeRunRecord,
@@ -415,7 +415,7 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
     }
     if (progress && fresh) {
       const s = progress.findings.by_severity
-      say(`Findings: ${progress.findings.total} (${s.critical} critical, ${s.high} high, ${s.medium} medium, ${s.low} low) — ` +
+      say(`Findings: ${progress.findings.total} (${severityText(s)}) — ` +
         'candidates from static reasoning, not verified')
     }
     if (totals.calls || fresh) {

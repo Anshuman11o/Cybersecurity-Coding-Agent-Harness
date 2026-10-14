@@ -402,11 +402,12 @@ test('counts reconcile: severity, types (multi-type counted under each), locatio
   const { report } = build(makeRun(root, 'r1', { status: 'COMPLETE', done: ALL }))
   const s = report.summary
   const sev = s.by_severity
+  assert.equal(sev.critical, 1)
   assert.equal(sev.critical + sev.high + sev.medium + sev.low, s.findings_total)
   assert.equal(s.findings_total, findingsFor(ALL).length)
   for (const row of s.by_class) {
     assert.equal(row.count, report.findings.filter(f => f.finding_classes.some(c => c.class === row.class)).length, row.class)
-    assert.equal(row.by_severity.critical + row.by_severity.high + row.by_severity.medium + row.by_severity.low, row.count)
+    assert.equal(row.by_severity.critical! + row.by_severity.high + row.by_severity.medium + row.by_severity.low, row.count)
   }
   const injection = s.by_class.find(r => r.class === 'injection')!
   assert.equal(injection.count, 3, 'f0:42 twice (one also crypto-auth) and f1:20 (also access-control)')
@@ -425,6 +426,18 @@ test('counts reconcile: severity, types (multi-type counted under each), locatio
   assert.deepEqual(s.cost, { spent_usd: 4.91, budget_usd: 5 })
   assert.deepEqual(s.usage, { input_tokens: 2_100_000, output_tokens: 180_000, wall_clock_seconds: 80 })
   assert.ok(!('by_confidence_band' in s))
+}))
+
+test('a run with no critical finding carries no critical count anywhere', () => withRoot(root => {
+  const done = ALL.filter(i => i !== 0)
+  const { report } = build(makeRun(root, 'r1', { status: 'COMPLETE', done }))
+  assert.ok(!report.findings.some(f => f.severity_estimate === 'critical'))
+  const s = report.summary
+  for (const counts of [s.by_severity, ...s.by_class.map(r => r.by_severity), ...s.top_files.map(r => r.by_severity)]) {
+    assert.deepEqual(Object.keys(counts), ['high', 'medium', 'low'])
+  }
+  assert.equal(s.by_severity.high + s.by_severity.medium + s.by_severity.low, s.findings_total)
+  assert.ok(!serializeReport(report).includes('"critical"'))
 }))
 
 test('order: severity, then confidence; review first is the top ten in that order', () => withRoot(root => {
