@@ -1,11 +1,11 @@
 # AndroGoat target readiness
 
-Public starting snapshot: `Anshuman11o/androgoat-clean-mobile` at
-`723a653fdd78c13f25c2eb3f5dbcafca40ca9140`. Private evaluation starting
-snapshot: `Anshuman11o/androgoat-clean-answer-key` at
-`7103d675be6d5c5635107afab72c1db67c602828`. Use the final public commit
-recorded by the private ground-truth release when scoring; cleanup changes
-invalidate older file hashes and line anchors.
+Prepared public snapshot: `Anshuman11o/androgoat-clean-mobile` at
+`eb460fe0561e3c55dcb1ebe2c859663a5c5757bd`. Private evaluation release:
+`Anshuman11o/androgoat-clean-answer-key`, version `1.1.0`, at `fd6107b`.
+The starting snapshots were `723a653` (public) and `7103d67` (private).
+Use the exact public commit recorded by the private ground-truth release when
+scoring; cleanup changes invalidate older file hashes and line anchors.
 
 The public application uses Kotlin and Android XML. Kotlin content signals
 cover Android components, SQLite, WebView, storage and clipboard APIs,
