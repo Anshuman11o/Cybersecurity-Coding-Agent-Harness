@@ -2,8 +2,9 @@
 
 The public `Anshuman11o/castle-clean-c` corpus is pinned to
 `4278a493c41b126e63eca2e03a9a54d231e065cc`. Its paired private
-`Anshuman11o/castle-clean-answer-key` starts at `4ab2594`; record the full
-private scoring commit and ground-truth version with each evaluation. Scoring
+`Anshuman11o/castle-clean-answer-key` started at `4ab2594`; readiness updates are at private commit
+`e6953cf` with ground truth 1.1.0. Record the full private scoring commit and
+ground-truth version with each evaluation. Scoring
 updates must preserve the frozen public hashes. Never copy private evidence into
 this repository, the public target, or scanning prompts.
 
@@ -32,10 +33,13 @@ real selector. Live model-driven Stage 0/Stage 2 are not validated by that fixtu
 
 There is no built-in memory-safety class. Accept category-blind scoring for
 memory safety rather than forcing unrelated OWASP labels. The frozen corpus has
-25 CWE types; 15 have no honest existing family mapping. The original export has
-262 evidence-line entries, of which 108 carry family-mapped OWASP codes. Thus a
+25 CWE types. Version 1.0.0 had 15 unmapped types and three provisional
+mappings. Private review in 1.1.0 removed those three effect-only proposals,
+leaving 18 types without a family/code. The export retains 262 evidence-line
+entries, of which 77 carry directly mapped OWASP codes. Thus a
 perfect category-blind result can reach 262/262, while category-aware recall over
-the whole corpus has a lower ceiling. Report the current export's exact ceiling;
+the whole corpus has a ceiling of 77/262 (29.389%). Code/family comparability
+changed; rescore earlier artifacts at the same key version before comparing. Report the current export's exact ceiling;
 do not quietly remove unmapped entries from its denominator.
 
 A future `memory-safety` class is an owner decision under productization plan
@@ -90,12 +94,12 @@ python3 "$KEY/reachability.py" \
   --key "$KEY/ground-truth.json" --output "$PRIVATE_RESULTS/reachability.json"
 ```
 
-The shared scorer currently ignores alternate evidence lines and ranges; exports
+The shared scorer at this readiness base ignores alternate evidence lines and ranges; exports
 retain `file` and `line` for compatibility. Alternate/range support is owned by
 the parallel scorer session. Until integrated, each exported evidence line still
 scores correctly at its primary line. A perfect synthetic result should attain
 full category-blind recall and the mapped category-aware ceiling, not full
-category-aware recall on unmapped memory-safety entries.
+category-aware recall on unmapped entries.
 
 ## Headline metrics and contamination
 
