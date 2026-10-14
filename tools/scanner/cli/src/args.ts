@@ -51,8 +51,6 @@ export interface ReportArgs {
   /** Reports folder; default ./.secscan */
   out?: string
   noOpen: boolean
-  /** 2: also write report option 2 (report-option-2.html). */
-  template?: 2
 }
 
 export type Args = ScanArgs | ModelsArgs | ReportArgs | { command: 'help' } | { command: 'version' }
@@ -65,7 +63,6 @@ Usage:
   secscan scan [dir] [options]      scan a repository (default: the current directory)
   secscan models [--all]            list models: price, measured or unmeasured, key status
   secscan report [run-id]           rebuild a run's report (default: the newest run in ./.secscan)
-                                    --template 2 also writes report option 2, report-option-2.html
   secscan help                      this text
 
 Lab options:
@@ -128,7 +125,6 @@ export function parseArgs(argv: readonly string[]): Args {
   let out: string | undefined
   let classes: ClassEdits | undefined
   let noOpen = false
-  let template: string | undefined
   const positional: string[] = []
 
   const push = (key: 'paths' | 'include' | 'exclude', vals: string[]) => {
@@ -186,7 +182,6 @@ export function parseArgs(argv: readonly string[]): Args {
       case '--no-config': noConfig = true; break
       case '--out': out = value(); break
       case '--no-open': noOpen = true; break
-      case '--template': template = value(); break
       case '--resume':
         resume = inline !== undefined ? value() : (args[i + 1] && !args[i + 1].startsWith('-') ? args[++i] : true)
         break
@@ -210,12 +205,10 @@ export function parseArgs(argv: readonly string[]): Args {
   }
   if (first === 'report') {
     const scanOnly = Object.keys(limits).length || Object.keys(model).length || yes || all || configPath || noConfig || resume !== undefined || classes
-    if (scanOnly) throw new UsageError('secscan report takes only [run-id], --out, --no-open and --template')
+    if (scanOnly) throw new UsageError('secscan report takes only [run-id], --out and --no-open')
     if (positional.length > 1) throw new UsageError(`expected one run id, got ${positional.join(' ')}`)
-    if (template !== undefined && template !== '1' && template !== '2') throw new UsageError(`--template is 1 or 2, got "${template}"`)
-    return { command: 'report', ...(positional[0] ? { runId: positional[0] } : {}), ...(out ? { out } : {}), noOpen, ...(template === '2' ? { template: 2 as const } : {}) }
+    return { command: 'report', ...(positional[0] ? { runId: positional[0] } : {}), ...(out ? { out } : {}), noOpen }
   }
-  if (template !== undefined) throw new UsageError('--template applies to secscan report only')
   if (positional.length > 1) throw new UsageError(`expected one directory, got ${positional.join(' ')}`)
   if (configPath && noConfig) throw new UsageError('--config and --no-config contradict each other')
   if (yes && resume === undefined && limits.max_cost_usd == null) throw new UsageError('--yes requires --budget (or --max-cost), except with --resume')

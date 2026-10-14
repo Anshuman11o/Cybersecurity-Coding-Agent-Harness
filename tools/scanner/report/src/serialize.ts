@@ -24,6 +24,13 @@ export function findingLines(text: string, expected: number): number[] | null {
   return out.length === expected ? out : null
 }
 
+/** Where findings.json is and the line each finding starts on, for VS Code links. */
+export interface ReportLinks {
+  findingsPath: string
+  /** 1-based, in findings order. */
+  findingLines: number[]
+}
+
 /** A link that opens a local file at a line in VS Code. */
 export function vscodeHref(path: string, line: number): string {
   const p = path.replace(/\\/g, '/')

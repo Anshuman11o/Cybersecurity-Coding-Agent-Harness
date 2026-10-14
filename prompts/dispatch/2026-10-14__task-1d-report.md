@@ -205,3 +205,11 @@ note that every link opens findings.json under the title; each top-10 file
 links to its most severe finding; the per-type counts under the impact table's
 type names are removed.
 
+## Amendment 4, 2026-10-14: option 2 is the report; option 1 dropped
+
+The owner chose option 2. It is now `report.html`, rendered by
+`tools/scanner/report/src/report-page.ts` (renamed from option2-zap-style.ts);
+option 1 (`option1-summary.ts`), `report-option-2.html` and the
+`--template` flag are removed. Last layout change: Scan Results leads the page
+and the Run Details table moves to the end.
+

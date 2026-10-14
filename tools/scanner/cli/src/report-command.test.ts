@@ -26,10 +26,7 @@ test('report command and --no-open parse', () => {
   assert.equal((parseArgs(['scan']) as { noOpen: boolean }).noOpen, false)
   assert.throws(() => parseArgs(['report', '--budget', '5']), UsageError)
   assert.throws(() => parseArgs(['report', 'a', 'b']), UsageError)
-  assert.deepEqual(parseArgs(['report', '--template', '2', '--no-open']), { command: 'report', noOpen: true, template: 2 })
-  assert.deepEqual(parseArgs(['report', '--template', '1']), { command: 'report', noOpen: false })
-  assert.throws(() => parseArgs(['report', '--template', '3']), UsageError)
-  assert.throws(() => parseArgs(['scan', '--template', '2']), UsageError)
+  assert.throws(() => parseArgs(['report', '--template', '2']), UsageError)
 })
 
 function seedRun(root: string, id: string, opts: { record?: boolean; running?: boolean } = {}) {

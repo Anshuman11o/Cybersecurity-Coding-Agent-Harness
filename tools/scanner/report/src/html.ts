@@ -1,7 +1,6 @@
 /**
- * What every report page shares: the safe template tag, formatting, badges,
- * code labels and the base look. Each report option (option1-summary.ts, ...)
- * and the index page build on these.
+ * What the report page (report-page.ts) and the index page share: the safe
+ * template tag, formatting, labels and the index's base look.
  *
  * Every page is rendered at build time through `h`, a template tag that
  * HTML-escapes every interpolated value unless it is markup `h` itself
@@ -131,30 +130,9 @@ export function plural(n: number, one: string, many: string): string {
 }
 
 export const SEV_LABEL: Record<string, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' }
-function sevKey(s: unknown): string {
-  return typeof s === 'string' && hasOwn(SEV_LABEL, s) ? s : 'other'
-}
-function sevLabel(s: unknown): string {
-  return typeof s === 'string' && hasOwn(SEV_LABEL, s) ? SEV_LABEL[s] : String(s)
-}
-
 export function countOf(by: SeverityCounts, s: Severity): number {
   const n = by[s]
   return isNum(n) ? n : 0
-}
-
-/** One column per severity in a counts table: "High · Medium · Low", with Critical first only when it is shown. */
-export function severityHeading(sevs: Severity[]): string {
-  return sevs.map(s => SEV_LABEL[s]).join(' · ')
-}
-
-/** A section heading: the title with its description right beside it, and an optional action hint on the right. */
-export function sectionHead(id: string, title: string, sub?: string, hint?: string): Html {
-  return h`<div class="section-h"><div class="section-t"><h2 id="${id}">${title}</h2>${sub ? h`<span class="sub">${sub}</span>` : ''}</div>${hint ? h`<span class="hint">${hint}</span>` : ''}</div>`
-}
-
-export function sevBadge(severity: unknown): Html {
-  return h`<span class="badge sev-${sevKey(severity)}">${sevLabel(severity)}</span>`
 }
 
 export function statusBadge(status: unknown): Html {
@@ -209,30 +187,6 @@ export function notScannedBreakdown(byReason: Record<string, number> | null | un
     .sort((a, b) => byReason[b] - byReason[a] || (a < b ? -1 : a > b ? 1 : 0))
     .map(k => `${fmtInt(byReason[k])} ${hasOwn(NOT_SCANNED_SHORT, k) ? NOT_SCANNED_SHORT[k] : k}`)
     .join(', ')
-}
-
-/** A code with its display name, once: the lane plan's names already start with the code ("A01: Broken Access Control"). */
-export function codeLabel(code: string, names: Record<string, string>): string {
-  const name = hasOwn(names, code) ? names[code] : ''
-  if (!name) return code
-  return name.startsWith(code) ? name : `${code}: ${name}`
-}
-
-/** OWASP Top 10 families (web, API, LLM, mobile, Kubernetes) by their short code, or any code naming OWASP. */
-const OWASP_CODE = /^(?:A\d{2}|API\d{1,2}|LLM\d{2}|M\d{1,2}|K\d{2})$|^OWASP\b/i
-const CWE_CODE = /^CWE-\d+$/i
-
-/**
- * The heading for a list of codes, naming the families actually present:
- * "OWASP codes", "OWASP and CWE codes", "OWASP and other codes", and so on.
- */
-export function codesHeading(codes: Iterable<string>): string {
-  const families = new Set<string>()
-  for (const c of codes) families.add(OWASP_CODE.test(c) ? 'OWASP' : CWE_CODE.test(c) ? 'CWE' : 'other')
-  const named = ['OWASP', 'CWE', 'other'].filter(f => families.has(f))
-  if (!named.length || (named.length === 1 && named[0] === 'other')) return 'Codes'
-  const list = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`
-  return `${list} codes`
 }
 
 export function basename(path: string): string {

@@ -85,9 +85,8 @@ function announceReport(result: GenerateResult, noOpen: boolean): void {
     return
   }
   say(`Report:   ${result.html}`)
-  if (result.option2) say(`Option 2: ${result.option2}`)
   say(`Findings: ${result.json}`)
-  if (!noOpen && process.stdout.isTTY) openInBrowser(result.option2 ?? result.html)
+  if (!noOpen && process.stdout.isTTY) openInBrowser(result.html)
 }
 
 function merge(base: RunLimits, over: Partial<RunLimits>): RunLimits {
@@ -677,7 +676,6 @@ async function report(args: ReportArgs): Promise<number> {
   const result = generateReport({
     runDir, reportsRoot, modelKey, secscanVersion: cliVersion(),
     stageDir: stage => paths.runPath(modelKey, stage),
-    option2: args.template === 2,
   })
   announceReport(result, args.noOpen)
   return result.written ? EXIT.complete : EXIT.failure

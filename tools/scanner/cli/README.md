@@ -127,23 +127,15 @@ reads only what the run already wrote; the code is in `tools/scanner/report/`.
   Stage 2 finding exactly as written plus one field, `location`, copied from
   the trace's last step. Findings are in report order: severity, then
   confidence, then file and line.
-- `report.html`: one self-contained summary page rendered from that same data
-  (report option 1, `report/src/option1-summary.ts`), with no network
-  requests. It shows status, scan gaps, the severity range (High, Medium,
-  Low), the ten most severe findings to review first (rank, severity,
-  vulnerability type, file, LLM confidence score), counts by vulnerability
-  type with their OWASP codes, the files with the most bugs, coverage, spend
-  against budget and token usage. There is no findings view in the page:
-  `findings.json` is the detailed record, and the review rows and severity
-  tiles open it in VS Code at the finding they point to.
-- `report-option-2.html` (only with `secscan report --template 2`): report
-  option 2 (`report/src/option2-zap-style.ts`), a plain white page styled after
-  ZAP's HTML reports: run and results tables, a severity doughnut, counts by
-  type as split severity bars, the ten files with the most bugs, and a
-  Vulnerability Impact table ranked by severity. Its impact text joins each
-  type's playbook scope line with the playbook agent's reason for picking it,
-  read from the run's outputs at render time; nothing is added to
-  `findings.json`. `report.html` stays option 1 while the two are compared.
+- `report.html`: the Vulnerability Scan Summary Report
+  (`report/src/report-page.ts`), one self-contained page with no network
+  requests, styled after ZAP's HTML reports. In order: Scan Results, a
+  severity doughnut, vulnerabilities by type as split severity bars, the ten
+  files with the most bugs, a Vulnerability Impact table ranked by severity,
+  and Run Details. `findings.json` is the detailed record: the page's only
+  links open it in VS Code at a finding. The impact text joins each type's
+  playbook scope line with the playbook agent's reason for picking it, read
+  from the run's outputs at render time; nothing is added to `findings.json`.
 - `<reports>/index.html`: rebuilt from every run's `findings.json`.
 
 Stage 2 may rate a finding critical. Only a run that has a critical finding

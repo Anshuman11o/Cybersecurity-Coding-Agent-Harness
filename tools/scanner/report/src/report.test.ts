@@ -493,7 +493,7 @@ test('byte-identical output for the same inputs, apart from generated_at', () =>
   assert.equal(strip(c.html, later), strip(a.html, NOW))
 }))
 
-test('the page links each review row to its finding\'s line in findings.json, and embeds no data', () => withRoot(root => {
+test('every link on the page opens findings.json in VS Code on a finding, and the page embeds no data', () => withRoot(root => {
   const run = makeRun(root, 'r1', { status: 'COMPLETE', done: ALL })
   const r = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW })
   assert.ok(r.written)
@@ -502,27 +502,28 @@ test('the page links each review row to its finding\'s line in findings.json, an
   const lines = text.split('\n')
   const html = readFileSync(r.html, 'utf-8')
   assert.ok(!html.includes('report-data'))
-  const rows = [...html.matchAll(/<a class="row-link" href="vscode&#58;\/\/file([^"]+):(\d+)">/g)]
-  assert.equal(rows.length, r.report.summary.review_first.length)
-  rows.forEach((m, i) => {
+  const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1])
+  const links = [...html.matchAll(/href="vscode&#58;\/\/file([^"]+):(\d+)"/g)]
+  assert.equal(links.length, hrefs.filter(h => !h.startsWith('data:')).length, 'no other kind of link')
+  assert.ok(links.length > r.report.summary.top_files.length)
+  for (const m of links) {
     assert.equal(decodeURI(m[1]), resolve(r.json))
     const line = Number(m[2])
-    assert.equal(lines[line - 1], '    {', 'the link lands on the finding\'s opening brace')
-    assert.equal(lines[line], `      "finding_id": "${r.report.summary.review_first[i]}",`)
-  })
+    if (line === 1) continue // "View detailed JSON bug report"
+    assert.equal(lines[line - 1], '    {', 'the link lands on a finding\'s opening brace')
+    assert.match(lines[line], /^ {6}"finding_id": /)
+  }
 }))
 
-test('option 2 is written beside report.html only when asked, and report.html stays option 1', () => withRoot(root => {
+test('report.html is the summary page and nothing is added to findings.json', () => withRoot(root => {
   const run = makeRun(root, 'r1', { status: 'COMPLETE', done: ALL })
-  const plain = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW })
-  assert.ok(plain.written && plain.option2 === undefined)
+  const r = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW })
+  assert.ok(r.written)
+  const html = readFileSync(r.html, 'utf-8')
+  assert.ok(html.includes('<h1>Vulnerability Scan Summary Report</h1>') && html.includes('Vulnerability Impact'))
+  assert.ok(html.indexOf('<h2>Scan Results</h2>') < html.indexOf('<h2>Run Details</h2>'), 'run details last')
   assert.ok(!existsSync(join(run.runDir, 'report-option-2.html')))
-  const both = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW, option2: true })
-  assert.ok(both.written && both.option2 === join(run.runDir, 'report-option-2.html'))
-  assert.equal(readFileSync(both.html, 'utf-8'), readFileSync(plain.html, 'utf-8'), 'report.html unchanged by option 2')
-  const two = readFileSync(both.option2!, 'utf-8')
-  assert.ok(two.includes('<h1>Vulnerability Scan Summary Report</h1>') && two.includes('Vulnerability Impact'))
-  assert.ok(!readFileSync(both.json, 'utf-8').includes('impact'), 'nothing added to findings.json')
+  assert.ok(!readFileSync(r.json, 'utf-8').includes('impact'))
 }))
 
 // ── Index ─────────────────────────────────────────────────────────────────

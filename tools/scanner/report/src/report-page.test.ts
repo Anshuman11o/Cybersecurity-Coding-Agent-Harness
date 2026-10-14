@@ -1,8 +1,9 @@
 /**
- * Report option 2 (ZAP-style summary) and the impact text it reads from the
- * scanner's outputs. Rendering and file reads only; no stage, model or network.
+ * report.html (the ZAP-style summary page) and the impact text it reads from
+ * the scanner's outputs. Rendering and file reads only; no stage, model or
+ * network.
  *
- *   npx tsx --test src/option2.test.ts
+ *   npx tsx --test src/report-page.test.ts
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -11,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { escapeHtml } from './html.js'
 import { classImpacts, plainText, scopeLine, type ClassImpact } from './impact.js'
-import { impactOrder, renderOption2Html } from './option2-zap-style.js'
+import { impactOrder, renderReportHtml } from './report-page.js'
 import { findingLines, serializeReport, vscodeHref } from './serialize.js'
 import { makeFinding, makeReport, realisticReport } from './fixtures.js'
 import type { FindingsReport } from './types.js'
@@ -27,24 +28,26 @@ function impactsFor(r: FindingsReport): Record<string, ClassImpact> {
   return out
 }
 
-test('option 2: one light page, every section, no requests, no embedded data', () => {
+test('report page: one light page, every section, no requests, no embedded data', () => {
   const r = realisticReport()
-  const html = renderOption2Html(r, linksFor(r), impactsFor(r))
-  for (const h2 of ['Summary', 'Vulnerability Severity', 'Vulnerabilities by Type', 'Top 10 Files with the Most Bugs', 'Vulnerability Impact']) {
+  const html = renderReportHtml(r, linksFor(r), impactsFor(r))
+  for (const h2 of ['Scan Results', 'Vulnerability Severity', 'Vulnerabilities by Type', 'Top 10 Files with the Most Bugs', 'Vulnerability Impact', 'Run Details']) {
     assert.ok(html.includes(`<h2>${h2}`), h2)
   }
-  assert.ok(html.includes('<h3>Run details</h3>') && html.includes('<h3>Scan results</h3>'))
   assert.ok(html.includes('background: #fff') && html.includes('--navy: #164194'))
   assert.ok(!html.includes('://'), 'no literal scheme://, VS Code links included')
   assert.ok(!/\ssrc=/.test(html) && !/<link[^>]+stylesheet/.test(html))
   assert.equal(count(html, '<script'), 1)
   assert.ok(!html.includes('report-data') && !html.includes('JSON.parse') && !html.includes('innerHTML'))
-  assert.equal(renderOption2Html(r, linksFor(r), impactsFor(r)), renderOption2Html(structuredClone(r), linksFor(r), impactsFor(r)), 'deterministic')
+  assert.ok(html.includes(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">`))
+  assert.ok(html.indexOf('<h2>Scan Results</h2>') < html.indexOf('<h2>Vulnerability Severity</h2>'), 'scan results first')
+  assert.ok(html.indexOf('<h2>Vulnerability Impact') < html.indexOf('<h2>Run Details</h2>'), 'run details last')
+  assert.equal(renderReportHtml(r, linksFor(r), impactsFor(r)), renderReportHtml(structuredClone(r), linksFor(r), impactsFor(r)), 'deterministic')
 })
 
-test('option 2: summary tables carry run, cost, usage, results and coverage', () => {
+test('report page: summary tables carry run, cost, usage, results and coverage', () => {
   const r = realisticReport()
-  const html = renderOption2Html(r, null, {})
+  const html = renderReportHtml(r, null, {})
   for (const field of ['Target', 'Branch @ commit', 'Run ID', 'Status', 'Started', 'Model', 'secscan version', 'Budget', 'Spent', 'Input tokens', 'Output tokens', 'Wall clock',
     'Vulnerabilities', 'Distinct locations', 'Files with findings', 'Most severe level', 'Most common type', 'Files in repo', 'In scope', 'Scanned', 'Not scanned']) {
     assert.ok(html.includes(`<td class="field">${field}</td>`), field)
@@ -54,10 +57,10 @@ test('option 2: summary tables carry run, cost, usage, results and coverage', ()
   assert.ok(html.includes('Why the scan is not complete') && html.includes('Continue with'))
 })
 
-test('option 2: doughnut and legend match the severity counts; legend links open findings.json', () => {
+test('report page: doughnut and legend match the severity counts; legend links open findings.json', () => {
   const r = realisticReport()
   const links = linksFor(r)
-  const html = renderOption2Html(r, links, impactsFor(r))
+  const html = renderReportHtml(r, links, impactsFor(r))
   const present = (['critical', 'high', 'medium', 'low'] as const).filter(s => (r.summary.by_severity[s] ?? 0) > 0)
   assert.equal(count(html, '<circle '), present.length)
   for (const s of present) {
@@ -69,9 +72,9 @@ test('option 2: doughnut and legend match the severity counts; legend links open
   assert.ok(html.includes(`class="donut-total">${r.summary.findings_total}<`))
 })
 
-test('option 2: by-type bars put each severity count in its own coloured segment', () => {
+test('report page: by-type bars put each severity count in its own coloured segment', () => {
   const r = realisticReport()
-  const html = renderOption2Html(r, null, {})
+  const html = renderReportHtml(r, null, {})
   const section = html.slice(html.indexOf('Vulnerabilities by Type'), html.indexOf('Top 10 Files'))
   for (const row of r.summary.by_class) {
     const tr = section.slice(section.indexOf(`<td class="type-name">${escapeHtml(row.class)}</td>`))
@@ -85,9 +88,9 @@ test('option 2: by-type bars put each severity count in its own coloured segment
   }
 })
 
-test('option 2: impact table ranks types by highs, then mediums, then lows, and shows scope then codebase reason', () => {
+test('report page: impact table ranks types by highs, then mediums, then lows, and shows scope then codebase reason', () => {
   const r = realisticReport()
-  const html = renderOption2Html(r, linksFor(r), impactsFor(r))
+  const html = renderReportHtml(r, linksFor(r), impactsFor(r))
   const order = impactOrder(r.summary.by_class)
   for (let i = 1; i < order.length; i++) {
     const [a, b] = [order[i - 1].by_severity, order[i].by_severity]
@@ -105,25 +108,25 @@ test('option 2: impact table ranks types by highs, then mediums, then lows, and 
   }
   const top = escapeHtml(order[0].class)
   assert.ok(section.includes(`<p>Scope of ${top}.</p><p class="ctx">In this codebase: Why ${top} applies here.</p>`))
-  const bare = renderOption2Html(r, null, {})
+  const bare = renderReportHtml(r, null, {})
   assert.ok(bare.includes('No description recorded for this type.'))
 })
 
-test('option 2: no critical anywhere when the run has none; hostile text stays text', () => {
+test('report page: no critical anywhere when the run has none; hostile text stays text', () => {
   const plain = makeReport([
     makeFinding({ id: 'F1', title: 'A', severity: 'high', confidence: 0.9, file: `a${HOSTILE}.ts`, line: 1, classes: [`x${HOSTILE}`] }),
     makeFinding({ id: 'F2', title: 'B', severity: 'low', confidence: 0.3, file: 'b.ts', line: 2, classes: ['xss'] }),
   ])
-  const html = renderOption2Html(plain, linksFor(plain), { [`x${HOSTILE}`]: { scope: HOSTILE, reason: HOSTILE } })
+  const html = renderReportHtml(plain, linksFor(plain), { [`x${HOSTILE}`]: { scope: HOSTILE, reason: HOSTILE } })
   assert.ok(!html.includes('Critical') && !html.includes('risk-critical"') && !html.includes('seg-critical"'))
   assert.ok(!html.includes('<img src=x') && !html.includes('<script>alert(1)') && !html.includes('"onmouseover="x'))
   assert.equal(count(html, '<script'), 1)
 })
 
-test('option 2: title, the findings.json link and note on top, and a link per top file', () => {
+test('report page: title, the findings.json link and note on top, and a link per top file', () => {
   const r = realisticReport()
   const links = linksFor(r)
-  const html = renderOption2Html(r, links, impactsFor(r))
+  const html = renderReportHtml(r, links, impactsFor(r))
   assert.ok(html.includes('<h1>Vulnerability Scan Summary Report</h1>') && !html.includes('secscan Scanning Report'))
   assert.ok(html.includes(`<a href="${escapeHtml(vscodeHref(PATH, 1))}">View detailed JSON bug report on VS Code</a>`))
   assert.ok(html.includes('Every link in this report opens the detailed bug report, findings.json, in VS Code'))
@@ -132,13 +135,13 @@ test('option 2: title, the findings.json link and note on top, and a link per to
     assert.ok(html.includes(`<a href="${escapeHtml(vscodeHref(PATH, links.findingLines[first]))}" title="Open this file's most severe finding in findings.json">${escapeHtml(f.file)}</a>`), f.file)
   }
   assert.ok(!/\d+ high · \d+ medium/.test(html), 'no per-type counts under the impact names')
-  const bare = renderOption2Html(r, null, {})
+  const bare = renderReportHtml(r, null, {})
   assert.ok(!bare.includes('View detailed JSON') && !bare.includes('vscode'))
 })
 
-test('option 2: zero scanned and no findings render without a chart or tables', () => {
+test('report page: zero scanned and no findings render without a chart or tables', () => {
   const r = makeReport([], { status: 'INCOMPLETE', coverage: { scanned: 0, in_scope: 40, not_scanned: 40, not_scanned_by_reason: { provider_quota: 40 } } })
-  const html = renderOption2Html(r, null, {})
+  const html = renderReportHtml(r, null, {})
   assert.ok(html.includes('No files were scanned, so there is nothing to chart.'))
   assert.ok(!html.includes('<circle') && !html.includes('Vulnerability Impact') && !html.includes('Files with the Most Bugs'))
 })

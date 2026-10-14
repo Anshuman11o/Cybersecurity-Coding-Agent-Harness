@@ -1,17 +1,18 @@
 /**
- * Report option 2: a plain, light page styled after ZAP's HTML reports
- * (the Modern report's Corporate theme for tables and colours, the High Level
- * report for the severity chart and the Vulnerability Impact table).
+ * report.html: the Vulnerability Scan Summary Report. A plain, light page
+ * styled after ZAP's HTML reports (the Modern report's Corporate theme for
+ * tables and colours, the High Level report for the severity chart and the
+ * Vulnerability Impact table).
  *
- * One summary page: run and results tables, a severity doughnut, counts by
+ * One summary page, in order: scan results, a severity doughnut, counts by
  * vulnerability type as split severity bars, the ten files with the most bugs,
- * and an impact table ranked by severity. The only links open findings.json in
- * VS Code at a finding. Charts are inline SVG drawn here at build time: ZAP
- * loads Chart.js, but this page makes no requests.
+ * an impact table ranked by severity, and the run details. findings.json is the
+ * detailed record; the only links open it in VS Code at a finding. Charts are
+ * inline SVG drawn here at build time: ZAP loads Chart.js, but this page makes
+ * no requests.
  *
- * Same data as option 1 (the FindingsReport), plus the per-type impact text
- * read from the scanner's own outputs (impact.ts), which is never written to
- * findings.json.
+ * Rendered from the FindingsReport plus the per-type impact text read from the
+ * scanner's own outputs (impact.ts), which is never written to findings.json.
  *
  * Zero dependencies.
  */
@@ -21,8 +22,7 @@ import {
   gapShort, notScannedBreakdown, countOf, basename, type Html,
 } from './html.js'
 import type { ClassImpact } from './impact.js'
-import type { ReportLinks } from './option1-summary.js'
-import { vscodeHref } from './serialize.js'
+import { vscodeHref, type ReportLinks } from './serialize.js'
 import { shownSeverities, type ClassRow, type FindingsReport, type Severity, type SeverityCounts } from './types.js'
 
 /** ZAP Corporate theme: navy headers, zebra rows, red / orange / yellow risk colours. */
@@ -68,8 +68,6 @@ table.zap { width: 100%; border-collapse: collapse; background: #fff; }
 .status-INCOMPLETE { color: #b45309; font-weight: 700; }
 .status-UNKNOWN { color: var(--muted); font-weight: 700; }
 
-.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
-.pair h3 { margin: 0 0 8px; color: var(--navy); font-size: 16px; font-weight: 700; }
 
 /* Severity chart, boxed as in ZAP's High Level report */
 .chart-box { display: flex; align-items: center; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.16); border: 1px solid #dee2e6; border-radius: 5px; }
@@ -108,7 +106,6 @@ table.zap { width: 100%; border-collapse: collapse; background: #fff; }
 footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
 
 @media (max-width: 760px) {
-  .pair { grid-template-columns: minmax(0, 1fr); }
   .zap th, .zap td { padding: 8px 10px; }
   .zap td.type-name { white-space: normal; overflow-wrap: anywhere; }
   .zap td.bars { width: auto; }
@@ -149,10 +146,6 @@ function row(field: string, value: Html | string): Html {
   return h`<tr><td class="field">${field}</td><td>${value}</td></tr>`
 }
 
-function kvTable(title: string, rows: Html[]): Html {
-  return h`<div><h3>${title}</h3><table class="zap"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table></div>`
-}
-
 // ── Header and summary tables ──────────────────────────────────────────────
 
 function titleBlock(r: FindingsReport, links: ReportLinks | null): Html {
@@ -167,30 +160,13 @@ function titleBlock(r: FindingsReport, links: ReportLinks | null): Html {
 }
 
 function summaryTables(r: FindingsReport): Html {
-  const run = r.run
   const s = r.summary
   const c = s.coverage
-  const { spent_usd: spent, budget_usd: budget } = s.cost
   const sevs = shownSeverities(s.by_severity)
   const worst = sevs.find(v => countOf(s.by_severity, v) > 0)
   const common = [...s.by_class].sort((a, b) => b.count - a.count || a.class.localeCompare(b.class))[0]
   const breakdown = notScannedBreakdown(c.not_scanned_by_reason)
-  const pct = isNum(spent) && isNum(budget) && budget > 0 ? ` (${Math.round((spent / budget) * 100)}% of budget)` : ''
 
-  const runRows = [
-    row('Target', h`<span class="mono">${run.target.root ?? UNKNOWN}</span>`),
-    row('Branch @ commit', h`<span class="mono">${branchAtCommit(run.target.branch, run.target.commit)}</span>`),
-    row('Run ID', h`<span class="mono">${run.id}</span>`),
-    row('Status', h`<span class="status-${['COMPLETE', 'INCOMPLETE'].includes(run.status) ? run.status : 'UNKNOWN'}">${run.status}</span>${r.scan_gaps[0] ? h` <span class="muted">(${gapShort(r.scan_gaps[0].reason)})</span>` : ''}`),
-    row('Started', timeEl(run.started_at)),
-    row('Model', run.model.label || run.model.name || run.model.key || UNKNOWN),
-    row('secscan version', r.secscan_version),
-    row('Budget', fmtUsd(budget)),
-    row('Spent', `${fmtUsd(spent)}${pct}`),
-    row('Input tokens', isNum(s.usage.input_tokens) ? `${fmtTokens(s.usage.input_tokens)} (${fmtInt(s.usage.input_tokens)})` : UNKNOWN),
-    row('Output tokens', isNum(s.usage.output_tokens) ? `${fmtTokens(s.usage.output_tokens)} (${fmtInt(s.usage.output_tokens)})` : UNKNOWN),
-    row('Wall clock', fmtDuration(s.usage.wall_clock_seconds)),
-  ]
   const scanned = c.scanned === 0
   const resultRows = [
     row('Vulnerabilities', scanned ? 'none (no files were scanned)' : fmtInt(s.findings_total)),
@@ -210,9 +186,33 @@ function summaryTables(r: FindingsReport): Html {
   ${r.resume_command ? row('Continue with', h`<span class="mono">${r.resume_command}</span>`) : ''}
 </tbody></table>`
     : ''
-  return h`<h2>Summary</h2>
-<div class="pair">${kvTable('Run details', runRows)}${kvTable('Scan results', resultRows)}</div>
+  return h`<h2>Scan Results</h2>
+<table class="zap"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>${resultRows}</tbody></table>
 ${gaps}`
+}
+
+/** Run facts, cost and usage: kept for the record, at the end of the page. */
+function runDetails(r: FindingsReport): Html {
+  const run = r.run
+  const s = r.summary
+  const { spent_usd: spent, budget_usd: budget } = s.cost
+  const pct = isNum(spent) && isNum(budget) && budget > 0 ? ` (${Math.round((spent / budget) * 100)}% of budget)` : ''
+  const rows = [
+    row('Target', h`<span class="mono">${run.target.root ?? UNKNOWN}</span>`),
+    row('Branch @ commit', h`<span class="mono">${branchAtCommit(run.target.branch, run.target.commit)}</span>`),
+    row('Run ID', h`<span class="mono">${run.id}</span>`),
+    row('Status', h`<span class="status-${['COMPLETE', 'INCOMPLETE'].includes(run.status) ? run.status : 'UNKNOWN'}">${run.status}</span>${r.scan_gaps[0] ? h` <span class="muted">(${gapShort(r.scan_gaps[0].reason)})</span>` : ''}`),
+    row('Started', timeEl(run.started_at)),
+    row('Model', run.model.label || run.model.name || run.model.key || UNKNOWN),
+    row('secscan version', r.secscan_version),
+    row('Budget', fmtUsd(budget)),
+    row('Spent', `${fmtUsd(spent)}${pct}`),
+    row('Input tokens', isNum(s.usage.input_tokens) ? `${fmtTokens(s.usage.input_tokens)} (${fmtInt(s.usage.input_tokens)})` : UNKNOWN),
+    row('Output tokens', isNum(s.usage.output_tokens) ? `${fmtTokens(s.usage.output_tokens)} (${fmtInt(s.usage.output_tokens)})` : UNKNOWN),
+    row('Wall clock', fmtDuration(s.usage.wall_clock_seconds)),
+  ]
+  return h`<h2>Run Details</h2>
+<table class="zap"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 
 // ── Severity doughnut ──────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ function impactTable(r: FindingsReport, impacts: Record<string, ClassImpact>, hr
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
-export function renderOption2Html(report: FindingsReport, links: ReportLinks | null, impacts: Record<string, ClassImpact>): string {
+export function renderReportHtml(report: FindingsReport, links: ReportLinks | null, impacts: Record<string, ClassImpact>): string {
   const r = report
   const href: FindingHref = i => {
     const line = links?.findingLines[i]
@@ -366,6 +366,7 @@ ${severityChart(r, href)}
 ${byType(r)}
 ${topFiles(r, href)}
 ${impactTable(r, impacts, href)}
+${runDetails(r)}
 <footer>Generated by secscan ${r.secscan_version} on ${timeEl(r.generated_at)}. Every finding, in full, is in findings.json next to this file${links ? '; links open it in VS Code' : ''}. Impact text comes from the scanner's playbooks and its playbook agent.</footer>
 </main>
 <script>${raw(JS)}</script>
