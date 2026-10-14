@@ -24,6 +24,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { androidConfigSignals } from './android-config.js'
 import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
@@ -79,7 +80,7 @@ const SKIP_REASONS: Record<string, string> = {
   toml: 'Declarative config file — no executable logic',
   sql: 'Declarative query/schema file — not an independent executable entrypoint',
   protobuf: 'Schema definition — no executable logic',
-  xml: 'Declarative data/config file — no executable logic',
+  xml: 'XML outside platform manifests and res/xml configuration — requires a consuming execution or render context',
   ini: 'Declarative config file — no executable logic',
   properties: 'Declarative config file — no executable logic',
   [MANIFEST_LANGUAGE]: 'Dependency manifest — declarative; dependency risk is not judged per file',
@@ -581,6 +582,8 @@ async function main() {
     } else if (fileInfo.oversize) {
       disposition = 'skip'
       skipReason = oversizeSkipReason(fileInfo.bytes, inventory.options.max_file_bytes)
+    } else if (androidConfigSignals(targetFile, language).length) {
+      disposition = 'hunt'
     } else if (isNonExecutable) {
       disposition = 'skip'
       skipReason = getSkipReason(language)
@@ -592,7 +595,7 @@ async function main() {
     }
 
     // Signal lookup from Stage 0
-    const signals = fileSignals.files[targetFile] ?? []
+    const signals = [...new Set([...(fileSignals.files[targetFile] ?? []), ...androidConfigSignals(targetFile, language)])]
 
     // Class narrowing via signal→class table
     const { classes, class_basis } = computeClasses(signals, signalClassMap, allClassIds)

@@ -665,6 +665,64 @@
         "\\b(?:debug|DEBUG|enable_debug|TF_LOG)\\s*=\\s*(?:true|\"(?:true|DEBUG|TRACE)\")",
         "\\b(?:logging|access_logs|flow_log)\\s*\\{"
       ]
+    },
+    "kotlin": {
+      "route_handler": [
+        "\\b(?:Activity|AppCompatActivity|ComponentActivity|Fragment|BroadcastReceiver|ContentProvider|Service)\\b",
+        "\\bfun\\s+(?:onCreate|onReceive|onStartCommand|query|insert|update|delete)\\s*\\(",
+        "\\bregisterReceiver\\s*\\("
+      ],
+      "db_query": [
+        "\\.(?:rawQuery|execSQL|query)\\s*\\(",
+        "@(?:Query|RawQuery)\\b",
+        "\\bSQLiteDatabase\\b"
+      ],
+      "model_schema": [
+        "@(?:Entity|Database|Dao)\\b",
+        "\\bSQLiteOpenHelper\\b"
+      ],
+      "model_write": [
+        "\\.(?:insert|insertOrThrow|update|delete|putString|putStringSet)\\s*\\(",
+        "@(?:Insert|Update|Delete)\\b"
+      ],
+      "http_outbound": [
+        "\\b(?:OkHttpClient|HttpURLConnection|HttpsURLConnection|URL|Retrofit)\\b",
+        "\\.(?:openConnection|newCall|loadUrl)\\s*\\("
+      ],
+      "auth_check": [
+        "\\b(?:checkSelfPermission|checkCallingPermission|enforceCallingPermission|BiometricPrompt|KeyguardManager|HostnameVerifier|X509TrustManager|checkServerTrusted|checkClientTrusted)\\b",
+        "\\b(?:getSharedPreferences|SharedPreferences|setPrimaryClip|ClipData)\\b",
+        "\\bContext\\.RECEIVER_EXPORTED\\b"
+      ],
+      "crypto_op": [
+        "\\b(?:MessageDigest|Cipher|Mac|SecretKeySpec|KeyStore|SecureRandom|X509TrustManager|HostnameVerifier|SSLContext)\\b",
+        "\\b(?:checkServerTrusted|checkClientTrusted|setHostnameVerifier|setSSLSocketFactory)\\s*\\("
+      ],
+      "html_sink": [
+        "\\b(?:WebView|WebSettings|JavascriptInterface)\\b",
+        "\\.(?:addJavascriptInterface|evaluateJavascript|loadData|loadDataWithBaseURL|loadUrl|setJavaScriptEnabled|setAllowFileAccess|setAllowUniversalAccessFromFileURLs)\\s*\\(",
+        "\\.(?:javaScriptEnabled|allowFileAccess|allowUniversalAccessFromFileURLs|mixedContentMode)\\s*="
+      ],
+      "dynamic_exec": [
+        "\\bRuntime\\.getRuntime\\s*\\(\\)\\s*\\.exec\\s*\\(",
+        "\\bProcessBuilder\\s*\\(",
+        "\\b(?:DexClassLoader|PathClassLoader)\\s*\\("
+      ],
+      "deserialize": [
+        "\\b(?:ObjectInputStream|XMLDecoder)\\s*\\(",
+        "\\.(?:readObject|fromJson|decodeFromString|getSerializableExtra|getParcelableExtra)\\s*\\("
+      ],
+      "file_io": [
+        "\\b(?:getSharedPreferences|SharedPreferences|FileOutputStream|FileInputStream|openFileOutput|openFileInput|ClipboardManager|ClipData|setPrimaryClip)\\b",
+        "\\.(?:writeText|writeBytes|readText|readBytes|putString|putStringSet)\\s*\\("
+      ],
+      "llm_call": [
+        "\\b(?:OpenAI|GenerativeModel|ChatCompletionRequest)\\b",
+        "\\.(?:generateContent|chatCompletion)\\s*\\("
+      ],
+      "logging": [
+        "\\b(?:Log|Timber)\\.(?:v|d|i|w|e|wtf)\\s*\\("
+      ]
     }
   }
 }
