@@ -50,6 +50,8 @@ the stages. A non-interactive run requires the key to be set already.
 | `--budget <usd>` | Total run budget, including recon and earlier passes; alias `--max-cost` |
 | `--out <dir>` | Reports folder; default `<target>/.secscan/` |
 | `--exclude <path-or-glob>` | Exclude files or folders, repeatable |
+| `--drop-class <id>` | Remove a selected class before the hunt; repeatable |
+| `--add-class <text>` | Add a class by catalog ID, number, code, alias or free text; repeatable |
 | `--yes` | Skip all prompts; requires an explicit `--budget` unless resuming |
 | `--resume [run-id]` | Resume that INCOMPLETE run, or the latest INCOMPLETE run in the reports folder |
 | `--paths <a,b>`, `--include <glob>` | Restrict scope; repeatable |
@@ -185,6 +187,70 @@ resume; `--max-files` can be raised to admit more files.
 
 Exit codes: `0` complete or cancelled at a prompt, `3` incomplete,
 `130` interrupted, `2` usage error, `1` stage failure.
+
+## Round 2: review classes and budget
+
+After recon, the playbook agent selects classes and researches any new guidance.
+Product runs always run that agent. Before the hunt, Round 2 shows the selected
+classes and their file counts, skipped files, total spend so far, and the remaining
+input/output estimate. It offers start, delete, add, budget, limits, save and quit.
+
+Deleting a class or adding a catalog class costs nothing. A free-text addition
+first makes a metered resolution call; a new class then needs web research. The
+screen asks before those calls and checks their reservations against the total
+budget. Research retries once automatically. A failed edit keeps the previous
+selection and records any money already spent. Files left without a class become
+skips. Every successful class change reruns lane selection and planning without
+model calls.
+
+Product hunts start route handlers first, then files with more risk signals,
+breaking ties by path. A partial budget keeps every admitted file in the plan;
+the spend gate stops work at the cap and records the unscanned files as INCOMPLETE.
+The screen blocks a start when the first file's reservation cannot fit, and asks
+for confirmation when the budget fits that reservation but is below the input
+estimate. Once the hunt starts, resume freezes classes and allows budget edits.
+
+The screen labels the full-run cost `Total estimate:` and shows `Current budget:`
+immediately before the coverage message. Partial coverage says "Budget will not
+cover all M files" and "Estimated coverage: N of M files, scanned by severity
+first." This label refers to the route-handler/signal-count ordering above;
+finding severity is not known before scanning.
+
+Below the estimated input-cost threshold, the warning says:
+
+```text
+Budget will not cover even the estimated input cost for all files.
+Raise the total budget to cover at least partial scan.
+Starting now will allow only a partial scan.
+```
+
+If the budget cannot start the scan, the message says:
+
+```text
+Scan cannot start with this budget.
+Raise the total budget to at least complete partial scan.
+```
+
+These warnings omit minimum-dollar recommendations and reservation breakdowns;
+the total estimate and current budget still appear above them. See the
+[budget-state table](../../../docs/architecture/round-2-class-review.md#budget-messages-b-is-the-total-budget-including-what-is-already-spent)
+for the exact conditions and Enter behavior.
+
+For CI, use `--yes --budget <usd>` with repeatable `--drop-class` and
+`--add-class` flags. Failure to add a requested class exits before the hunt.
+The save action writes the reviewed class edits into the config:
+
+```json
+{
+  "classes": { "drop": ["logging-monitoring"], "add": ["injection"] },
+  "limits": { "max_cost": 5 }
+}
+```
+
+The run preserves the agent's original selection, the human edit audit and the
+final selection under `stage-playbook-agent/`. The run record also keeps the
+review and the exact class rows confirmed. Lab and benchmark `run.sh` workflows
+retain their existing class selection and inventory order.
 
 ## Configuration and lab options
 

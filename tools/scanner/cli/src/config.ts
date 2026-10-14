@@ -25,6 +25,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { createHash } from 'crypto'
+import type { ClassEdits } from './args.js'
 import {
   parseCost, parsePositiveInt, parseSize, parseDuration, normalizeScopePath, compileGlob,
   type RunLimits,
@@ -34,6 +35,7 @@ export const CONFIG_FILENAME = 'secscan.config.json'
 
 export interface SecscanConfig {
   model?: string
+  classes?: ClassEdits
   paths?: string[]
   include?: string[]
   exclude?: string[]
@@ -49,10 +51,11 @@ export interface SecscanConfig {
 /** The config after validation: limits parsed to their canonical units. */
 export interface ResolvedConfig {
   model?: string
+  classes?: ClassEdits
   limits: Partial<RunLimits>
 }
 
-const TOP_KEYS = new Set(['$schema', '_comment', 'model', 'paths', 'include', 'exclude', 'limits'])
+const TOP_KEYS = new Set(['$schema', '_comment', 'model', 'paths', 'include', 'exclude', 'limits', 'classes'])
 const LIMIT_KEYS = new Set(['max_cost', 'max_files', 'max_file_size', 'timeout', 'concurrency'])
 const FORBIDDEN: Record<string, string> = {
   base_url: 'an endpoint',
@@ -90,6 +93,19 @@ export function validateConfig(raw: unknown, where = CONFIG_FILENAME): ResolvedC
   if (obj.model !== undefined) {
     if (typeof obj.model !== 'string' || !obj.model) throw new Error(`${where}: "model" must be a model key string`)
     out.model = obj.model
+  }
+  if (obj.classes !== undefined) {
+    const classes = obj.classes as Record<string, unknown>
+    if (classes == null || typeof classes !== 'object' || Array.isArray(classes)) {
+      throw new Error(`${where}: "classes" must be an object`)
+    }
+    out.classes = {}
+    for (const key of Object.keys(classes)) {
+      if (key !== 'drop' && key !== 'add') throw new Error(`${where}: unknown classes field "${key}" (expected drop, add)`)
+      const values = stringList(classes[key], `classes.${key}`)
+      if (values.some(value => !value.trim())) throw new Error(`${where}: "classes.${key}" must contain non-empty strings`)
+      out.classes[key] = [...values]
+    }
   }
   if (obj.paths !== undefined) out.limits.paths = stringList(obj.paths, 'paths').map(normalizeScopePath).filter(Boolean)
   if (obj.include !== undefined) {
@@ -139,10 +155,15 @@ export function loadConfig(path: string): LoadedConfig | null {
   }
 }
 
-/** The file [s] writes: the confirmed model, scope and limits, nothing else. */
-export function configFromRun(model: string | null, limits: RunLimits): SecscanConfig {
+/** The file [s] writes: the confirmed model, scope, limits and reviewed class edits. */
+export function configFromRun(model: string | null, limits: RunLimits, classes?: ClassEdits): SecscanConfig {
   const cfg: SecscanConfig = {}
   if (model) cfg.model = model
+  if (classes) {
+    cfg.classes = {}
+    if (classes.drop !== undefined) cfg.classes.drop = [...classes.drop]
+    if (classes.add !== undefined) cfg.classes.add = [...classes.add]
+  }
   if (limits.paths.length) cfg.paths = limits.paths
   if (limits.include.length) cfg.include = limits.include
   if (limits.exclude.length) cfg.exclude = limits.exclude

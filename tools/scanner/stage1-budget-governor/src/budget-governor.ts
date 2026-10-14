@@ -571,13 +571,14 @@ async function main() {
  * Load playbook text sizes from the per-file stage2 directory.
  * Returns a map of playbook module name → character count.
  */
-function loadPlaybookCharSizes(): Map<string, number> {
+function loadPlaybookCharSizes(selected?: ReadonlySet<string>): Map<string, number> {
   const playbooksDir = join(REPO_ROOT, 'tools/scanner/stage2-hunt-lanes-perfile/src/playbooks')
   const sizes = new Map<string, number>()
   const entries = readdirSync(playbooksDir).filter((f: string) => f.endsWith('.ts'))
   for (const entry of entries) {
-    const content = readFileSync(join(playbooksDir, entry), 'utf-8')
     const modName = entry.replace(/\.ts$/, '')
+    if (selected && !selected.has(modName)) continue
+    const content = readFileSync(join(playbooksDir, entry), 'utf-8')
     sizes.set(modName, content.length)
   }
   return sizes
@@ -619,13 +620,24 @@ function computeBudgetPlanV2(): BudgetPlanV2 {
   const targetDir = assignments.target_dir
   const huntLanes = assignments.lanes.filter((l: any) => l.disposition === 'hunt')
 
-  // Load playbook sizes from stage2 source
-  const playbookSizes = loadPlaybookCharSizes()
-
   // Load vuln class registry to map class ids → playbook modules
   const vulnClassesPath = join(REPO_ROOT, 'tools/scanner/shared/vuln-classes.json')
   const vulnClasses = JSON.parse(readFileSync(vulnClassesPath, 'utf-8')) as Record<string, { playbook: string; codes: string[] }>
-  addOverlayPlaybookSizes(vulnClasses, playbookSizes, readClassesOverlay(PROVIDER),
+  const overlay = readClassesOverlay(PROVIDER)
+  // The overlay grows across review edits. Only classes carried by a hunt lane
+  // may cause cached playbook reads; a deleted class can have an expired cache.
+  const selected = getRunContext().profile === 'product'
+    ? new Set<string>(huntLanes.flatMap((lane: any) => lane.classes?.length ? lane.classes :
+      lane.categories.flatMap((category: any) => {
+        const id = Object.entries({ ...vulnClasses, ...overlay }).find(([, entry]) => entry.codes.includes(category.code))?.[0]
+        return id ? [id] : []
+      })))
+    : undefined
+  const modules = selected ? new Set([...selected].flatMap(id => vulnClasses[id] ? [vulnClasses[id].playbook] : [])) : undefined
+  const playbookSizes = loadPlaybookCharSizes(modules)
+  const selectedOverlay = selected && overlay
+    ? Object.fromEntries(Object.entries(overlay).filter(([id]) => selected.has(id))) : overlay
+  addOverlayPlaybookSizes(vulnClasses, playbookSizes, selectedOverlay,
     JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/signal-classes.json'), 'utf8')))
 
   // Boilerplate char budget (constant across all chunks, same as stage2)
@@ -790,7 +802,7 @@ export async function computeScanPlanV2(): Promise<ScanPlan> {
   const profile = readApiProfile(join(runPath(PROVIDER, 'stage0-recon'), API_PROFILE_FILE))
   const ratios = resolveEstimateRatios(PROVIDER, profile, ctx.reportsRoot, model, EFFORT)
   const {
-    buildLanePrompts, followUpTemplateBytes, loadPlaybooksForClasses, loadArchSummarySnippet, DEFAULT_OUTPUT_TOKEN_CAP,
+    buildLanePrompts, followUpTemplateBytes, loadPlaybooksForClasses, loadArchSummarySnippet, DEFAULT_OUTPUT_TOKEN_CAP, loadCheckpoint,
   } = await import('../../stage2-hunt-lanes-perfile/src/hunt-executor.js')
   const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/vuln-classes.json'), 'utf8')) as VulnClassRegistry
   const archPath = assignments.source_stage0_run.startsWith('/')
@@ -841,6 +853,10 @@ export async function computeScanPlanV2(): Promise<ScanPlan> {
     model,
     assignmentsPath,
     assignmentsGeneratedAt: assignments.generated_at,
+    profile: ctx.profile,
+    laneRisk: new Map(huntLanes.map(l => [l.lane_id, { signals: l.signals ?? [], chunks: l.chunk_plan.chunks.length }])),
+    completedLaneIds: ctx.profile === 'product' && ctx.resume
+      ? loadCheckpoint(runPath(PROVIDER, 'stage2-hunt-lanes-perfile'), false)?.completedLaneIds : undefined,
     lanes,
     limits,
     vendorConcurrencyCeiling: maxConcurrencyFor(PROVIDER),

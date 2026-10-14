@@ -19,6 +19,46 @@ export interface LaneLite {
   target_file: string
   disposition: 'hunt' | 'skip'
   skip_reason: string | null
+  classes?: string[]
+  chunk_plan?: { total_chunks: number; chunks?: unknown[] }
+}
+
+export interface ClassRow {
+  id: string
+  files: number
+  added_by_user: boolean
+  source?: string
+  all_files: boolean
+}
+
+export interface BudgetMessage {
+  kind: 'full' | 'partial' | 'low' | 'blocked' | 'empty' | 'unpriced'
+  text: string
+  can_start: boolean
+  requires_confirmation: boolean
+  input_threshold_usd: number | null
+  first_start_usd: number | null
+}
+
+export function budgetMessage(input: {
+  cap: number | null; total: number | null; spent: number; inputThreshold: number | null
+  firstStart: number | null; files: number; withinCap: number | null; noClasses?: boolean
+}): BudgetMessage {
+  const base = { input_threshold_usd: input.inputThreshold, first_start_usd: input.firstStart }
+  const result = (kind: BudgetMessage['kind'], text: string, can_start = true, requires_confirmation = false): BudgetMessage =>
+    ({ ...base, kind, text, can_start, requires_confirmation })
+  if (input.noClasses) return result('empty', 'No classes selected; add a class before starting.', false)
+  if (input.files === 0) return result('empty', 'No files remain to scan.', false)
+  if (input.cap != null && input.cap <= input.spent) return result('blocked', 'Scan cannot start with this budget.\nRaise the total budget to at least complete partial scan.', false)
+  if (input.cap != null && input.firstStart != null && input.cap < input.firstStart) {
+    return result('blocked', 'Scan cannot start with this budget.\nRaise the total budget to at least complete partial scan.', false)
+  }
+  if (input.total == null) return result('unpriced', 'The scan estimate is unavailable.', false)
+  if (input.cap == null || input.cap >= input.total) return result('full', `Budget covers the estimated cost of all ${input.files} files.`)
+  if (input.inputThreshold != null && input.cap < input.inputThreshold) {
+    return result('low', 'Budget will not cover even the estimated input cost for all files.\nRaise the total budget to cover at least partial scan.\nStarting now will allow only a partial scan.', true, true)
+  }
+  return result('partial', `Budget will not cover all ${input.files} files.\nEstimated coverage: ${input.withinCap ?? 0} of ${input.files} files, scanned by severity first.\nRaise the budget to ${usd(input.total)} to cover the full estimated scan.\nThe report will be INCOMPLETE if the budget stops the scan.`)
 }
 
 export interface ConfirmationSummary {
@@ -49,6 +89,8 @@ export interface ConfirmationSummary {
       band_pct: number | null; tier_label: string; tier_multiplier: number
     }
   }
+  classes?: ClassRow[]
+  budget_message?: BudgetMessage
   limits: RunLimits
   concurrency: { value: number; basis: string }
   /** Set on --resume: what earlier passes already finished. */
@@ -64,6 +106,11 @@ export interface SummaryInput {
   inventoryFiles: number
   byLanguage: Record<string, { count: number }> | undefined
   plan: ScanPlan
+  /** Selected ids, including classes that currently reach no admitted file. */
+  selection?: { classes: string[] }
+  unrouted?: string[]
+  userAdded?: Record<string, string>
+  spentUsd?: number
   model: ModelInfo
   /** Lanes already finished on a resumed run, and what they cost. */
   resume: { runId: string; doneLaneIds: Set<string>; spentUsd: number | null } | null
@@ -72,6 +119,7 @@ export interface SummaryInput {
 /** Stage 0.5's skip reasons, folded into a few words for the screen. */
 function skipCategory(reason: string | null): string {
   const r = (reason ?? '').toLowerCase()
+  if (r.includes('no selected class')) return 'no selected class'
   if (r.includes('denylist')) return 'denylisted'
   return 'not code'
 }
@@ -90,15 +138,19 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
   for (const s of skipped) byReason[s.reason] = (byReason[s.reason] ?? 0) + 1
 
   // On a resume the estimate is for what is left; the cap covers the whole run.
+  const remainingInputTokens = remaining.reduce((sum, lane) => sum + lane.projected_input_tokens, 0)
+  const estimateMatchesRemaining = plan.estimate?.input_tokens === remainingInputTokens
   const remainingCost = remaining.some(l => l.projected_cost_usd == null)
     ? null
-    : remaining.reduce((s, l) => s + (l.projected_cost_usd ?? 0), 0)
+    : estimateMatchesRemaining ? plan.estimate!.scan_usd : remaining.reduce((s, l) => s + (l.projected_cost_usd ?? 0), 0)
   const totalCalls = plan.totals.projected_calls
   const remainingCalls = remaining.reduce((s, l) => s + l.projected_calls, 0)
   const seconds = totalCalls > 0 ? Math.round(plan.totals.projected_wall_seconds * (remainingCalls / totalCalls)) : 0
-  const spent = input.resume?.spentUsd ?? plan.estimate?.spent_before_usd ?? 0
+  const spent = input.spentUsd ?? input.resume?.spentUsd ?? plan.estimate?.spent_before_usd ?? 0
   const detail = plan.estimate
-  const remainingShare = detail && detail.scan_usd > 0 && remainingCost != null ? remainingCost / detail.scan_usd : 0
+  const remainingShare = estimateMatchesRemaining ? 1 : detail && detail.input_tokens > 0
+    ? remainingInputTokens / detail.input_tokens
+    : detail && detail.scan_usd > 0 && remainingCost != null ? remainingCost / detail.scan_usd : 0
   const cap = plan.limits.max_cost_usd
   let withinCap: number | null = null
   if (cap != null && remainingCost != null) {
@@ -111,7 +163,26 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
     }
   }
 
+  const remainingIds = new Set(remaining.map(l => l.lane_id))
+  const rows = input.selection?.classes.map(id => ({
+    id,
+    files: input.lanes.filter(l => remainingIds.has(l.lane_id) && l.classes?.includes(id)).length,
+    added_by_user: Object.hasOwn(input.userAdded ?? {}, id),
+    ...(input.userAdded?.[id] ? { source: input.userAdded[id] } : {}),
+    all_files: input.unrouted?.includes(id) ?? false,
+  }))
+  const first = input.lanes.find(l => l.lane_id === remaining[0]?.lane_id)
+  const firstStart = first && plan.reservation_unit_usd != null
+    ? spent + (first.chunk_plan?.chunks?.length ?? first.chunk_plan?.total_chunks ?? 1) * plan.reservation_unit_usd
+    : plan.first_start_usd != null ? plan.first_start_usd + spent - (detail?.spent_before_usd ?? 0) : null
+  const inputThreshold = detail ? spent + detail.input_usd * remainingShare : plan.input_threshold_usd ?? null
+
   return {
+    ...(rows ? { classes: rows } : {}),
+    ...(input.selection ? { budget_message: budgetMessage({
+      cap, total: remainingCost == null ? null : spent + remainingCost, spent,
+      inputThreshold, firstStart, files: remaining.length, withinCap, noClasses: rows?.length === 0,
+    }) } : {}),
     target: {
       display: input.targetDisplay,
       root: input.targetRoot,
@@ -132,9 +203,7 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
       origin: model.origin,
       base_url: model.origin === 'registry' ? null : model.baseUrl,
     },
-    // Recon-guided playbooks are Step 2 of the plan (§2.4); until then every
-    // run hunts with the built-in ones, and the screen says so.
-    guidance: 'none (built-in playbooks only)',
+    guidance: input.selection ? 'reviewed class selection' : 'none (built-in playbooks only)',
     estimate: {
       usd: detail && remainingCost != null ? spent + remainingCost : remainingCost,
       seconds,
@@ -167,6 +236,7 @@ function pct(share: number): string {
 
 export function renderSummary(s: ConfirmationSummary): string {
   const out: string[] = []
+  if (s.estimate.breakdown) out.push(`Recon and planning done · spent so far ${usd(s.estimate.breakdown.spent_usd)}`)
   const commit = s.target.commit ? `commit ${s.target.commit}` : 'not a git checkout'
   out.push(`Target: ${s.target.display} (${commit}, ${int(s.target.files)} files)`)
 
@@ -184,6 +254,13 @@ export function renderSummary(s: ConfirmationSummary): string {
     out.push('Languages: none recognised by recon')
   }
 
+  if (s.classes) {
+    out.push('', 'Vulnerability classes for this repo                       files')
+    s.classes.forEach((row, index) => out.push(`  ${index + 1}  ${row.id}  ${row.files}` +
+      (row.added_by_user ? `  added by you (${row.source ?? 'catalog'})` : '') +
+      (row.all_files ? '  no matching signal (all files)' : '')))
+    out.push('')
+  }
   const reasons = Object.entries(s.skip.by_reason).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${int(n)} ${r}`).join(', ')
   out.push(`Scan ${int(s.scan.files)} files in: ${s.scan.dirs.join(' ') || '(nothing)'}   ` +
     `Skip ${int(s.skip.files)}: ${s.skip.dirs.join(' ') || '-'}` + (reasons ? `  (${reasons})` : ''))
@@ -193,17 +270,27 @@ export function renderSummary(s: ConfirmationSummary): string {
     (s.model.base_url ? ` at ${s.model.base_url}` : '') +
     `, ${s.model.measured ? 'measured' : 'unmeasured'}   Extra guidance: ${s.guidance}`)
 
-  const est = `~${usd(s.estimate.usd)}, ~${Math.max(1, Math.round(s.estimate.seconds / 60))} min`
-  const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
-  out.push(`Estimate: ${est}    Cap: ${cap}`)
   const detail = s.estimate.breakdown
-  if (detail) {
-    out.push(`  Total ${usd(detail.total_usd)}: ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
-    out.push(`  ${detail.band_pct == null ? 'Can vary widely (fewer than 10 files).' : `Accuracy band: ±${detail.band_pct}% (90%).`}`)
-  }
-  if (s.estimate.exceeds_cap) {
-    out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
-      `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)
+  const minutes = Math.max(1, Math.round(s.estimate.seconds / 60))
+  const band = detail && (detail.band_pct == null ? 'Can vary widely (fewer than 10 files).' : `Accuracy band: ±${detail.band_pct}% (90%).`)
+  if (s.budget_message) {
+    out.push(`Total estimate: ${usd(s.estimate.usd)}, ~${minutes} min`)
+    if (detail) out.push(`  ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
+    if (band) out.push(`  ${band}`)
+    out.push(`Current budget: ${s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'Unlimited'}`)
+    out.push(s.budget_message.text)
+  } else {
+    const est = `~${usd(s.estimate.usd)}, ~${minutes} min`
+    const cap = s.estimate.cap_usd != null ? usd(s.estimate.cap_usd) : 'none (set --max-cost)'
+    out.push(`Estimate: ${est}    Cap: ${cap}`)
+    if (detail) {
+      out.push(`  Total ${usd(detail.total_usd)}: ${usd(detail.spent_usd)} spent + input ${usd(detail.input_usd)} + output ${usd(detail.output_usd)}.`)
+      out.push(`  ${band}`)
+    }
+    if (s.estimate.exceeds_cap) {
+      out.push(`  The estimate exceeds the cap: about ${s.estimate.lanes_within_cap} of ${s.scan.files} files fit. ` +
+        `The run stops there, is recorded INCOMPLETE, and --resume with a higher cap continues it.`)
+    }
   }
   const l = s.limits
   const lim = [

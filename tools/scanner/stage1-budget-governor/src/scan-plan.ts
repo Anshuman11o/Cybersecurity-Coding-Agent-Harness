@@ -79,6 +79,10 @@ export interface ScanPlan {
   }
   price_per_mtok: { input: number; cached_input?: number; cache_write?: number; output: number } | null
   price_asof: string | null
+  /** Product runs only: deterministic risk order and total-ledger budget thresholds. */
+  order_basis?: string
+  input_threshold_usd?: number | null
+  first_start_usd?: number | null
   admitted: ScanPlanLane[]
   excluded: ScanPlanExclusion[]
   totals: {
@@ -153,6 +157,10 @@ export interface PlanInput {
   assignmentsGeneratedAt: string
   /** Every hunt lane, in assignment order, with its Stage 1 projection. */
   lanes: Omit<ScanPlanLane, 'projected_cost_usd'>[]
+  /** Omitted means legacy lab behavior, including artifact shape. */
+  profile?: 'product' | 'benchmark'
+  laneRisk?: Map<string, { signals: string[]; chunks: number }>
+  completedLaneIds?: ReadonlySet<string>
   limits: RunLimits
   vendorConcurrencyCeiling: number | null
   price: ScanPlan['price_per_mtok']
@@ -222,6 +230,16 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
       : input.cost(l.projected_input_tokens, l.projected_output_tokens),
   }))
   const { admitted, excluded } = admitLanes(priced, input.limits)
+  const product = input.profile === 'product'
+  if (product) admitted.sort((a, b) => {
+    const aSignals = new Set(input.laneRisk?.get(a.lane_id)?.signals ?? [])
+    const bSignals = new Set(input.laneRisk?.get(b.lane_id)?.signals ?? [])
+    return Number(bSignals.has('route_handler')) - Number(aSignals.has('route_handler')) ||
+      bSignals.size - aSignals.size ||
+      (a.target_file < b.target_file ? -1 : a.target_file > b.target_file ? 1 : 0)
+  })
+  const remaining = product && input.completedLaneIds
+    ? admitted.filter(l => !input.completedLaneIds!.has(l.lane_id)) : admitted
 
   const sum = (f: (l: ScanPlanLane) => number) => admitted.reduce((s, l) => s + f(l), 0)
   const calls = sum(l => l.projected_calls)
@@ -246,13 +264,15 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
     longestLane * secondsPerCall,
   ))
 
+  const remainingInput = remaining.reduce((s, l) => s + l.projected_input_tokens, 0)
+  const remainingCost = priceTokens(remainingInput)
   const tier = estimation ? tierInfo(input.provider, servedTier) : { tier: null, label: 'Standard', multiplier: 1 }
-  const files = new Set(admitted.map(l => l.target_file)).size
-  const estimate: ScanEstimate | null = estimation && scanCost && tier.multiplier !== null ? {
-    input_tokens: inputTokens,
-    ...scanCost,
+  const files = new Set(remaining.map(l => l.target_file)).size
+  const estimate: ScanEstimate | null = estimation && remainingCost && tier.multiplier !== null ? {
+    input_tokens: remainingInput,
+    ...remainingCost,
     spent_before_usd: spentBefore,
-    total_usd: spentBefore + scanCost.scan_usd,
+    total_usd: spentBefore + remainingCost.scan_usd,
     band_pct: estimateBandPct(files),
     files,
     ...estimation.ratios,
@@ -284,7 +304,7 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
   if (cap != null && cost != null) {
     let running = spentBefore
     withinCap = 0
-    for (const l of admitted) {
+    for (const l of remaining) {
       running += l.projected_cost_usd ?? 0
       if (running > cap) break
       withinCap++
@@ -317,10 +337,16 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
     },
     estimate,
     reservation_unit_usd: reservation,
+    ...(product ? {
+      order_basis: 'route_handler first, then distinct signal count descending, then path ascending',
+      input_threshold_usd: estimate ? spentBefore + estimate.input_usd : null,
+      first_start_usd: reservation != null && remaining.length > 0 && input.laneRisk?.has(remaining[0].lane_id)
+        ? spentBefore + input.laneRisk.get(remaining[0].lane_id)!.chunks * reservation : null,
+    } : {}),
     ...(input.callConfig ? { call_config: input.callConfig } : {}),
     cap: {
       max_cost_usd: cap,
-      estimate_exceeds_cap: cap != null && cost != null ? spentBefore + cost > cap : null,
+      estimate_exceeds_cap: cap != null && cost != null ? (estimate?.total_usd ?? spentBefore + cost) > cap : null,
       lanes_within_cap: withinCap,
     },
   }

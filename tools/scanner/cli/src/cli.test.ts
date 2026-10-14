@@ -182,7 +182,7 @@ test('progress line shows lanes, spend against estimate and cap, ETA and severit
     findings: { total: 3, by_severity: { critical: 1, high: 1, medium: 1, low: 0 } },
   }
   const line = progressLine(p, 50_000, 600)
-  assert.match(line, /^files 4\/10 · 1 failed · 2 in flight · \$1\.50 spent \/ ~\$4\.00 est \/ \$5\.00 cap/)
+  assert.match(line, /^files 4\/10 · 1 failed · 2 in flight · \$1\.50 spent \/ ~\$4\.00 total est \/ \$5\.00 cap/)
   assert.match(line, /50s elapsed, ETA ~50s/)
   assert.match(line, /findings 3 \(1 critical, 1 high, 1 medium, 0 low\)/)
   const idle = progressLine({ ...p, lanes: { ...p.lanes, done: 0, failed: 0 } }, 10_000, 600)

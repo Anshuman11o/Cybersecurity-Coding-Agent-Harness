@@ -6,6 +6,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "run": "tsx src/main.ts",
+    "review": "tsx src/review.ts",
     "test": "tsx --test src/*.test.ts"
   },
   "dependencies": { "openai": "^6.49.0" },

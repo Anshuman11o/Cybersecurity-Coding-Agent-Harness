@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { HuntCallPolicy, HuntCallError, resumeConcurrency, type CallPolicyOptions } from './call-policy.js'
 import { createClient } from './llm-client.js'
-import { waitForLaneAdmission, scanPlanCallMismatch } from './hunt-executor.js'
+import { waitForLaneAdmission, scanPlanCallMismatch, fullLedgerEstimate } from './hunt-executor.js'
 import { countNotStartedLanes, type UnscannedLane } from '../../stage1-budget-governor/src/run-status.js'
 import { SpendGate } from '../../stage1-budget-governor/src/spend-gate.js'
 import { SpendLedger } from '../../shared/ledger.js'
@@ -290,4 +290,16 @@ test('an error response with an unpriced tier stops before retrying', async t =>
   assert.equal(sent.length, 1)
   assert.equal(ledger.list()[0].served_tier, 'unlisted-tier')
   assert.deepEqual(stops, ['unpriced_service_tier'])
+})
+
+
+test('progress estimate includes the full ledger and only remaining projected work on resume', () => {
+  const plan = { admitted: [
+    { lane_id: 'done', projected_cost_usd: 2 }, { lane_id: 'next', projected_cost_usd: 3 },
+  ] } as Parameters<typeof fullLedgerEstimate>[0]
+  assert.equal(fullLedgerEstimate(plan, 0.7), 5.7)
+  assert.equal(fullLedgerEstimate(plan, 2.1, new Set(['done'])), 5.1)
+  assert.equal(fullLedgerEstimate(plan, 5.1, new Set(['done', 'next'])), 5.1)
+  assert.equal(fullLedgerEstimate(null, 0.7), null)
+  assert.equal(fullLedgerEstimate({ admitted: [{ projected_cost_usd: null }] } as any, 0.7), null)
 })

@@ -18,11 +18,13 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
-import { createInterface } from 'readline/promises'
+import { pathToFileURL } from 'url'
 import { parseArgs, usage, UsageError, type ScanArgs } from './args.js'
 import { applyModelFlags, loadRegistryModules, genericNames } from './registry.js'
 import { CONFIG_FILENAME, loadConfig, configFromRun, writeConfig, type LoadedConfig } from './config.js'
-import { buildSummary, renderSummary, PROMPT_LINE, type ConfirmationSummary, type LaneLite } from './confirm.js'
+import { buildSummary, type ConfirmationSummary, type LaneLite } from './confirm.js'
+import { roundTwo } from './round2.js'
+import type { InputIO } from './inputs.js'
 import { launchStage, signalStage, type RunningStage } from './stages.js'
 import { startProgress, readProgress } from './progress.js'
 import { roundOneInputs, terminalIO, InputCancelled, findResume, askNewBudget, tierNotice, reconRefusal, assertSameReadScope } from './inputs.js'
@@ -46,7 +48,7 @@ import { recordCalibration } from '../../shared/calibration.js'
 
 const EXIT = { complete: 0, failure: 1, usage: 2, incomplete: 3, interrupted: 130 } as const
 const HUNT = 'stage2-hunt-lanes-perfile'
-const PRE_STAGES = ['stage0-recon', ...(process.env.SCANNER_PLAYBOOK_AGENT === '1' ? ['stage-playbook-agent' as const] : []), 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'] as const
+export const PRE_STAGES = ['stage0-recon', 'stage-playbook-agent', 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'] as const
 
 const err = (msg: string) => process.stderr.write(`secscan: ${msg}\n`)
 const say = (msg = '') => process.stdout.write(msg + '\n')
@@ -116,7 +118,13 @@ async function main(argv: string[]): Promise<number> {
   return scan(args)
 }
 
-async function scan(args: ScanArgs): Promise<number> {
+export interface ScanDependencies {
+  launchStage?: typeof launchStage
+  review?: Pick<typeof import('../../stage-playbook-agent/src/review.js'), 'reviewClass' | 'readClassReview' | 'initializeClassReview' | 'recordReviewBudget'>
+  io?: () => InputIO
+}
+
+export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}): Promise<number> {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY)
   const initialTarget = resolve(args.target)
   const initialReports = resolve(args.out ?? join(initialTarget, PRODUCT_DIRNAME))
@@ -148,7 +156,7 @@ async function scan(args: ScanArgs): Promise<number> {
   if (model.transport !== 'openai') throw new UsageError(`"${model.key}" uses the lab-only "${model.transport}" transport and cannot run here. Pick another with --model.`)
   let limits = merge(merge(NO_LIMITS, previous ? previous.limits : config?.config.limits ?? {}), args.limits)
   if (previous) assertSameReadScope(previous.limits, limits)
-  const input = terminalIO()
+  const input = (dependencies.io ?? terminalIO)()
   let round
   try {
     round = await roundOneInputs({
@@ -179,6 +187,7 @@ async function scan(args: ScanArgs): Promise<number> {
 
   process.env.SCANNER_TARGET = target
   process.env.SCANNER_PROFILE = 'product'
+  process.env.SCANNER_PLAYBOOK_AGENT = '1'
   process.env.SCANNER_RUN_ID = runId
   process.env.SCANNER_REPORTS_ROOT = reportsRoot
   process.env.SCANNER_RUNS_ROOT = join(reportsRoot, 'runs', runId)
@@ -216,6 +225,16 @@ async function scan(args: ScanArgs): Promise<number> {
   let summary: ConfirmationSummary | null = null
   let plan: ScanPlan | null = null
   let resuming = Boolean(previous)
+  const frozen = Boolean(previous?.stages.some(s => s.stage === HUNT))
+  if (frozen) {
+    for (const key of Object.keys(args.limits)) {
+      if (key !== 'max_cost_usd' && JSON.stringify((limits as any)[key]) !== JSON.stringify((previous!.limits as any)[key])) {
+        throw new UsageError('Resume allows budget edits only after the hunt starts; classes and limits are frozen.')
+      }
+    }
+  }
+  let reviewApi: ScanDependencies['review']
+  let reviewing: AbortController | null = null
 
   // ── Interrupts ────────────────────────────────────────────────────────────
   let current: RunningStage | null = null
@@ -226,6 +245,7 @@ async function scan(args: ScanArgs): Promise<number> {
     const now = Date.now()
     if (now - lastInterrupt < 800) return
     lastInterrupt = now
+    if (reviewing) { reviewing.abort(); return }
     interrupted = true
     interrupts++
     if (!current) return
@@ -247,7 +267,7 @@ async function scan(args: ScanArgs): Promise<number> {
   process.on('SIGTERM', onInterrupt)
 
   const runOne = async (stage: string, resume = false): Promise<StageResult> => {
-    current = launchStage({ stage, provider: model.key, target, runId, resume, env: childEnvFor(limits), logPath })
+    current = (dependencies.launchStage ?? launchStage)({ stage, provider: model.key, target, runId, resume, env: childEnvFor(limits), logPath })
     const r = await current.done
     current = null
     stages.push(r)
@@ -256,11 +276,22 @@ async function scan(args: ScanArgs): Promise<number> {
   }
 
   const finish = (cancelled: boolean): number => {
-    // Quitting at the confirmation of a resumed run changes nothing: the
-    // record still describes what the earlier passes did, and must keep doing so.
-    if (cancelled && previous) {
-      say(`Run ${runId} left as it was (${previous.status}). Its record: ${join(runsRoot, RUN_RECORD_FILE)}`)
-      return EXIT.complete
+    process.removeListener('SIGINT', onInterrupt)
+    process.removeListener('SIGTERM', onInterrupt)
+    // Preserve prior hunt coverage on a cancelled resume, while persisting any
+    // newly reviewed budget and its audit. Before the first hunt, normal finish
+    // records the new class selection, paid review attempts and revised scope.
+    if (previous && frozen && !thisPass.some(stage => stage.stage === HUNT)) {
+      const totals = ledgerTotals()
+      const audit = reviewApi?.readClassReview(model.key) ?? previous.class_review
+      const record: RunRecord = { ...previous, updated_at: new Date().toISOString(), limits,
+        ...(audit ? { class_review: { ...audit, review_spend_usd: audit.edits.reduce((sum, edit) => sum + edit.cost_usd, 0) } } : {}),
+        spend: { ...previous.spend, spent_usd: totals.total_usd,
+          estimate_usd: summary?.estimate.usd ?? previous.spend.estimate_usd, cap_usd: limits.max_cost_usd,
+          input_tokens: totals.prompt_tokens, output_tokens: totals.completion_tokens, calls: totals.calls } }
+      writeRunRecord(join(runsRoot, RUN_RECORD_FILE), record)
+      say(`Run ${runId} remains ${record.status}; review changes saved. Its record: ${join(runsRoot, RUN_RECORD_FILE)}`)
+      return cancelled ? EXIT.complete : EXIT.failure
     }
     const stage2 = readJson<Stage2RunStatus>(join(stageDir(HUNT), RUN_STATUS_FILE))
     // A status left by an earlier pass describes that pass, not this one.
@@ -276,6 +307,7 @@ async function scan(args: ScanArgs): Promise<number> {
     const progress = readProgress(join(stageDir(HUNT), PROGRESS_FILE))
     const unscanned = fresh?.unscanned
       ?? (plan ? plan.admitted.map(l => ({ lane_id: l.lane_id, target_file: l.target_file, reason: 'interrupted' as const, detail: cancelled ? 'not started: cancelled at confirmation' : 'the hunt did not run' })) : [])
+    const classReview = reviewApi?.readClassReview(model.key) ?? previous?.class_review
     const record: RunRecord = {
       schema: RUN_RECORD_SCHEMA,
       run_id: runId,
@@ -314,7 +346,7 @@ async function scan(args: ScanArgs): Promise<number> {
       scope_excluded: fresh?.scope_excluded
         ?? (plan?.excluded.filter(e => e.reason !== 'over-max-files').map(e => ({ lane_id: e.lane_id, target_file: e.target_file, reason: e.reason as 'user-excluded' | 'too-large', detail: e.detail })) ?? []),
       spend: {
-        estimate_usd: plan?.estimate?.total_usd ?? plan?.totals.projected_cost_usd ?? null,
+        estimate_usd: fresh?.spend.estimate_usd ?? summary?.estimate.usd ?? plan?.estimate?.total_usd ?? plan?.totals.projected_cost_usd ?? null,
         spent_usd: totals.total_usd,
         reconciled_usd: usageFresh?.cost_usd ?? null,
         cap_usd: limits.max_cost_usd,
@@ -323,6 +355,7 @@ async function scan(args: ScanArgs): Promise<number> {
         calls: totals.calls,
       },
       findings_total: fresh?.findings_total ?? null,
+      ...(classReview ? { class_review: { ...classReview, review_spend_usd: classReview.edits.reduce((sum, edit) => sum + edit.cost_usd, 0) } } : {}),
       playbooks: readRunPlaybooks(stageDir(HUNT), stageDir('stage-playbook-agent'), previous?.playbooks),
       artifacts: Object.fromEntries(
         [...PRE_STAGES, HUNT].map(s => [s, stageDir(s as Parameters<typeof paths.runPath>[1])]).filter(([, d]) => existsSync(d)),
@@ -385,19 +418,22 @@ async function scan(args: ScanArgs): Promise<number> {
   // ── Recon, lanes, plan ────────────────────────────────────────────────────
   say(`secscan · run ${runId} · ${targetDisplay}${previous ? ' (resumed)' : ''}`)
   say(`Model ${model.model} (${model.label}), ${model.measured ? 'measured' : 'unmeasured'}. Full stage output: ${logPath}`)
-  say('Reading the repository. Recon makes up to five model calls; they count against the budget.' +
-    (process.env.SCANNER_PLAYBOOK_AGENT === '1' ? ' Playbook coverage and any uncached web research also run before confirmation and count against the budget.' : ''))
+  say('Reading the repository. Recon, playbook coverage and uncached web research run before confirmation and count against the budget.')
+  let upstreamRebuilt = false
   for (const stage of PRE_STAGES) {
-    const scopeChanged = ['paths', 'include', 'exclude', 'max_files', 'max_file_size', 'concurrency']
+    if (frozen) continue // Preserve assignments, U and order once hunting has started.
+    const scopeChanged = !frozen && ['paths', 'include', 'exclude', 'max_files', 'max_file_size', 'concurrency']
       .some(key => key in args.limits)
     const savedPlan = stage === 'stage1-budget-governor-perfile' && !scopeChanged &&
       existsSync(join(stageDir(stage), SCAN_PLAN_FILE))
-    const metaDone = previous && (savedPlan || (stage !== 'stage1-budget-governor-perfile' &&
+    const previousStage = previous?.stages.findLast(result => result.stage === stage)
+    const metaDone = previous && previousStage?.exit_code === 0 && !upstreamRebuilt && (savedPlan || (stage !== 'stage1-budget-governor-perfile' &&
       readJson<{ exit_code: number }>(join(stageDir(stage), 'meta.json'))?.exit_code === 0))
     if (metaDone) continue
     const t0 = Date.now()
     process.stdout.write(`  ${stage} … `)
     const r = await runOne(stage, Boolean(previous))
+    upstreamRebuilt = true // Its new artifacts invalidate every downstream cached stage.
     say(r.exit_code === 0 ? `done (${Math.round((Date.now() - t0) / 1000)}s)` : 'FAILED')
     if (r.exit_code !== 0) {
       const refusal = reconRefusal(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
@@ -411,7 +447,7 @@ async function scan(args: ScanArgs): Promise<number> {
 
   const loadPlanAndSummary = () => {
     plan = readJson<ScanPlan>(join(stageDir('stage1-budget-governor-perfile'), SCAN_PLAN_FILE))
-    const assignments = readJson<{ lanes: LaneLite[]; coverage_ledger: { total_files_in_inventory: number } }>(
+    const assignments = readJson<{ lanes: LaneLite[]; coverage_ledger: { total_files_in_inventory: number }; class_selection?: { unrouted: string[] } }>(
       join(stageDir('stage05-lane-selector-perfile'), 'lane-assignments.json'))
     const arch = readJson<{ file_inventory?: { by_language?: Record<string, { count: number }> } }>(
       join(stageDir('stage0-recon'), 'architecture-summary.json'))
@@ -430,6 +466,8 @@ async function scan(args: ScanArgs): Promise<number> {
         spentUsd: ledgerTotals().total_usd,
       }
     }
+    const review = reviewApi?.readClassReview(model.key)
+    const agentClasses = new Set(review?.agent_selection.classes ?? [])
     summary = buildSummary({
       targetDisplay,
       targetRoot: target,
@@ -441,81 +479,93 @@ async function scan(args: ScanArgs): Promise<number> {
       plan,
       model,
       resume,
+      spentUsd: ledgerTotals().total_usd,
+      selection: readJson<{ classes: string[] }>(join(stageDir('stage-playbook-agent'), 'class-selection.json')) ?? { classes: [] },
+      unrouted: assignments.class_selection?.unrouted,
+      userAdded: Object.fromEntries((review?.edits ?? [])
+        .filter(e => e.action === 'add' && e.resolved.id && !agentClasses.has(e.resolved.id) && !['failed', 'rejected'].includes(e.resolved.kind))
+        .map(e => [e.resolved.id, e.resolved.kind === 'researched' ? 'web' : e.resolved.kind])),
     })
-    const playbookPlan = readJson<{ classes: unknown[]; searched: boolean }>(join(stageDir('stage-playbook-agent'), 'playbook-plan.json'))
-    if (playbookPlan) summary.guidance = `${playbookPlan.classes.length} additional classes (${playbookPlan.searched ? 'web research' : 'cache or built-in coverage'})`
+    summary.guidance = `${summary.classes?.length ?? 0} reviewed classes`
   }
   loadPlanAndSummary()
 
-  // ── Confirmation ──────────────────────────────────────────────────────────
-  say()
-  say(renderSummary(summary!))
+  // ── Confirmation: reviewed classes and the exact plan that will run ──────
   const tier = tierNotice(readApiProfile(join(stageDir('stage0-recon'), API_PROFILE_FILE)))
   if (tier.message) say(tier.message)
   if (tier.refuse) return finish(false)
-  if (args.yes) {
-    say('\nStarting (--yes).')
-    confirmation = { by: '--yes', at: new Date().toISOString(), summary: summary! }
-  } else {
-    const rl = createInterface({ input: process.stdin, output: process.stdout })
-    let quit = false
-    rl.on('SIGINT', () => { quit = true; rl.close() })
-    try {
-      for (;;) {
-        say('\n' + PROMPT_LINE)
-        let answer: string
-        try {
-          answer = (await rl.question('> ')).trim().toLowerCase()
-        } catch {
-          quit = true
-          break
-        }
-        if (answer === '' ) break
-        if (answer === 'q' || answer === 'quit') { quit = true; break }
-        if (answer === 's' || answer === 'save') {
-          if (existsSync(configPath)) {
-            const ok = (await rl.question(`${configPath} exists. Overwrite? [y/N] `)).trim().toLowerCase()
-            if (ok !== 'y' && ok !== 'yes') continue
-          }
-          writeConfig(configPath, configFromRun(model.origin === 'registry' ? model.key : null, limits))
-          say(`Saved ${configPath}` + (model.origin !== 'registry'
-            ? ' (without the model: a committed config cannot name a custom endpoint or overlay)' : ''))
-          continue
-        }
-        if (answer === 'e' || answer === 'edit') {
-          const edited = await editLimits(rl, limits)
-          try { assertSameReadScope(limits, edited) }
-          catch (e: any) { say(e.message); continue }
-          if (edited.max_cost_usd != null && !model.price) {
-            say('A cost cap needs a priced model; the cap was not changed.')
-            edited.max_cost_usd = limits.max_cost_usd
-          }
-          limits = edited
-          process.stdout.write('  re-planning … ')
-          const r = await runOne('stage1-budget-governor-perfile')
-          if (r.exit_code !== 0) {
-            say('FAILED')
-            err(`re-planning failed; the last lines of ${logPath}:\n${tail(logPath, 15)}`)
-            rl.close()
-            return finish(false)
-          }
-          say('done')
-          loadPlanAndSummary()
-          say()
-          say(renderSummary(summary!))
-          continue
-        }
-        say(`Unrecognised answer "${answer}".`)
-      }
-    } finally {
-      rl.close()
+  reviewApi = dependencies.review ?? await import('../../stage-playbook-agent/src/review.js')
+  reviewApi.initializeClassReview(model.key)
+  const reviewIO = (dependencies.io ?? terminalIO)()
+  const stopReviewInterrupts = reviewIO.onInterrupt?.(() => reviewing?.abort())
+  const replan = async () => {
+    const started = Date.now()
+    for (const stage of ['stage05-lane-selector-perfile', 'stage1-budget-governor-perfile']) {
+      const result = await runOne(stage)
+      if (result.exit_code !== 0) throw new Error(`Re-planning failed; the last lines of ${logPath}:\n${tail(logPath, 15)}`)
     }
-    if (quit) {
-      say('Not started. Nothing was spent on the hunt.')
-      return finish(true)
-    }
-    confirmation = { by: 'prompt', at: new Date().toISOString(), summary: summary! }
+    loadPlanAndSummary()
+    reviewIO.write(`Re-planning done (${((Date.now() - started) / 1000).toFixed(2)}s; no model calls).`)
   }
+  let reviewResult: Awaited<ReturnType<typeof roundTwo>>
+  try {
+    reviewResult = await roundTwo({
+      io: reviewIO, yes: args.yes, frozen,
+      requested: { ...config?.config.classes, ...args.classes },
+      summary() { loadPlanAndSummary(); return summary! },
+      async edit(action, input, confirmCall, rawInput) {
+        reviewing = new AbortController()
+        try {
+          return await reviewApi!.reviewClass({ provider: model.key, action, input, rawInput,
+            budgetUsd: limits.max_cost_usd, signal: reviewing.signal, confirmCall })
+        } finally { reviewing = null }
+      },
+      replan,
+      async budget(budget) {
+        limits = { ...limits, max_cost_usd: budget }
+        reviewApi!.recordReviewBudget(model.key, budget)
+        if (frozen) loadPlanAndSummary()
+        else await replan()
+      },
+      async editLimits() {
+        const edited = await editLimits(reviewIO, limits)
+        try { assertSameReadScope(limits, edited) }
+        catch (e: any) { reviewIO.write(e.message); return }
+        if (edited.max_cost_usd != null && edited.max_cost_usd <= ledgerTotals().total_usd) {
+          reviewIO.write(`Budget must exceed ${usd(ledgerTotals().total_usd)} already spent.`)
+          return
+        }
+        if (edited.max_cost_usd !== limits.max_cost_usd) reviewApi!.recordReviewBudget(model.key, edited.max_cost_usd)
+        limits = edited
+        await replan()
+      },
+      async save() {
+        if (existsSync(configPath)) {
+          const ok = (await reviewIO.read(`${configPath} exists. Overwrite? [y/N] `)).trim().toLowerCase()
+          if (ok !== 'y' && ok !== 'yes') return
+        }
+        const review = reviewApi!.readClassReview(model.key)!
+        const agentClasses = new Set(review.agent_selection.classes)
+        const finalClasses = new Set(review.final.classes)
+        const classes = {
+          drop: [...agentClasses].filter(id => !finalClasses.has(id)),
+          add: [...finalClasses].filter(id => !agentClasses.has(id)),
+        }
+        writeConfig(configPath, configFromRun(model.origin === 'registry' ? model.key : null, limits, classes))
+        reviewIO.write(`Saved ${configPath}`)
+      },
+    })
+  } catch (e: any) {
+    err(e.message)
+    finish(false)
+    return EXIT.failure
+  } finally { stopReviewInterrupts?.(); reviewIO.close?.() }
+  if (reviewResult === 'failed') { loadPlanAndSummary(); finish(false); return EXIT.failure }
+  if (reviewResult === 'quit') {
+    say('Not started. Nothing was spent on the hunt.')
+    return finish(true)
+  }
+  confirmation = { by: args.yes ? '--yes' : 'prompt', at: new Date().toISOString(), summary: summary! }
 
   // ── Hunt, with live progress ──────────────────────────────────────────────
   if (interrupted) return finish(false)
@@ -532,7 +582,7 @@ async function scan(args: ScanArgs): Promise<number> {
     const atCap = status?.reasons.some(r => r.reason === 'max_cost') &&
       Date.parse(status.generated_at) >= huntStart - 2000
     if (interrupted || !atCap || args.yes || !interactive) break
-    const budgetIO = terminalIO()
+    const budgetIO = (dependencies.io ?? terminalIO)()
     let budget: number | null
     try {
       budget = await askNewBudget(budgetIO, {
@@ -545,6 +595,7 @@ async function scan(args: ScanArgs): Promise<number> {
     } finally { budgetIO.close?.() }
     if (budget === null) break
     limits = { ...limits, max_cost_usd: budget }
+    reviewApi!.recordReviewBudget(model.key, budget)
     resuming = true
     loadPlanAndSummary()
     resumeHunt = true
@@ -601,22 +652,22 @@ function restoreModelEnv(previous: RunRecord): void {
 }
 
 /** [e]: edit scope and limits field by field; Enter keeps a value, '-' clears it. */
-async function editLimits(rl: ReturnType<typeof createInterface>, l: RunLimits): Promise<RunLimits> {
+async function editLimits(io: InputIO, l: RunLimits): Promise<RunLimits> {
   const out: RunLimits = { ...l, paths: [...l.paths], include: [...l.include], exclude: [...l.exclude] }
   const ask = async <T>(label: string, current: string, parse: (s: string) => T, clear: T): Promise<T | undefined> => {
     for (;;) {
-      const a = (await rl.question(`  ${label} [${current || '-'}]: `)).trim()
+      const a = (await io.read(`  ${label} [${current || '-'}]: `)).trim()
       if (a === '') return undefined
       if (a === '-') return clear
       try {
         return parse(a)
       } catch (e: any) {
-        say(`    ${e.message}`)
+        io.write(`    ${e.message}`)
       }
     }
   }
   const list = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean)
-  say("Edit scope and limits. Enter keeps a value, '-' clears it; lists are comma-separated.")
+  io.write("Edit scope and limits. Enter keeps a value, '-' clears it; lists are comma-separated.")
   const paths = await ask('Paths to scan', l.paths.join(', '), s => list(s).map(normalizeScopePath).filter(Boolean), [] as string[])
   if (paths !== undefined) out.paths = paths
   const include = await ask('Include globs', l.include.join(', '), s => { const g = list(s); g.forEach(compileGlob); return g }, [] as string[])
@@ -636,7 +687,7 @@ async function editLimits(rl: ReturnType<typeof createInterface>, l: RunLimits):
   return out
 }
 
-main(process.argv.slice(2)).then(
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main(process.argv.slice(2)).then(
   code => process.exit(code),
   e => {
     err(e instanceof UsageError ? e.message : e?.stack ?? String(e))

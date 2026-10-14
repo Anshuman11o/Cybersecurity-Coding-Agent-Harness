@@ -31,7 +31,7 @@ export function progressLine(p: Stage2Progress, nowMs: number, plannedSeconds: n
   const spent = ledgerSpend ?? p.spend.ledger_spent_usd ?? p.spend.spent_usd
   const spend = [
     spent != null ? `${usd(spent)} spent` : 'spend unpriced',
-    p.spend.estimate_usd != null ? `~${usd(p.spend.estimate_usd)} est` : null,
+    p.spend.estimate_usd != null ? `~${usd(p.spend.estimate_usd)} total est` : null,
     p.spend.cap_usd != null ? `${usd(p.spend.cap_usd)} cap` : null,
   ].filter(Boolean).join(' / ')
   const state = p.status === 'stopping' ? ' · STOPPING (finishing in-flight files)' : ''

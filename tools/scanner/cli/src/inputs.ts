@@ -18,6 +18,8 @@ export interface InputIO {
   write(text: string): void
   read(prompt: string, options?: { hidden?: boolean }): Promise<string>
   close?(): void
+  /** Receives terminal Ctrl-C even between prompts, such as during review calls. */
+  onInterrupt?(listener: () => void): () => void
 }
 
 export class InputCancelled extends Error {}
@@ -25,6 +27,7 @@ export class InputCancelled extends Error {}
 export function terminalIO(): InputIO {
   let rl: ReturnType<typeof createInterface> | undefined
   let hidden = false
+  const interrupts = new Set<() => void>()
   const output = new Writable({
     write(chunk, encoding, done) {
       if (!hidden) process.stdout.write(chunk, encoding as BufferEncoding)
@@ -35,7 +38,12 @@ export function terminalIO(): InputIO {
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
     write: text => { process.stdout.write(text + '\n') },
     async read(prompt, options) {
-      rl ??= createInterface({ input: process.stdin, output, terminal: Boolean(process.stdin.isTTY) })
+      if (!rl) {
+        rl = createInterface({ input: process.stdin, output, terminal: Boolean(process.stdin.isTTY) })
+        // A persistent listener keeps readline alive and forwards raw-mode Ctrl-C
+        // while the caller is awaiting a model, with no question pending.
+        rl.on('SIGINT', () => { for (const listener of interrupts) listener() })
+      }
       const abort = new AbortController()
       const onInterrupt = () => abort.abort()
       rl.once('SIGINT', onInterrupt)
@@ -52,7 +60,8 @@ export function terminalIO(): InputIO {
         if (hidden) { hidden = false; process.stdout.write('\n') }
       }
     },
-    close() { rl?.close(); output.end() },
+    onInterrupt(listener) { interrupts.add(listener); return () => { interrupts.delete(listener) } },
+    close() { interrupts.clear(); rl?.close(); output.end() },
   }
 }
 
