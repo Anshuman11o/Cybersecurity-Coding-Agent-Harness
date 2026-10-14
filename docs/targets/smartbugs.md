@@ -2,8 +2,8 @@
 
 Public target: `Anshuman11o/smartbugs-clean-solidity` at `6d09946` (143 standalone
 Solidity source units). Private scoring snapshot: `Anshuman11o/smartbugs-clean-answer-key`
-at `1aae231`; use the subsequent readiness commit for the reproducible export,
-reachability and compiler validation described below. Record the full target,
+at `1aae231`, with readiness export, reachability and compiler validation
+committed at `373aaf7`. Record the full target,
 harness and private key SHAs with each run. Do not mount the private key in a scan
 environment.
 
@@ -102,3 +102,31 @@ matching. Use its `METRICS.md` to interpret results and distinguish distinct-fil
 coverage from entry-level scores. `alt_lines` and `line_end` export compatibility
 depends on the generic scorer version; older scorers retain primary-line
 compatibility but do not credit alternative evidence. Publish aggregates only.
+
+## Deterministic verification
+
+From `tools/scanner/stage0-recon`, run:
+
+```bash
+npx --no-install tsx src/signals.test.ts
+npx --no-install tsx --test src/solidity.test.ts
+```
+
+The preparation also ran every existing Stage 0 test and the shared, CLI,
+playbook-agent, budget and per-file hunt suites. The v1 component directories
+are byte-identical to the branch base. Replaying the per-file selector against
+the same archived Juice Shop recon signals and current deterministic inventory
+produced identical normalized manifests: 884 inventoried files, 301 hunt, 583
+skip, zero unaccounted. Only run timestamps were excluded from comparison.
+This is frozen-input replay equality; a fresh recon will intentionally detect
+Solidity surfaces in embedded contract snippets differently. No JS/TS detector
+or existing language pattern changed.
+
+Deterministic target preparation assigned all 143 Solidity files to hunt lanes,
+with no skips or unaccounted files. Private reachability covers all 207 entries;
+primary-line perfect synthetic findings score 207/207. All 143 cleaned and all
+143 original sources compiled under their recorded versions, with no paired
+success/error-kind differences. These are preparation checks, with public-data
+contamination exposure, not measured scan accuracy. Live Stage 0 and Stage 2
+remain unverified, and alternative-line credit awaits the parallel generic
+scorer update.
