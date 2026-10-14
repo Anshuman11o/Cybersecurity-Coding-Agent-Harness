@@ -512,6 +512,19 @@ test('the page links each review row to its finding\'s line in findings.json, an
   })
 }))
 
+test('option 2 is written beside report.html only when asked, and report.html stays option 1', () => withRoot(root => {
+  const run = makeRun(root, 'r1', { status: 'COMPLETE', done: ALL })
+  const plain = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW })
+  assert.ok(plain.written && plain.option2 === undefined)
+  assert.ok(!existsSync(join(run.runDir, 'report-option-2.html')))
+  const both = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW, option2: true })
+  assert.ok(both.written && both.option2 === join(run.runDir, 'report-option-2.html'))
+  assert.equal(readFileSync(both.html, 'utf-8'), readFileSync(plain.html, 'utf-8'), 'report.html unchanged by option 2')
+  const two = readFileSync(both.option2!, 'utf-8')
+  assert.ok(two.includes('<h1>secscan Scanning Report</h1>') && two.includes('Vulnerability Impact'))
+  assert.ok(!readFileSync(both.json, 'utf-8').includes('impact'), 'nothing added to findings.json')
+}))
+
 // ── Index ─────────────────────────────────────────────────────────────────
 
 test('index.html: runs with a report, newest first; a deleted run drops out on the next rebuild', () => withRoot(root => {

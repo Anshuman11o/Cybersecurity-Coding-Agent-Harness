@@ -177,3 +177,25 @@ helpers stay in `html.ts`). Applied by rebuilding the same run's report.
 - The severity columns are headed "Severity band (High · Medium · Low)"; Top
   files reads "Files with the most bugs".
 
+## Amendment 3, 2026-10-14: report option 2, ZAP-style summary
+
+A second design to compare with option 1, kept in
+`tools/scanner/report/src/option2-zap-style.ts`; option 1 is unchanged and
+`report.html` stays option 1. `secscan report [run-id] --template 2` also writes
+`report-option-2.html` beside it. Design references: ZAP's Modern report
+(Corporate theme) and High Level report, read from ZAP's template source.
+
+- White page; navy header rows, zebra rows, ZAP's red / orange / yellow risk
+  colours. No chart library: the doughnut is inline SVG built at render time.
+- Sections: Summary (Run details and Scan results tables), Vulnerability
+  Severity (doughnut and legend), Vulnerabilities by Type (one split bar per
+  type, each severity's count in its own segment, total at the end), Top 10
+  Files with the Most Bugs, Vulnerability Impact.
+- Impact table: types ranked by most highs, then mediums, then lows; impact
+  text is the playbook's Scope line, then "In this codebase:" and the playbook
+  agent's reason from playbook-plan.json (`report/src/impact.ts`). Citation
+  links and "Source: <url>" tails are dropped for display. Nothing is written
+  to findings.json.
+- Links: severity legend entries and impact type names open findings.json in
+  VS Code (first finding of that severity; the type's most severe finding).
+

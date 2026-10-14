@@ -14,6 +14,8 @@ import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, wr
 import { join, resolve } from 'path'
 import { buildReport, type BuildInput } from './build.js'
 import { renderReportHtml } from './option1-summary.js'
+import { renderOption2Html } from './option2-zap-style.js'
+import { classImpacts } from './impact.js'
 import { findingLines, serializeReport } from './serialize.js'
 import { renderIndexHtml } from './index-page.js'
 import {
@@ -85,13 +87,18 @@ export function rebuildIndex(reportsRoot: string, now: Date = new Date()): strin
   return path
 }
 
+/** Report option 2 is written beside report.html (option 1) so the two can be compared. */
+export const OPTION2_FILE = 'report-option-2.html'
+
 export interface GenerateInput extends BuildInput {
   /** The reports folder holding runs/<run-id>/; its index.html is rebuilt. */
   reportsRoot: string
+  /** Also write report option 2 (report-option-2.html). Report.html is always option 1. */
+  option2?: boolean
 }
 
 export type GenerateResult =
-  | { written: true; json: string; html: string; index: string; report: FindingsReport }
+  | { written: true; json: string; html: string; option2?: string; index: string; report: FindingsReport }
   | { written: false; why: string }
 
 /**
@@ -105,8 +112,14 @@ export function generateReport(input: GenerateInput): GenerateResult {
   const html = join(input.runDir, REPORT_FILE)
   const text = serializeReport(report)
   const lines = findingLines(text, report.findings.length)
+  const links = lines ? { findingsPath: resolve(json), findingLines: lines } : null
   atomicWrite(json, text)
-  atomicWrite(html, renderReportHtml(report, lines ? { findingsPath: resolve(json), findingLines: lines } : null))
+  atomicWrite(html, renderReportHtml(report, links))
+  let option2: string | undefined
+  if (input.option2) {
+    option2 = join(input.runDir, OPTION2_FILE)
+    atomicWrite(option2, renderOption2Html(report, links, classImpacts(input)))
+  }
   const index = rebuildIndex(input.reportsRoot, input.now)
-  return { written: true, json, html, index, report }
+  return { written: true, json, html, ...(option2 ? { option2 } : {}), index, report }
 }
