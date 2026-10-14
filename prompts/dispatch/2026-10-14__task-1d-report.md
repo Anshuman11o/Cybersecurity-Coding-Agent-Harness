@@ -159,3 +159,21 @@ disk with `secscan report`, no new scan:
   findings"); action hints stay on the right.
 - The CLI's and Stage 2's progress lines name critical only when there is one.
 
+## Amendment 2, 2026-10-14: report option 1, summary only
+
+The owner asked for two or three report designs to choose between; this is
+option 1, kept in `tools/scanner/report/src/option1-summary.ts` (shared
+helpers stay in `html.ts`). Applied by rebuilding the same run's report.
+
+- The Findings view, its tab and every link into it are removed; the page is
+  the summary only and embeds no report data.
+- Links open `findings.json` in VS Code at the finding (`vscode://file/<abs
+  path>:<line>`): each Top 10 row at its finding, each severity tile at the
+  first finding of that severity (findings are in severity order). The type
+  and file tables have no links, since their findings are spread through the
+  file.
+- Top 10 columns: Rank, Severity, Vulnerability (the finding's types, not its
+  title), File, LLM confidence score. Line and confidence band are dropped.
+- The severity columns are headed "Severity band (High · Medium · Low)"; Top
+  files reads "Files with the most bugs".
+

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { buildReport, compareFindings, NO_SELECTED_CLASS_REASON, type StageName } from './build.js'
 import { generateReport, rebuildIndex, serializeReport } from './write.js'
 import type { CandidateFinding, FindingsReport } from './types.js'
@@ -493,15 +493,23 @@ test('byte-identical output for the same inputs, apart from generated_at', () =>
   assert.equal(strip(c.html, later), strip(a.html, NOW))
 }))
 
-test('findings.json is the serialized report the page embeds', () => withRoot(root => {
+test('the page links each review row to its finding\'s line in findings.json, and embeds no data', () => withRoot(root => {
   const run = makeRun(root, 'r1', { status: 'COMPLETE', done: ALL })
   const r = generateReport({ ...run, reportsRoot: root, secscanVersion: '0.1.0', now: NOW })
   assert.ok(r.written)
-  assert.equal(readFileSync(r.json, 'utf-8'), serializeReport(r.report))
+  const text = readFileSync(r.json, 'utf-8')
+  assert.equal(text, serializeReport(r.report))
+  const lines = text.split('\n')
   const html = readFileSync(r.html, 'utf-8')
-  const data = html.match(/<script type="application\/json" id="report-data">([\s\S]*?)<\/script>/)
-  assert.ok(data)
-  assert.deepEqual(JSON.parse(data[1]), r.report)
+  assert.ok(!html.includes('report-data'))
+  const rows = [...html.matchAll(/<a class="row-link" href="vscode&#58;\/\/file([^"]+):(\d+)">/g)]
+  assert.equal(rows.length, r.report.summary.review_first.length)
+  rows.forEach((m, i) => {
+    assert.equal(decodeURI(m[1]), resolve(r.json))
+    const line = Number(m[2])
+    assert.equal(lines[line - 1], '    {', 'the link lands on the finding\'s opening brace')
+    assert.equal(lines[line], `      "finding_id": "${r.report.summary.review_first[i]}",`)
+  })
 }))
 
 // ── Index ─────────────────────────────────────────────────────────────────

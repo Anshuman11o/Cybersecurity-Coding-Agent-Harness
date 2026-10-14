@@ -11,9 +11,10 @@
  * run folder drops out on the next rebuild.
  */
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { buildReport, type BuildInput } from './build.js'
-import { renderReportHtml } from './html.js'
+import { renderReportHtml } from './option1-summary.js'
+import { findingLines, serializeReport } from './serialize.js'
 import { renderIndexHtml } from './index-page.js'
 import {
   FINDINGS_FILE, FINDINGS_SCHEMA, INDEX_FILE, REPORT_FILE,
@@ -33,9 +34,7 @@ export function atomicWrite(path: string, content: string): void {
   }
 }
 
-export function serializeReport(report: FindingsReport): string {
-  return JSON.stringify(report, null, 2) + '\n'
-}
+export { serializeReport }
 
 /** Run ids in a reports folder, newest first (ids start with their UTC start time). */
 export function listRunIds(reportsRoot: string): string[] {
@@ -104,8 +103,10 @@ export function generateReport(input: GenerateInput): GenerateResult {
   if (!eligible) return { written: false, why: why ?? 'not eligible' }
   const json = join(input.runDir, FINDINGS_FILE)
   const html = join(input.runDir, REPORT_FILE)
-  atomicWrite(json, serializeReport(report))
-  atomicWrite(html, renderReportHtml(report))
+  const text = serializeReport(report)
+  const lines = findingLines(text, report.findings.length)
+  atomicWrite(json, text)
+  atomicWrite(html, renderReportHtml(report, lines ? { findingsPath: resolve(json), findingLines: lines } : null))
   const index = rebuildIndex(input.reportsRoot, input.now)
   return { written: true, json, html, index, report }
 }

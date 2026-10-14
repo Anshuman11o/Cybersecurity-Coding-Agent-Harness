@@ -127,14 +127,15 @@ reads only what the run already wrote; the code is in `tools/scanner/report/`.
   Stage 2 finding exactly as written plus one field, `location`, copied from
   the trace's last step. Findings are in report order: severity, then
   confidence, then file and line.
-- `report.html`: one self-contained page rendered from that same data, with no
-  network requests. The summary shows status, scan gaps, the severity range
-  (High, Medium, Low), a table of the ten most severe findings to review first
-  (severity, vulnerability, file, line, confidence, confidence band), counts by
-  vulnerability type with their OWASP codes, the top files, coverage, spend
-  against budget and token usage. The findings view
-  filters and sorts every finding, groups findings that share a line, shows
-  each trace and copies a finding's JSON.
+- `report.html`: one self-contained summary page rendered from that same data
+  (report option 1, `report/src/option1-summary.ts`), with no network
+  requests. It shows status, scan gaps, the severity range (High, Medium,
+  Low), the ten most severe findings to review first (rank, severity,
+  vulnerability type, file, LLM confidence score), counts by vulnerability
+  type with their OWASP codes, the files with the most bugs, coverage, spend
+  against budget and token usage. There is no findings view in the page:
+  `findings.json` is the detailed record, and the review rows and severity
+  tiles open it in VS Code at the finding they point to.
 - `<reports>/index.html`: rebuilt from every run's `findings.json`.
 
 Stage 2 may rate a finding critical. Only a run that has a critical finding

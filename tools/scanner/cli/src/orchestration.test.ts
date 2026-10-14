@@ -330,7 +330,7 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(findings.schema, 'secscan.findings/1')
       assert.equal(findings.run.status, 'COMPLETE')
       assert.equal(findings.summary.coverage.scanned, 1)
-      assert.match(readFileSync(join(runsRoot, 'report.html'), 'utf8'), /id="report-data"/)
+      assert.match(readFileSync(join(runsRoot, 'report.html'), 'utf8'), /id="s-coverage"/)
       assert.match(readFileSync(join(target, '.secscan', 'index.html'), 'utf8'), new RegExp(`runs/${record.run_id}/report\\.html`))
     } else {
       assert.equal(code, 1)

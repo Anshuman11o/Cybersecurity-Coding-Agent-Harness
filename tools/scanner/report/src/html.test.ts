@@ -1,13 +1,16 @@
 /**
- * report.html and index.html against synthetic reports: hostile model text,
- * the no-network rules, determinism, the special run states, and the index.
+ * report.html (option 1, summary tables) and index.html against synthetic
+ * reports: hostile model text, the no-network rules, determinism, the special
+ * run states, the links into findings.json, and the index.
  * Rendering only; no stage, model, file system or network is involved.
  *
  *   npx tsx --test src/html.test.ts
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { renderReportHtml, escapeHtml, embedJson, fmtTokens, fmtDuration, fmtUsd, codeLabel, codesHeading } from './html.js'
+import { escapeHtml, fmtTokens, fmtDuration, fmtUsd, codeLabel, codesHeading } from './html.js'
+import { renderReportHtml, type ReportLinks } from './option1-summary.js'
+import { findingLines, serializeReport, vscodeHref } from './serialize.js'
 import { renderIndexHtml, relativeHref } from './index-page.js'
 import { makeFinding, makeReport, realisticReport, indexEntryFor } from './fixtures.js'
 import type { FindingsReport, IndexEntry } from './types.js'
@@ -19,15 +22,9 @@ const HOSTILE = `</script><script>alert(1)</script><img src=x onerror=alert(1)>"
 
 const count = (hay: string, needle: string) => hay.split(needle).length - 1
 
-function dataBlock(html: string): string {
-  const m = html.match(/<script type="application\/json" id="report-data">([\s\S]*?)<\/script>/)
-  assert.ok(m, 'report-data block present')
-  return m[1]
-}
-
-/** The executable part of the page: everything except the embedded data. */
-function withoutData(html: string): string {
-  return html.replace(dataBlock(html), '')
+/** Links as generateReport builds them, for a findings.json at a made-up path. */
+function linksFor(r: FindingsReport, path = '/home/dev/projects/shop-api/.secscan/runs/20261014-091207/findings.json'): ReportLinks {
+  return { findingsPath: path, findingLines: findingLines(serializeReport(r), r.findings.length)! }
 }
 
 function hostileReport(): FindingsReport {
@@ -57,50 +54,40 @@ function hostileReport(): FindingsReport {
 
 test('hostile model text never reaches the page as markup', () => {
   const report = hostileReport()
-  const html = renderReportHtml(report)
-  assert.ok(!html.includes('<img src=x'), 'no raw <img src=x')
-  assert.ok(!html.includes('<script>alert(1)'), 'no injected script element')
-  assert.ok(!html.includes('"onmouseover="x'), 'no attribute break-out')
-  // The data block cannot end early: one closing tag per script element emitted.
-  assert.equal(count(html, '<script'), 2)
-  assert.equal(count(html, '</script>'), 2)
-  const block = dataBlock(html)
-  assert.ok(!block.includes('<'), 'no "<" inside the data block')
-  assert.ok(!block.includes(LS) && !block.includes(PS), 'line and paragraph separators escaped')
-  assert.deepEqual(JSON.parse(block), report, 'embedded JSON round-trips exactly')
-  // Hostile text does appear, escaped, in the build-time summary.
-  assert.ok(html.includes('Title &lt;&#47;script&gt;') || html.includes('Title &lt;/script&gt;'))
-})
-
-test('the page script builds the DOM without HTML parsing of data', () => {
-  const page = withoutData(renderReportHtml(realisticReport()))
-  for (const sink of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function']) {
-    assert.ok(!page.includes(sink), `no ${sink}`)
+  for (const html of [renderReportHtml(report), renderReportHtml(report, linksFor(report, `/x/${HOSTILE}/findings.json`))]) {
+    assert.ok(!html.includes('<img src=x'), 'no raw <img src=x')
+    assert.ok(!html.includes('<script>alert(1)'), 'no injected script element')
+    assert.ok(!html.includes('"onmouseover="x'), 'no attribute break-out')
+    assert.equal(count(html, '<script'), 1)
+    assert.equal(count(html, '</script>'), 1)
+    // Hostile text does appear, escaped: the type, file and gap cells.
+    assert.ok(html.includes('class-&lt;/script&gt;'))
+    assert.ok(html.includes('Gap &lt;/script&gt;'))
   }
-  assert.ok(page.includes("JSON.parse(document.getElementById('report-data').textContent)"))
 })
 
-test('escapeHtml and embedJson', () => {
+test('the page embeds no report data and its script never parses HTML', () => {
+  const html = renderReportHtml(realisticReport(), linksFor(realisticReport()))
+  assert.ok(!html.includes('report-data') && !html.includes('application/json'))
+  for (const sink of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function', 'JSON.parse']) {
+    assert.ok(!html.includes(sink), `no ${sink}`)
+  }
+})
+
+test('escapeHtml', () => {
   assert.equal(escapeHtml(`<a href="x" title='y'>&</a>`), '&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;')
   assert.ok(!escapeHtml('see https://example.invalid/').includes('://'))
-  const v = { s: `</script>${LS}${PS} https://example.invalid/a` }
-  const j = embedJson(v)
-  assert.ok(!j.includes('<') && !j.includes('://') && !j.includes(LS) && !j.includes(PS))
-  assert.deepEqual(JSON.parse(j), v)
 })
 
-test('no network URL in report.html or index.html, even when findings quote URLs', () => {
+test('no network URL in report.html or index.html', () => {
   const report = realisticReport()
-  assert.ok(JSON.stringify(report).includes('http://'), 'fixture quotes a URL in a description')
-  const html = renderReportHtml(report)
+  const html = renderReportHtml(report, linksFor(report))
   const index = renderIndexHtml([indexEntryFor(report)], report.generated_at)
   for (const page of [html, index]) {
-    assert.ok(!page.includes('http://'), 'no http://')
-    assert.ok(!page.includes('https://'), 'no https://')
+    assert.ok(!page.includes('://'), 'no literal scheme://, VS Code links included')
   }
-  assert.deepEqual(JSON.parse(dataBlock(html)), report)
   // Nothing that would fetch: no src= or external stylesheet anywhere.
-  assert.ok(!/\ssrc=/.test(withoutData(html)))
+  assert.ok(!/\ssrc=/.test(html))
   assert.ok(!/<link[^>]+stylesheet/.test(html))
 })
 
@@ -113,12 +100,53 @@ test('CSP meta tag present in both pages', () => {
 
 test('rendering is deterministic', () => {
   const report = realisticReport()
-  assert.equal(renderReportHtml(report), renderReportHtml(structuredClone(report)))
+  assert.equal(renderReportHtml(report, linksFor(report)), renderReportHtml(structuredClone(report), linksFor(report)))
   const entries = [indexEntryFor(report)]
   assert.equal(renderIndexHtml(entries, report.generated_at), renderIndexHtml(entries, report.generated_at))
   // The page shows the report's own time, not the render time.
   const later = { ...report, generated_at: '2027-01-02T03:04:05.000Z' }
   assert.ok(renderReportHtml(later).includes('datetime="2027-01-02T03:04:05.000Z"'))
+})
+
+// ── Summary only ────────────────────────────────────────────────────────────
+
+test('summary only: no findings view, tabs, filters or in-page finding links', () => {
+  const r = realisticReport()
+  const html = renderReportHtml(r, linksFor(r))
+  for (const gone of ['view-findings', 'data-tab', 'data-filter-', 'data-sev-chip', 'data-goto', 'href="#', 'View in Findings', 'Copy JSON']) {
+    assert.ok(!html.includes(gone), `no ${gone}`)
+  }
+  for (const f of r.findings) assert.ok(!html.includes(escapeHtml(f.title)), 'no finding titles or descriptions in the page')
+})
+
+test('links open findings.json in VS Code at the finding: review rows and severity tiles', () => {
+  const r = realisticReport()
+  const links = linksFor(r)
+  const html = renderReportHtml(r, links)
+  r.summary.review_first.forEach(id => {
+    const i = r.findings.findIndex(f => f.finding_id === id)
+    assert.ok(html.includes(`<a class="row-link" href="${escapeHtml(vscodeHref(links.findingsPath, links.findingLines[i]))}">`))
+  })
+  for (const s of ['critical', 'high', 'medium', 'low']) {
+    const first = r.findings.findIndex(f => f.severity_estimate === s)
+    assert.ok(html.includes(`<a class="tile sev-${s}" href="${escapeHtml(vscodeHref(links.findingsPath, links.findingLines[first]))}"`), s)
+  }
+  assert.ok(html.includes('Select a row to open it in findings.json (VS Code)'))
+  // Without a findings.json path: the same page, no links.
+  const plain = renderReportHtml(r)
+  assert.ok(!plain.includes('vscode') && !plain.includes('class="clickable"') && !plain.includes('<a class="tile'))
+})
+
+test('findingLines and vscodeHref', () => {
+  const r = realisticReport()
+  const text = serializeReport(r)
+  const lines = text.split('\n')
+  const at = findingLines(text, r.findings.length)!
+  assert.equal(at.length, r.findings.length)
+  at.forEach((n, i) => assert.equal(lines[n], `      "finding_id": ${JSON.stringify(r.findings[i].finding_id)},`))
+  assert.equal(findingLines(text, r.findings.length + 1), null, 'a mismatch gives no links, not wrong ones')
+  assert.equal(vscodeHref('/a b/#x?/findings.json', 7), 'vscode:' + '//file/a%20b/%23x%3F/findings.json:7')
+  assert.equal(vscodeHref('C:\\work\\findings.json', 3), 'vscode:' + '//file/C:/work/findings.json:3')
 })
 
 // ── Summary content and special states ──────────────────────────────────────
@@ -132,7 +160,7 @@ test('zero files scanned says so and never shows a zero count', () => {
   const html = renderReportHtml(r)
   assert.ok(html.includes('No files were scanned'))
   assert.ok(!html.includes('0 vulnerabilities'))
-  assert.ok(!html.includes('class="tiles"'), 'no severity tiles')
+  assert.ok(!html.includes('class="tiles'), 'no severity tiles')
   assert.ok(!html.includes('Partial scan:'), 'no partial line when nothing was scanned')
 })
 
@@ -140,6 +168,7 @@ test('complete run with no findings', () => {
   const html = renderReportHtml(makeReport([], { status: 'COMPLETE', coverage: { scanned: 88, in_scope: 88 } }))
   assert.ok(html.includes('No vulnerabilities found in 88 scanned files'))
   assert.ok(!html.includes('id="s-gaps"'), 'no scan gaps box')
+  assert.ok(!html.includes('id="s-review"'))
 })
 
 test('partial run: partial line, gaps, resume command, breakdown and cost', () => {
@@ -152,27 +181,27 @@ test('partial run: partial line, gaps, resume command, breakdown and cost', () =
   assert.ok(html.includes('$4.91 spent of $5.00 budget'))
   assert.ok(html.includes('40 vulnerabilities'))
   assert.ok(html.includes('INCOMPLETE') && html.includes('budget reached'))
-  assert.ok(html.includes('main @ 1a2b3c4') && !withoutData(html).includes('1a2b3c4d'), 'short commit outside the data')
+  assert.ok(html.includes('main @ 1a2b3c4') && !html.includes('1a2b3c4d'), 'short commit only')
   assert.ok(html.includes('A finding counts under every type it carries.'))
   assert.ok(html.includes('No selected class after review'))
 })
 
-test('review first is a table of at most ten rows, one field per column, each linking to its finding', () => {
+test('review first: rank, severity, vulnerability type, file, LLM confidence score; one field per column', () => {
   const r = realisticReport()
-  const html = renderReportHtml(r)
-  assert.ok(html.includes('<h2 id="s-review">Top 10 most severe vulnerabilities to review first</h2><span class="sub">Ranked by severity, then confidence</span>'))
-  assert.ok(html.includes('<thead><tr><th class="num">#</th><th>Severity</th><th>Vulnerability</th><th>File</th><th class="num">Line</th><th class="num">Confidence</th><th>Confidence band</th></tr></thead>'))
-  const rows = html.match(/<tr class="clickable" data-goto-row>[\s\S]*?<\/tr>/g) ?? []
+  const html = renderReportHtml(r, linksFor(r))
+  assert.ok(html.includes('<h2 id="s-review">Top 10 most severe vulnerabilities to review first</h2><span class="sub">Ranked by severity, then LLM confidence score</span>'))
+  assert.ok(html.includes('<thead><tr><th class="num">Rank</th><th>Severity</th><th>Vulnerability</th><th>File</th><th class="num">LLM confidence score</th></tr></thead>'))
+  const table = html.slice(html.indexOf('id="s-review"'), html.indexOf('id="s-types"'))
+  const rows = table.match(/<tr class="clickable">[\s\S]*?<\/tr>/g) ?? []
   assert.equal(rows.length, 10)
   r.summary.review_first.forEach((id, i) => {
-    const idx = r.findings.findIndex(f => f.finding_id === id)
-    const f = r.findings[idx]
-    assert.ok(rows[i].includes(`href="#${encodeURIComponent(id)}" data-goto="${idx}"`))
-    assert.ok(rows[i].includes(`data-label="#">${i + 1}<`))
-    assert.ok(rows[i].includes(`data-label="Line">${f.location.line}<`))
-    assert.ok(rows[i].includes(`data-label="Confidence">${f.confidence.toFixed(2)}<`))
-    assert.ok(/data-label="Confidence band">(High|Medium|Low)</.test(rows[i]))
-    assert.ok(!rows[i].includes(' · '), 'no two fields share a cell')
+    const f = r.findings.find(x => x.finding_id === id)!
+    const types = [...new Set(f.finding_classes.map(c => c.class))].join(', ')
+    assert.ok(rows[i].includes(`data-label="Rank">${i + 1}<`))
+    assert.ok(rows[i].includes(`">${escapeHtml(types)}</a>`), 'the type, not the title')
+    assert.ok(rows[i].includes(`data-label="File">${escapeHtml(f.location.file)}<`))
+    assert.ok(rows[i].includes(`data-label="LLM confidence score">${f.confidence.toFixed(2)}<`))
+    assert.ok(!rows[i].includes(' · ') && !rows[i].includes('Line') && !rows[i].includes('band'))
   })
 })
 
@@ -183,22 +212,20 @@ test('a run with no critical finding shows High, Medium and Low only; one that h
     makeFinding({ id: 'F3', title: 'C', severity: 'low', confidence: 0.3, file: 'b.ts', line: 3, classes: ['xss'] }),
   ])
   assert.ok(!('critical' in plain.summary.by_severity))
-  const html = renderReportHtml(plain)
-  const page = withoutData(html)
-  assert.ok(!page.includes('data-filter-sev="critical"') && !page.includes('data-sev-chip="critical"'))
-  assert.ok(!/>Critical</.test(page.replace(/<script>[\s\S]*?<\/script>/, '')), 'no Critical label in the markup')
-  assert.ok(page.includes('<div class="tiles cols-3">'))
-  assert.equal(count(page, '<th>High · Medium · Low</th>'), 2, 'type and file tables')
-  assert.ok(page.includes('<h2 class="tiles-title">Severity range</h2><span class="sub">Number of vulnerabilities in each severity band</span>'))
+  const html = renderReportHtml(plain, linksFor(plain))
+  assert.ok(!html.includes('sev-critical"') && !html.includes('>Critical<'))
+  assert.ok(html.includes('<div class="tiles cols-3">'))
+  assert.equal(count(html, '<th>Severity band (High · Medium · Low)</th>'), 2, 'type and file tables')
+  assert.ok(html.includes('<h2 class="tiles-title">Severity range</h2><span class="sub">Number of vulnerabilities in each severity band</span>'))
   const withCritical = renderReportHtml(realisticReport())
-  assert.ok(withCritical.includes('data-filter-sev="critical"') && withCritical.includes('<div class="tiles cols-4">'))
-  assert.ok(withCritical.includes('<th>Critical · High · Medium · Low</th>'))
+  assert.ok(withCritical.includes('<div class="tiles cols-4">'))
+  assert.ok(withCritical.includes('<th>Severity band (Critical · High · Medium · Low)</th>'))
 })
 
-test('header has no Pass field; top files says what it lists beside its title', () => {
+test('header has no Pass field; top files says it lists the files with the most bugs', () => {
   const html = renderReportHtml(realisticReport())
   assert.ok(!html.includes('<dt>Pass</dt>'))
-  assert.ok(html.includes('<h2 id="s-files">Top files</h2><span class="sub">Files with the most findings</span>'))
+  assert.ok(html.includes('<h2 id="s-files">Top files</h2><span class="sub">Files with the most bugs</span>'))
 })
 
 test('codes column names the families present, and each code shows its name once', () => {
@@ -235,7 +262,6 @@ test('null numbers render as unknown, never 0', () => {
   assert.ok(/<dt>Wall clock<\/dt><dd>unknown/.test(html))
   assert.ok(/<p class="stat-line">unknown<\/p>/.test(html))
   assert.ok(html.includes('UNKNOWN'))
-  assert.ok(!html.includes('<dt>Pass</dt>'), 'pass hidden when unknown')
 })
 
 test('no confidence breakdown and no benchmark line', () => {
@@ -244,14 +270,6 @@ test('no confidence breakdown and no benchmark line', () => {
     assert.ok(!/by confidence/i.test(html))
     assert.ok(!/benchmark/i.test(html))
   }
-})
-
-test('severity tiles, type rows and file rows carry filters by index, not by data', () => {
-  const r = hostileReport()
-  const html = renderReportHtml(r)
-  for (const s of ['critical', 'high', 'medium', 'low']) assert.ok(html.includes(`data-filter-sev="${s}"`))
-  r.summary.by_class.forEach((_, i) => assert.ok(html.includes(`data-filter-class="${i}"`)))
-  r.summary.top_files.forEach((_, i) => assert.ok(html.includes(`data-filter-file="${i}"`)))
 })
 
 test('formatting helpers', () => {
