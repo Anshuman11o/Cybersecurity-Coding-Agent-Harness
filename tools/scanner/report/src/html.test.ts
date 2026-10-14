@@ -215,11 +215,17 @@ test('a run with no critical finding shows High, Medium and Low only; one that h
   const html = renderReportHtml(plain, linksFor(plain))
   assert.ok(!html.includes('sev-critical"') && !html.includes('>Critical<'))
   assert.ok(html.includes('<div class="tiles cols-3">'))
-  assert.equal(count(html, '<th>Severity band (High · Medium · Low)</th>'), 2, 'type and file tables')
+  assert.equal(count(html, '<th class="band-group" colspan="3" scope="colgroup">Severity band</th>'), 2, 'type and file tables')
+  assert.equal(count(html, '<tr class="band-row"><th class="c-band" scope="col"><span class="sevnum sev-high">High</span></th><th class="c-band" scope="col"><span class="sevnum sev-medium">Medium</span></th><th class="c-band" scope="col"><span class="sevnum sev-low">Low</span></th></tr>'), 2)
+  // Every row has one count cell per severity column, in the same order.
+  const typeRows = html.slice(html.indexOf('id="s-types"'), html.indexOf('id="s-files"')).match(/<tr>[\s\S]*?<\/tr>/g) ?? []
+  assert.ok(typeRows.length > 0)
+  for (const row of typeRows.filter(r => r.includes('class="c-name"'))) assert.deepEqual([...row.matchAll(/data-label="(High|Medium|Low|Critical)"/g)].map(m => m[1]), ['High', 'Medium', 'Low'])
   assert.ok(html.includes('<h2 class="tiles-title">Severity range</h2><span class="sub">Number of vulnerabilities in each severity band</span>'))
   const withCritical = renderReportHtml(realisticReport())
   assert.ok(withCritical.includes('<div class="tiles cols-4">'))
-  assert.ok(withCritical.includes('<th>Severity band (Critical · High · Medium · Low)</th>'))
+  assert.ok(withCritical.includes('<th class="band-group" colspan="4" scope="colgroup">Severity band</th>'))
+  assert.ok(withCritical.includes('<th class="c-band" scope="col"><span class="sevnum sev-critical">Critical</span></th>'))
 })
 
 test('header has no Pass field; top files says it lists the files with the most bugs', () => {
@@ -241,7 +247,7 @@ test('codes column names the families present, and each code shows its name once
   const r = realisticReport()
   r.summary.category_names = { ...r.summary.category_names, A03: 'A03: Injection' }
   const html = renderReportHtml(r)
-  assert.ok(html.includes('<th>OWASP codes</th>'))
+  assert.ok(html.includes('<th rowspan="2">OWASP codes</th>'))
   assert.ok(html.includes('>A03: Injection<') && !html.includes('A03 A03'))
 })
 

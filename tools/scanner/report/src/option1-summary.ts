@@ -17,7 +17,7 @@ import {
   h, raw, BASE_CSS, CSP_META, FAVICON_LINK, BRAND_ICON, UNKNOWN, SEV_LABEL,
   isNum, plural, fmtInt, fmtUsd, fmtTokens, fmtDuration, timeEl, branchAtCommit,
   sevBadge, statusBadge, gapShort, notScannedBreakdown, codeLabel, codesHeading,
-  countOf, severityHeading, sectionHead, basename, type Html,
+  countOf, sectionHead, basename, type Html,
 } from './html.js'
 import { vscodeHref } from './serialize.js'
 import { shownSeverities, type FindingsReport, type ReportFinding, type Severity, type SeverityCounts } from './types.js'
@@ -150,6 +150,20 @@ td.file-cell { min-width: 220px; }
 .b-critical { background: var(--crit); } .b-high { background: var(--high); }
 .b-medium { background: var(--med); } .b-low { background: var(--low); }
 
+/* Severity band columns: one per severity, the label and its counts left-aligned in a narrow column */
+table.data.banded th.band-group { text-align: left; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+table.data.banded tr.band-row th { padding-top: 6px; }
+table.data.banded th[rowspan] { vertical-align: bottom; }
+table.data.banded .c-band { width: 1%; white-space: nowrap; padding-left: 10px; padding-right: 22px; }
+table.data.banded .c-band .sevnum { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+table.data.banded .c-band .sevnum::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--sq, var(--other)); }
+table.data.banded th.c-band .sevnum { font-size: 11.5px; letter-spacing: .04em; }
+table.data.banded .sev-critical { --sq: var(--crit); }
+table.data.banded .sev-high { --sq: var(--high); }
+table.data.banded .sev-medium { --sq: var(--med); }
+table.data.banded .sev-low { --sq: var(--low); }
+table.data.banded td .zero::before { opacity: .45; }
+
 /* Coverage, cost, usage */
 .facts { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .kv { margin: 0; padding: 0 18px 14px; }
@@ -188,6 +202,8 @@ td.file-cell { min-width: 220px; }
   table.data.stack td { display: block; padding: 0; border: 0; min-width: 0; }
   table.data.stack td.c-name, table.data.stack td.c-codes { grid-column: 1 / -1; }
   table.data.stack .countcell { min-width: 0; }
+  table.data.stack.banded tr { grid-template-columns: minmax(0, 1fr) repeat(var(--bands), auto); }
+  table.data.stack.banded .c-band { width: auto; padding: 0; }
   table.data.labelled thead { display: none; }
   table.data.labelled, table.data.labelled tbody { display: block; }
   table.data.labelled tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
@@ -404,14 +420,20 @@ function countCell(count: number, by: SeverityCounts, max: number, sevs: Severit
   return h`<div class="countcell"><span class="n">${fmtInt(count)}</span><span class="track"><span class="bar" style="width:${width.toFixed(2)}%">${segs}</span></span></div>`
 }
 
-function splitCells(by: SeverityCounts, sevs: Severity[]): Html {
-  return h`<span class="split">${sevs.map(s =>
-    h`<span class="sevnum sev-${s}${countOf(by, s) === 0 ? ' zero' : ''}" title="${SEV_LABEL[s]}">${fmtInt(countOf(by, s))}</span>`)}</span>`
+/** One cell per severity, each under its own column so the counts line up with their labels. */
+function bandCells(by: SeverityCounts, sevs: Severity[]): Html {
+  return h`${sevs.map(s => {
+    const n = countOf(by, s)
+    return h`<td class="c-band" data-label="${SEV_LABEL[s]}"><span class="sevnum sev-${s}${n === 0 ? ' zero' : ''}" title="${SEV_LABEL[s]}">${fmtInt(n)}</span></td>`
+  })}`
 }
 
-/** "Severity band (High · Medium · Low)": names what the coloured counts are. */
-function bandHeading(sevs: Severity[]): string {
-  return `Severity band (${severityHeading(sevs)})`
+/** A two-row header: "Severity band" over one column per severity, each marked in its colour. */
+function bandHead(leading: Html, sevs: Severity[]): Html {
+  return h`<thead>
+      <tr>${leading}<th class="band-group" colspan="${sevs.length}" scope="colgroup">Severity band</th></tr>
+      <tr class="band-row">${sevs.map(s => h`<th class="c-band" scope="col"><span class="sevnum sev-${s}">${SEV_LABEL[s]}</span></th>`)}</tr>
+    </thead>`
 }
 
 function byClass(r: FindingsReport): Html | '' {
@@ -422,13 +444,13 @@ function byClass(r: FindingsReport): Html | '' {
   const max = Math.max(0, ...rows.map(x => (isNum(x.count) ? x.count : 0)))
   return h`<section class="card" aria-labelledby="s-types">
   ${sectionHead('s-types', 'By vulnerability type')}
-  <div class="table-scroll"><table class="data stack">
-    <thead><tr><th>Type</th><th>${codesHeading(rows.flatMap(x => x.codes))}</th><th>Vulnerabilities</th><th>${bandHeading(sevs)}</th></tr></thead>
+  <div class="table-scroll"><table class="data stack banded" style="--bands:${sevs.length}">
+    ${bandHead(h`<th rowspan="2">Type</th><th rowspan="2">${codesHeading(rows.flatMap(x => x.codes))}</th><th rowspan="2">Vulnerabilities</th>`, sevs)}
     <tbody>${rows.map(row => h`<tr>
       <td class="c-name"><span class="type-name">${row.class}</span></td>
       <td class="c-codes"><span class="codes">${row.codes.length ? row.codes.map(c => h`<span class="tag code">${codeLabel(c, names)}</span>`) : h`<span class="muted">none</span>`}</span></td>
       <td class="c-count">${countCell(row.count, row.by_severity, max, sevs)}</td>
-      <td class="c-split">${splitCells(row.by_severity, sevs)}</td>
+      ${bandCells(row.by_severity, sevs)}
     </tr>`)}</tbody>
   </table></div>
   <p class="note">A finding counts under every type it carries.</p>
@@ -442,12 +464,12 @@ function topFiles(r: FindingsReport): Html | '' {
   const max = Math.max(0, ...rows.map(x => (isNum(x.count) ? x.count : 0)))
   return h`<section class="card" aria-labelledby="s-files">
   ${sectionHead('s-files', 'Top files', 'Files with the most bugs')}
-  <div class="table-scroll"><table class="data stack">
-    <thead><tr><th>File</th><th>Vulnerabilities</th><th>${bandHeading(sevs)}</th></tr></thead>
+  <div class="table-scroll"><table class="data stack banded" style="--bands:${sevs.length}">
+    ${bandHead(h`<th rowspan="2">File</th><th rowspan="2">Vulnerabilities</th>`, sevs)}
     <tbody>${rows.map(row => h`<tr>
       <td class="file-cell c-name"><span class="file-name mono">${row.file}</span></td>
       <td class="c-count">${countCell(row.count, row.by_severity, max, sevs)}</td>
-      <td class="c-split">${splitCells(row.by_severity, sevs)}</td>
+      ${bandCells(row.by_severity, sevs)}
     </tr>`)}</tbody>
   </table></div>
 </section>`
