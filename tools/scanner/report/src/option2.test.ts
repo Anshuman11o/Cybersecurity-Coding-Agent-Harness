@@ -120,6 +120,22 @@ test('option 2: no critical anywhere when the run has none; hostile text stays t
   assert.equal(count(html, '<script'), 1)
 })
 
+test('option 2: title, the findings.json link and note on top, and a link per top file', () => {
+  const r = realisticReport()
+  const links = linksFor(r)
+  const html = renderOption2Html(r, links, impactsFor(r))
+  assert.ok(html.includes('<h1>Vulnerability Scan Summary Report</h1>') && !html.includes('secscan Scanning Report'))
+  assert.ok(html.includes(`<a href="${escapeHtml(vscodeHref(PATH, 1))}">View detailed JSON bug report on VS Code</a>`))
+  assert.ok(html.includes('Every link in this report opens the detailed bug report, findings.json, in VS Code'))
+  for (const f of r.summary.top_files) {
+    const first = r.findings.findIndex(x => x.location.file === f.file)
+    assert.ok(html.includes(`<a href="${escapeHtml(vscodeHref(PATH, links.findingLines[first]))}" title="Open this file's most severe finding in findings.json">${escapeHtml(f.file)}</a>`), f.file)
+  }
+  assert.ok(!/\d+ high · \d+ medium/.test(html), 'no per-type counts under the impact names')
+  const bare = renderOption2Html(r, null, {})
+  assert.ok(!bare.includes('View detailed JSON') && !bare.includes('vscode'))
+})
+
 test('option 2: zero scanned and no findings render without a chart or tables', () => {
   const r = makeReport([], { status: 'INCOMPLETE', coverage: { scanned: 0, in_scope: 40, not_scanned: 40, not_scanned_by_reason: { provider_quota: 40 } } })
   const html = renderOption2Html(r, null, {})

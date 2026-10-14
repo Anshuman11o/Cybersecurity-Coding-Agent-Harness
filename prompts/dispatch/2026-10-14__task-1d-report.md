@@ -199,3 +199,9 @@ A second design to compare with option 1, kept in
 - Links: severity legend entries and impact type names open findings.json in
   VS Code (first finding of that severity; the type's most severe finding).
 
+Owner review of option 2, same day: title "Vulnerability Scan Summary Report";
+a "View detailed JSON bug report on VS Code" link (findings.json, line 1) and a
+note that every link opens findings.json under the title; each top-10 file
+links to its most severe finding; the per-type counts under the impact table's
+type names are removed.
+

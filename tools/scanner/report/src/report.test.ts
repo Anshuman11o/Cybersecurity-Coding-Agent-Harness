@@ -521,7 +521,7 @@ test('option 2 is written beside report.html only when asked, and report.html st
   assert.ok(both.written && both.option2 === join(run.runDir, 'report-option-2.html'))
   assert.equal(readFileSync(both.html, 'utf-8'), readFileSync(plain.html, 'utf-8'), 'report.html unchanged by option 2')
   const two = readFileSync(both.option2!, 'utf-8')
-  assert.ok(two.includes('<h1>secscan Scanning Report</h1>') && two.includes('Vulnerability Impact'))
+  assert.ok(two.includes('<h1>Vulnerability Scan Summary Report</h1>') && two.includes('Vulnerability Impact'))
   assert.ok(!readFileSync(both.json, 'utf-8').includes('impact'), 'nothing added to findings.json')
 }))
 

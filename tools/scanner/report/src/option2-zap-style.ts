@@ -43,6 +43,8 @@ a:hover { opacity: .65; }
 .muted { color: var(--muted); }
 
 header.title { text-align: center; padding-bottom: 8px; }
+.json-link { margin: 14px 0 0; font-size: 15px; font-weight: 700; }
+.click-note { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 h1 { margin: 0; color: var(--navy); font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
 .target { margin: 6px 0 0; font-size: 16px; }
 .generated { margin: 4px 0 0; color: var(--muted); font-style: italic; }
@@ -100,7 +102,6 @@ table.zap { width: 100%; border-collapse: collapse; background: #fff; }
 .zap td.impact p { margin: 0; }
 .zap td.impact p + p { margin-top: 6px; }
 .zap td.impact .ctx { color: var(--muted); }
-.counts { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; font-weight: 400; }
 
 .gaps ul { margin: 0; padding-left: 18px; }
 .gaps li + li { margin-top: 4px; }
@@ -154,12 +155,14 @@ function kvTable(title: string, rows: Html[]): Html {
 
 // ── Header and summary tables ──────────────────────────────────────────────
 
-function titleBlock(r: FindingsReport): Html {
+function titleBlock(r: FindingsReport, links: ReportLinks | null): Html {
   const root = r.run.target.root
   return h`<header class="title">
-  <h1>secscan Scanning Report</h1>
+  <h1>Vulnerability Scan Summary Report</h1>
   <p class="target">${root ? basename(root) : 'Target unknown'}</p>
   <p class="generated">Generated on ${timeEl(r.generated_at)}</p>
+  ${links ? h`<p class="json-link"><a href="${vscodeHref(links.findingsPath, 1)}">View detailed JSON bug report on VS Code</a></p>
+  <p class="click-note">Every link in this report opens the detailed bug report, findings.json, in VS Code at that finding.</p>` : ''}
 </header>`
 }
 
@@ -277,17 +280,22 @@ ${keyLine(sevs)}
 
 // ── Top files ──────────────────────────────────────────────────────────────
 
-function topFiles(r: FindingsReport): Html | '' {
+function topFiles(r: FindingsReport, href: FindingHref): Html | '' {
   const rows = r.summary.top_files
   if (!rows.length) return ''
   const sevs = shownSeverities(r.summary.by_severity)
   return h`<h2>Top ${rows.length} Files with the Most Bugs</h2>
 <table class="zap">
   <thead><tr><th class="num">#</th><th>File</th>${sevs.map(s => h`<th class="num risk-${s}">${SEV_LABEL[s]}</th>`)}<th class="num">Total</th></tr></thead>
-  <tbody>${rows.map((f, i) => h`<tr><td class="num">${fmtInt(i + 1)}</td><td class="mono">${f.file}</td>${sevs.map(s => {
+  <tbody>${rows.map((f, i) => {
+    // Findings are in severity order, so the file's first finding is its most severe.
+    const first = r.findings.findIndex(x => x.location.file === f.file)
+    const link = first >= 0 ? href(first) : null
+    return h`<tr><td class="num">${fmtInt(i + 1)}</td><td class="mono">${link ? h`<a href="${link}" title="Open this file's most severe finding in findings.json">${f.file}</a>` : f.file}</td>${sevs.map(s => {
     const n = countOf(f.by_severity, s)
     return h`<td class="num${n === 0 ? ' zero' : ''}">${fmtInt(n)}</td>`
-  })}<td class="num"><strong>${fmtInt(f.count)}</strong></td></tr>`)}</tbody>
+  })}<td class="num"><strong>${fmtInt(f.count)}</strong></td></tr>`
+  })}</tbody>
 </table>`
 }
 
@@ -316,10 +324,9 @@ function impactTable(r: FindingsReport, impacts: Record<string, ClassImpact>, hr
     const first = r.findings.findIndex(f => (f.finding_classes ?? []).some(c => c.class === x.class))
     const link = first >= 0 ? href(first) : null
     const imp = Object.prototype.hasOwnProperty.call(impacts, x.class) ? impacts[x.class] : { scope: null, reason: null }
-    const counts = sevs.map(s => `${countOf(x.by_severity, s)} ${s}`).join(' · ')
     return h`<tr>
     <td class="rank risk-${worst}">${fmtInt(i + 1)}</td>
-    <td class="type-name">${link ? h`<a href="${link}" title="Open its most severe finding in findings.json">${x.class}</a>` : x.class}<span class="counts">${counts}</span></td>
+    <td class="type-name">${link ? h`<a href="${link}" title="Open its most severe finding in findings.json">${x.class}</a>` : x.class}</td>
     <td class="impact">${imp.scope || imp.reason
       ? h`${imp.scope ? h`<p>${imp.scope}</p>` : ''}${imp.reason ? h`<p class="ctx">In this codebase: ${imp.reason}</p>` : ''}`
       : h`<p class="muted">No description recorded for this type.</p>`}</td>
@@ -346,18 +353,18 @@ export function renderOption2Html(report: FindingsReport, links: ReportLinks | n
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${raw(CSP_META)}
 <meta name="color-scheme" content="light">
-<title>${`secscan Scanning Report · ${r.run.id}`}</title>
+<title>${`Vulnerability Scan Summary Report · ${r.run.id}`}</title>
 ${raw(FAVICON_LINK)}
 <style>${raw(CSS)}</style>
 </head>
 <body>
 <main class="page">
-${titleBlock(r)}
+${titleBlock(r, links)}
 ${partial}
 ${summaryTables(r)}
 ${severityChart(r, href)}
 ${byType(r)}
-${topFiles(r)}
+${topFiles(r, href)}
 ${impactTable(r, impacts, href)}
 <footer>Generated by secscan ${r.secscan_version} on ${timeEl(r.generated_at)}. Every finding, in full, is in findings.json next to this file${links ? '; links open it in VS Code' : ''}. Impact text comes from the scanner's playbooks and its playbook agent.</footer>
 </main>
