@@ -436,3 +436,31 @@ def test_every_run_on_disk_has_a_row_or_is_reported():
         assert not orphans, (
             f'{rs.name}: run(s) on disk with no row in {rs.history}: {orphans}. '
             'That disk is not version controlled; when it is reclaimed the run is gone.')
+
+
+def test_scanner_archive_root_uses_private_run_store(monkeypatch, tmp_path):
+    store = tmp_path / 'custom-private-store'
+    store.mkdir()
+    archive = store / 'finished-synthetic-run'
+    archive.mkdir()
+    (archive / 'MANIFEST.md').write_text('| Run id | synthetic-run |\n')
+    repo = tmp_path / 'repo'
+    history = repo / 'results/eval-history'
+    history.mkdir(parents=True)
+    (history / 'scanner.jsonl').write_text('')
+    monkeypatch.setenv('PRIVATE_RUN_STORE', str(store))
+    record_sets = rr.default_record_sets(str(repo))
+    scanner = next(s for s in record_sets if s.name == 'scanner')
+    assert scanner.archive_root == str(store)
+    findings = rr.check([scanner], str(repo))
+    assert 'archive-without-row' in _codes(findings)
+    assert any(f.where == str(archive) for f in findings)
+
+
+def test_scanner_archive_root_keeps_legacy_fallback(monkeypatch):
+    monkeypatch.delenv('PRIVATE_RUN_STORE', raising=False)
+    scanner = next(s for s in rr.default_record_sets(REPO_ROOT) if s.name == 'scanner')
+    assert scanner.archive_root == '/home/user/harness-private/runs'
+    monkeypatch.setenv('PRIVATE_RUN_STORE', '')
+    scanner = next(s for s in rr.default_record_sets(REPO_ROOT) if s.name == 'scanner')
+    assert scanner.archive_root == '/home/user/harness-private/runs'

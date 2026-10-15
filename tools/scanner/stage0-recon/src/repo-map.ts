@@ -28,9 +28,11 @@
  * this prompt exactly as they do for Stage 2's.
  */
 import * as fs from 'node:fs'
+import { summarizeKeyMaterial } from '../../shared/key-material.js'
+import { EXECUTABLE_LANGUAGES } from '../../shared/lane-languages.js'
 import * as path from 'node:path'
 import {
-  isDependencyManifest,
+  isDependencyManifest, languageForPath,
   type InventoryEntry,
   type SymbolEntry,
   type SymbolTableArtifact,
@@ -77,15 +79,11 @@ const NOTE_RESERVE = 120
 const MIN_EXCERPT = 400
 
 /**
- * Languages that hold executable logic — the set Stage 0.5's per-file lane
- * selector hunts. Entry points and tool-calling candidates are drawn from it.
+ * Huntable v2 languages, including infrastructure and key material. This is
+ * the same set the per-file lane selector uses; entry points and tool-calling
+ * candidates are drawn from it. Key-file excerpts are structural summaries.
  */
-export const EXECUTABLE_LANGUAGES: ReadonlySet<string> = new Set([
-  'typescript', 'javascript', 'python', 'ruby', 'java', 'go',
-  'rust', 'c', 'cpp', 'csharp', 'php', 'kotlin', 'swift',
-  'scala', 'solidity', 'dart', 'r', 'perl', 'lua', 'shell',
-  'docker', 'graphql',
-])
+export { EXECUTABLE_LANGUAGES } from '../../shared/lane-languages.js'
 
 // ---------------------------------------------------------------------------
 // Guard adapter
@@ -400,8 +398,9 @@ function fileBlocksSection(
   included: Set<string>,
 ): void {
   for (const item of items) {
-    const content = guard.read(item.path)
-    if (content === null) continue
+    const raw = guard.read(item.path)
+    if (raw === null) continue
+    const content = languageForPath(item.path) === 'key-material' ? summarizeKeyMaterial(raw) : raw
     const header = `### ${item.path}${item.label ? ` — ${item.label}` : ''}`
     // header + two fence lines + newlines
     const overhead = header.length + 2 * (fenceFor(content).length + item.fenceLang.length) + 4

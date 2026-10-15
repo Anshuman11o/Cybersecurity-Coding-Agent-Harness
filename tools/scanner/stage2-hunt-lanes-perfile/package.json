@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "run": "tsx src/hunt-executor.ts",
-    "test": "tsx --test src/loop.test.ts src/prompt-extract.test.ts src/call-policy.test.ts && tsx src/test-breakdown.ts",
+    "test": "tsx --test src/*.test.ts && tsx src/test-breakdown.ts",
     "test:prompts": "tsx --test src/prompt-extract.test.ts"
   },
   "dependencies": {
