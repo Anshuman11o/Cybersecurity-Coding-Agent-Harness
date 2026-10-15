@@ -666,6 +666,60 @@
         "\\b(?:logging|access_logs|flow_log)\\s*\\{"
       ]
     },
+    "solidity": {
+      "route_handler": [
+        "(?!)"
+      ],
+      "db_query": [
+        "(?!)"
+      ],
+      "model_schema": [
+        "\\bmapping\\s*\\(\\s*address(?:\\s+payable)?\\s*=>"
+      ],
+      "model_write": [
+        "\\.call\\s*\\{[^}]{0,512}\\bvalue\\s*:",
+        "\\.call\\s*\\.value\\s*\\((?!\\s*0\\s*\\))",
+        "\\.transfer\\s*\\((?!\\s*0\\s*\\))",
+        "(?:^|[;{}])[ \\t]{0,64}(?:[A-Za-z_$][\\w$]{0,127}\\.){1,8}send\\s*\\((?!\\s*0\\s*\\))",
+        "\\b(?:selfdestruct|suicide)\\s*\\("
+      ],
+      "http_outbound": [
+        "(?!)"
+      ],
+      "auth_check": [
+        "\\btx\\s*\\.\\s*origin\\b",
+        "\\b(?:require|assert)\\s*\\([^;]{0,512}\\bmsg\\s*\\.\\s*sender\\b",
+        "\\bmodifier\\s+\\w+"
+      ],
+      "crypto_op": [
+        "\\b(?:keccak256|sha256|sha3|ripemd160|ecrecover)\\s*\\(",
+        "\\b(?:if|require|assert)\\s*\\([^;{}]{0,512}\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b",
+        "\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash\\s*\\([^;{}]{0,512}\\))\\s*%",
+        "\\b(?:keccak256|sha256|sha3)\\s*\\([^;{}]{0,512}\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b"
+      ],
+      "html_sink": [
+        "(?!)"
+      ],
+      "dynamic_exec": [
+        "\\.delegatecall\\s*\\(",
+        "\\.call\\s*(?:\\{|\\(|\\.\\s*(?:value|gas)\\s*\\()",
+        "\\bassembly\\s*(?:\\([^)]*\\)\\s*)?\\{",
+        "\\b(?:selfdestruct|suicide)\\s*\\("
+      ],
+      "deserialize": [
+        "\\babi\\s*\\.\\s*decode\\s*\\("
+      ],
+      "file_io": [
+        "(?!)"
+      ],
+      "llm_call": [
+        "(?!)"
+      ],
+      "logging": [
+        "\\bemit\\s+\\w+\\s*\\(",
+        "\\bevent\\s+\\w+\\s*\\("
+      ]
+    },
     "kotlin": {
       "route_handler": [
         "^[ \\t]*(?:(?:public|private|internal|protected|open|abstract|data|sealed|inner)\\s+)*class\\s+\\w+\\s*(?:\\([^)]{0,2000}\\))?\\s*:\\s*(?:[A-Za-z_]\\w*\\.)*(?:(?:AppCompat|Component)?Activity|Fragment|BroadcastReceiver|ContentProvider|Service)\\b",

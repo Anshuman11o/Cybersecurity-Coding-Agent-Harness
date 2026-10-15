@@ -10,14 +10,15 @@
  *   auth_check, crypto_op, html_sink, dynamic_exec, deserialize,
  *   file_io, llm_call, logging, config_file, dep_manifest
  *
- * Two content paths. Python, Java, Go, Ruby, PHP and C# files are matched
- * against their language's sink_patterns in shared/signal-classes.json; every
- * other language (JS/TS above all) keeps the original detectors below,
- * unchanged, so the benchmark's signals do not move.
+ * Listed sink-pattern languages use shared/signal-classes.json. Solidity's
+ * additional patterns and structural checks are product-only; benchmark runs
+ * keep the original detectors, including for embedded contract snippets.
  */
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
+import { getRunContext } from '../../shared/run-context.js'
+import { solidityStructuralSignals } from './solidity-signals.js'
 import {
   exportedNames,
   isDependencyManifest,
@@ -432,7 +433,8 @@ export const SINK_PATTERN_LANGUAGES: ReadonlySet<string> = new Set(SINK_PATTERNS
 export function detectSinkSignals(language: string, source: string): Signal[] {
   const bySignal = SINK_PATTERNS.get(language)
   if (!bySignal) return []
-  return SIGNAL_ORDER.filter((s) => (bySignal.get(s) ?? []).some((re) => re.test(source)))
+  const structural = new Set(language === 'solidity' ? solidityStructuralSignals(source) : [])
+  return SIGNAL_ORDER.filter((s) => structural.has(s) || (bySignal.get(s) ?? []).some((re) => re.test(source)))
 }
 
 // ---------------------------------------------------------------------------
@@ -493,7 +495,10 @@ function detectFileSignals(
     }
   }
 
-  if (SINK_PATTERN_LANGUAGES.has(entry.language)) {
+  // Match the run profile used by file-selection's product-only surfaces.
+  // Keep Solidity inventoried in both profiles; only its detector path changes.
+  if (SINK_PATTERN_LANGUAGES.has(entry.language) &&
+      (entry.language !== 'solidity' || getRunContext().profile === 'product')) {
     const content = detectSinkSignals(entry.language, source)
     if (routeHandler && !content.includes('route_handler')) content.unshift('route_handler')
     return content
