@@ -61,6 +61,9 @@ const EXECUTABLE_LANGUAGES = new Set([
   'rust', 'c', 'cpp', 'csharp', 'php', 'kotlin', 'swift',
   'scala', 'solidity', 'dart', 'r', 'perl', 'lua', 'shell',
   'docker', 'graphql',
+  // Declarative infrastructure has security effects; key files can embed secrets.
+  // Both are huntable, so neither belongs in NON_EXECUTABLE_LANGUAGES/SKIP_REASONS.
+  'terraform', 'key-material',
 ])
 
 const NON_EXECUTABLE_LANGUAGES = new Set([

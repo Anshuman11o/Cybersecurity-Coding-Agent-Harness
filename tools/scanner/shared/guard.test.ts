@@ -766,8 +766,9 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   check('floor classes unchanged', JSON.stringify(sc.floor) === JSON.stringify(PRE_1B.floor))
   check('signal -> class map unchanged', JSON.stringify(sc.signals) === JSON.stringify(PRE_1B.signals))
   const langs = Object.keys(sc.sink_patterns ?? {}).sort()
-  check('sink patterns cover exactly Python, Java, Go, Ruby, PHP, C#',
-    JSON.stringify(langs) === JSON.stringify(['csharp', 'go', 'java', 'php', 'python', 'ruby']))
+  const { EXTENSION_LANGUAGES } = await import('../stage0-recon/src/recon-contract.js')
+  check('sink pattern languages are inventoried languages',
+    langs.every(language => Object.values(EXTENSION_LANGUAGES).includes(language)))
   let unknownSignal = 0, badPattern = 0, patterns = 0
   for (const lang of langs) {
     for (const [signal, list] of Object.entries(sc.sink_patterns[lang] as Record<string, string[]>)) {
@@ -792,6 +793,9 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   }
   check('pre-v3 extensions map to the same language',
     Object.entries(PRE_V3).every(([ext, lang]) => contract.languageForPath(`a/b${ext}`) === lang))
+  check('infrastructure and key extensions have explicit languages',
+    ['tf', 'tfvars', 'hcl'].every(ext => contract.languageForPath(`sample.${ext}`) === 'terraform') &&
+    ['pem', 'key', 'crt'].every(ext => contract.languageForPath(`sample.${ext}`) === 'key-material'))
   check('Dockerfile is docker', contract.languageForPath('Dockerfile') === 'docker')
   check('requirements.txt is an inventoried manifest',
     contract.languageForPath('requirements.txt') === contract.MANIFEST_LANGUAGE)

@@ -457,7 +457,8 @@ function detectFileSignals(
 
   // Structural signals (path-based) — check first, and they end the list.
   if (detectDepManifest(relPath)) return ['dep_manifest']
-  if (detectConfigFile(relPath, '')) return ['config_file']
+  if (entry.language !== 'terraform' && entry.language !== 'key-material' &&
+      detectConfigFile(relPath, '')) return ['config_file']
   // Over the byte cap: the content is never read.
   if (entry.oversize) return []
 
@@ -470,6 +471,10 @@ function detectFileSignals(
     // Cannot read file — return empty signals (real answer, not failure)
     return []
   }
+
+  // Key material is a review surface, including certificates whose private-key
+  // handling must be checked. No key contents are emitted into signal artifacts.
+  if (entry.language === 'key-material') return ['crypto_op']
 
   // route_handler: does this file export a name the route table calls? The
   // regex is the pre-v3 detector, kept for JS/TS so no file loses the signal;

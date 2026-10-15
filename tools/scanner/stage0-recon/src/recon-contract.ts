@@ -58,6 +58,8 @@ export const EXTENSION_LANGUAGES: Readonly<Record<string, string>> = Object.free
   '.jinja': 'html', '.jinja2': 'html', '.j2': 'html', '.mustache': 'html',
   '.sass': 'css', '.less': 'css', '.gql': 'graphql',
   '.xml': 'xml', '.ini': 'ini', '.properties': 'properties',
+  '.tf': 'terraform', '.tfvars': 'terraform', '.hcl': 'terraform',
+  '.pem': 'key-material', '.key': 'key-material', '.crt': 'key-material',
 })
 
 /** Language of a dependency manifest whose extension says nothing (requirements.txt, go.mod, Gemfile). */

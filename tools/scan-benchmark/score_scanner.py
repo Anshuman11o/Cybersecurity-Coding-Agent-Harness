@@ -37,6 +37,13 @@ it. Before the class model, every finding emitted exactly one code (mean 1.00). 
 recall jump with a flat hedging rate is real; a recall jump that tracks the hedging
 rate is a wider net.
 
+Ground-truth entries may also declare `alt_lines` (other evidence points in the
+same file) and `line_end` (inclusive end of the primary evidence range). Exact
+recall accepts any evidence point or any line inside that range. Localization
+uses the nearest evidence distance. Entries without these fields retain point
+matching. Alternate evidence in another file requires a different representation;
+these fields never broaden the file match.
+
 ## --alias-expand
 
 Expands both sides to their classes' full alias code sets before intersecting, so a
@@ -96,9 +103,29 @@ def load_ground_truth(path):
             "file": e["file"],
             "line": e["line"],
             "codes": set(e.get("owasp_codes", [])),
+            **({"alt_lines": e["alt_lines"]} if "alt_lines" in e else {}),
+            **({"line_end": e["line_end"]} if "line_end" in e else {}),
         }
         for e in raw["benchmark_ground_truth"]
     ]
+
+
+def evidence_distance(line, entry):
+    """Distance to the primary inclusive range or any alternate evidence point."""
+    if line is None:
+        return None
+    start = entry["line"]
+    end = entry.get("line_end", start)
+    if not isinstance(start, int) or isinstance(start, bool) or start < 1:
+        raise ValueError("evidence line must be a positive integer")
+    if not isinstance(end, int) or isinstance(end, bool) or end < start:
+        raise ValueError("line_end must be an integer at or after line")
+    alternatives = entry.get("alt_lines", [])
+    if not isinstance(alternatives, list) or any(
+        not isinstance(p, int) or isinstance(p, bool) or p < 1 for p in alternatives
+    ):
+        raise ValueError("alt_lines must contain positive integers")
+    return min([max(start - line, 0, line - end)] + [abs(line - p) for p in alternatives])
 
 
 def load_findings(path):
@@ -181,7 +208,7 @@ def score(findings, gt, class_codes, code_to_class, alias_expand):
                 if not file_match(step.get("file", ""), entry["file"]):
                     continue
                 line = step.get("line")
-                delta = abs(line - entry["line"]) if line is not None else None
+                delta = evidence_distance(line, entry)
                 if best is None or (delta is not None and (best is None or best[0] is None or delta < best[0])):
                     best = (delta, line)
             if best is None:

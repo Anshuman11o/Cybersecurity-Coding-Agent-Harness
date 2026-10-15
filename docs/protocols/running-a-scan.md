@@ -263,3 +263,46 @@ Concrete numbers for calibration.
 A prior run at concurrency 8 took a similar wall clock but lost 52 lanes and
 needed a second pass. Throughput is bounded by TPM, not by concurrency, so
 lowering concurrency costs little time and buys reliability.
+
+## Held-out targets
+
+Use a separate scan environment containing the harness and public target only.
+Clone the target **outside `target-apps/`**, detach at the full pinned public
+commit, and record that commit with the harness commit. Resolve abbreviated pins
+before launch. Do not mount private answer keys in the scanning environment.
+
+Before launch, run the merge-base/log checks in §1 and grep the actual tree for
+the required language mappings and signal support. A dispatch document does not
+prove support is installed. Product selection includes infrastructure and key
+material; benchmark selection preserves its historical extension coverage.
+
+```bash
+# Set TARGET, TARGET_COMMIT, PROVIDER and REPORTS to the selected run's values.
+git -C "$TARGET" checkout --detach "$TARGET_COMMIT"
+test "$(git -C "$TARGET" rev-parse HEAD)" = "$TARGET_COMMIT"
+git merge-base HEAD origin/main
+git diff origin/main -- tools/scanner/
+rg 'terraform|key-material' tools/scanner/stage0-recon/src/recon-contract.ts
+unset SCANNER_PLAYBOOK_AGENT
+export SCANNER_REPORTS_ROOT="$REPORTS"  # absolute path outside the target
+./tools/scanner/run.sh --target "$TARGET" --profile product "$PROVIDER" all-v2
+```
+
+Use a fresh reports directory/run id so a prior playbook-agent class selection or
+Stage 2 checkpoint cannot be reused. Leave `SCANNER_PLAYBOOK_AGENT` unset for the
+fixed-class workflow used by the reference benchmark. Keep the actual run id
+printed by the launcher: outputs are under
+`$REPORTS/runs/<run-id>/<provider>/<stage>/`, unless `SCANNER_RUNS_ROOT` overrides
+that root. Record overrides and all runtime arm settings. Only launch after
+provider credentials and the run budget are authorized.
+
+After completion, transfer artifacts to a separate private scoring environment.
+Score with the same scorer, class registry, line slack and alias-expansion mode
+as the comparison run. Use the target's own ground-truth denominator; do not
+apply the reference target's excluded-entry adjustment to another target.
+Archive outputs, logs and private evaluation using `archive-run` before reuse.
+Append only aggregate rows to `results/eval-history/scanner.jsonl`, including
+`target_name`, `target_commit`, `ground_truth_set`, the harness commit and run id.
+Record unrun or failed scans explicitly; class-selection-only runs are not full
+scanner runs. Put held-out results in the separate **Held-out targets** table in
+`docs/benchmarking-results.md`, never in its Juice Shop comparison table.
