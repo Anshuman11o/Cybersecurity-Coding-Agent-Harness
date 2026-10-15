@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -262,6 +262,8 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(await scan(initialArgs, { launchStage: fakeLaunch, review: fakeReview, io }), 0)
       const recordPath = join(runsRoot, 'run-record.json')
       const previous = JSON.parse(readFileSync(recordPath, 'utf8')) as RunRecord
+      assert.ok(!existsSync(join(runsRoot, 'report.html')), 'quitting at confirmation writes no report')
+      assert.ok(!existsSync(join(runsRoot, 'findings.json')))
       assert.equal(previous.status, 'INCOMPLETE')
       assert.equal(previous.spend.spent_usd, 0)
       assert.deepEqual(previous.class_review?.final.classes, ['injection'])
@@ -276,6 +278,8 @@ async function exerciseScan(scenario: Scenario) {
         previous.unscanned = [{ lane_id: 'remaining', target_file: 'remaining.ts', reason: 'max_cost', detail: 'Synthetic cap' }]
         previous.incomplete_reasons = [{ reason: 'max_cost', detail: 'Synthetic cap' }]
         save(recordPath, previous)
+        // The partial report from that stopped hunt must survive a cancelled resume.
+        writeFileSync(join(runsRoot, 'report.html'), 'earlier partial report')
       }
       stages.length = 0
       events.length = 0
@@ -292,6 +296,8 @@ async function exerciseScan(scenario: Scenario) {
         assert.deepEqual(resumed.unscanned, previous.unscanned)
         assert.deepEqual(resumed.incomplete_reasons, previous.incomplete_reasons)
         assert.equal(resumed.status, 'INCOMPLETE')
+        assert.equal(readFileSync(join(runsRoot, 'report.html'), 'utf8'), 'earlier partial report',
+          'a cancelled resume rewrites the record but leaves the report as it was')
         return
       }
       assert.deepEqual(events, ['review:add', 'stage05-lane-selector-perfile', 'stage1-budget-governor-perfile'])
@@ -319,6 +325,13 @@ async function exerciseScan(scenario: Scenario) {
         [['access-control', 1], ['injection', 1]])
       assert.deepEqual(record.class_review?.final.classes, selection.classes)
       assert.equal(record.confirmation?.summary.classes?.[0].added_by_user, true)
+      // finish() writes the report next to the record and lists it in the index.
+      const findings = JSON.parse(readFileSync(join(runsRoot, 'findings.json'), 'utf8'))
+      assert.equal(findings.schema, 'secscan.findings/1')
+      assert.equal(findings.run.status, 'COMPLETE')
+      assert.equal(findings.summary.coverage.scanned, 1)
+      assert.match(readFileSync(join(runsRoot, 'report.html'), 'utf8'), /<h2>Scan Results<\/h2>/)
+      assert.match(readFileSync(join(target, '.secscan', 'index.html'), 'utf8'), new RegExp(`runs/${record.run_id}/report\\.html`))
     } else {
       assert.equal(code, 1)
       assert.equal(record.status, 'INCOMPLETE')

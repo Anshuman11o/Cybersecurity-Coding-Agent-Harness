@@ -2506,7 +2506,7 @@ async function main() {
       (est != null ? ` of ~$${est.toFixed(2)} est` : '') +
       (limits.max_cost_usd != null ? `, cap $${limits.max_cost_usd.toFixed(2)}` : '') +
       ` | ${formatSeconds(elapsed)} elapsed, ETA ${eta}` +
-      ` | findings ${allFindings.length} (${sev.critical} critical, ${sev.high} high, ${sev.medium} medium, ${sev.low} low)`,
+      ` | findings ${allFindings.length} (` + (sev.critical ? `${sev.critical} critical, ` : '') + `${sev.high} high, ${sev.medium} medium, ${sev.low} low)`,
     )
   }
 

@@ -34,6 +34,8 @@ export interface ScanArgs extends ModelFlags {
   resume?: string | true
   out?: string
   classes?: ClassEdits
+  /** Do not open report.html in the browser when the run ends. */
+  noOpen: boolean
 }
 
 export interface ModelsArgs extends ModelFlags {
@@ -41,7 +43,17 @@ export interface ModelsArgs extends ModelFlags {
   all: boolean
 }
 
-export type Args = ScanArgs | ModelsArgs | { command: 'help' } | { command: 'version' }
+/** `secscan report [run-id]`: rebuild a run's report from what is on disk. */
+export interface ReportArgs {
+  command: 'report'
+  /** Default: the newest run in the reports folder. */
+  runId?: string
+  /** Reports folder; default ./.secscan */
+  out?: string
+  noOpen: boolean
+}
+
+export type Args = ScanArgs | ModelsArgs | ReportArgs | { command: 'help' } | { command: 'version' }
 
 /** The usage text. The custom endpoint's default key variable is registry data, so it is passed in. */
 export const usage = (customKeyDefault: string): string => `secscan — find security vulnerabilities in your code with your own model key
@@ -50,6 +62,7 @@ Usage:
   secscan [options]                 scan the current directory
   secscan scan [dir] [options]      scan a repository (default: the current directory)
   secscan models [--all]            list models: price, measured or unmeasured, key status
+  secscan report [run-id]           rebuild a run's report (default: the newest run in ./.secscan)
   secscan help                      this text
 
 Lab options:
@@ -80,6 +93,10 @@ Run:
   --config <path>           settings file (default: <dir>/secscan.config.json)
   --no-config               ignore secscan.config.json
   --resume [run-id]         continue a stopped run (default: latest INCOMPLETE)
+  --no-open                 do not open report.html when the run ends
+
+Each run writes report.html and findings.json to <reports>/runs/<run-id>/, and
+<reports>/index.html lists every run with a report.
 
 A limit or Ctrl-C ends the run cleanly: files in flight finish, the run is
 recorded INCOMPLETE with the list of what was not scanned, and --resume
@@ -95,8 +112,8 @@ export function parseArgs(argv: readonly string[]): Args {
   const first = args[0]
   if (first === 'help' || first === '--help' || first === '-h') return { command: 'help' }
   if (first === '--version' || first === 'version') return { command: 'version' }
-  if (first !== undefined && !first.startsWith('-') && first !== 'scan' && first !== 'models') throw new UsageError(`unknown command "${first}"`)
-  if (first === 'scan' || first === 'models') args.shift()
+  if (first !== undefined && !first.startsWith('-') && first !== 'scan' && first !== 'models' && first !== 'report') throw new UsageError(`unknown command "${first}"`)
+  if (first === 'scan' || first === 'models' || first === 'report') args.shift()
 
   const model: ModelFlags = {}
   const limits: Partial<RunLimits> = {}
@@ -107,6 +124,7 @@ export function parseArgs(argv: readonly string[]): Args {
   let resume: string | true | undefined
   let out: string | undefined
   let classes: ClassEdits | undefined
+  let noOpen = false
   const positional: string[] = []
 
   const push = (key: 'paths' | 'include' | 'exclude', vals: string[]) => {
@@ -163,6 +181,7 @@ export function parseArgs(argv: readonly string[]): Args {
       case '--config': configPath = value(); break
       case '--no-config': noConfig = true; break
       case '--out': out = value(); break
+      case '--no-open': noOpen = true; break
       case '--resume':
         resume = inline !== undefined ? value() : (args[i + 1] && !args[i + 1].startsWith('-') ? args[++i] : true)
         break
@@ -184,6 +203,12 @@ export function parseArgs(argv: readonly string[]): Args {
     if (positional.length) throw new UsageError(`unexpected argument "${positional[0]}"`)
     return { command: 'models', all, ...model }
   }
+  if (first === 'report') {
+    const scanOnly = Object.keys(limits).length || Object.keys(model).length || yes || all || configPath || noConfig || resume !== undefined || classes
+    if (scanOnly) throw new UsageError('secscan report takes only [run-id], --out and --no-open')
+    if (positional.length > 1) throw new UsageError(`expected one run id, got ${positional.join(' ')}`)
+    return { command: 'report', ...(positional[0] ? { runId: positional[0] } : {}), ...(out ? { out } : {}), noOpen }
+  }
   if (positional.length > 1) throw new UsageError(`expected one directory, got ${positional.join(' ')}`)
   if (configPath && noConfig) throw new UsageError('--config and --no-config contradict each other')
   if (yes && resume === undefined && limits.max_cost_usd == null) throw new UsageError('--yes requires --budget (or --max-cost), except with --resume')
@@ -198,6 +223,7 @@ export function parseArgs(argv: readonly string[]): Args {
     resume,
     out,
     ...(classes ? { classes } : {}),
+    noOpen,
     ...model,
   }
 }
