@@ -1,0 +1,356 @@
+{
+  "generated_at": "2026-01-01T00:00:00.000Z",
+  "target_dir": "<target>",
+  "source_stage0_run": "<stage0>/architecture-summary.json",
+  "coverage_ledger": {
+    "total_files_in_inventory": 8,
+    "assigned_hunt": 7,
+    "assigned_skip": 1,
+    "unaccounted": 0
+  },
+  "category_universe": [
+    {
+      "code": "A03",
+      "name": "A03: Injection",
+      "framework": "OWASP Top 10 2021"
+    }
+  ],
+  "signal_class_map": "tools/scanner/shared/signal-classes.json",
+  "floor_classes": [
+    "insecure-design",
+    "logging-monitoring",
+    "misconfiguration"
+  ],
+  "lanes": [
+    {
+      "lane_id": "file-0001",
+      "target_file": "app/Legacy.java",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [],
+      "classes": [
+        "insecure-design",
+        "logging-monitoring",
+        "misconfiguration"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0002",
+      "target_file": "app/Main.kt",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [],
+      "classes": [
+        "insecure-design",
+        "logging-monitoring",
+        "misconfiguration"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0003",
+      "target_file": "conf/settings.json",
+      "disposition": "skip",
+      "skip_reason": "Pure data/config file — no executable logic or independent entrypoint-to-sink path",
+      "signals": [],
+      "classes": [],
+      "class_basis": {},
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0004",
+      "target_file": "src/alloc.c",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [],
+      "classes": [
+        "insecure-design",
+        "logging-monitoring",
+        "misconfiguration"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0005",
+      "target_file": "src/parse.c",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [
+        "deserialize"
+      ],
+      "classes": [
+        "injection",
+        "insecure-design",
+        "integrity-failures",
+        "logging-monitoring",
+        "misconfiguration",
+        "resource-consumption"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ],
+        "deserialize": [
+          "integrity-failures",
+          "injection",
+          "resource-consumption"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0006",
+      "target_file": "src/util.h",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [],
+      "classes": [
+        "insecure-design",
+        "logging-monitoring",
+        "misconfiguration"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0007",
+      "target_file": "tools/build.py",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [],
+      "classes": [
+        "insecure-design",
+        "logging-monitoring",
+        "misconfiguration"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    },
+    {
+      "lane_id": "file-0008",
+      "target_file": "tools/load.py",
+      "disposition": "hunt",
+      "skip_reason": null,
+      "signals": [
+        "deserialize"
+      ],
+      "classes": [
+        "injection",
+        "insecure-design",
+        "integrity-failures",
+        "logging-monitoring",
+        "misconfiguration",
+        "resource-consumption"
+      ],
+      "class_basis": {
+        "floor": [
+          "insecure-design",
+          "logging-monitoring",
+          "misconfiguration"
+        ],
+        "deserialize": [
+          "integrity-failures",
+          "injection",
+          "resource-consumption"
+        ]
+      },
+      "categories": [
+        {
+          "code": "A03",
+          "name": "A03: Injection",
+          "framework": "OWASP Top 10 2021"
+        }
+      ],
+      "file_bytes": 23,
+      "file_lines": 2,
+      "estimated_prompt_tokens": 6,
+      "chunk_plan": {
+        "required": false,
+        "total_chunks": 1,
+        "chunks": [
+          {
+            "index": 1,
+            "start_line": 1,
+            "end_line": 2
+          }
+        ]
+      }
+    }
+  ]
+}

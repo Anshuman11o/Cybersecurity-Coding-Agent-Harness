@@ -9,7 +9,10 @@ items I and J). Since then PRs 62 to 65 merged: the playbook agent now **owns th
 set** (coverage call, turn1 / turn2 passes / turn3 decision loop with web search, then one
 web research call per new class) and writes `class-selection.json`, which puts Stage 0.5 in
 "agent mode" (no floor classes, signals route only selected classes, unreached selected
-classes go on every hunt lane, a lane left with no class is skipped). PR 65 froze that as the
+classes go on every hunt lane, a lane left with no class is skipped). Since 2026-10-15 an
+added class whose framework names a file language also goes on every hunt lane in that
+language, so such a lane is hunted rather than skipped
+(`prompts/dispatch/2026-10-15__language-wide-agent-classes.md`). PR 65 froze that as the
 final agent architecture.
 
 What is missing is the human checkpoint. Today the agent's pick goes straight to lane
@@ -172,6 +175,7 @@ screen matches what the run then does").
 - **Free text resolves to an existing cached class (same id, framework and model):** cache hit, no research.
 - **Free text is not a class** ("make it fast"): `not_a_class`, message shown, resolve cost booked.
 - **New class whose signals reach no file:** goes on every hunt lane (existing unrouted rule). The row shows "(all files)".
+- **New class whose framework names a file language** (e.g. `c`, `android`, `evm`): goes on every hunt lane in that language as well as where its signals reach (`language-wide`).
 - **Research fails validation:** retried once automatically. After the second failure: "could not build a playbook for X ($0.04 spent): <check>". The class is not added and the list is unchanged.
 - **Research would exceed the budget:** checked as spent plus a one-call worst-case reservation. The user is asked to raise the budget first.
 - **Ctrl-C during a review call:** the attempt is booked in the ledger, the class is not added, and the screen redraws.
