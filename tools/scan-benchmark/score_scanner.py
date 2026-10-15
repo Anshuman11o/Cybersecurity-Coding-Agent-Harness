@@ -44,6 +44,14 @@ uses the nearest evidence distance. Entries without these fields retain point
 matching. Alternate evidence in another file requires a different representation;
 these fields never broaden the file match.
 
+## --match classes
+
+Counts a type match when any class name the scanner wrote on the finding
+(normalized: lowercase, `-` `_` and spaces alike) equals one of the entry's class
+names: its explicit `classes`, else the built-in classes behind its OWASP codes.
+The OWASP-code floor does not apply. Class names the scanner used that are not
+built-in are listed for later review. The default `--match codes` is unchanged.
+
 ## --alias-expand
 
 Expands both sides to their classes' full alias code sets before intersecting, so a
@@ -105,6 +113,7 @@ def load_ground_truth(path):
             "codes": set(e.get("owasp_codes", [])),
             **({"alt_lines": e["alt_lines"]} if "alt_lines" in e else {}),
             **({"line_end": e["line_end"]} if "line_end" in e else {}),
+            **({"classes": list(e["classes"])} if e.get("classes") else {}),
         }
         for e in raw["benchmark_ground_truth"]
     ]
@@ -163,6 +172,23 @@ def finding_classes(finding, code_to_class):
     return sorted({code_to_class[c] for c in extract_codes(finding) if c in code_to_class})
 
 
+def normalize_class_name(name):
+    """Lowercase; '-', '_' and whitespace are the same separator."""
+    return re.sub(r"[-_\s]+", "-", str(name).strip().lower())
+
+
+def finding_class_names(finding, code_to_class):
+    """The class names the scanner wrote on the finding, normalized."""
+    return {normalize_class_name(c) for c in finding_classes(finding, code_to_class)}
+
+
+def gt_class_names(entry, code_to_class):
+    """A ground-truth entry's class names: its explicit `classes` when the export
+    carries them, otherwise the built-in classes behind its OWASP codes."""
+    names = entry.get("classes") or sorted({code_to_class[c] for c in entry["codes"] if c in code_to_class})
+    return {normalize_class_name(n) for n in names}
+
+
 def check_code_extraction(findings):
     """`categories` must hold OWASP codes, never class ids. If a schema change ever
     puts class ids there, every intersection silently empties and the run reports a
@@ -182,7 +208,7 @@ def check_code_extraction(findings):
     return rate
 
 
-def score(findings, gt, class_codes, code_to_class, alias_expand):
+def score(findings, gt, class_codes, code_to_class, alias_expand, match="codes"):
     def codes_of(finding):
         codes = extract_codes(finding)
         return expand_aliases(codes, class_codes, code_to_class) if alias_expand else codes
@@ -214,7 +240,10 @@ def score(findings, gt, class_codes, code_to_class, alias_expand):
             if best is None:
                 continue
             delta = best[0]
-            category_match = bool(codes_of(finding) & want)
+            if match == "classes":
+                category_match = bool(finding_class_names(finding, code_to_class) & gt_class_names(entry, code_to_class))
+            else:
+                category_match = bool(codes_of(finding) & want)
             fid = finding.get("finding_id")
             hit_finding_ids.add(fid)
             if delta is not None and delta <= LOCALIZATION_SLACK:
@@ -358,6 +387,9 @@ def main():
     ap.add_argument("--classes", default=DEFAULT_CLASSES, help="path to vuln-classes.json")
     ap.add_argument("--alias-expand", action="store_true",
                     help="expand both sides to full class alias sets before intersecting")
+    ap.add_argument("--match", choices=["codes", "classes"], default="codes",
+                    help="what counts as the right type: shared OWASP codes (default) or a shared "
+                         "class name (the scanner's own class names against the entry's classes)")
     ap.add_argument("--label", help="run label for the report header and the JSON record")
     ap.add_argument("--json-out", help="write the metrics block here for eval-history")
     args = ap.parse_args()
@@ -366,12 +398,26 @@ def main():
     gt = load_ground_truth(args.answer_key)
     findings = load_findings(args.findings)
 
-    extraction_rate = check_code_extraction(findings)
-    result = score(findings, gt, class_codes, code_to_class, args.alias_expand)
+    if args.match == "classes":
+        # Class names do not depend on OWASP codes, so the code floor does not apply.
+        if not findings:
+            sys.exit("error: no findings to score")
+        extraction_rate = sum(1 for f in findings if extract_codes(f)) / len(findings)
+    else:
+        extraction_rate = check_code_extraction(findings)
+    result = score(findings, gt, class_codes, code_to_class, args.alias_expand, args.match)
     result["alias_expand"] = args.alias_expand
+    result["match"] = args.match
+    known = {normalize_class_name(c) for c in class_codes}
+    unknown = Counter(n for f in findings for n in finding_class_names(f, code_to_class) if n not in known)
+    result["unmatched_class_names"] = dict(unknown.most_common())
     result["code_extraction_rate"] = round(extraction_rate, 4)
 
     render(result, args, extraction_rate)
+    if result["unmatched_class_names"]:
+        print("\nClass names the scanner used that are not built-in classes (review later):")
+        for name, n in result["unmatched_class_names"].items():
+            print(f"  {name}: {n} finding(s)")
 
     if args.json_out:
         with open(args.json_out, "w") as fh:
