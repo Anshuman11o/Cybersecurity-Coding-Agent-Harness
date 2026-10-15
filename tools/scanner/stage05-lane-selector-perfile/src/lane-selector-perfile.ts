@@ -29,6 +29,7 @@ import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { EXECUTABLE_LANGUAGES } from '../../shared/lane-languages.js'
 import { mergeClassTables, readClassesOverlay, readClassSelection } from '../../shared/playbook-overlay.js'
 // Relative across packages: the contract has no runtime dependencies, so this
 // does not pull Stage 0's parsers into Stage 0.5.
@@ -56,15 +57,7 @@ export const CHUNK_OVERLAP = 20
 // Language classification — generic, not repository-specific
 // ---------------------------------------------------------------------------
 
-const EXECUTABLE_LANGUAGES = new Set([
-  'typescript', 'javascript', 'python', 'ruby', 'java', 'go',
-  'rust', 'c', 'cpp', 'csharp', 'php', 'kotlin', 'swift',
-  'scala', 'solidity', 'dart', 'r', 'perl', 'lua', 'shell',
-  'docker', 'graphql',
-  // Declarative infrastructure has security effects; key files can embed secrets.
-  // Both are huntable, so neither belongs in NON_EXECUTABLE_LANGUAGES/SKIP_REASONS.
-  'terraform', 'key-material',
-])
+
 
 const NON_EXECUTABLE_LANGUAGES = new Set([
   'json', 'yaml', 'html', 'css', 'toml', 'sql',

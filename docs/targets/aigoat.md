@@ -1,10 +1,8 @@
 # AI Goat target readiness
 
-The public target is `Anshuman11o/aigoat-clean-LLM` at `9c62129`; the private
-scoring snapshot is `Anshuman11o/aigoat-clean-answer-key` at `2f2bdbc`.
-Resolve both abbreviated pins to full commits and record them for every run.
-Scoring-tool preparation commits descend from the private snapshot and do not
-change the frozen vulnerability entries.
+The public target is `Anshuman11o/aigoat-clean-LLM` at `9c62129`. Resolve the
+abbreviated pin to its full commit and record it for every run. A private answer
+key exists and is supplied only in a separate scoring environment.
 
 This is a store application with a Python/Flask backend, TypeScript/JavaScript
 frontend and Terraform/HCL infrastructure. Key and certificate files are part of
@@ -19,10 +17,17 @@ Existing Python sink detection recognizes route decorators. A dedicated Python
 route-table extractor is deferred; this does not prevent Python hunt lanes, but
 route-table context remains incomplete for this framework.
 
-Use a separate environment with only the harness and public checkout. Keep both
-private answer-key repositories out of the scanning environment. Use a fresh
+Use a separate environment with only the harness and public checkout. Keep
+private answer keys out of the scanning environment. Use a fresh
 reports directory outside the target and leave the playbook agent disabled for
-comparison with the fixed-class reference runs:
+the fixed-class workflow:
+
+Held-out targets run under the **product profile**: no benchmark seed denylist,
+risk-ordered lanes, and a required Stage 1 scan plan. Product runs do not resume
+implicitly. For these held-out measurements, use a fresh run and **no resume**;
+do not pass `--resume` or set `SCANNER_RESUME=1`. These execution differences mean
+their numbers are **not directly comparable** with Juice Shop benchmark-profile
+rows, even when both use fixed classes. Record the profile and plan with results.
 
 ```bash
 # From the harness root; PROVIDER is an authorized registry provider key.
@@ -31,7 +36,7 @@ TARGET_COMMIT=$(git -C "$TARGET" rev-parse '9c62129^{commit}')
 test "$(git -C "$TARGET" rev-parse HEAD)" = "$TARGET_COMMIT"
 git merge-base HEAD origin/main
 rg 'terraform|key-material' tools/scanner/stage0-recon/src/recon-contract.ts
-unset SCANNER_PLAYBOOK_AGENT
+unset SCANNER_PLAYBOOK_AGENT SCANNER_RESUME
 SCANNER_REPORTS_ROOT=/workspace/held-out-reports \
   ./tools/scanner/run.sh --target "$TARGET" --profile product "$PROVIDER" all-v2
 ```
