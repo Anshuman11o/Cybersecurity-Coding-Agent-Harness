@@ -666,6 +666,65 @@
         "\\b(?:logging|access_logs|flow_log)\\s*\\{"
       ]
     },
+    "kotlin": {
+      "route_handler": [
+        "^[ \\t]*(?:(?:public|private|internal|protected|open|abstract|data|sealed|inner)\\s+)*class\\s+\\w+\\s*(?:\\([^)]{0,2000}\\))?\\s*:\\s*(?:[A-Za-z_]\\w*\\.)*(?:(?:AppCompat|Component)?Activity|Fragment|BroadcastReceiver|ContentProvider|Service)\\b",
+        "\\bfun\\s+(?:onCreate|onReceive|onStartCommand|query|insert|update|delete)\\s*\\(",
+        "\\bregisterReceiver\\s*\\("
+      ],
+      "db_query": [
+        "\\.(?:rawQuery|execSQL|query)\\s*\\(",
+        "@(?:Query|RawQuery)\\b",
+        "\\bSQLiteDatabase\\b"
+      ],
+      "model_schema": [
+        "@(?:Entity|Database|Dao)\\b",
+        "\\bSQLiteOpenHelper\\b"
+      ],
+      "model_write": [
+        "\\.(?:insert|insertOrThrow|update|delete|putString|putStringSet|putInt|putBoolean|putLong|putFloat)\\s*\\(",
+        "@(?:Insert|Update|Delete)\\b"
+      ],
+      "http_outbound": [
+        "\\b(?:OkHttpClient|HttpURLConnection|HttpsURLConnection|URL|Retrofit)\\b",
+        "\\.(?:openConnection|newCall|loadUrl)\\s*\\("
+      ],
+      "auth_check": [
+        "\\b(?:checkSelfPermission|checkCallingPermission|enforceCallingPermission|BiometricPrompt|KeyguardManager|HostnameVerifier|X509TrustManager|checkServerTrusted|checkClientTrusted)\\b",
+        "\\bContext\\.RECEIVER_EXPORTED\\b"
+      ],
+      "crypto_op": [
+        "\\b(?:MessageDigest|Cipher|Mac|SecretKeySpec|KeyStore|SecureRandom|X509TrustManager|HostnameVerifier|SSLContext)\\b",
+        "\\b(?:checkServerTrusted|checkClientTrusted|setHostnameVerifier|setSSLSocketFactory)\\s*\\(",
+        "\\b(?:getSharedPreferences|SharedPreferences|ClipboardManager|ClipData|setPrimaryClip)\\b"
+      ],
+      "html_sink": [
+        "\\b(?:WebView|WebSettings|JavascriptInterface)\\b",
+        "\\.(?:addJavascriptInterface|evaluateJavascript|loadData|loadDataWithBaseURL|loadUrl|setJavaScriptEnabled|setAllowFileAccess|setAllowUniversalAccessFromFileURLs)\\s*\\(",
+        "\\.(?:javaScriptEnabled|allowFileAccess|allowUniversalAccessFromFileURLs|mixedContentMode)\\s*="
+      ],
+      "dynamic_exec": [
+        "\\bRuntime\\.getRuntime\\s*\\(\\)\\s*\\.exec\\s*\\(",
+        "\\bProcessBuilder\\s*\\(",
+        "\\b(?:DexClassLoader|PathClassLoader)\\s*\\("
+      ],
+      "deserialize": [
+        "\\b(?:ObjectInputStream|XMLDecoder)\\s*\\(",
+        "\\.(?:readObject|fromJson|decodeFromString|getSerializableExtra|getParcelableExtra)\\s*\\("
+      ],
+      "file_io": [
+        "\\b(?:getSharedPreferences|SharedPreferences|openFileOutput|openFileInput|ClipboardManager|ClipData|setPrimaryClip|getExternalFilesDir|getExternalStorageDirectory)\\b",
+        "\\b(?:FileWriter|FileOutputStream|FileInputStream|File)\\s*\\(",
+        "\\.(?:writeText|writeBytes|readText|readBytes|putString|putStringSet)\\s*\\("
+      ],
+      "llm_call": [
+        "\\b(?:OpenAI|GenerativeModel|ChatCompletionRequest)\\b",
+        "\\.(?:generateContent|chatCompletion)\\s*\\("
+      ],
+      "logging": [
+        "\\b(?:Log|Timber)\\.(?:v|d|i|w|e|wtf)\\s*\\("
+      ]
+    },
     "c": {
       "route_handler": [
         "\\b(?:FCGX_Accept(?:_r)?|mg_set_request_handler|evhttp_set_(?:cb|gencb))\\s*\\("
