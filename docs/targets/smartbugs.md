@@ -163,3 +163,18 @@ is tested separately on adversarial 200 KB inputs with a 200 ms limit, including
 long pragma-only inputs and unterminated lines/options/conditions. The lexical
 structural pass is separately timed and all language tables retain the existing
 1 MB stress checks. No model preflight, paid scan or live hunt ran.
+
+Verification on source commit `a2a9c11` passed **260 Node tests**, **1,738 custom
+assertions**, and **four budget replay scenarios**. Node-test counts: shared 16,
+CLI 52, report 47, playbook agent 75, budget 28, hunt 29, infrastructure selector
+2, recon budget 8, Solidity 3. Custom assertions: file selection 205, recon v3
+139, signals 712, symbols 200, shared guards 419, hunt breakdown 63. The worst
+Solidity regex took **93.5 ms** on the adversarial 200 KB cases (limit 200 ms).
+
+Fresh benchmark comparison receipts (normalized JSON SHA-256):
+
+- File signals: `580e56f54b943a2c38cc405b5b8a4ab4fa9260a9f98255e1343c1d02acfd82a2`.
+- Lane manifest: `e0ca84a8502da0ad577d4b712a3d18b90115b9de81fd4757f1e80ba3da0a6f46`.
+
+Both hashes match main and this branch. These receipts establish deterministic
+comparability, not live scan accuracy; contamination exposure still applies.
