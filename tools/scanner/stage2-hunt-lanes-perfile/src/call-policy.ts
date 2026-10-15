@@ -2,7 +2,7 @@
 import { classifyApiError, retryAfterMs } from '../../shared/api-errors.js'
 import { stepDown } from '../../shared/api-profile.js'
 import { meteredChatCompletion, promptChars, type ChatCompletionsClient, type MeteredResult, type TierPin } from '../../shared/metered-call.js'
-import { callCostUsd, normalizeUsage, tierInfo } from '../../shared/pricing.js'
+import { callCostUsd, callPromptBytes, callReservationUsd, normalizeUsage, tierInfo } from '../../shared/pricing.js'
 import { modelFor, type Provider } from '../../shared/provider.js'
 import type { SpendLedger } from '../../shared/ledger.js'
 import type { SpendGate } from '../../stage1-budget-governor/src/spend-gate.js'
@@ -18,7 +18,17 @@ export interface CallPolicyOptions {
   provider: Provider
   ledger: SpendLedger
   gate: SpendGate
+  /**
+   * The chunk unit U. Books a call that returned no usage when the run has no
+   * cap, exactly as before per-call holds; under a cap such a call is booked
+   * at its own hold, so the ledger never passes what the gate held.
+   */
   reservationUnitUsd: number | null
+  /**
+   * The output-token cap every hunt call sends; prices each call's hold. When
+   * omitted, a call holds U — the old chunk-wide bound, never less.
+   */
+  outputCap?: number
   pin: TierPin
   concurrency: number
   initialConcurrency?: number
@@ -77,6 +87,15 @@ export class HuntCallPolicy {
     }
   }
 
+  /** This call's own worst case: its actual prompt bound and the output cap. */
+  holdFor(client: ChatCompletionsClient, body: Record<string, any>): number | null {
+    const { provider, pin, outputCap, reservationUnitUsd } = this.opts
+    if (outputCap == null) return reservationUnitUsd
+    return callReservationUsd(provider, {
+      promptBytes: callPromptBytes(body.messages), outputCap, servedTier: pin.send, baseURL: client.baseURL ?? null,
+    })
+  }
+
   async call(client: ChatCompletionsClient, params: Record<string, any>, laneId: string, label: string): Promise<MeteredResult> {
     let body = params
     const { provider, ledger, gate, pin, reservationUnitUsd } = this.opts
@@ -85,6 +104,12 @@ export class HuntCallPolicy {
     }
     for (let attempt = 1; attempt <= MAX_CALL_ATTEMPTS; attempt++) {
       if (this.stopped) throw this.stopped
+      // Every attempt — first call, follow-up turn or retry — holds its own
+      // worst case first, waiting for releases while other calls are in flight.
+      const held = await gate.acquire(laneId, this.holdFor(client, body))
+      if (!held.ok) throw this.stop('max_cost', held.detail)
+      const hold = held.hold
+      if (this.stopped) { gate.release(hold, 0); throw this.stopped }
       let result: MeteredResult | null = null
       let error: unknown = null
       try { result = await meteredChatCompletion(client, provider, body, pin) }
@@ -94,14 +119,17 @@ export class HuntCallPolicy {
       const errorTier = rawError?.service_tier ?? rawError?.error?.service_tier
       const servedTier = result ? result.servedTier : typeof errorTier === 'string' ? errorTier : pin.send
       const cost = result?.cost ?? callCostUsd(provider, usage, { servedTier, baseURL: client.baseURL })
-      ledger.append({
+      const booked = cost.cost_usd ?? (gate.capped ? hold.usd : reservationUnitUsd)
+      // Release and book in one synchronous step: the hold is freed exactly as
+      // the call's real cost lands in the ledger.
+      gate.release(hold, booked, () => ledger.append({
         source: 'hunt', stage: 'stage2-hunt-lanes-perfile', label, lane_id: laneId,
         attempt, model: modelFor(provider), served_tier: servedTier, usage,
         chars_sent: result?.charsSent ?? promptChars(body.messages),
-        cost_usd: cost.cost_usd ?? reservationUnitUsd,
+        cost_usd: booked,
         basis: cost.cost_usd != null ? 'actual' : 'reservation',
         ...(cost.reason ? { note: cost.reason } : {}),
-      })
+      }))
       this.opts.onUpdate?.()
       if (cost.tier.multiplier === null) {
         throw this.stop('unpriced_service_tier', `service tier ${servedTier} has no registered price`)
@@ -129,9 +157,7 @@ export class HuntCallPolicy {
         }
       }
       if (attempt === MAX_CALL_ATTEMPTS) throw new HuntCallError(`call failed after ${attempt} attempts: ${(error as any)?.message ?? error}`)
-      if (!gate.reserveRetry(laneId, reservationUnitUsd)) {
-        throw this.stop('max_cost', 'one more reservation unit for a retry would exceed the budget')
-      }
+      // The retry holds nothing while it backs off; it acquires at the top of the loop.
       if (wait > 0) await (this.opts.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms))))(wait)
     }
     throw new HuntCallError('call attempts exhausted')

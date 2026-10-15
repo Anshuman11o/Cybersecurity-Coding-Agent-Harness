@@ -18,7 +18,7 @@ import { costUsd } from './provider.js'
 import { loadRegistry } from './models.js'
 import {
   normalizeUsage, callCostUsd, tierInfo, tiersManaged, regionMultiplier, upperInputRatePerMTok,
-  reservationUnitUsd, worstCaseCallUsd, scanCostUsd, estimateBandPct, FOLLOW_UP_INPUT_MULTIPLIER,
+  reservationUnitUsd, worstCaseCallUsd, callReservationUsd, callPromptBytes, planCallReservationsUsd, scanCostUsd, estimateBandPct, FOLLOW_UP_INPUT_MULTIPLIER,
   type NormalizedUsage,
 } from './pricing.js'
 import { SpendLedger, readLedgerTotals, ledgerPathFor, LEDGER_FILE, type LedgerEntry } from './ledger.js'
@@ -141,6 +141,28 @@ test('reservationUnitUsd is the hand-computed worst case of one chunk, and pure'
   assert.equal(reservationUnitUsd('luna6', { ...opts, servedTier: 'ultrafast' }), null)
   // One call's bound: (100,032 x $0.125 + 64,000 x $0.50) / 1M = $0.044504.
   near(worstCaseCallUsd('luna6', { promptBytes: 100000, outputCap: 64000 }), 0.044504)
+})
+
+test('per-call holds: one call\'s own worst case, from its own prompt bytes', () => {
+  // Two messages: 10 + 4 bytes of text, 32 bytes framing each -> 78.
+  assert.equal(callPromptBytes([{ role: 'user', content: 'a'.repeat(10) }, { role: 'assistant', content: 'ü'.repeat(2) }]), 78)
+  assert.equal(callPromptBytes(undefined), 0)
+  // luna6, 20,032 bytes, cap 64,000: (20,032 x $0.125 + 64,000 x $0.50) / 1M = $0.034504.
+  near(callReservationUsd('luna6', { promptBytes: 20032, outputCap: 64000 }), 0.034504)
+  near(callReservationUsd('luna6', { promptBytes: 20032, outputCap: 64000, servedTier: 'flex' }), 0.034504 / 2)
+  assert.equal(callReservationUsd('luna6', { promptBytes: 1, outputCap: 1, servedTier: 'ultrafast' }), null)
+  assert.equal(callReservationUsd('qwen', { promptBytes: 1, outputCap: 1 }), null)
+  // Past 272K the long-context multipliers apply: (300,000 x 0.125 x 2 + 64,000 x 0.5 x 1.5) / 1M.
+  near(callReservationUsd('luna6', { promptBytes: 300000, outputCap: 64000 }), 0.075 + 0.048)
+  // Agrees with the one-call bound already booked for unmeasured calls (which adds one framing).
+  near(callReservationUsd('luna6', { promptBytes: 100032, outputCap: 64000 }), worstCaseCallUsd('luna6', { promptBytes: 100000, outputCap: 64000 })!)
+  // The plan's figures: the same call-i bounds as U, one call at a time; they sum to U.
+  const opts = { callsPerUnit: 2, maxPromptBytes: 100000, followUpTemplateBytes: 1500, outputCap: 64000 }
+  const per = planCallReservationsUsd('luna6', opts)!
+  near(per.first_usd, 0.044504)
+  near(per.max_usd, 0.0606995)
+  near(per.first_usd + per.max_usd, reservationUnitUsd('luna6', opts)!)
+  assert.equal(planCallReservationsUsd('luna6', { ...opts, servedTier: 'ultrafast' }), null)
 })
 
 test('scanCostUsd matches the hand-computed run-6-sized estimate on luna6', () => {

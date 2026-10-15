@@ -11,7 +11,7 @@ import {
   resolveLimits, limitsToEnv, admitLanes, admissionKey, deriveConcurrency, NO_LIMITS, DEFAULT_CONCURRENCY,
   type RunLimits,
 } from './limits.js'
-import { SpendGate } from './spend-gate.js'
+import { SpendGate, budgetConcurrency } from './spend-gate.js'
 import { computeScanPlan } from './scan-plan.js'
 
 const lim = (o: Partial<RunLimits>): RunLimits => ({ ...NO_LIMITS, ...o })
@@ -119,76 +119,129 @@ test('concurrency is derived under the vendor ceiling', () => {
   assert.equal(deriveConcurrency(null, null, 0).value, DEFAULT_CONCURRENCY)
 })
 
-test('gate: no cap and no deadline always starts', () => {
+test('gate: no cap and no deadline always starts, and every call hold is granted at once', async () => {
   const g = new SpendGate({ capUsd: null, deadlineMs: null })
   assert.deepEqual(g.decide(1e9), { action: 'start' })
   assert.deepEqual(g.decide(null), { action: 'start' })
+  g.begin('a', null)
+  const held = await g.acquire('a', null)
+  assert.equal(held.ok, true)
+  assert.equal(g.effectiveConcurrency(32, 1e9), 32, 'no cap: the configured slot limit')
 })
 
-test('gate: holds in-flight projections against the cap, waits, then stops', () => {
+test('gate: a file is admitted when its first call hold fits, waits while anything is in flight, then stops', () => {
   const g = new SpendGate({ capUsd: 1.0, deadlineMs: null })
   assert.equal(g.decide(0.4).action, 'start'); g.begin('a', 0.4)
   assert.equal(g.decide(0.4).action, 'start'); g.begin('b', 0.4)
-  // 0.8 committed in flight: a third 0.4 would pass 1.0, but lanes are in flight.
+  // 0.8 held for two first calls: a third 0.4 would pass 1.0, but files are in flight.
   assert.equal(g.decide(0.4).action, 'wait')
-  g.finish('a', 0.1) // came in cheap — makes room
-  assert.equal(g.decide(0.4).action, 'start'); g.begin('c', 0.4)
-  g.finish('b', 0.4)
-  g.finish('c', 0.4)
-  assert.ok(Math.abs(g.spentUsd() - 0.9) < 1e-9)
-  const d = g.decide(0.4)
-  assert.equal(d.action, 'stop')
+  assert.equal(g.snapshot().in_flight_projected_usd, 0.8)
+  g.finish('a') // never called: its seed is released
+  assert.equal(g.decide(0.4).action, 'start')
+  g.finish('b')
+  const resumed = new SpendGate({ capUsd: 1, deadlineMs: null }, 0.9)
+  const d = resumed.decide(0.2)
   assert.equal(d.action === 'stop' && d.reason, 'max_cost')
+  assert.equal(resumed.decide(0.05).action, 'start')
 })
 
-test('gate: an unmeasured lane is booked at its projection', () => {
-  const g = new SpendGate({ capUsd: 1, deadlineMs: null })
-  g.begin('a', 0.3)
-  g.finish('a', null)
-  assert.equal(g.spentUsd(), 0.3)
-})
-
-test('gate: reservation U is fixed even when actual costs differ', () => {
-  const g = new SpendGate({ capUsd: 100, deadlineMs: null })
-  for (const id of ['a', 'b', 'c']) { g.begin(id, 1); g.finish(id, 2) }
-  assert.equal(g.calibration(), 1)
-  assert.equal(g.decide(94).action, 'start')
-})
-
-test('gate: live ledger includes recon and calls in flight; completion only releases c × U', () => {
-  let total = 0.2
+test("gate: the admission seed becomes the file's first call hold, so an admitted file never stalls on it", async () => {
+  let total = 0
   const g = new SpendGate({ capUsd: 1, deadlineMs: null, ledgerTotal: () => total })
-  const unit = 0.2
-  assert.equal(g.decide(2 * unit).action, 'start')
-  g.begin('two-chunks', 2 * unit)
-  assert.equal(g.decide(3 * unit).action, 'wait')
-  total += 0.1
-  assert.equal(g.spentUsd(), total)
-  assert.equal(g.decide(2 * unit).action, 'wait', 'spent calls count while their file is in flight')
-  g.finish('two-chunks', 0.1)
-  assert.equal(g.spentUsd(), total, 'finishing must never double book ledger spend')
-  assert.equal(g.snapshot().in_flight_projected_usd, 0)
-  assert.equal(g.decide(4 * unit).action, 'stop')
+  g.begin('a', 0.5); g.begin('b', 0.5)
+  assert.equal(g.decide(0.5).action, 'wait', 'the cap is fully held by two seeds')
+  const a = await g.acquire('a', 0.45)
+  assert.ok(a.ok)
+  assert.equal(g.snapshot().in_flight_projected_usd, 0.95)
+  assert.equal(g.snapshot().calls_in_flight, 1)
 })
 
-test('gate: retries reserve another U immediately or refuse without changing held funds', () => {
+test('gate: a call that cannot get its hold while others are in flight waits, then gets it on release', async () => {
   let total = 0.1
   const g = new SpendGate({ capUsd: 1, deadlineMs: null, ledgerTotal: () => total })
-  g.begin('a', 0.4)
-  assert.equal(g.reserveRetry('a', 0.4), true)
-  assert.equal(g.snapshot().in_flight_projected_usd, 0.8)
-  total += 0.1
-  assert.equal(g.reserveRetry('a', 0.4), false)
-  assert.equal(g.snapshot().in_flight_projected_usd, 0.8)
-  g.finish('a')
-  assert.equal(g.snapshot().in_flight_projected_usd, 0)
-  assert.equal(g.spentUsd(), 0.2)
-  const unlimited = new SpendGate({ capUsd: null, deadlineMs: null })
-  unlimited.begin('a', null)
-  assert.equal(unlimited.reserveRetry('a', null), true)
+  g.begin('a', 0.6); g.begin('b', 0.25)
+  const a = await g.acquire('a', 0.6)
+  const b1 = await g.acquire('b', 0.25)
+  assert.ok(a.ok && b1.ok)
+  // b's retry: 0.1 spent + 0.85 held + 0.3 > 1, but a's call is in flight.
+  let granted = false
+  const retry = g.acquire('b', 0.3).then(r => { granted = r.ok; return r })
+  g.release(b1.hold, null, () => { total += 0.05 })
+  await new Promise(r => setImmediate(r))
+  assert.equal(granted, false, '0.15 spent + 0.6 held + 0.3 still does not fit under 1 — keep waiting')
+  assert.equal(g.decide(0.01).action, 'wait', 'new files wait behind a queued call')
+  g.release(a.hold, null, () => { total += 0.05 })
+  const r = await retry
+  assert.ok(r.ok, 'granted once a released')
+  assert.ok(total + g.snapshot().in_flight_projected_usd <= 1)
 })
 
-test('gate: deadline stops, unpriced under a cap stops, carried spend counts', () => {
+test('gate: a call is refused for max_cost only when nothing else is held', async () => {
+  let total = 0.8
+  const g = new SpendGate({ capUsd: 1, deadlineMs: null, ledgerTotal: () => total })
+  g.begin('a', 0.1)
+  const a = await g.acquire('a', 0.1)
+  assert.ok(a.ok)
+  const pending = g.acquire('a', 0.3)
+  g.release(a.hold, null, () => { total += 0.05 })
+  const r = await pending
+  assert.equal(r.ok, false)
+  assert.equal(!r.ok && r.reason, 'max_cost')
+  assert.equal(g.snapshot().in_flight_projected_usd, 0)
+  const u = await new SpendGate({ capUsd: 1, deadlineMs: null }).acquire('x', null)
+  assert.equal(u.ok, false, 'an unpriced hold under a cap is refused')
+})
+
+test('gate: release books the call in the same step, so spent + holds never passes the cap', async () => {
+  let total = 0
+  const cap = 1
+  const g = new SpendGate({ capUsd: cap, deadlineMs: null, ledgerTotal: () => total })
+  const check = () => assert.ok(total + g.snapshot().in_flight_projected_usd <= cap + 1e-12)
+  g.begin('a', 0.4); g.begin('b', 0.4)
+  const a = await g.acquire('a', 0.4); const b = await g.acquire('b', 0.4)
+  assert.ok(a.ok && b.ok)
+  const c = g.acquire('a', 0.4)
+  g.release(a.hold, null, () => { total += 0.4; check() })
+  check()
+  g.release(b.hold, null, () => { total += 0.4; check() })
+  const r = await c
+  assert.equal(r.ok, false, 'worst-case spend leaves no room: refused, never granted past the cap')
+  check()
+})
+
+test('gate: without a ledger, release books the actual cost (the hold when unmeasured)', async () => {
+  const g = new SpendGate({ capUsd: 1, deadlineMs: null })
+  g.begin('a', 0.3)
+  const a = await g.acquire('a', 0.3)
+  assert.ok(a.ok)
+  g.release(a.hold, null)
+  assert.equal(g.spentUsd(), 0.3)
+  const b = await g.acquire('a', 0.3)
+  assert.ok(b.ok)
+  g.release(b.hold, 0.1)
+  assert.ok(Math.abs(g.spentUsd() - 0.4) < 1e-12)
+})
+
+test('gate: effective concurrency shrinks with the remaining budget and never goes below 1', () => {
+  assert.equal(budgetConcurrency(32, null, 0, 0.035), 32)
+  assert.equal(budgetConcurrency(32, 5, 0, null), 32, 'unpriced: the configured value')
+  assert.equal(budgetConcurrency(32, 5, 0, 0.035), 32, '0.5 x 5 / 0.035 = 71 slots: the configured 32 bind')
+  assert.equal(budgetConcurrency(32, 5, 4, 0.035), 14)
+  assert.equal(budgetConcurrency(32, 5, 4.9, 0.035), 1)
+  assert.equal(budgetConcurrency(32, 5, 5, 0.035), 1)
+  assert.equal(budgetConcurrency(32, 5, 6, 0.035), 1, 'never below 1')
+  let total = 0
+  const g = new SpendGate({ capUsd: 5, deadlineMs: null, ledgerTotal: () => total })
+  let previous = Infinity
+  for (; total <= 5; total += 0.05) {
+    const e = g.effectiveConcurrency(32, 0.035)
+    assert.ok(e <= previous && e >= 1)
+    previous = e
+  }
+  assert.equal(previous, 1)
+})
+
+test('gate: deadline stops, unpriced under a cap stops, a cap must be positive', () => {
   let now = 1000
   const g = new SpendGate({ capUsd: null, deadlineMs: 2000, now: () => now })
   assert.equal(g.decide(1).action, 'start')
@@ -199,49 +252,67 @@ test('gate: deadline stops, unpriced under a cap stops, carried spend counts', (
   const u = new SpendGate({ capUsd: 5, deadlineMs: null })
   const ud = u.decide(null)
   assert.equal(ud.action === 'stop' && ud.reason, 'max_cost')
-
-  const resumed = new SpendGate({ capUsd: 1, deadlineMs: null }, 0.9)
-  assert.equal(resumed.decide(0.2).action, 'stop')
-  assert.equal(resumed.decide(0.05).action, 'start')
   assert.throws(() => new SpendGate({ capUsd: 0, deadlineMs: null }))
 })
 
-/** Drive the gate the way Stage 2 does: start in order, finish the oldest when blocked. */
-function simulate(projected: number[], actualOf: (p: number, i: number) => number, cap: number, concurrency: number) {
-  const g = new SpendGate({ capUsd: cap, deadlineMs: null })
-  const inFlight: { id: string; i: number }[] = []
-  let started = 0
-  let maxLane = 0
-  const finishOldest = () => {
-    const f = inFlight.shift()!
-    g.finish(f.id, actualOf(projected[f.i], f.i))
+/**
+ * Drive the gate the way Stage 2 does, calls and all: files start in order
+ * behind the gate, every call holds its worst case and books its actual cost.
+ */
+async function simulate(o: {
+  files: number; callsPerFile: number; hold: (file: number, call: number) => number
+  actual: (hold: number) => number; cap: number; concurrency: number
+}) {
+  let total = 0
+  const g = new SpendGate({ capUsd: o.cap, deadlineMs: null, ledgerTotal: () => total })
+  const maxHold = Math.max(...Array.from({ length: o.callsPerFile }, (_, c) => o.hold(0, c)))
+  let breach = false
+  let completed = 0
+  let refused = 0
+  const running = new Set<Promise<void>>()
+  const runFile = async (f: number) => {
+    for (let c = 0; c < o.callsPerFile; c++) {
+      const r = await g.acquire(`f${f}`, o.hold(f, c))
+      if (!r.ok) { refused++; return }
+      if (total + g.snapshot().in_flight_projected_usd > o.cap + 1e-9) breach = true
+      await new Promise(res => setTimeout(res, (f * 7 + c * 3) % 5))
+      g.release(r.hold, null, () => { total += o.actual(r.hold.usd) })
+      if (total + g.snapshot().in_flight_projected_usd > o.cap + 1e-9) breach = true
+    }
+    completed++
   }
-  for (let i = 0; i < projected.length; i++) {
-    while (inFlight.length >= concurrency) finishOldest()
-    let d = g.decide(projected[i])
-    while (d.action === 'wait') { finishOldest(); d = g.decide(projected[i]) }
-    if (d.action === 'stop') break
-    g.begin(`l${i}`, projected[i]); inFlight.push({ id: `l${i}`, i }); started++
-    maxLane = Math.max(maxLane, actualOf(projected[i], i))
+  let stopped = false
+  for (let f = 0; f < o.files && !stopped; f++) {
+    for (;;) {
+      if (running.size >= g.effectiveConcurrency(o.concurrency, maxHold)) { await Promise.race(running); continue }
+      const d = g.decide(o.hold(0, 0))
+      if (d.action === 'start') {
+        g.begin(`f${f}`, o.hold(0, 0))
+        const p: Promise<void> = runFile(f).finally(() => { g.finish(`f${f}`); running.delete(p) })
+        running.add(p)
+        break
+      }
+      if (d.action === 'stop') { stopped = true; break }
+      await Promise.race([...running, g.changed()])
+    }
   }
-  while (inFlight.length) finishOldest()
-  return { spent: g.spentUsd(), started, maxLane }
+  await Promise.all(running)
+  return { spent: total, completed, refused, breach, stopped }
 }
 
-test('gate: spend stays under the cap when projections hold, and overshoots by at most the lanes in flight when they run low', () => {
+test('gate simulation: spend never passes the cap, whatever calls cost up to their holds', async () => {
   let seed = 7
   const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31)
-  for (let trial = 0; trial < 200; trial++) {
-    const projected = Array.from({ length: 60 }, () => 0.01 + rand() * 0.2)
+  for (let trial = 0; trial < 40; trial++) {
     const cap = 0.5 + rand() * 3
-    const c = 1 + Math.floor(rand() * 8)
-    const exact = simulate(projected, p => p, cap, c)
-    assert.ok(exact.spent <= cap + 1e-9, `exact projections: spent ${exact.spent} > cap ${cap}`)
-    // Actuals up to 1.5x the projection: the bound is the plan's — no more than
-    // the lanes that can be in flight at once.
-    const low = simulate(projected, p => p * (1 + rand() * 0.5), cap, c)
-    assert.ok(low.spent <= cap + c * low.maxLane + 1e-9,
-      `under-projected: spent ${low.spent} > cap ${cap} + ${c} x ${low.maxLane}`)
+    const holds = Array.from({ length: 3 }, () => 0.01 + rand() * 0.1)
+    const fraction = rand()
+    const r = await simulate({
+      files: 40, callsPerFile: 3, hold: (_, c) => holds[c], actual: h => h * (trial % 2 ? 1 : fraction),
+      cap, concurrency: 1 + Math.floor(rand() * 16),
+    })
+    assert.equal(r.breach, false)
+    assert.ok(r.spent <= cap + 1e-9, `spent ${r.spent} > cap ${cap}`)
   }
 })
 

@@ -172,7 +172,11 @@ export function buildSummary(input: SummaryInput): ConfirmationSummary {
     all_files: input.unrouted?.includes(id) ?? false,
   }))
   const first = input.lanes.find(l => l.lane_id === remaining[0]?.lane_id)
-  const firstStart = first && plan.reservation_unit_usd != null
+  // A file starts once its first call's hold fits. Plans written before
+  // per-call holds have only U, and keep their chunks × U figure.
+  const firstStart = first && plan.first_call_reservation_usd != null
+    ? spent + plan.first_call_reservation_usd
+    : first && plan.call_reservation_usd === undefined && plan.reservation_unit_usd != null
     ? spent + (first.chunk_plan?.chunks?.length ?? first.chunk_plan?.total_chunks ?? 1) * plan.reservation_unit_usd
     : plan.first_start_usd != null ? plan.first_start_usd + spent - (detail?.spent_before_usd ?? 0) : null
   const inputThreshold = detail ? spent + detail.input_usd * remainingShare : plan.input_threshold_usd ?? null

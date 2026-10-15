@@ -119,6 +119,7 @@ The wording revision changes no ordering, accounting, reservation or start rules
 
 - N comes from the existing cumulative walk (`lanes_within_cap`, `scan-plan.ts:282-291`), now over risk order.
 - The first file's reservation is `chunks × U` for the first lane in risk order. That is the exact condition the spend gate uses to refuse a start (`spend-gate.ts:48-62`).
+  *Superseded 2026-10-15:* the gate now holds per call, so a file starts when its first call's hold (`first_call_reservation_usd`) fits; the screen uses that figure, and `chunks × U` only for a plan written before per-call holds. See `docs/architecture/task-2a-inputs-budget-ledger.md`.
 - A budget at or below spend so far is rejected as input, as `askNewBudget` already does.
 
 ## Inputs and outputs
@@ -226,7 +227,7 @@ and validation failures preserve the previous selection and successful metadata.
 Product planning loads guidance only for classes carried by hunt lanes. A deleted
 class remains in the append-only overlay but its cached text is not read, so a
 missing deleted-class cache cannot prevent replanning. Resume after hunting retains
-class assignments, reservation U and ordering. Rejected edits or quitting a resume
+class assignments, the plan's call holds and ordering. Rejected edits or quitting a resume
 preserve the previous hunt's coverage and findings while recording updated review
 state and spend.
 

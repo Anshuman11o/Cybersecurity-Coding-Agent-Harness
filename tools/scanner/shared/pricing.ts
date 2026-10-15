@@ -1,5 +1,5 @@
 /**
- * Pricing — what one model call costs, what a reservation unit is, and what a
+ * Pricing — what one model call costs, what the spend gate holds for it, and what a
  * scan is estimated to cost before it starts.
  *
  * Every rate and multiplier is registry data (models.json, read through
@@ -192,6 +192,11 @@ export function callCostUsd(
 /**
  * The reservation unit U: the worst case of one chunk, computed once per run.
  *
+ * Kept for the scan plan's `reservation_unit_usd` (older plans and the
+ * confirmation screen read it) and for booking an uncapped call that returned
+ * no usage. It is no longer the spend gate's unit: the gate holds each call's
+ * own worst case (callReservationUsd) only while that call is in flight.
+ *
  * Call i (0-based) of a chunk is bounded by `B + i x (2 x cap + T) + 32 x (2i + 1)`
  * input tokens — the largest first-call prompt in bytes (a token is at least a
  * byte), plus each earlier turn's answer and follow-up instruction, plus
@@ -221,6 +226,86 @@ export function reservationUnitUsd(
     sum += (ctx.inM * inputBound * upper + ctx.outM * opts.outputCap * p.output) / 1e6
   }
   return tier.multiplier * regionMultiplier(provider, opts.baseURL) * sum
+}
+
+/**
+ * Bytes framing each message of a request — the `32 x (2i + 1)` term of the
+ * chunk bound above, per message.
+ */
+export const MESSAGE_FRAMING_BYTES = 32
+
+/**
+ * The prompt-size bound of one request, in bytes: every message's text plus
+ * per-message framing. A token is at least a byte, so this bounds the prompt
+ * tokens the call can be billed for. Non-text parts count nothing, as in
+ * promptChars().
+ */
+export function callPromptBytes(messages: unknown): number {
+  if (!Array.isArray(messages)) return 0
+  let n = 0
+  for (const m of messages) {
+    n += MESSAGE_FRAMING_BYTES
+    const c = (m as any)?.content
+    if (typeof c === 'string') n += Buffer.byteLength(c, 'utf8')
+    else if (Array.isArray(c)) {
+      for (const part of c) if (typeof part?.text === 'string') n += Buffer.byteLength(part.text, 'utf8')
+    }
+  }
+  return n
+}
+
+/**
+ * The per-call hold: one call's own worst case, which the spend gate holds
+ * while that call is in flight and releases the moment it returns.
+ *
+ *   hold = tier x region x (ctx_in x promptBytes x upper_input + ctx_out x outputCap x out) / 1M
+ *
+ * `promptBytes` is the call's actual prompt bound including framing
+ * (callPromptBytes), so a follow-up turn holds for its real transcript rather
+ * than a chunk-wide guess. Long-context multipliers apply when the bound
+ * passes the threshold. Null when the model or tier is unpriced.
+ */
+export function callReservationUsd(
+  provider: Provider,
+  opts: { promptBytes: number; outputCap: number; servedTier?: string | null; baseURL?: string | null },
+): number | null {
+  const p = pricingFor(provider)
+  const upper = upperInputRatePerMTok(provider)
+  const tier = tierInfo(provider, opts.servedTier)
+  if (!p || upper === null || tier.multiplier === null) return null
+  const ctx = longContextMultipliers(provider, opts.promptBytes)
+  return tier.multiplier * regionMultiplier(provider, opts.baseURL) *
+    (ctx.inM * opts.promptBytes * upper + ctx.outM * opts.outputCap * p.output) / 1e6
+}
+
+/**
+ * The per-call holds a run's plan can promise before any prompt is sent:
+ * `first_usd` bounds any file's first call (the largest first-turn prompt),
+ * `max_usd` bounds any single call of a chunk (its last follow-up turn, whose
+ * input carries every earlier turn). Same call-i bound as reservationUnitUsd.
+ * The gate admits a file against `first_usd` and fits concurrency to `max_usd`.
+ */
+export function planCallReservationsUsd(
+  provider: Provider,
+  opts: {
+    callsPerUnit: number
+    maxPromptBytes: number
+    followUpTemplateBytes: number
+    outputCap: number
+    servedTier?: string | null
+    baseURL?: string | null
+  },
+): { first_usd: number; max_usd: number } | null {
+  const bound = (i: number) =>
+    opts.maxPromptBytes + i * (2 * opts.outputCap + opts.followUpTemplateBytes) + MESSAGE_FRAMING_BYTES * (2 * i + 1)
+  const price = (i: number) => callReservationUsd(provider, {
+    promptBytes: bound(i), outputCap: opts.outputCap, servedTier: opts.servedTier, baseURL: opts.baseURL,
+  })
+  const first = price(0)
+  if (first === null) return null
+  let max = first
+  for (let i = 1; i < Math.max(1, opts.callsPerUnit); i++) max = Math.max(max, price(i)!)
+  return { first_usd: first, max_usd: max }
 }
 
 /** One call's bound — booked for a call that returned no usage. */

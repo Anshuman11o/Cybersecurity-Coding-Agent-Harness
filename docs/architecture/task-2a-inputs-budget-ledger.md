@@ -129,12 +129,19 @@ The bands come from existing Luna calibration, not a new GPT-6 Luna run.
 `scan-plan.json` saves the ratios, their sources, prices, tier, region,
 spend before the hunt and total estimate alongside the admitted files.
 
-## Fixed reservation unit and gate
+## Per-call holds and the gate
 
-The expected estimate does not control file admission. At planning, Stage 1
-computes a single worst-case chunk reservation U. With `B` the maximum UTF-8
-byte length of an admitted first-call prompt, `T` the hunt's follow-up
-template byte length and `cap` its output token cap, call `i = 0..k-1` has:
+> Revised 2026-10-15 (`prompts/dispatch/2026-10-15__per-call-budget-holds.md`).
+> The gate originally held `chunks × U` per file until the file finished and
+> made each retry reserve another U, failing the file if it could not. On a
+> $5 product run at concurrency 32 that held about $3.5 for files whose real
+> cost was a few cents each: 18 files failed on retry, 80 never started, and
+> $1.04 of the $5 was spent. The gate now holds per call, as below.
+
+The expected estimate does not control file admission. With `B` the maximum
+UTF-8 byte length of an admitted first-call prompt, `T` the hunt's follow-up
+template byte length and `cap` its output token cap, call `i = 0..k-1` of a
+chunk has:
 
 ```text
 input_bound(i)  = B + i × (2 × cap + T) + 32 × (2i + 1)
@@ -143,24 +150,62 @@ output_bound(i) = cap
 
 Every bound uses the greater of the input and cache-write rates plus the
 output rate. Its own input bound determines whether long-context
-multipliers apply. U is the sum over the calls, multiplied by tier and
-region. The byte bound and framing allowance are deliberately conservative.
-The prompt and follow-up template come from the hunt builders, not copies.
+multipliers apply, and the result is multiplied by tier and region. The
+byte bound and framing allowance are deliberately conservative. The prompt
+and follow-up template come from the hunt builders, not copies.
 
-`spend-gate.ts` admits a file with `c` chunks only if:
+`scan-plan.json` records three figures from these bounds:
+`first_call_reservation_usd` (call 0), `call_reservation_usd` (the largest
+single call) and, for compatibility, `reservation_unit_usd` — U, the sum
+over a chunk's calls. U is no longer the gate's unit; it is kept for older
+readers and to book an uncapped call that returned no usage.
+
+**The hold.** Before every call — a file's first call, a follow-up turn or a
+retry — `spend-gate.ts` holds that call's own worst case
+(`shared/pricing.ts` `callReservationUsd`):
 
 ```text
-ledger total + reservations in flight + c × U <= budget
+hold = tier × region × (ctx_in × prompt_bytes × upper_input + ctx_out × cap × output) / 1M
 ```
 
-If it does not fit while files are in flight, scheduling waits. If none are
-in flight, the run stops INCOMPLETE with `max_cost`. Every retry requires an
-additional U; a refused retry ends its file unscanned and stops the run.
-Completed files release reservations without charging twice: their calls
-are already in the ledger. With no budget the cost gate always admits.
-Budget-only continuation retains the original plan and U. The plan also
-records the model, endpoint, output cap, sampling and loop settings; the
-hunt refuses changed call settings that would invalidate the reservation.
+where `prompt_bytes` is the call's actual messages plus 32 bytes of framing
+each, so a follow-up holds for its real transcript. The hold is released
+the moment the call returns, in the same synchronous step that books the
+call's cost in the ledger (at its hold when the response carried no usage).
+So at every observable point:
+
+```text
+ledger total + sum(holds) <= budget
+```
+
+and the budget cannot be passed even if every call costs its full worst case.
+
+**Start, wait, stop.** A file starts when there is room for its first
+call's hold (`first_call_reservation_usd`), which is taken at admission and
+handed to that call. A call that cannot get its hold while anything else is
+held waits for releases, first come first served; new files wait behind it.
+It is refused — and the run stops INCOMPLETE with `max_cost` — only when
+nothing else is held and `spent + hold > budget`. A file never fails merely
+because its retry could not be held while other calls were in flight.
+
+**Concurrency.** Files in flight are fitted to the remaining budget:
+
+```text
+effective = min(configured, max(1, floor(0.5 × (budget − spent) / max_hold)))
+```
+
+re-evaluated at every admission, with `max_hold` the larger of the first-call
+hold and the largest hold any call has actually asked for. There is no
+warning; `progress.json` records `concurrency.effective`, `run-status.json`
+`concurrency.effective_min`, and `scan-plan.json` `concurrency.effective`.
+
+With no budget the gate always admits and grants every hold at once, so an
+uncapped run schedules exactly as before. An unpriced hold under a budget
+stops the run. Budget-only continuation retains the original plan; a plan
+written before per-call holds (only `reservation_unit_usd`) has its call
+holds sized from the prompts at hunt start. The plan also records the model,
+endpoint, output cap, sampling and loop settings; the hunt refuses changed
+call settings that would invalidate its holds.
 
 ## Served tier, concurrency and call policy
 
