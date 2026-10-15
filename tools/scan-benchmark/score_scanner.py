@@ -20,8 +20,8 @@ sense for a scanner that emits vulnerability classes.
 
 ## Metrics
 
-    recall            file match + line within RECALL_SLACK + category intersection
-    localization      file match + line within LOCALIZATION_SLACK + category intersection
+    recall            file match + line within RECALL_SLACK + shared class name
+    localization      file match + line within LOCALIZATION_SLACK + shared class name
     precision proxy   findings landing within LOCALIZATION_SLACK of any ground-truth
                       entry; reported category-blind and category-aware
     per-class recall  recall broken down by vulnerability class, so a gap points at
@@ -44,13 +44,15 @@ uses the nearest evidence distance. Entries without these fields retain point
 matching. Alternate evidence in another file requires a different representation;
 these fields never broaden the file match.
 
-## --match classes
+## Type matching: class names (default)
 
-Counts a type match when any class name the scanner wrote on the finding
-(normalized: lowercase, `-` `_` and spaces alike) equals one of the entry's class
-names: its explicit `classes`, else the built-in classes behind its OWASP codes.
-The OWASP-code floor does not apply. Class names the scanner used that are not
-built-in are listed for later review. The default `--match codes` is unchanged.
+Recall and localization count a type match when any class name the scanner wrote
+on the finding (normalized: lowercase, `-` `_` and spaces alike) equals one of
+the entry's class names: its explicit `classes`, else the built-in classes behind
+its OWASP codes. Class names the scanner used that are not built-in are listed for
+later review. For built-in classes this gives the same numbers as code matching
+(each code belongs to exactly one class); `--match codes` keeps the old
+intersection for re-checking earlier records.
 
 ## --alias-expand
 
@@ -387,9 +389,9 @@ def main():
     ap.add_argument("--classes", default=DEFAULT_CLASSES, help="path to vuln-classes.json")
     ap.add_argument("--alias-expand", action="store_true",
                     help="expand both sides to full class alias sets before intersecting")
-    ap.add_argument("--match", choices=["codes", "classes"], default="codes",
-                    help="what counts as the right type: shared OWASP codes (default) or a shared "
-                         "class name (the scanner's own class names against the entry's classes)")
+    ap.add_argument("--match", choices=["classes", "codes"], default="classes",
+                    help="what counts as the right type in recall and localization: a shared class "
+                         "name (default) or, for re-checking older records, shared OWASP codes")
     ap.add_argument("--label", help="run label for the report header and the JSON record")
     ap.add_argument("--json-out", help="write the metrics block here for eval-history")
     args = ap.parse_args()
@@ -399,9 +401,15 @@ def main():
     findings = load_findings(args.findings)
 
     if args.match == "classes":
-        # Class names do not depend on OWASP codes, so the code floor does not apply.
+        # Class names do not depend on OWASP codes, so the code floor does not apply;
+        # the same guard applies to class names instead: an empty label set would
+        # silently zero every type match.
         if not findings:
             sys.exit("error: no findings to score")
+        named = sum(1 for f in findings if finding_class_names(f, code_to_class))
+        if named / len(findings) < MIN_CODE_EXTRACTION_RATE:
+            sys.exit(f"error: only {named}/{len(findings)} findings carry a class name; "
+                     f"the floor is {MIN_CODE_EXTRACTION_RATE:.0%}.")
         extraction_rate = sum(1 for f in findings if extract_codes(f)) / len(findings)
     else:
         extraction_rate = check_code_extraction(findings)
