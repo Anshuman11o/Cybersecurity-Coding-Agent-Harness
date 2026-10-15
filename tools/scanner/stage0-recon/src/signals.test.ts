@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
 import {
   detectAllSignalsFromList,
   detectSinkSignals,
@@ -588,36 +589,52 @@ for (const lang of FIXTURE_LANGUAGES) {
   }
 }
 
-console.log('\n-- sink patterns stay linear on 1 MB inputs (the byte cap) --')
+console.log('\n-- every registered sink pattern: adversarial 200 KB input under 200 ms --')
 {
-  // An unanchored leading \w+ or \s+ is quadratic on a long run of word
-  // characters or whitespace; these shapes caught two such patterns. Each is
-  // timed at 64 KB first (a quadratic pattern takes seconds there, a linear one
-  // milliseconds) so a regression fails instead of hanging at 1 MB.
-  const fill = (unit: string, n: number) => unit.repeat(Math.ceil(n / unit.length)).slice(0, n)
-  const shapes: Record<string, (n: number) => string> = {
-    'code': (n) => fill('x = "SELECT a, b, c, d, e, f, g, h, i, j, k" + foo.bar(baz, qux) + `ls ${d}` # \'"\\ <%= <?= {!! \n', n),
-    'one long word': (n) => fill('a', n),
-    'whitespace run': (n) => fill(' ', n),
-    'repeated SQL keyword': (n) => fill('SELECT ', n),
-    'dotted words': (n) => fill('a.b ', n),
-    'one long argument list': (n) => 'class X(' + fill('a,', n),
-  }
-  const time = (lang: string, input: string) => {
-    const t0 = performance.now()
-    detectSinkSignals(lang, input)
-    return performance.now() - t0
-  }
-  for (const lang of Object.keys(classes.sink_patterns)) {
-    const slow = Object.entries(shapes).filter(([, make]) => time(lang, make(64_000)) > 500).map(([s]) => s)
-    check(`${lang}: linear on every shape at 64 KB${slow.length ? ` (slow: ${slow.join(', ')})` : ''}`, slow.length === 0)
-    if (slow.length) continue
-    let worst = 0, worstShape = ''
-    for (const [shape, make] of Object.entries(shapes)) {
-      const ms = time(lang, make(1_000_000))
-      if (ms > worst) { worst = ms; worstShape = shape }
+  // One child per language also bounds hangs inside RegExp.test(). The timer
+  // excludes process startup and regex compilation; every pattern is measured.
+  const benchmark = String.raw`
+    const fs = require('node:fs')
+    const { language, signals } = JSON.parse(fs.readFileSync(0, 'utf8'))
+    const size = 200_000
+    const fill = unit => unit.repeat(Math.ceil(size / unit.length)).slice(0, size)
+    const shapes = {
+      code: fill('x = "SELECT a, b, c" + foo.bar(baz, qux) + \n'),
+      word: fill('a'), whitespace: fill(' '), sql: fill('SELECT '), dotted: fill('a.b '),
+      arguments: 'class X(' + fill('a,').slice(8),
+      memory: 'memcpy(' + fill('a,').slice(7),
+      calls: fill('printf('), formats: fill('snprintf(dst, size, '),
+      loops: fill('for(i=0;i<=n;'), tags: 'printf("' + fill('<a ').slice(8),
+      sqlCalls: fill('sprintf(dst, "SELECT '),
     }
-    check(`${lang}: worst 1 MB shape ${worst.toFixed(0)} ms (${worstShape}) < 3000`, worst < 3000)
+    let worst = { ms: 0, signal: '', index: 0, shape: '' }, tested = 0
+    const slow = []
+    outer: for (const [signal, patterns] of Object.entries(signals)) {
+      for (const [index, pattern] of patterns.entries()) {
+        process.stderr.write(language + '.' + signal + '[' + index + ']\n')
+        const re = new RegExp(pattern, 'm')
+        re.test('int helper(void) { return 0; }')
+        for (const [shape, input] of Object.entries(shapes)) {
+          const start = performance.now(); re.test(input); const ms = performance.now() - start
+          tested++
+          if (ms > worst.ms) worst = { ms, signal, index, shape }
+          if (ms >= 200) { slow.push({ ms, signal, index, shape }); break outer }
+        }
+      }
+    }
+    process.stdout.write(JSON.stringify({ worst, tested, slow }))
+  `
+  for (const [language, signals] of Object.entries(classes.sink_patterns)) {
+    const result = spawnSync(process.execPath, ['-e', benchmark], {
+      input: JSON.stringify({ language, signals }), encoding: 'utf8', timeout: 10_000,
+    })
+    if (result.status !== 0) {
+      check(`${language}: timing worker completed (last pattern: ${result.stderr.trim().split('\n').at(-1)})`, false)
+      continue
+    }
+    const { worst, tested, slow } = JSON.parse(result.stdout)
+    check(`${language}: ${tested} pattern/shape checks; worst ${worst.ms.toFixed(1)} ms ` +
+      `(${worst.signal}[${worst.index}], ${worst.shape}) < 200`, slow.length === 0)
   }
 }
 

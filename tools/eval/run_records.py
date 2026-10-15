@@ -115,6 +115,7 @@ class RecordSet:
 
 
 def default_record_sets(repo: str) -> list:
+    """Scanner archives follow PRIVATE_RUN_STORE; unset/empty keeps the legacy root."""
     hist = os.path.join(repo, 'results', 'eval-history')
     return [
         RecordSet('patcher',
@@ -124,7 +125,7 @@ def default_record_sets(repo: str) -> list:
                   report_name='patcher-report.json'),
         RecordSet('scanner',
                   history=os.path.join(hist, 'scanner.jsonl'),
-                  archive_root='/home/user/harness-private/runs'),
+                  archive_root=os.environ.get('PRIVATE_RUN_STORE') or '/home/user/harness-private/runs'),
         RecordSet('external-baseline',
                   history=os.path.join(hist, 'external-baseline.jsonl')),
     ]

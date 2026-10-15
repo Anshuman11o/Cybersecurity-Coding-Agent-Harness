@@ -60,6 +60,8 @@ import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { languageForPath } from '../../stage0-recon/src/recon-contract.js'
+import { summarizeKeyMaterial } from '../../shared/key-material.js'
 import { mergeClassTables, readClassesOverlay, type ClassesOverlay } from '../../shared/playbook-overlay.js'
 import { cacheRoot, readCachedPlaybook, agentPlaybookRecord, builtinPlaybookRecord, type PlaybookRecord } from '../../shared/playbook-cache.js'
 // Lane scheduling under the run's limits. These live with the budget governor,
@@ -308,6 +310,17 @@ export function sanitizePemPrivateKey(content: string): string {
       return beginMarker + '[REDACTED: private key material]' + '\n'.repeat(newlines) + endMarker
     }
   )
+}
+
+/**
+ * Every key-material encoding is withheld, including unrecognized binary/text
+ * formats and malformed PEM. Keep one placeholder per original line so chunk
+ * bounds and evidence locations still refer to the original file. Ordinary
+ * source retains the existing PEM-only redaction.
+ */
+export function sanitizeLaneContent(targetFile: string, content: string): string {
+  if (languageForPath(targetFile) !== 'key-material') return sanitizePemPrivateKey(content)
+  return summarizeKeyMaterial(content)
 }
 
 export function lineNumberContent(content: string, startLine: number): string {
@@ -966,17 +979,18 @@ export function buildLanePrompts(
   archSummarySnippet?: string,
   archSummary?: { route_table: { hand_written_routes: any[]; auto_crud_routes: any[]; middleware_routes?: any[] } },
 ): LanePrompt[] {
-  const sanitized = sanitizePemPrivateKey(rawContent)
+  const keyMaterial = languageForPath(lane.target_file) === 'key-material'
+  const sanitized = sanitizeLaneContent(lane.target_file, rawContent)
 
   // Compute per-lane route context (once, not per-chunk)
-  const routeContext = archSummary
+  const routeContext = archSummary && !keyMaterial
     ? matchRoutesForFile(lane.target_file, rawContent, archSummary)
     : { handWritten: [], autoCrud: [] }
   let routeContextSection = renderRouteContext(routeContext)
 
   // A file can both declare registrations and export handlers. The registrar
   // block goes first because it is the one carrying line numbers.
-  const registrarSection = archSummary
+  const registrarSection = archSummary && !keyMaterial
     ? renderRegistrarRouteContext(lane.target_file, archSummary.route_table)
     : undefined
   if (registrarSection) {
