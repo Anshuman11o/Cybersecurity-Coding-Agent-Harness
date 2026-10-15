@@ -668,34 +668,38 @@
     },
     "solidity": {
       "route_handler": [
-        "\\bfunction\\s+\\w*\\s*\\([^)]*\\)\\s+(?:(?:public|external|payable)\\s+)+(?:returns\\s*\\([^)]*\\)\\s*)?\\{"
+        "(?!)"
       ],
-      "db_query": [],
+      "db_query": [
+        "(?!)"
+      ],
       "model_schema": [
-        "\\b(?:contract|library|interface|struct)\\s+\\w+",
-        "\\bmapping\\s*\\("
+        "\\bmapping\\s*\\(\\s*address(?:\\s+payable)?\\s*=>"
       ],
       "model_write": [
-        "\\.call\\s*\\{[^}]*\\bvalue\\s*:",
-        "\\.call\\s*\\.value\\s*\\(",
-        "\\.(?:send|transfer)\\s*\\(",
-        "\\b(?:selfdestruct|suicide)\\s*\\(",
-        "\\bpragma\\s+solidity\\s+[^;]*0\\.[0-7]\\.\\d+[^;]*;[\\s\\S]*?(?:\\+\\+|--|[+*/%-]=|\\b\\w+\\s+[+*/%-]\\s+\\w+)"
+        "\\.call\\s*\\{[^}]{0,512}\\bvalue\\s*:",
+        "\\.call\\s*\\.value\\s*\\((?!\\s*0\\s*\\))",
+        "\\.transfer\\s*\\((?!\\s*0\\s*\\))",
+        "(?:^|[;{}])[ \\t]{0,64}(?:[A-Za-z_$][\\w$]{0,127}\\.){1,8}send\\s*\\((?!\\s*0\\s*\\))",
+        "\\b(?:selfdestruct|suicide)\\s*\\("
       ],
-      "http_outbound": [],
+      "http_outbound": [
+        "(?!)"
+      ],
       "auth_check": [
         "\\btx\\s*\\.\\s*origin\\b",
-        "\\b(?:require|assert)\\s*\\([^;]*\\bmsg\\s*\\.\\s*sender\\b",
-        "\\bmodifier\\s+\\w+",
-        "\\bfunction\\s+\\w*\\s*\\([^)]*\\)\\s+(?:(?:public|external|payable)\\s+)+(?:returns\\s*\\([^)]*\\)\\s*)?\\{"
+        "\\b(?:require|assert)\\s*\\([^;]{0,512}\\bmsg\\s*\\.\\s*sender\\b",
+        "\\bmodifier\\s+\\w+"
       ],
       "crypto_op": [
         "\\b(?:keccak256|sha256|sha3|ripemd160|ecrecover)\\s*\\(",
-        "\\b(?:if|require|assert)\\s*\\([^;{}]*\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b",
-        "\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash\\s*\\([^;{}]*\\))\\s*%",
-        "\\b(?:keccak256|sha256|sha3)\\s*\\([^;{}]*\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b"
+        "\\b(?:if|require|assert)\\s*\\([^;{}]{0,512}\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b",
+        "\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash\\s*\\([^;{}]{0,512}\\))\\s*%",
+        "\\b(?:keccak256|sha256|sha3)\\s*\\([^;{}]{0,512}\\b(?:block\\s*\\.\\s*(?:timestamp|number)|now|blockhash)\\b"
       ],
-      "html_sink": [],
+      "html_sink": [
+        "(?!)"
+      ],
       "dynamic_exec": [
         "\\.delegatecall\\s*\\(",
         "\\.call\\s*(?:\\{|\\(|\\.\\s*(?:value|gas)\\s*\\()",
@@ -705,8 +709,12 @@
       "deserialize": [
         "\\babi\\s*\\.\\s*decode\\s*\\("
       ],
-      "file_io": [],
-      "llm_call": [],
+      "file_io": [
+        "(?!)"
+      ],
+      "llm_call": [
+        "(?!)"
+      ],
       "logging": [
         "\\bemit\\s+\\w+\\s*\\(",
         "\\bevent\\s+\\w+\\s*\\("

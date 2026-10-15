@@ -767,8 +767,10 @@ console.log('\n-- productization 1c: Stage 2 asks the spend gate before every la
   check('signal -> class map unchanged', JSON.stringify(sc.signals) === JSON.stringify(PRE_1B.signals))
   const langs = Object.keys(sc.sink_patterns ?? {}).sort()
   const { EXTENSION_LANGUAGES } = await import('../stage0-recon/src/recon-contract.js')
-  check('sink pattern languages are inventoried languages',
-    langs.every(language => Object.values(EXTENSION_LANGUAGES).includes(language)))
+  check('every sink_patterns key is a language produced by EXTENSION_LANGUAGES, and every key defines every content signal',
+    langs.every(language => Object.values(EXTENSION_LANGUAGES).includes(language) &&
+      Object.keys(PRE_1B.signals).filter(signal => !['config_file', 'dep_manifest'].includes(signal))
+        .every(signal => Array.isArray(sc.sink_patterns[language][signal]))))
   let unknownSignal = 0, badPattern = 0, patterns = 0
   for (const lang of langs) {
     for (const [signal, list] of Object.entries(sc.sink_patterns[lang] as Record<string, string[]>)) {

@@ -1,11 +1,8 @@
 # Solidity benchmark readiness
 
 Public target: `Anshuman11o/smartbugs-clean-solidity` at `6d09946` (143 standalone
-Solidity source units). Private scoring snapshot: `Anshuman11o/smartbugs-clean-answer-key`
-at `1aae231`, with readiness export, reachability and compiler validation
-committed at `373aaf7`. Record the full target,
-harness and private key SHAs with each run. Do not mount the private key in a scan
-environment.
+Solidity source units). A private answer key exists; keep it outside the scan
+environment. Record the full public-target and harness SHAs with every run.
 
 ## Harness support
 
@@ -16,17 +13,33 @@ orchestrator with all credentials removed, checks zero model calls and its
 explicitly degraded deterministic fallback, then runs the actual selector.
 This validates wiring, not live model recon or scan accuracy.
 
-The generic Solidity `sink_patterns` member covers value-bearing calls (modern
-and historical syntax), transfers, delegate calls, contract destruction,
-origin-based authorization, block metadata in conditions or randomness,
-unchecked low-level call surfaces, legacy arithmetic, public/external function
-headers without custom modifiers, and assembly. These are surface heuristics,
-not vulnerability verdicts: a checked low-level call still raises a signal,
-and a missing custom modifier does not prove missing authorization. Empty arrays
-define content signals with no Solidity equivalent, such as HTTP clients and
-HTML sinks. Function entries use the existing `route_handler` signal without
-inventing HTTP routes. JS/TS detectors, v1 components, class mappings and the
-built-in class registry are unchanged.
+Solidity sink patterns and their structural checks apply only to the **product**
+profile, using the same run-profile boundary as file selection's Terraform and
+key-material surfaces. Benchmark runs retain the original Solidity detector
+path, including Juice Shop's embedded snippets. The extension/inventory mapping
+is unchanged in both profiles.
+
+The generic checks cover value-bearing calls, unchecked bare `send` statements,
+transfers, delegate calls, destruction, origin-based authorization, block
+metadata, assembly, and address-keyed mappings. Contract/struct declarations do
+not raise a schema signal. `route_handler` identifies payable or caller-fed
+storage/value entries without a custom modifier or recognized caller guard;
+pre-0.5 functions without visibility are treated as public. Constructors,
+read-only functions, local shadows, immediate reverts and zero-value-only
+payable entries are excluded. Sender/origin checks are recognized as guards;
+this does not imply that origin-based authorization is safe.
+
+Legacy arithmetic uses separate lexical pragma and bounded arithmetic checks.
+It flags unguarded, assertion-free updates to existing storage using a direct
+caller-controlled numeric operand under a pre-0.8 pragma. Loop counters, pure
+helper math, mapping-key-only inputs and fresh computed assignments do not
+raise that arithmetic signal. Bounds and delimiter pairing avoid whole-file
+regex backtracking. These are conservative lexical heuristics, not full type,
+inheritance or control-flow analysis; casts, indirect dataflow and complex
+modifiers still need the hunt. `(?!)` marks regex signals without a Solidity
+analogue or supplied entirely by the structural pass. JS/TS detectors, v1
+components, existing pattern keys, class mappings and built-in classes remain
+unchanged.
 
 Generic references: [Solidity security considerations](https://docs.soliditylang.org/en/latest/security-considerations.html),
 [breaking changes in 0.8](https://docs.soliditylang.org/en/latest/080-breaking-changes.html),
@@ -35,11 +48,14 @@ guidance, not a complete current security checklist.
 
 ## Classes and metrics
 
-Use category-blind scoring for the headline comparison. Findings retain the
-existing classes and their category strings so the standard scorer can read
-them; do not force a contract finding into a web class just to earn a category
-match. Adding a dedicated smart-contract class and playbook would require the
-owner's §2.4 class/playbook decision and is not implemented here.
+Use category-blind scoring for headline comparisons. **Harness output cannot
+get a smart-contract type match: the harness has no such class or corresponding
+type labels. Exact-type recall is structurally 0 until that class exists.**
+Existing web/API classes must not be interpreted as smart-contract types.
+Adding a dedicated class and playbook requires the owner's §2.4 decision and is
+not implemented here. Category-aware OWASP scores remain diagnostics, while
+exact-line category-blind recall, category-blind localization and file-level
+hit rates are the headlines.
 
 Report exact-line category-blind recall over 207 entries, category-blind
 localization, and file-level hit rate. Report both the scorer's entry-weighted
@@ -112,21 +128,38 @@ npx --no-install tsx src/signals.test.ts
 npx --no-install tsx --test src/solidity.test.ts
 ```
 
-The preparation also ran every existing Stage 0 test and the shared, CLI,
-playbook-agent, budget and per-file hunt suites. The v1 component directories
-are byte-identical to the branch base. Replaying the per-file selector against
-the same archived Juice Shop recon signals and current deterministic inventory
-produced identical normalized manifests: 884 inventoried files, 301 hunt, 583
-skip, zero unaccounted. Only run timestamps were excluded from comparison.
-This is frozen-input replay equality; a fresh recon will intentionally detect
-Solidity surfaces in embedded contract snippets differently. No JS/TS detector
-or existing language pattern changed.
+Fresh deterministic Stage 0 (credentials removed, zero model calls) and the
+actual per-file selector were run on main `9eb2c82` and this branch. Juice Shop
+used the benchmark profile: file signals and lane manifests were identical
+with only run timestamps removed (884 inventory, 301 hunt, 583 skip, zero
+unaccounted). No archived recon signals were used. The v1 component directories
+and every existing sink-pattern member remain identical to main.
 
-Deterministic target preparation assigned all 143 Solidity files to hunt lanes,
-with no skips or unaccounted files. Private reachability covers all 207 entries;
-primary-line perfect synthetic findings score 207/207. All 143 cleaned and all
-143 original sources compiled under their recorded versions, with no paired
-success/error-kind differences. These are preparation checks, with public-data
-contamination exposure, not measured scan accuracy. Live Stage 0 and Stage 2
-remain unverified, and alternative-line credit awaits the parallel generic
-scorer update.
+The public Solidity target used the product profile: 143 hunt lanes on both
+main and this branch, no skips or unaccounted files. Mean classes per hunt lane
+changed from **3.363636 on main to 8.237762**. These are structural measurements
+on a contamination-exposed public corpus, not scan accuracy.
+
+| Solidity signal | Contracts | Fire rate |
+|---|---:|---:|
+| `route_handler` | 114/143 | 79.72% |
+| `db_query` | 0/143 | 0.00% |
+| `model_schema` | 66/143 | 46.15% |
+| `model_write` | 111/143 | 77.62% |
+| `http_outbound` | 0/143 | 0.00% |
+| `auth_check` | 68/143 | 47.55% |
+| `crypto_op` | 54/143 | 37.76% |
+| `html_sink` | 0/143 | 0.00% |
+| `dynamic_exec` | 87/143 | 60.84% |
+| `deserialize` | 0/143 | 0.00% |
+| `file_io` | 0/143 | 0.00% |
+| `llm_call` | 0/143 | 0.00% |
+| `logging` | 19/143 | 13.29% |
+| `config_file` | 0/143 | 0.00% |
+| `dep_manifest` | 0/143 | 0.00% |
+
+No signal exceeds 80%; no universality exception is needed. Every Solidity regex
+is tested separately on adversarial 200 KB inputs with a 200 ms limit, including
+long pragma-only inputs and unterminated lines/options/conditions. The lexical
+structural pass is separately timed and all language tables retain the existing
+1 MB stress checks. No model preflight, paid scan or live hunt ran.

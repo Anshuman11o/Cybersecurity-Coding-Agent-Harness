@@ -11,6 +11,7 @@ import {
 } from './signal-detector.js'
 import { initSymbolParsers, extractFileSymbols } from './symbols.js'
 import { EXTENSION_LANGUAGES, type FileSymbols, type SymbolTableArtifact } from './recon-contract.js'
+import { SOLIDITY_ARITHMETIC, solidityStructuralSignals } from './solidity-signals.js'
 
 let pass = 0, fail = 0
 function check(name: string, cond: boolean) {
@@ -619,6 +620,37 @@ console.log('\n-- sink patterns stay linear on 1 MB inputs (the byte cap) --')
     }
     check(`${lang}: worst 1 MB shape ${worst.toFixed(0)} ms (${worstShape}) < 3000`, worst < 3000)
   }
+}
+
+console.log('\n-- Solidity: each regex stays under 200 ms on adversarial 200 KB inputs --')
+{
+  const fill = (unit: string) => unit.repeat(Math.ceil(200_000 / unit.length)).slice(0, 200_000)
+  const shapes = {
+    'pragma-only': fill('pragma solidity ^0.4.24;\n'),
+    'unterminated pragma': 'pragma solidity ^0.4.24 ' + fill('x'),
+    'long arithmetic-free line': 'pragma solidity ^0.4.24; ' + fill('x'),
+    'unterminated call options': fill('.call{ '),
+    'unterminated conditions': fill('require('),
+    'unterminated function parameters': 'contract Example { function f(' + fill('uint '),
+    'unterminated contract headers': fill('contract Example '),
+  }
+  const patterns = Object.values<string[]>(classes.sink_patterns.solidity).flat().map(source => new RegExp(source, 'm'))
+  patterns.push(SOLIDITY_ARITHMETIC)
+  let worst = 0
+  for (const [shape, input] of Object.entries(shapes)) {
+    patterns.forEach((pattern, index) => {
+      const start = performance.now()
+      pattern.test(input)
+      const ms = performance.now() - start
+      worst = Math.max(worst, ms)
+      check(`solidity regex ${index}: ${shape} ${ms.toFixed(1)} ms < 200`, ms < 200)
+    })
+    const start = performance.now()
+    solidityStructuralSignals(input)
+    const ms = performance.now() - start
+    check(`solidity structural pass: ${shape} ${ms.toFixed(1)} ms < 500`, ms < 500)
+  }
+  console.log(`  Worst Solidity regex: ${worst.toFixed(1)} ms`)
 }
 
 // ---------------------------------------------------------------------------
