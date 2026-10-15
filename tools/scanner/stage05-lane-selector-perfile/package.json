@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "run": "tsx src/lane-selector-perfile.ts"
+    "run": "tsx src/lane-selector-perfile.ts",
+    "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
     "https-proxy-agent": "^9.1.0",

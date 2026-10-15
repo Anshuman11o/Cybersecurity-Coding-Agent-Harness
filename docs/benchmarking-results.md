@@ -261,3 +261,10 @@ No held-out full-scan results have been recorded in this table yet.
 
 | Target | Target commit | Harness commit / run id | Ground truth | Recall | Localization | File-level | Precision proxy (category-aware) | Hedging | Notes |
 |---|---|---|---|---|---|---|---|---|---|
+
+### Historical playbook-agent comparability
+
+Playbook-agent results recorded on **2026-10-13** for the **AI Goat** and
+**AndroGoat** targets were measured before the Terraform/Kotlin signal changes.
+They are not comparable with runs after those changes. Preserve those historical
+results and their original qualifications; later runs need a separate baseline.

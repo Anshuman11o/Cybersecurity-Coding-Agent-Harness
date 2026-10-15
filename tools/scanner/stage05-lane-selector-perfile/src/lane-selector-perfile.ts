@@ -24,11 +24,13 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { androidConfigSignals } from './android-config.js'
 import { runPath, REPO_ROOT, type Provider } from '../../shared/run-paths.js'
 import { resolveProvider } from '../../shared/provider.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { EXECUTABLE_LANGUAGES } from '../../shared/lane-languages.js'
 import { mergeClassTables, readClassesOverlay, readClassSelection } from '../../shared/playbook-overlay.js'
 // Relative across packages: the contract has no runtime dependencies, so this
 // does not pull Stage 0's parsers into Stage 0.5.
@@ -56,15 +58,7 @@ export const CHUNK_OVERLAP = 20
 // Language classification — generic, not repository-specific
 // ---------------------------------------------------------------------------
 
-const EXECUTABLE_LANGUAGES = new Set([
-  'typescript', 'javascript', 'python', 'ruby', 'java', 'go',
-  'rust', 'c', 'cpp', 'csharp', 'php', 'kotlin', 'swift',
-  'scala', 'solidity', 'dart', 'r', 'perl', 'lua', 'shell',
-  'docker', 'graphql',
-  // Declarative infrastructure has security effects; key files can embed secrets.
-  // Both are huntable, so neither belongs in NON_EXECUTABLE_LANGUAGES/SKIP_REASONS.
-  'terraform', 'key-material',
-])
+
 
 const NON_EXECUTABLE_LANGUAGES = new Set([
   'json', 'yaml', 'html', 'css', 'toml', 'sql',
@@ -79,7 +73,7 @@ const SKIP_REASONS: Record<string, string> = {
   toml: 'Declarative config file — no executable logic',
   sql: 'Declarative query/schema file — not an independent executable entrypoint',
   protobuf: 'Schema definition — no executable logic',
-  xml: 'Declarative data/config file — no executable logic',
+  xml: 'XML outside platform manifests and res/xml configuration — requires a consuming execution or render context',
   ini: 'Declarative config file — no executable logic',
   properties: 'Declarative config file — no executable logic',
   [MANIFEST_LANGUAGE]: 'Dependency manifest — declarative; dependency risk is not judged per file',
@@ -581,6 +575,8 @@ async function main() {
     } else if (fileInfo.oversize) {
       disposition = 'skip'
       skipReason = oversizeSkipReason(fileInfo.bytes, inventory.options.max_file_bytes)
+    } else if (androidConfigSignals(targetFile, language).length) {
+      disposition = 'hunt'
     } else if (isNonExecutable) {
       disposition = 'skip'
       skipReason = getSkipReason(language)
@@ -592,7 +588,7 @@ async function main() {
     }
 
     // Signal lookup from Stage 0
-    const signals = fileSignals.files[targetFile] ?? []
+    const signals = [...new Set([...(fileSignals.files[targetFile] ?? []), ...androidConfigSignals(targetFile, language)])]
 
     // Class narrowing via signal→class table
     const { classes, class_basis } = computeClasses(signals, signalClassMap, allClassIds)

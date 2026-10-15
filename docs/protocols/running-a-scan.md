@@ -271,6 +271,13 @@ Clone the target **outside `target-apps/`**, detach at the full pinned public
 commit, and record that commit with the harness commit. Resolve abbreviated pins
 before launch. Do not mount private answer keys in the scanning environment.
 
+Held-out targets use the **product profile**: no benchmark seed denylist,
+risk-ordered lanes, and a required Stage 1 scan plan. Product runs do not resume
+implicitly. Use **no resume** for these measurements: start a fresh run without
+`--resume` and leave `SCANNER_RESUME` unset. These profile differences mean the
+numbers are **not directly comparable** with Juice Shop benchmark-profile rows.
+Record the profile and scan plan alongside the target and harness commits.
+
 Before launch, run the merge-base/log checks in §1 and grep the actual tree for
 the required language mappings and signal support. A dispatch document does not
 prove support is installed. Product selection includes infrastructure and key
@@ -283,7 +290,7 @@ test "$(git -C "$TARGET" rev-parse HEAD)" = "$TARGET_COMMIT"
 git merge-base HEAD origin/main
 git diff origin/main -- tools/scanner/
 rg 'terraform|key-material' tools/scanner/stage0-recon/src/recon-contract.ts
-unset SCANNER_PLAYBOOK_AGENT
+unset SCANNER_PLAYBOOK_AGENT SCANNER_RESUME
 export SCANNER_REPORTS_ROOT="$REPORTS"  # absolute path outside the target
 ./tools/scanner/run.sh --target "$TARGET" --profile product "$PROVIDER" all-v2
 ```
