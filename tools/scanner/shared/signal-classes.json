@@ -668,7 +668,7 @@
     },
     "kotlin": {
       "route_handler": [
-        "\\b(?:Activity|AppCompatActivity|ComponentActivity|Fragment|BroadcastReceiver|ContentProvider|Service)\\b",
+        "^[ \\t]*(?:(?:public|private|internal|protected|open|abstract|data|sealed|inner)\\s+)*class\\s+\\w+\\s*(?:\\([^)]{0,2000}\\))?\\s*:\\s*(?:[A-Za-z_]\\w*\\.)*(?:(?:AppCompat|Component)?Activity|Fragment|BroadcastReceiver|ContentProvider|Service)\\b",
         "\\bfun\\s+(?:onCreate|onReceive|onStartCommand|query|insert|update|delete)\\s*\\(",
         "\\bregisterReceiver\\s*\\("
       ],
@@ -682,7 +682,7 @@
         "\\bSQLiteOpenHelper\\b"
       ],
       "model_write": [
-        "\\.(?:insert|insertOrThrow|update|delete|putString|putStringSet)\\s*\\(",
+        "\\.(?:insert|insertOrThrow|update|delete|putString|putStringSet|putInt|putBoolean|putLong|putFloat)\\s*\\(",
         "@(?:Insert|Update|Delete)\\b"
       ],
       "http_outbound": [
@@ -691,12 +691,12 @@
       ],
       "auth_check": [
         "\\b(?:checkSelfPermission|checkCallingPermission|enforceCallingPermission|BiometricPrompt|KeyguardManager|HostnameVerifier|X509TrustManager|checkServerTrusted|checkClientTrusted)\\b",
-        "\\b(?:getSharedPreferences|SharedPreferences|setPrimaryClip|ClipData)\\b",
         "\\bContext\\.RECEIVER_EXPORTED\\b"
       ],
       "crypto_op": [
         "\\b(?:MessageDigest|Cipher|Mac|SecretKeySpec|KeyStore|SecureRandom|X509TrustManager|HostnameVerifier|SSLContext)\\b",
-        "\\b(?:checkServerTrusted|checkClientTrusted|setHostnameVerifier|setSSLSocketFactory)\\s*\\("
+        "\\b(?:checkServerTrusted|checkClientTrusted|setHostnameVerifier|setSSLSocketFactory)\\s*\\(",
+        "\\b(?:getSharedPreferences|SharedPreferences|ClipboardManager|ClipData|setPrimaryClip)\\b"
       ],
       "html_sink": [
         "\\b(?:WebView|WebSettings|JavascriptInterface)\\b",
@@ -713,7 +713,8 @@
         "\\.(?:readObject|fromJson|decodeFromString|getSerializableExtra|getParcelableExtra)\\s*\\("
       ],
       "file_io": [
-        "\\b(?:getSharedPreferences|SharedPreferences|FileOutputStream|FileInputStream|openFileOutput|openFileInput|ClipboardManager|ClipData|setPrimaryClip)\\b",
+        "\\b(?:getSharedPreferences|SharedPreferences|openFileOutput|openFileInput|ClipboardManager|ClipData|setPrimaryClip|getExternalFilesDir|getExternalStorageDirectory)\\b",
+        "\\b(?:FileWriter|FileOutputStream|FileInputStream|File)\\s*\\(",
         "\\.(?:writeText|writeBytes|readText|readBytes|putString|putStringSet)\\s*\\("
       ],
       "llm_call": [

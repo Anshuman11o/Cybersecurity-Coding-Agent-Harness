@@ -1,11 +1,11 @@
 # AndroGoat target readiness
 
-Prepared public snapshot: `Anshuman11o/androgoat-clean-mobile` at
-`eb460fe0561e3c55dcb1ebe2c859663a5c5757bd`. Private evaluation release:
-`Anshuman11o/androgoat-clean-answer-key`, version `1.1.0`, at `fd6107b`.
-The starting snapshots were `723a653` (public) and `7103d67` (private).
-Use the exact public commit recorded by the private ground-truth release when
-scoring; cleanup changes invalidate older file hashes and line anchors.
+Signal-measurement baseline: `Anshuman11o/androgoat-clean-mobile` at
+`eb460fe0561e3c55dcb1ebe2c859663a5c5757bd`. The private baseline release was
+`1.1.0` at `fd6107b`. Final name/history cleanup will be frozen by private release
+`1.1.1`; use its `public_commit` and hashes when scanning/scoring, rather than
+these historical measurement pins. Public history replacement invalidates old
+checkout pins even when the runtime behavior is retained.
 
 The public application uses Kotlin and Android XML. Kotlin content signals
 cover Android components, SQLite, WebView, storage and clipboard APIs,
@@ -58,18 +58,65 @@ bound on coverage, not measured scan recall.
 ## Deterministic regression evidence
 
 Replayed the archived Juice Shop per-file signal inventory (865 paths) through
-both selectors, reconstructing the v3 inventory envelope from those exact paths
-and the public corpus's file metrics. Both runs produced 541 hunt and 324 skip
-lanes with zero unaccounted files. The complete lane artifacts, with only
-`generated_at` removed, were byte-identical after canonical JSON serialization:
-SHA-256 `bfad4227ec31f8719213a4d7f2eeeb27403a827ed4fe40249e83373bbe0433b2`.
-The existing signal map, documentation string, and all pre-existing language
-patterns were unchanged. Both v1 component directories were byte-identical.
+latest main and this branch, reconstructing the v3 inventory envelope from those
+exact paths and the public corpus's file metrics. Both runs produced 541 hunt
+and 324 skip lanes with zero unaccounted files. Complete lane artifacts were
+identical after removing `generated_at` and normalizing the two checkout-specific
+path fields (`target_dir`, `source_stage0_run`). Canonical SHA-256:
+`3dcebf5c0321a77bd860dc337026fdae01c0987de82bc5cd95b150c59b852e1b`.
+All non-Kotlin patterns and both v1 component directories equal main.
 
-Synthetic Kotlin fixtures cover every content signal, with negative controls
-and bounded-runtime checks. Synthetic selector integration covers manifest and
-qualified configuration hunting, retained XML skips, class routing, and
-empty/test/oversize exclusions. Run the new selector test with:
+All scanner suites passed: shared 16, CLI 52, report 47, playbook agent 75,
+budget 28, per-file hunt 29, recon 29, selector 2: **278 test-runner cases**,
+plus the suites' internal assertions. No model calls were made.
+
+Synthetic Kotlin tests reject imports, type mentions and helper names as entry
+points. Component declarations (including primary constructors) and lifecycle
+callbacks remain entry-point signals. The declaration expression is line-anchored
+and bounds its optional constructor span to keep malformed large inputs bounded;
+lifecycle methods provide an independent entry-point signal. Fixtures exercise
+storage constructors, external storage APIs, all scalar preference writes, and
+clipboard/preferences routing without claiming an authentication check.
+
+The unchanged global signal map routes `crypto_op` to `crypto-auth`, which owns
+sensitive-data confidentiality. Preference/clipboard operations therefore use
+that signal instead of `auth_check`; `file_io` remains for access/path analysis.
+`file_io` alone does not route confidentiality. Generic `put*` writes also route
+`model_write` to integrity analysis. These signals identify review surfaces, not
+proven vulnerabilities.
+
+On the same public baseline, real Stage 0 selection/signals and Stage 0.5 produce
+34 Kotlin files, 32 Kotlin hunt lanes, and 34 total hunt lanes before and after.
+Two Kotlin test files are skipped. Mean classes per Kotlin hunt lane:
+**8.4375 → 8.5625**; across all hunt lanes: **8.3824 → 8.5000**. The increase comes
+from storage/write coverage; the overly broad import trigger is removed.
+
+| Kotlin signal | Before (of 34) | After (of 34) |
+|---|---:|---:|
+| `route_handler` | 32 (94.1%) | 32 (94.1%) |
+| `db_query` | 3 (8.8%) | 3 (8.8%) |
+| `model_schema` | 1 (2.9%) | 1 (2.9%) |
+| `model_write` | 3 (8.8%) | 4 (11.8%) |
+| `http_outbound` | 2 (5.9%) | 2 (5.9%) |
+| `auth_check` | 6 (17.6%) | 2 (5.9%) |
+| `crypto_op` | 1 (2.9%) | 4 (11.8%) |
+| `html_sink` | 3 (8.8%) | 3 (8.8%) |
+| `dynamic_exec` | 2 (5.9%) | 2 (5.9%) |
+| `deserialize` | 0 (0.0%) | 0 (0.0%) |
+| `file_io` | 4 (11.8%) | 7 (20.6%) |
+| `llm_call` | 1 (2.9%) | 1 (2.9%) |
+| `logging` | 7 (20.6%) | 7 (20.6%) |
+| `config_file` | 0 (0.0%) | 0 (0.0%) |
+| `dep_manifest` | 0 (0.0%) | 0 (0.0%) |
+
+`route_handler` is the sole signal above 80%: 32/34 (94.1%). Independent public
+class-declaration inspection found 29 activities, one provider, one service and
+one receiver: every non-test Kotlin source file is an actual platform component.
+The rate is therefore inherent to this target's composition. Imports and bare
+mentions no longer suffice. The other signals all fire below 21%.
+
+This check uses a synthetic architecture/category envelope to exercise routing,
+not a complete model-assisted Stage 0 run. Run the selector test with:
 
 ```bash
 cd tools/scanner/stage05-lane-selector-perfile
