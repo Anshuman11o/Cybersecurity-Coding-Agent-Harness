@@ -30,10 +30,11 @@ test('C review surfaces are routed using generic C signals', () => {
     ['fopen(path, "r"); open(path, flags); getenv("CONFIG_PATH");', 'file_io'],
     ['sprintf(sql, "SELECT * FROM items WHERE name = %s", input);', 'db_query'],
     ['srand(seed); token = rand();', 'crypto_op'],
-    ['signal(SIGINT, handler); pthread_create(&t, 0, worker, &shared);', 'logging'],
-    ['assert(valid);', 'auth_check'],
+    ['syslog(LOG_ERR, "failed");', 'logging'],
+    ['access(path, R_OK); pam_authenticate(handle, 0);', 'auth_check'],
   ]
   for (const [source, signal] of fixtures) assert.ok(detectSinkSignals('c', source).includes(signal as any), source)
+  assert.deepEqual(detectSinkSignals('c', 'assert(valid); signal(SIGINT, handler); pthread_create(&t, 0, worker, &shared);'), [])
   assert.deepEqual(detectSinkSignals('c', 'int sum(int a, int b) { return a + b; }'), [])
   assert.ok(!detectSinkSignals('c', 'printf("%s", input); fprintf(stderr, "%s", input); snprintf(dst, cap, "%s", input);').includes('deserialize'))
   assert.ok(!detectSinkSignals('c', 'object.query(value);').includes('db_query'))

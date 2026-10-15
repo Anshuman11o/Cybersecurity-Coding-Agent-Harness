@@ -672,7 +672,7 @@
       ],
       "db_query": [
         "\\b(?:mysql_(?:query|real_query)|sqlite3_(?:exec|prepare(?:_v[23])?|step)|PQexec(?:Params)?)\\s*\\(",
-        "\\b(?:s?printf|snprintf)\\s*\\([^;\\n]*\\b(?:SELECT|INSERT|UPDATE|DELETE)\\b"
+        "\\b(?:s?printf|snprintf)[ \\t]*\\([^;()\\n]{0,300}\\b(?:SELECT|INSERT|UPDATE|DELETE)\\b"
       ],
       "model_schema": [
         "\\bCREATE\\s+TABLE\\b",
@@ -685,27 +685,27 @@
         "\\b(?:curl_easy_(?:setopt|perform)|curl_multi_perform|connect|getaddrinfo)\\s*\\("
       ],
       "auth_check": [
-        "\\b(?:assert|pam_authenticate|setuid|seteuid|setgid|access)\\s*\\("
+        "\\b(?:pam_authenticate|setuid|seteuid|setgid|access)[ \\t]*\\("
       ],
       "crypto_op": [
         "\\b(?:rand|srand|random|srandom|RAND_bytes|RAND_pseudo_bytes|EVP_\\w+|SHA\\w*|MD5\\w*|crypt)\\s*\\("
       ],
       "html_sink": [
-        "\\b(?:printf|fprintf|sprintf|snprintf)\\s*\\([^;\\n]*(?:text/html|<[a-zA-Z][^>]*>)"
+        "\\b(?:printf|fprintf|sprintf|snprintf)[ \\t]*\\([^;()\\n]{0,300}(?:text/html|<[a-zA-Z][^;()<>\\n]{0,120}>)"
       ],
       "dynamic_exec": [
         "\\b(?:system|popen|exec[lv]p?e?|posix_spawnp?)\\s*\\("
       ],
       "deserialize": [
         "\\b(?:strcpy|strcat|sprintf|gets)\\s*\\(",
-        "\\b(?:scanf|fscanf|sscanf)\\s*\\([^;\\n]*%[0-9]*s",
-        "\\b(?:memcpy|memmove|memset)\\s*\\([^;]*,[^;]*,[^;]*(?:[+*\\-/]|sizeof|\\b[a-zA-Z_]\\w*)[^;]*\\)",
-        "\\bfor\\s*\\([^)]*<=[^)]*\\)[\\s\\S]{0,200}?\\b\\w+\\s*\\[",
+        "\\b(?:scanf|fscanf|sscanf)[ \\t]*\\([^;()\\n]{0,300}%[0-9]{0,6}s",
+        "\\b(?:memcpy|memmove|memset)[ \\t]*\\([^,;()\\n]{1,120},[^,;()\\n]{1,120},(?:[^,;()\\n]{1,120}|[^,;()\\n]{0,80}sizeof[ \\t]*\\([^,;()\\n]{1,80}\\)[^,;()\\n]{0,80})\\)",
+        "\\bfor[ \\t]*\\([^()\\n]{0,200}<=[^()\\n]{0,200}\\)[\\s\\S]{0,200}?\\b\\w+[ \\t]*\\[",
         "\\b(?:malloc|calloc|realloc)\\s*\\(",
         "\\bfree\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*\\)\\s*;[\\s\\S]{0,200}?\\b\\1\\b",
         "\\b(?:printf|vprintf)\\s*\\(\\s*(?![\\s\"\\x27])[a-zA-Z_]\\w*",
-        "\\b(?:fprintf|sprintf|vfprintf|vsprintf)\\s*\\([^,]+,\\s*(?![\\s\"\\x27])[a-zA-Z_]\\w*",
-        "\\b(?:snprintf|vsnprintf)\\s*\\([^,]+,[^,]+,\\s*(?![\\s\"\\x27])[a-zA-Z_]\\w*"
+        "\\b(?:fprintf|sprintf|vfprintf|vsprintf)[ \\t]*\\([^,;()\\n]{1,120},[ \\t]*(?![ \\t\"\\x27])[a-zA-Z_]\\w*",
+        "\\b(?:snprintf|vsnprintf)[ \\t]*\\([^,;()\\n]{1,120},[^,;()\\n]{1,120},[ \\t]*(?![ \\t\"\\x27])[a-zA-Z_]\\w*"
       ],
       "file_io": [
         "\\b(?:fopen|freopen|open|openat|creat|read|write|unlink|rename|getenv)\\s*\\("
@@ -714,8 +714,8 @@
         "\\b(?:api\\.openai\\.com|api\\.anthropic\\.com|generativelanguage\\.googleapis\\.com)\\b"
       ],
       "logging": [
-        "\\b(?:syslog|openlog|perror|signal|sigaction|pthread_\\w+)\\s*\\(",
-        "\\bfprintf\\s*\\(\\s*stderr\\b"
+        "\\b(?:syslog|openlog|perror)[ \\t]*\\(",
+        "\\bfprintf[ \\t]*\\([ \\t]*stderr\\b"
       ]
     }
   }

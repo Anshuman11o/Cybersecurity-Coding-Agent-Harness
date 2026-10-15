@@ -1,10 +1,7 @@
 # CASTLE C target readiness
 
 The public `Anshuman11o/castle-clean-c` corpus is pinned to
-`4278a493c41b126e63eca2e03a9a54d231e065cc`. Its paired private
-`Anshuman11o/castle-clean-answer-key` started at `4ab2594`; readiness updates are at private commit
-`e6953cf` with ground truth 1.1.0. Record the full private scoring commit and
-ground-truth version with each evaluation. Scoring
+`4278a493c41b126e63eca2e03a9a54d231e065cc`. A private answer key exists. Record its scoring version with each evaluation. Scoring
 updates must preserve the frozen public hashes. Never copy private evidence into
 this repository, the public target, or scanning prompts.
 
@@ -14,7 +11,9 @@ The target has 250 independent C programs and a Makefile, with no web routes.
 Stage 0 recognizes C and headers, extracts C symbols, and detects C-specific
 review surfaces. Patterns are generic public C/CERT C concepts, including string
 and memory operations, allocation/lifetime, formats, shell commands, file paths,
-SQL, randomness, signal handlers, threads and assertions. These are review
+SQL and randomness. Assertions, signal handlers and thread calls remain covered
+by the default insecure-design floor; they are not authentication or logging
+signals. Permission checks such as access() still narrow access-control classes. These are review
 signals, not proof of a vulnerability; they narrow existing classes only.
 Reference vocabulary: [CERT C](https://wiki.sei.cmu.edu/confluence/display/c)
 (ARR, MEM, STR, FIO, ENV, SIG, CON) and the public
@@ -32,15 +31,13 @@ real selector. Live model-driven Stage 0/Stage 2 are not validated by that fixtu
 ### Categories and memory safety
 
 There is no built-in memory-safety class. Accept category-blind scoring for
-memory safety rather than forcing unrelated OWASP labels. The frozen corpus has
-25 CWE types. Version 1.0.0 had 15 unmapped types and three provisional
-mappings. Private review in 1.1.0 removed those three effect-only proposals,
-leaving 18 types without a family/code. The export retains 262 evidence-line
-entries, of which 77 carry directly mapped OWASP codes. Thus a
-perfect category-blind result can reach 262/262, while category-aware recall over
-the whole corpus has a ceiling of 77/262 (29.389%). Code/family comparability
-changed; rescore earlier artifacts at the same key version before comparing. Report the current export's exact ceiling;
-do not quietly remove unmapped entries from its denominator.
+memory safety rather than forcing unrelated OWASP labels. The corpus needs two distinct denominators: record recall (150 vulnerable
+programs) and literal marked-line recall (262 lines). The shared scorer's
+alternate anchors represent equivalent locations within a record; they must not
+be repeated on one export entry per line. Use a per-record export for the shared
+scorer and the private located scorer for literal marked-line metrics. Keep
+category-blind and category-aware results separate, and state the key version
+and current category ceiling rather than forcing OWASP labels on memory errors.
 
 A future `memory-safety` class is an owner decision under productization plan
 §2.4 and needs an appropriate playbook, output/scoring contract, and comparable
@@ -94,22 +91,20 @@ python3 "$KEY/reachability.py" \
   --key "$KEY/ground-truth.json" --output "$PRIVATE_RESULTS/reachability.json"
 ```
 
-The shared scorer at this readiness base ignores alternate evidence lines and ranges; exports
-retain `file` and `line` for compatibility. Alternate/range support is owned by
-the parallel scorer session. Until integrated, each exported evidence line still
-scores correctly at its primary line. A perfect synthetic result should attain
-full category-blind recall and the mapped category-aware ceiling, not full
-category-aware recall on unmapped entries.
+The shared scorer supports alternate anchors and ranges. Use one ground-truth
+entry per vulnerable record, with sparse alternate marked lines. For exact
+marked-line recall use the private located scorer, which evaluates every mark
+independently. A record-anchor hit must not be reported as every line being hit.
 
 ## Headline metrics and contamination
 
-Report exact-line category-aware recall and category-blind recall over all 262
-marked lines, localization (±15) in both forms, and file-level hit rate over 150
-vulnerable programs. Also report the share of the 100 clean programs with at least
-one finding (false-positive rate), total findings landing on clean programs, and
-findings per clean program. Do not confuse the shared scorer's evidence-entry
-file-match rate with unique-program hit rate. Include precision proxy, hedging,
-distinct cited lines, coverage, tokens, cost and failed/skipped lanes.
+Report primary/alternate-anchor record recall over 150 vulnerable records from
+the shared scorer, with category-aware and category-blind forms kept separate.
+Report literal exact-line recall over 262 marks, localization (±15 lines), and
+unique-program file hits from the private located scorer. Also report the share
+of the 100 clean programs with at least one finding, findings landing on clean
+programs, and findings per clean program. Include key/scorer versions, precision
+proxy, hedging, distinct cited lines, coverage, tokens, cost and failed lanes.
 
 **Contamination exposure accompanies every number:** LICENSE/NOTICE necessarily
 identify CASTLE and its author. Training exposure cannot be excluded; license
@@ -125,15 +120,45 @@ results or use the private validator with the chosen compiler.
 
 ## Deterministic readiness evidence
 
-The current source checkout produces 250 hunt lanes, zero skips and zero
-unaccounted entries. The Juice Shop replay uses the archived category and route
-context with freshly selected inventory, symbols and signals in both arms;
-304 hunt + 580 skip = 884 entries. This is a deterministic current-contract
-replay, not a reproduction of an old paid scan's lane count. Before/after signals
-and normalized lane artifacts are byte-identical (only generated timestamp and
-source-artifact pathname are excluded). Normalized lane SHA-256:
-`38e2ab4b5de9c74b6644e83f99431021f61955d2bb3803dc884dfbc43d241675`.
-The legacy v1 selector and hunt components are byte-identical to the base commit;
-all preexisting signal registry fields, including other languages, are unchanged.
-These are coverage checks, not vulnerability-detection results; the contamination
-exposure described above still applies.
+The public source checkout produces 250 hunt lanes, zero skips and zero
+unaccounted entries. Mean distinct classes per hunt lane changed from 5.42 to
+5.32. The Juice Shop replay uses identical archived category/route context and
+freshly selected inventory, symbols and signals in both arms; 306 hunt + 580
+skip = 886 entries on the current base. Its signals and normalized lanes are
+byte-identical; only timestamp and source-artifact pathname are excluded.
+This is a deterministic replay, not a new paid scan. The v1 selector/hunt
+components and all non-C signal-table fields are unchanged from the base.
+
+C signal fire rates below are over all 250 public files, with no vulnerable/clean
+labels read or used. The largest is 46.8%; none exceeds 80%. These patterns
+identify review surfaces, not defects. Memory/input functions are deliberate
+review surfaces, while general declarations, arithmetic and routine printf calls
+with literal formats do not add a signal. Assertions, signal handlers and pthread
+calls have no honest auth/logging signal in the existing map and are omitted;
+the generic insecure-design floor still applies.
+
+| C signal | Files | Fire rate |
+|---|---:|---:|
+| route_handler | 0 | 0.0% |
+| db_query | 21 | 8.4% |
+| model_schema | 0 | 0.0% |
+| model_write | 6 | 2.4% |
+| http_outbound | 5 | 2.0% |
+| auth_check | 3 | 1.2% |
+| crypto_op | 20 | 8.0% |
+| html_sink | 17 | 6.8% |
+| dynamic_exec | 13 | 5.2% |
+| deserialize | 117 | 46.8% |
+| file_io | 42 | 16.8% |
+| llm_call | 0 | 0.0% |
+| logging | 74 | 29.6% |
+
+Every registered language (including C and Terraform) runs every pattern against
+12 adversarial 200 KB shapes, with a 200 ms limit per pattern/input. A child
+process timeout prevents a runaway regex from hanging the suite. Call-argument
+patterns have explicit delimiter and length bounds; they intentionally miss
+expressions longer than those limits rather than scanning an unbounded tail.
+The C worst case measured 3.5 ms, and the all-language worst measured 24.3 ms.
+The previous memory pattern took 22.5 seconds on a 1.2 KB comma list. These are
+local timing/coverage checks, not vulnerability-detection results; the attribution
+and contamination exposure above still applies.
