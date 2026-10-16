@@ -5,7 +5,20 @@ ground-truth material anywhere on this machine.** Work only in the harness
 checkout. No paid scans and no model API calls; every test uses synthetic
 fixtures.
 
-Three owner-approved changes. All three apply to product (playbook-agent) runs.
+**Scope as implemented (owner decisions after this spec was written):** change 1
+is implemented, plus one addition below; change 2 (product-mode floor) was
+dropped by the owner, who wants no fixed classes added to every scan; change 3
+was narrowed to four gap-driven edits (scope line, pattern 3 extended, patterns
+4-6 added), and the final text is the draft file named there.
+
+**Addition to change 1, found in review.** Recon signals also fire on files
+Stage 0.5 skips (dependency manifests, declarative config). A class kept only by
+such a signal would reach no hunt lane and be spread to every lane by the
+unrouted rule. So `class-selection.json` carries `recon_kept`, and Stage 0.5
+routes those classes by signal only: unreached ones are logged and not hunted,
+and the strict union check exempts exactly them.
+
+Three changes were originally proposed. All three apply to product (playbook-agent) runs.
 Benchmark runs without a class selection must stay byte-identical.
 
 ## 1. Recon-kept built-in classes (stage-playbook-agent)

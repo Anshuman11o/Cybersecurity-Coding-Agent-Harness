@@ -92,6 +92,35 @@ definition (framework, codes, signals, reason), so a later turn cannot redefine
 one. A class a turn omits stays selected and is listed in that turn's
 `restored`. The decision's `reason` is the latest turn's.
 
+Every decision call also returns `excluded_builtins` (`{ id, reason }` per
+built-in it does not select, with the recon evidence that its surface is
+absent). Each entry must name a known built-in that is not also in
+`builtin_classes`, appear once, and carry a non-empty reason; a missing or
+incomplete list is not an error. Across turns the latest reason given for an
+id is kept.
+
+After the final turn (or the single call when the loop is off), and before the
+decision is recorded, code applies one deterministic rule to every built-in
+the agent did not select:
+
+| Recon evidence | Outcome |
+|---|---|
+| A signal in some file of `file-signals.json` maps to the class in `shared/signal-classes.json` | Kept: added to `builtin_classes` with the reason `Kept by recon: signals <names> fired on <n> file(s).` and listed in `recon_kept` |
+| No such signal; the agent gave a reason | Excluded, with the agent's latest reason (`source: 'agent'`) |
+| No such signal; no reason | Excluded: `No recon signal routes this class; the agent gave no reason.` (`source: 'no-signal'`) |
+
+A class no signal maps to (`insecure-design`, `sensitive-business-flows`) is
+never kept by this rule; only the agent can select it. The turns see the
+agent's own union; the rule runs once, on the final one. One log line records
+the outcome: `[playbook-agent] recon kept N built-in(s): ...; excluded M: ...`.
+Round two (`review.ts`) does not re-apply the rule: a class the user removes
+stays removed.
+
+`class-selection.json` lists these classes in `recon_kept`. Stage 0.5 routes a
+recon-kept class only through its signals: if they fired only on files it
+skips (dependency manifests, declarative config), the class is logged and not
+hunted, never spread to every lane as an unrouted class.
+
 Each uncached class in the final decision then gets a Responses call with
 `web_search` (required) and a strict playbook schema. It returns a plain-text
 playbook in the built-in format plus source URLs. The caller captures queries
@@ -113,8 +142,8 @@ keep their original codes and signals together with their text; changing
 coverage cannot relabel an old entry.
 
 The decision calls also select the built-in classes that apply
-(`builtin_classes`, each with a reason). The final union's selected built-ins
-plus its additional classes are the run's complete class set, recorded as
+(`builtin_classes`, each with a reason). The final union's selected built-ins,
+including those the recon rule kept, plus its additional classes are the run's complete class set, recorded as
 `selected_classes` in the plan and written to `class-selection.json`. When that
 file exists, Stage 0.5 runs in agent mode: no floor classes; each hunt lane gets
 the selected classes its file's signals reach; an added class whose
@@ -160,7 +189,13 @@ hashes stop loading rather than silently supplying different guidance.
   same verified/unverified labels as its cache entry). `turns` holds one entry per review turn
   (purpose, the ids the union `added` and `restored`, the model's `changes`,
   and the turn's search count, queries and sources); `loop` records
-  `enabled`, `max_passes` and `passes_run`.
+  `enabled`, `max_passes` and `passes_run`. `recon_kept` lists
+  `{ id, signals, files }` for each built-in the recon rule kept, and
+  `excluded_builtins` lists `{ id, reason, source: 'agent' | 'no-signal' }`
+  for every other built-in left out.
+- `class-decision.json`: the final union (after the recon rule) with the same
+  `recon_kept` and `excluded_builtins`, written before any research call so a
+  research failure cannot lose it.
 - `classes-overlay.json`: class-ID dictionary in the shipped registry's
   `playbook`/`codes` format, extended with `signals`, `framework`, `model`,
   and `sha256`. Built-in replacements and unknown signals are rejected.

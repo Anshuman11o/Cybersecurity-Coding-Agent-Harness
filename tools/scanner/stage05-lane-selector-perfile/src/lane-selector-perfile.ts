@@ -672,7 +672,15 @@ async function main() {
       languageWideLanes++
     }
     const reached = new Set(huntLanes.flatMap(l => l.classes))
-    unrouted = selection.classes.filter(c => !reached.has(c))
+    // A built-in kept by recon (its signals fired) goes only where those signals
+    // reach a hunted file. If they fired only on files skipped here, it is not
+    // hunted rather than spread to every lane.
+    const reconKept = new Set(selection.recon_kept ?? [])
+    unrouted = selection.classes.filter(c => !reached.has(c) && !reconKept.has(c))
+    const reconUnreached = [...reconKept].filter(c => !reached.has(c))
+    if (reconUnreached.length) {
+      console.log('[Stage 0.5 v3] Recon-kept classes with no hunted file in signal reach (not hunted): ' + reconUnreached.join(', '))
+    }
     let rescued = 0
     for (const lane of huntLanes) {
       if (unrouted.length) {
@@ -693,8 +701,10 @@ async function main() {
     }
     const hunted = lanes.filter(l => l.disposition === 'hunt')
     const union = [...new Set(hunted.flatMap(l => l.classes))].sort()
-    if (hunted.length && JSON.stringify(union) !== JSON.stringify([...selection.classes].sort())) {
-      throw new Error('Hunt-lane classes ' + JSON.stringify(union) + ' differ from the agent selection ' + JSON.stringify(selection.classes))
+    // Strict: every selected class is hunted somewhere, except a recon-kept class whose signals reach no hunted file.
+    const expected = selection.classes.filter(c => !reconUnreached.includes(c)).sort()
+    if (hunted.length && JSON.stringify(union) !== JSON.stringify(expected)) {
+      throw new Error('Hunt-lane classes ' + JSON.stringify(union) + ' differ from the agent selection ' + JSON.stringify(expected))
     }
     console.log('[Stage 0.5 v3] Language-wide agent classes: ' + languageWideLanes + ' lane(s) received language-wide classes, ' +
       rescued + ' lane(s) rescued from skip by base classes' +

@@ -2,7 +2,7 @@ export const playbook = `
 Playbook for Access Control (OWASP A01, API1 BOLA, API5 Broken Function Level Authorization)
 ============================================================================================
 
-Scope: Detect missing or bypassable authorization: any place where a caller can reach data, functions, files or components that the application should restrict to an identified, permitted principal.
+Scope: Detect authorization gaps where a caller can access, modify, or delete resources, functions, files or components that should be restricted to other users, other roles, or authenticated principals.
 
 ## OWASP Categories Covered
 - OWASP A01: Broken Access Control
@@ -12,26 +12,21 @@ Scope: Detect missing or bypassable authorization: any place where a caller can 
 ## Sink Patterns to Hunt For
 1. Route handlers or functions that accept a resource identifier (path parameter, query parameter, or body field) and perform a lookup — by primary key, by slug, or by any identifier — without subsequently verifying that the currently authenticated user owns or is authorized to access that specific record.
 2. Handlers that check only "is the user logged in?" (authentication) but never "does this user own this resource?" (authorization). Authentication is not authorization.
-3. Admin-only or privilege-gated endpoints that fail to validate the user's role claim server-side — or where the role claim itself can be manipulated by the caller (e.g., sent in the request body or a custom header rather than derived from a trusted session).
-4. No authorization gate at all (CWE-862): a handler, RPC method, gateway or serverless route, or message consumer that changes state or returns non-public data while running for any caller, with no authentication requirement and no permission check. Compare it with its siblings: if neighbouring handlers carry a guard (decorator, middleware, policy, annotation) and this one does not, that difference is the finding. Infrastructure or routing definitions that publish such an operation with authorization explicitly disabled count too. When the missing gate is an authentication requirement, crypto-auth may also apply; name both.
-5. Client-side authorization (CWE-602): an access decision made from a value the client controls or stores — a role or admin flag held in client code, local storage, preferences, a cookie, a hidden form field, or a request field — with no independent check by a trusted server or component.
-6. Path traversal (CWE-22): a caller-influenced name or path joined to a base directory and used to read, write, list or delete a file without normalising it and confirming the result stays inside the intended directory. Remember that joining with an absolute path, or with "../" segments, escapes the base.
-7. Exposed components (CWE-926, CWE-284): platform or IPC entry points reachable by other applications or processes — mobile activities, services, broadcast receivers, content providers, deep links, local sockets or IPC handlers — declared exported or otherwise externally reachable without a permission, signature check, or validation of the caller.
-8. Overly broad grants (CWE-732, CWE-276): storage, queues, files, policies or roles that give public, anonymous or wildcard principals read or write access, or that let one principal assume or pass any role, where the application's purpose calls for a narrower grant.
+3. Admin-only or privilege-gated endpoints that fail to validate the user's role claim server-side — or where the role claim itself can be manipulated by the caller (e.g., sent in the request body or a custom header rather than derived from a trusted session), or decided on the client from a flag held in client code or local storage with no server-side check.
+4. Handlers or routes that change state or return non-public data with no authentication or authorization check at all, while comparable handlers in the same file carry one. Routing or infrastructure definitions that publish an operation with authorization disabled count.
+5. Path traversal (CWE-22): a caller-influenced file name or path joined to a base directory and used for a file operation without confirming the resolved path stays inside that directory.
+6. Components exposed to other applications or processes (exported mobile activities, services, broadcast receivers, content providers, IPC handlers) without a required permission or caller check.
 
 ## Distinguishing Real Findings from False Positives
 - AUTHENTICATED is NOT AUTHORIZED. A handler that verifies the user is logged in but does not verify per-resource ownership is the core BOLA pattern. If User A can supply User B's resource identifier and receive a 200 response with data or a successful mutation, that is exploitable.
 - For function-level authorization: if a lower-privileged user can reach an endpoint intended only for higher-privileged roles by omitting, modifying, or spoofing a role claim in the request, that is a Broken Function Level Authorization finding.
 - A false positive occurs when the lookup itself is scoped to the current user (e.g., WHERE user_id = ? AND id = ?) or when the resource is intentionally public.
-- Intentionally public operations (sign-up, login, health checks, public catalogue reads, static assets) are not missing-gate findings. A state change or private data behind no gate is.
-- A client-side check is only a finding when nothing trusted repeats it. If the server or a privileged component enforces the same rule, report nothing.
-- A path built only from constants, or from a value already reduced to a bare file name and checked against the base directory, is not traversal.
-- An exported component that requires a permission at signature or system level, or that verifies its caller before acting, is protected.
 
 ## Hunting Discipline
 Report what you can trace. When the entrypoint lies outside this file, begin the trace at the point where this file receives outside data and say so in that step. Identify:
-1. The entrypoint (route path + HTTP method, exported component, or function name)
-2. The restricted thing: the record, function, file or component a caller should not reach
-3. The operation that reaches it (query, ORM method, service call, file operation, component action)
-4. The missing or bypassable check: no ownership check, no authorization gate, a client-held decision, no path containment, or no caller permission
-5. A proof-of-concept: who the attacker is (another user, an anonymous caller, another app) and what they reach that they should not.
+1. The entrypoint (route path + HTTP method, or function name)
+2. The parameter carrying the target resource identifier
+3. The lookup call (query, ORM method, or service call)
+4. The absence of a per-resource ownership check between lookup and response
+5. A proof-of-concept: two distinct user accounts where User A accesses User B's resource by substituting the identifier.
+`
