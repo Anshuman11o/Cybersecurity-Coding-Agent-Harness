@@ -1,7 +1,6 @@
 import OpenAI from 'openai'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { resolveProvider, clientConfigFor, modelFor, outputTokenCap, samplingParams, transportFor } from '../../shared/provider.js'
 import { runPath, REPO_ROOT } from '../../shared/run-paths.js'
 import { getRunContext } from '../../shared/run-context.js'
@@ -10,6 +9,7 @@ import { cacheRoot } from '../../shared/playbook-cache.js'
 import { CLASS_SELECTION_FILE, PLAYBOOK_STAGE, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
 import { runPlaybookAgent, type AgentOptions, type ReconInput, type UsageCall } from './agent.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+import { isEntryPoint } from '../../shared/entry.js'
 import { PlaybookMeter } from './meter.js'
 
 function writeJson(file: string, data: unknown) {
@@ -109,7 +109,7 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main().catch(error => {
+if (isEntryPoint(import.meta.url)) main().catch(error => {
   console.error('[playbook-agent]', error.message)
   process.exitCode = 1
 })

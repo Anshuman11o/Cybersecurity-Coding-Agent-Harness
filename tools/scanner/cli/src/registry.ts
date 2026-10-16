@@ -56,6 +56,11 @@ export interface ModelInfo {
   model: string
   origin: 'registry' | 'overlay' | 'generic'
   transport: 'openai' | 'claude-cli'
+  /**
+   * models.json `lab_only`: an experiment arm or lab transport, hidden from
+   * `secscan models` unless --all. Absent reads as false.
+   */
+  labOnly?: boolean
   apiKeyEnv: string
   keyPresent: boolean
   baseUrl: string | null
@@ -92,6 +97,7 @@ export async function loadRegistryModules() {
       model: provider.modelFor(key),
       origin: models.targetOrigin(key),
       transport: provider.transportFor(key),
+      labOnly: t.lab_only === true,
       apiKeyEnv: t.api_key_env,
       // Presence only: the key's value never leaves this check.
       keyPresent: Boolean(process.env[t.api_key_env]),

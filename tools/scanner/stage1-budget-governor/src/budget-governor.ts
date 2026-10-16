@@ -6,7 +6,7 @@
 //     (spend-gate.ts) enforces and the CLI's confirmation screen shows.
 
 import { readFileSync, statSync, existsSync, writeFileSync, mkdirSync, readdirSync, renameSync } from "fs";
-import { join, dirname, relative } from "path";
+import { join, dirname, relative, resolve } from "path";
 import { fileURLToPath } from "url";
 import { runPath, type Provider } from "../../shared/run-paths.js";
 import {
@@ -20,6 +20,7 @@ import { FOLLOW_UP_INPUT_MULTIPLIER } from "../../shared/pricing.js";
 import { API_PROFILE_FILE, readApiProfile } from "../../shared/api-profile.js";
 import { ledgerPathFor, readLedgerTotals } from "../../shared/ledger.js";
 import { getRunContext } from "../../shared/run-context.js";
+import { isEntryPoint } from "../../shared/entry.js";
 import { readCorpusFile } from "../../shared/read-guard.js";
 import type { LaneAssignments, VulnClassRegistry } from "../../stage2-hunt-lanes-perfile/src/types.js";
 
@@ -805,8 +806,9 @@ export async function computeScanPlanV2(): Promise<ScanPlan> {
     buildLanePrompts, followUpTemplateBytes, loadPlaybooksForClasses, loadArchSummarySnippet, DEFAULT_OUTPUT_TOKEN_CAP, loadCheckpoint,
   } = await import('../../stage2-hunt-lanes-perfile/src/hunt-executor.js')
   const reg = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/scanner/shared/vuln-classes.json'), 'utf8')) as VulnClassRegistry
-  const archPath = assignments.source_stage0_run.startsWith('/')
-    ? assignments.source_stage0_run : join(REPO_ROOT, assignments.source_stage0_run)
+  // resolve(), as the hunt executor does: on Windows a target on another drive
+  // than the scanner has no REPO_ROOT-relative form and arrives as 'D:\...'.
+  const archPath = resolve(REPO_ROOT, assignments.source_stage0_run)
   const archSnippet = loadArchSummarySnippet(archPath)
   let archSummary: Parameters<typeof buildLanePrompts>[5]
   try {
@@ -1129,8 +1131,9 @@ async function mainV2(mode: 'estimate' | 'reconcile') {
 // Only when this file IS the process entry. Without the guard, importing
 // anything from here — as test-harness.ts does for BudgetTracker — silently ran
 // main() and rewrote the committed budget-plan.json as a side effect of running
-// the tests. Same guard the hunt executors use.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// the tests. Same guard the hunt executors use; realpath-based, so it also
+// holds under the npm bin symlink and on Windows (shared/entry.ts).
+if (isEntryPoint(import.meta.url)) {
   const args = process.argv.slice(2)
   const isV2 = args.includes('--v2')
   const modeIdx = args.indexOf('--mode')

@@ -1,5 +1,7 @@
 # Cybersecurity Scanner AI Agent Harness
 
+> **Use the scanner on your own repo:** [github.com/anshuman11o/secscan](https://github.com/anshuman11o/secscan) (npm [`@anshuman11o/secscan`](https://www.npmjs.com/package/@anshuman11o/secscan)).
+
 **An AI agent harness that scans a codebase for an entire class of
 OWASP-categorized vulnerabilities and reports it.**
 

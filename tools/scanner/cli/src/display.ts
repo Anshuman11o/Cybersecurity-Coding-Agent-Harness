@@ -92,9 +92,16 @@ export function measuredLabel(m: ModelInfo): string {
   return `measured: recall ${m.benchmark.recall}, localization ${m.benchmark.localization} on Juice Shop (${usd(m.benchmark.cost_usd)}, ${m.benchmark.run})`
 }
 
-/** `secscan models`. Lab-only transports are hidden unless `all`. */
+/** Where `secscan models` sends the reader for what the measured figures mean. */
+export const MODELS_README = 'https://github.com/anshuman11o/secscan'
+
+/**
+ * `secscan models`. Lab-only entries (models.json `lab_only`) and lab
+ * transports are hidden unless `all`. The npm package ships without the
+ * lab-only entries, so there `--all` adds nothing.
+ */
 export function renderModels(models: ModelInfo[], all: boolean): string {
-  const shown = models.filter(m => all || m.transport === 'openai')
+  const shown = models.filter(m => all || (!m.labOnly && m.transport === 'openai'))
   const rows = shown.map(m => [
     (m.isDefault ? '* ' : '  ') + m.key,
     m.model,
@@ -112,7 +119,7 @@ export function renderModels(models: ModelInfo[], all: boolean): string {
     ...rows.map(line),
     '',
     '* default. Measured = scored by the lab on OWASP Juice Shop (TypeScript), 97 known vulnerabilities;',
-    '  recall is exact line + class, localization is within 15 lines. Source: docs/benchmarking-results.md.',
+    `  recall is exact line + class, localization is within 15 lines. What the figures mean: ${MODELS_README}`,
     '  Every other model, every --models-file entry and every --base-url endpoint is unmeasured.',
     ...(hidden ? [`  ${hidden} lab-only model(s) hidden; --all shows them.`] : []),
   ].join('\n')

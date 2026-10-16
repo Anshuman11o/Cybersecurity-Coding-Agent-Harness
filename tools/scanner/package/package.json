@@ -1,0 +1,54 @@
+{
+  "name": "@anshuman11o/secscan",
+  "version": "0.1.0",
+  "description": "AI security scanner for your own repository: static, model-guided hunting for OWASP-class vulnerabilities with your own API key. Preview.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "secscan": "dist/tools/scanner/cli/src/secscan.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anshuman11o/secscan.git"
+  },
+  "homepage": "https://github.com/anshuman11o/secscan#readme",
+  "bugs": {
+    "url": "https://github.com/anshuman11o/secscan/issues"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "sast",
+    "static-analysis",
+    "vulnerability",
+    "owasp",
+    "llm",
+    "ai",
+    "cli"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "smoke": "node smoke.mjs",
+    "prepack": "node build.mjs"
+  },
+  "dependencies": {
+    "ignore": "7.0.10",
+    "js-yaml": "^4.1.0",
+    "openai": "^6.49.0",
+    "tree-sitter-wasms": "0.1.13",
+    "ts-morph": "^24.0.0",
+    "web-tree-sitter": "0.25.10"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

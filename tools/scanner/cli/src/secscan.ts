@@ -20,7 +20,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
-import { pathToFileURL } from 'url'
+import { fileURLToPath } from 'url'
 import { parseArgs, usage, UsageError, type ReportArgs, type ScanArgs } from './args.js'
 import { applyModelFlags, loadRegistryModules, genericNames } from './registry.js'
 import { CONFIG_FILENAME, loadConfig, configFromRun, writeConfig, type LoadedConfig } from './config.js'
@@ -44,6 +44,7 @@ import {
   PROGRESS_FILE, RUN_STATUS_FILE, STOP_REQUEST_FILE, type Stage2RunStatus,
 } from '../../stage1-budget-governor/src/run-status.js'
 import { PRODUCT_DIRNAME } from '../../shared/run-context.js'
+import { isEntryPoint, readBuildInfo } from '../../shared/entry.js'
 import { readRunPlaybooks } from './playbooks.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
 import { recordCalibration } from '../../shared/calibration.js'
@@ -74,8 +75,17 @@ function readJson<T>(path: string): T | null {
   }
 }
 
+/**
+ * The packaged CLI names its version and the harness commit it was built from
+ * (dist/build-info.json). From source there is no build, so the version is
+ * cli/package.json's. fileURLToPath, not URL.pathname: a pathname keeps its
+ * percent-escapes (a space is %20) and, on Windows, reads "/C:/...", which no
+ * fs call accepts.
+ */
 function cliVersion(): string {
-  return readJson<{ version: string }>(new URL('../package.json', import.meta.url).pathname)?.version ?? 'unknown'
+  const build = readBuildInfo()
+  if (build) return `${build.version} (harness ${build.harness_commit})`
+  return readJson<{ version: string }>(fileURLToPath(new URL('../package.json', import.meta.url)))?.version ?? 'unknown'
 }
 
 /** Print where the report went and open it; a run with no report says why. */
@@ -120,7 +130,7 @@ async function main(argv: string[]): Promise<number> {
   if (args.command === 'help') {
     let keyDefault = 'the variable models.json names'
     try { keyDefault = genericNames().api_key_env_default } catch { /* no generic template */ }
-    say(usage(keyDefault))
+    say(usage(keyDefault, args.topic))
     return EXIT.complete
   }
   if (args.command === 'version') {
@@ -782,7 +792,9 @@ async function editLimits(io: InputIO, l: RunLimits): Promise<RunLimits> {
   return out
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main(process.argv.slice(2)).then(
+// Realpaths, not URLs: installed, argv[1] is npm's bin symlink (or a
+// differently-cased path on Windows) while import.meta.url is the real file.
+if (isEntryPoint(import.meta.url)) main(process.argv.slice(2)).then(
   code => process.exit(code),
   e => {
     err(e instanceof UsageError ? e.message : e?.stack ?? String(e))

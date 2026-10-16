@@ -82,6 +82,19 @@ function within(absPath: string, dir: string): boolean {
 }
 
 /**
+ * The form a path is compared in. Windows paths are case-insensitive, and the
+ * same file reaches this guard spelled two ways: the target root as the user's
+ * shell reported it (VS Code's terminal, for one, can give a lower-case drive
+ * letter), and a repo-relative path resolved back against REPO_ROOT, which
+ * takes the scanner install's spelling for whatever prefix the two share.
+ * Compared exactly, every read of the user's repo would be "out of corpus".
+ * Case-folded on win32 only; everywhere else the comparison is unchanged.
+ */
+function foldCase(p: string, platform: NodeJS.Platform): string {
+  return platform === 'win32' ? p.toLowerCase() : p
+}
+
+/**
  * The seed denylist in force for a context: the list above in the benchmark,
  * empty in product. Stage 0.5 imports this rather than SEED_DENYLIST so that a
  * product run does not carry Juice Shop paths around as if they meant anything.
@@ -137,7 +150,7 @@ export function beginReconReadAudit(ctx: RunContext): void {
 
 export function auditReconRead(absPath: string): void {
   const ctx = auditContext
-  if (!ctx || !within(resolve(absPath), ctx.targetRoot)) return
+  if (!ctx || !within(foldCase(resolve(absPath), process.platform), foldCase(ctx.targetRoot, process.platform))) return
   mkdirSync(ctx.runsRoot, { recursive: true })
   appendFileSync(join(ctx.runsRoot, READ_AUDIT_FILE), JSON.stringify({
     at: new Date().toISOString(), path: relative(ctx.targetRoot, resolve(absPath)).split(sep).join('/'),
@@ -171,9 +184,13 @@ export interface ReadGuard {
   isCorpusReadable(relPath: string): boolean
 }
 
-/** Build a read guard bound to one run context. */
-export function makeReadGuard(ctx: RunContext): ReadGuard {
-  const roots = corpusRoots(ctx)
+/**
+ * Build a read guard bound to one run context. `platform` only decides whether
+ * allow comparisons are case-folded (foldCase); tests pass it to cover win32.
+ */
+export function makeReadGuard(ctx: RunContext, platform: NodeJS.Platform = process.platform): ReadGuard {
+  const fold = (p: string) => foldCase(p, platform)
+  const roots = corpusRoots(ctx).map(fold)
   const denylist = activeDenylist(ctx)
   // Lower-cased because the exclusion is a deny rule: on a case-insensitive
   // filesystem (macOS default) `<target>/.GIT/config` IS `.git/config`, and a
@@ -192,13 +209,14 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
         for (const rel of saved.files) {
           if (typeof rel !== 'string') continue
           const abs = resolve(ctx.targetRoot, rel)
-          if (within(abs, ctx.targetRoot)) allowlist.add(abs)
+          if (within(abs, ctx.targetRoot)) allowlist.add(fold(abs))
         }
       }
     } catch { /* deny every target read when a saved allowlist is unusable */ }
   }
 
-  const inRoots = (abs: string) => roots.some((r) => within(abs, r))
+  const inRoots = (abs: string) => roots.some((r) => within(fold(abs), r))
+  const allowlisted = (abs: string) => !allowlist || allowlist.has(fold(abs))
   const inExcluded = (abs: string) => {
     const lower = abs.toLowerCase()
     return excluded.some((d) => within(lower, d))
@@ -216,7 +234,7 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
     let abs = resolve(REPO_ROOT, relPath)
     if (!inRoots(abs)) return { reason: 'out-of-corpus path' }
     if (inExcluded(abs)) return { reason: 'excluded path (run artifacts / .git)' }
-    if (allowlist && !allowlist.has(abs)) return { reason: 'not in recon read allowlist' }
+    if (!allowlisted(abs)) return { reason: 'not in recon read allowlist' }
 
     if (!existsSync(abs)) return { reason: 'file not found' }
 
@@ -229,7 +247,7 @@ export function makeReadGuard(ctx: RunContext): ReadGuard {
     }
     if (!inRoots(abs)) return { reason: 'symlink escapes corpus' }
     if (inExcluded(abs)) return { reason: 'symlink into excluded path' }
-    if (allowlist && !allowlist.has(abs)) return { reason: 'symlink outside recon read allowlist' }
+    if (!allowlisted(abs)) return { reason: 'symlink outside recon read allowlist' }
 
     if (denylist.includes(relPath)) return { reason: 'denylisted file' }
 
