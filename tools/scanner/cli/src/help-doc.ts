@@ -1,10 +1,10 @@
 /**
- * The package README's command guide, rendered as Markdown from cliDefinition()
- * in args.ts, the same definition `secscan help` prints. The README keeps it
+ * The package usage guide's command reference, rendered as Markdown from cliDefinition()
+ * in args.ts, the same definition `secscan help` prints. USAGE.md keeps it
  * between two markers, and help.test.ts fails when that block differs from
  * what this file renders. After changing a command or an option, rewrite it:
  *
- *   npx tsx src/help-doc.ts --write [README]   (default: ../package/README.md)
+ *   npx tsx src/help-doc.ts --write [README]   (default: ../package/USAGE.md)
  *   npx tsx src/help-doc.ts --check [README]   exit 1 when the block is stale
  *   npx tsx src/help-doc.ts                    print the guide
  *
@@ -23,7 +23,7 @@ import { isEntryPoint } from '../../shared/entry.js'
 
 export const GUIDE_START = '<!-- commands:start -->'
 export const GUIDE_END = '<!-- commands:end -->'
-export const DEFAULT_README = join(dirname(fileURLToPath(import.meta.url)), '../../package/README.md')
+export const DEFAULT_README = join(dirname(fileURLToPath(import.meta.url)), '../../package/USAGE.md')
 
 /**
  * Markdown-safe text. Outside code spans, characters Markdown would read as

@@ -93,7 +93,7 @@ export function measuredLabel(m: ModelInfo): string {
 }
 
 /** Where `secscan models` sends the reader for what the measured figures mean. */
-export const MODELS_README = 'https://github.com/anshuman11o/secscan'
+export const MODELS_README = 'https://github.com/anshuman11o/secscan/blob/main/USAGE.md#models-and-cost'
 
 /**
  * `secscan models`. Lab-only entries (models.json `lab_only`) and lab

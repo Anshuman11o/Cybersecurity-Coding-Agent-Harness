@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "README.md",
+    "USAGE.md",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md"
   ],

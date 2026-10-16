@@ -15,12 +15,12 @@ const KEY = genericNames().api_key_env_default
 const def = cliDefinition(KEY)
 const allOptions = (): OptionDef[] => [...def.groups.flatMap(g => g.options), ...def.commands.flatMap(c => c.options ?? [])]
 
-test('the package README carries the generated command guide', () => {
+test('the package usage guide carries the generated command guide', () => {
   const readme = readFileSync(DEFAULT_README, 'utf-8')
   assert.equal(readme.split(GUIDE_START).length, 2, 'one start marker')
   assert.equal(readme.split(GUIDE_END).length, 2, 'one end marker')
   assert.ok(readme.includes(guideBlock(renderCommandGuide(KEY))),
-    'README command guide is stale; run: npx tsx src/help-doc.ts --write')
+    'USAGE.md command guide is stale; run: npx tsx src/help-doc.ts --write')
 })
 
 test('replaceGuide rewrites only the marked block and refuses a README without markers', () => {

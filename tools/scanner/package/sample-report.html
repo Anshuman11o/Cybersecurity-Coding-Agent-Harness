@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<meta name="color-scheme" content="light">
+<title>Vulnerability Scan Summary Report · 20261016-041819</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzIwNTZjNyIvPjxwYXRoIGQ9Ik0xNiA2bDggM3Y2YzAgNS4yLTMuNCA5LjMtOCAxMS00LjYtMS43LTgtNS44LTgtMTFWOXoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=">
+<style>
+:root {
+  --navy: #164194; --text: #1f1f1f; --muted: #5f6368; --rule: #dddddd;
+  --row: #f2f2f2; --row-alt: #fafafa;
+  --critical: #a1151b; --high: #ed5033; --medium: #ffb900; --low: #ece04c;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #fff; color: var(--text); font: 14px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.page { max-width: 1120px; margin: 0 auto; padding: 32px 16px 48px; }
+a { color: var(--navy); text-decoration: underline dotted; text-underline-offset: 2px; }
+a:hover { opacity: .65; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+
+header.title { text-align: center; padding-bottom: 8px; }
+.json-link { margin: 14px 0 0; font-size: 15px; font-weight: 700; }
+.click-note { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+h1 { margin: 0; color: var(--navy); font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+.target { margin: 6px 0 0; font-size: 16px; }
+.generated { margin: 4px 0 0; color: var(--muted); font-style: italic; }
+h2 { color: var(--navy); font-size: 21px; font-weight: 400; margin: 36px 0 12px; }
+h2 .note { color: var(--muted); font-size: 13px; margin-left: 8px; }
+
+table.zap { width: 100%; border-collapse: collapse; background: #fff; }
+.zap th { background: var(--navy); color: #fff; font-weight: 700; text-align: left; padding: 10px 14px; }
+.zap td { background: var(--row); padding: 9px 14px; vertical-align: top; }
+.zap tbody tr:nth-child(odd) td { background: var(--row-alt); }
+.zap .num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zap td.field { width: 42%; color: var(--muted); }
+.zap .zero { color: #9aa0a6; }
+
+.risk { display: inline-block; padding: 1px 10px; font-weight: 700; }
+.risk-critical { background: var(--critical) !important; color: #fff !important; }
+.risk-high { background: var(--high) !important; color: #fff !important; }
+.risk-medium { background: var(--medium) !important; color: #303030 !important; }
+.risk-low { background: var(--low) !important; color: #303030 !important; }
+.status-COMPLETE { color: #0f7b3f; font-weight: 700; }
+.status-INCOMPLETE { color: #b45309; font-weight: 700; }
+.status-UNKNOWN { color: var(--muted); font-weight: 700; }
+
+
+/* Severity chart, boxed as in ZAP's High Level report */
+.chart-box { display: flex; align-items: center; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.16); border: 1px solid #dee2e6; border-radius: 5px; }
+.chart-box svg { display: block; width: 240px; height: 240px; }
+.donut-total { font-size: 34px; font-weight: 700; fill: var(--text); }
+.donut-label { font-size: 12px; fill: var(--muted); }
+.legend { list-style: none; margin: 0; padding: 0; min-width: 220px; }
+.legend li { display: grid; grid-template-columns: 14px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.legend li:last-child { border-bottom: 0; }
+.sw { width: 14px; height: 14px; }
+.sw.critical { background: var(--critical); } .sw.high { background: var(--high); } .sw.medium { background: var(--medium); } .sw.low { background: var(--low); }
+.legend .n { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.legend .pct { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; min-width: 3.5em; }
+
+/* Split severity bars */
+.key { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.barcell { display: flex; align-items: center; gap: 10px; }
+.sbar { display: flex; height: 22px; flex: none; }
+.sbar span { display: flex; align-items: center; justify-content: center; min-width: 22px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.seg-critical { background: var(--critical); color: #fff; } .seg-high { background: var(--high); color: #fff; }
+.seg-medium { background: var(--medium); color: #303030; } .seg-low { background: var(--low); color: #303030; }
+.bar-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.zap td.type-name { font-weight: 700; white-space: nowrap; }
+.zap td.bars { width: 75%; }
+
+/* Impact */
+.zap td.rank { width: 48px; text-align: center; font-weight: 700; }
+.zap td.impact { overflow-wrap: anywhere; }
+.zap td.impact p { margin: 0; }
+.zap td.impact p + p { margin-top: 6px; }
+.zap td.impact .ctx { color: var(--muted); }
+
+.gaps ul { margin: 0; padding-left: 18px; }
+.gaps li + li { margin-top: 4px; }
+footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
+
+@media (max-width: 760px) {
+  .zap th, .zap td { padding: 8px 10px; }
+  .zap td.type-name { white-space: normal; overflow-wrap: anywhere; }
+  .zap td.bars { width: auto; }
+  .zap .num { padding-left: 6px; padding-right: 6px; }
+  .zap td.field { width: 45%; }
+  .chart-box { gap: 20px; padding: 16px; }
+  .legend { min-width: 0; width: 100%; }
+}
+@media print {
+  .page { max-width: none; padding: 0; }
+  tr, .chart-box { break-inside: avoid; }
+  h2 { break-after: avoid; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+<header class="title">
+  <h1>Vulnerability Scan Summary Report</h1>
+  <p class="target">aigoat</p>
+  <p class="generated">Generated on <time datetime="2026-10-16T04:24:31.550Z" data-local>2026-10-16 04:24 UTC</time></p>
+  <p class="json-link"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1">View detailed JSON bug report on VS Code</a></p>
+  <p class="click-note">Every link in this report opens the detailed bug report, findings.json, in VS Code at that finding.</p>
+</header>
+
+<h2>Scan Results</h2>
+<table class="zap"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td class="field">Vulnerabilities</td><td>64</td></tr><tr><td class="field">Distinct locations</td><td>61</td></tr><tr><td class="field">Files with findings</td><td>31</td></tr><tr><td class="field">Most severe level</td><td><span class="risk risk-high">High</span></td></tr><tr><td class="field">Most common type</td><td>resource-consumption (15)</td></tr><tr><td class="field">Files in repo</td><td>113</td></tr><tr><td class="field">In scope</td><td>90</td></tr><tr><td class="field">Scanned</td><td>90 of 90 (100%)</td></tr><tr><td class="field">Not scanned</td><td>0</td></tr></tbody></table>
+
+<h2>Vulnerability Severity</h2>
+<div class="chart-box">
+  <svg viewBox="0 0 240 240" role="img" aria-label="Severity of 64 vulnerabilities: 15 high, 36 medium, 13 low">
+    <circle cx="120" cy="120" r="80" fill="none" stroke="var(--high)" stroke-width="36" stroke-dasharray="117.810 384.845" stroke-dashoffset="0.000" transform="rotate(-90 120 120)"><title>High: 15 (23%)</title></circle><circle cx="120" cy="120" r="80" fill="none" stroke="var(--medium)" stroke-width="36" stroke-dasharray="282.743 219.911" stroke-dashoffset="-117.810" transform="rotate(-90 120 120)"><title>Medium: 36 (56%)</title></circle><circle cx="120" cy="120" r="80" fill="none" stroke="var(--low)" stroke-width="36" stroke-dasharray="102.102 400.553" stroke-dashoffset="-400.553" transform="rotate(-90 120 120)"><title>Low: 13 (20%)</title></circle>
+    <text x="120" y="122" text-anchor="middle" class="donut-total">64</text>
+    <text x="120" y="144" text-anchor="middle" class="donut-label">vulnerabilities</text>
+  </svg>
+  <ul class="legend" aria-label="Severity legend"><li><span class="sw high"></span><span><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:303" title="Open the first high vulnerability in findings.json">High</a></span><span class="n">15</span><span class="pct">23%</span></li><li><span class="sw medium"></span><span><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1649" title="Open the first medium vulnerability in findings.json">Medium</a></span><span class="n">36</span><span class="pct">56%</span></li><li><span class="sw low"></span><span><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:5039" title="Open the first low vulnerability in findings.json">Low</a></span><span class="n">13</span><span class="pct">20%</span></li></ul>
+</div>
+<h2>Vulnerabilities by Type<span class="note">A finding counts under every type it carries.</span></h2>
+<div class="key" aria-hidden="true"><span><span class="sw high"></span>High</span><span><span class="sw medium"></span>Medium</span><span><span class="sw low"></span>Low</span></div>
+<table class="zap">
+  <thead><tr><th>Vulnerability type</th><th>Severity and occurrences</th></tr></thead>
+  <tbody><tr><td class="type-name">resource-consumption</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(100.00%, 66px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 1 1 0" title="High: 1">1</span><span class="seg-medium" style="flex: 10 1 0" title="Medium: 10">10</span><span class="seg-low" style="flex: 4 1 0" title="Low: 4">4</span></div><span class="bar-total">15</span></div></td></tr><tr><td class="type-name">access-control</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(93.33%, 66px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 7 1 0" title="High: 7">7</span><span class="seg-medium" style="flex: 6 1 0" title="Medium: 6">6</span><span class="seg-low" style="flex: 1 1 0" title="Low: 1">1</span></div><span class="bar-total">14</span></div></td></tr><tr><td class="type-name">insecure-design</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(80.00%, 44px); max-width: calc(100% - 3em)"><span class="seg-medium" style="flex: 8 1 0" title="Medium: 8">8</span><span class="seg-low" style="flex: 4 1 0" title="Low: 4">4</span></div><span class="bar-total">12</span></div></td></tr><tr><td class="type-name">crypto-auth</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(73.33%, 66px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 4 1 0" title="High: 4">4</span><span class="seg-medium" style="flex: 5 1 0" title="Medium: 5">5</span><span class="seg-low" style="flex: 2 1 0" title="Low: 2">2</span></div><span class="bar-total">11</span></div></td></tr><tr><td class="type-name">integrity-failures</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(40.00%, 44px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 3 1 0" title="High: 3">3</span><span class="seg-medium" style="flex: 3 1 0" title="Medium: 3">3</span></div><span class="bar-total">6</span></div></td></tr><tr><td class="type-name">injection</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(40.00%, 44px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 2 1 0" title="High: 2">2</span><span class="seg-medium" style="flex: 4 1 0" title="Medium: 4">4</span></div><span class="bar-total">6</span></div></td></tr><tr><td class="type-name">logging-monitoring</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(40.00%, 66px); max-width: calc(100% - 3em)"><span class="seg-high" style="flex: 1 1 0" title="High: 1">1</span><span class="seg-medium" style="flex: 3 1 0" title="Medium: 3">3</span><span class="seg-low" style="flex: 2 1 0" title="Low: 2">2</span></div><span class="bar-total">6</span></div></td></tr><tr><td class="type-name">client-side</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(6.67%, 22px); max-width: calc(100% - 3em)"><span class="seg-medium" style="flex: 1 1 0" title="Medium: 1">1</span></div><span class="bar-total">1</span></div></td></tr><tr><td class="type-name">misconfiguration</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(6.67%, 22px); max-width: calc(100% - 3em)"><span class="seg-medium" style="flex: 1 1 0" title="Medium: 1">1</span></div><span class="bar-total">1</span></div></td></tr><tr><td class="type-name">sensitive-business-flows</td><td class="bars"><div class="barcell"><div class="sbar" style="width: max(6.67%, 22px); max-width: calc(100% - 3em)"><span class="seg-medium" style="flex: 1 1 0" title="Medium: 1">1</span></div><span class="bar-total">1</span></div></td></tr></tbody>
+</table>
+<h2>Top 10 Files with the Most Bugs</h2>
+<table class="zap">
+  <thead><tr><th class="num">#</th><th>File</th><th class="num risk-high">High</th><th class="num risk-medium">Medium</th><th class="num risk-low">Low</th><th class="num">Total</th></tr></thead>
+  <tbody><tr><td class="num">1</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:303" title="Open this file's most severe finding in findings.json">backend/app.py</a></td><td class="num">3</td><td class="num">7</td><td class="num">2</td><td class="num"><strong>12</strong></td></tr><tr><td class="num">2</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:658" title="Open this file's most severe finding in findings.json">terraform/modules/comments/main.tf</a></td><td class="num">1</td><td class="num">3</td><td class="num zero">0</td><td class="num"><strong>4</strong></td></tr><tr><td class="num">3</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1362" title="Open this file's most severe finding in findings.json">terraform/resources/recommendations/lifecycle_config.sh</a></td><td class="num">1</td><td class="num">2</td><td class="num">1</td><td class="num"><strong>4</strong></td></tr><tr><td class="num">4</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:471" title="Open this file's most severe finding in findings.json">terraform/modules/webserver/main.tf</a></td><td class="num">3</td><td class="num zero">0</td><td class="num zero">0</td><td class="num"><strong>3</strong></td></tr><tr><td class="num">5</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1403" title="Open this file's most severe finding in findings.json">terraform/modules/image_search/main.tf</a></td><td class="num">1</td><td class="num">2</td><td class="num zero">0</td><td class="num"><strong>3</strong></td></tr><tr><td class="num">6</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1259" title="Open this file's most severe finding in findings.json">terraform/modules/recommendations/main.tf</a></td><td class="num">1</td><td class="num">2</td><td class="num zero">0</td><td class="num"><strong>3</strong></td></tr><tr><td class="num">7</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1703" title="Open this file's most severe finding in findings.json">terraform/resources/comments/lambda_function.py</a></td><td class="num zero">0</td><td class="num">2</td><td class="num">1</td><td class="num"><strong>3</strong></td></tr><tr><td class="num">8</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:3039" title="Open this file's most severe finding in findings.json">frontend/src/components/MainLayout/MainNav/MainNav.tsx</a></td><td class="num zero">0</td><td class="num">1</td><td class="num">2</td><td class="num"><strong>3</strong></td></tr><tr><td class="num">9</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1108" title="Open this file's most severe finding in findings.json">terraform/modules/front/main.tf</a></td><td class="num">2</td><td class="num zero">0</td><td class="num zero">0</td><td class="num"><strong>2</strong></td></tr><tr><td class="num">10</td><td class="mono"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1500" title="Open this file's most severe finding in findings.json">terraform/resources/recommendations/code/inference.py</a></td><td class="num">1</td><td class="num">1</td><td class="num zero">0</td><td class="num"><strong>2</strong></td></tr></tbody>
+</table>
+<h2>Vulnerability Impact<span class="note">Types ranked by severity: most high, then medium, then low findings.</span></h2>
+<table class="zap">
+  <thead><tr><th class="num">#</th><th>Vulnerability type</th><th>Impact</th></tr></thead>
+  <tbody><tr>
+    <td class="rank risk-high">1</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:532" title="Open its most severe finding in findings.json">access-control</a></td>
+    <td class="impact"><p>Detect authorization gaps where a caller can access, modify, or delete resources, functions, files or components that should be restricted to other users, other roles, or authenticated principals.</p><p class="ctx">In this codebase: Flask routes, JWT authentication, resource operations, and Terraform-defined cloud resources provide authorization surfaces to examine.</p></td>
+  </tr><tr>
+    <td class="rank risk-high">2</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:303" title="Open its most severe finding in findings.json">crypto-auth</a></td>
+    <td class="impact"><p>Detect weak or incorrect implementations of cryptography, authentication, session management, and identity verification.</p><p class="ctx">In this codebase: The recon identifies JWT authentication, crypto operations, and key material.</p></td>
+  </tr><tr>
+    <td class="rank risk-high">3</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:809" title="Open its most severe finding in findings.json">integrity-failures</a></td>
+    <td class="impact"><p>Detect unsafe deserialization, file handling, and supply chain integrity gaps.</p><p class="ctx">In this codebase: External or service-generated Lambda event payloads and deserialization signals provide parsing and data-integrity surfaces.</p></td>
+  </tr><tr>
+    <td class="rank risk-high">4</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:581" title="Open its most severe finding in findings.json">injection</a></td>
+    <td class="impact"><p>Detect any form of injection where untrusted input is interpreted as code, queries, or commands by the executing runtime, or as markup or script by a browser that later renders it.</p><p class="ctx">In this codebase: Dynamic execution and an HTML sink are detected, alongside database and request-processing paths.</p></td>
+  </tr><tr>
+    <td class="rank risk-high">5</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:364" title="Open its most severe finding in findings.json">resource-consumption</a></td>
+    <td class="impact"><p>Detect endpoints vulnerable to denial-of-service through excessive resource consumption.</p><p class="ctx">In this codebase: Image processing and recommendation operations provide potentially resource-intensive request paths.</p></td>
+  </tr><tr>
+    <td class="rank risk-high">6</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:364" title="Open its most severe finding in findings.json">logging-monitoring</a></td>
+    <td class="impact"><p>Detect absence of security-relevant logging, exposure of log data, and logging of sensitive information.</p><p class="ctx">In this codebase: Logging signals and security-relevant authentication and application flows are present.</p></td>
+  </tr><tr>
+    <td class="rank risk-medium">7</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:1703" title="Open its most severe finding in findings.json">insecure-design</a></td>
+    <td class="impact"><p>Detect defects where the code works exactly as designed, and the design itself permits the abuse.</p><p class="ctx">In this codebase: Commerce flows, image processing, and cloud-event handlers provide business-logic and workflow surfaces.</p></td>
+  </tr><tr>
+    <td class="rank risk-medium">8</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:3190" title="Open its most severe finding in findings.json">client-side</a></td>
+    <td class="impact"><p>Detect client-side cross-site scripting where unsanitized dynamic content reaches DOM execution sinks.</p><p class="ctx">In this codebase: React is detected and recon identifies a dangerouslySetInnerHTML sink.</p></td>
+  </tr><tr>
+    <td class="rank risk-medium">9</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:4896" title="Open its most severe finding in findings.json">misconfiguration</a></td>
+    <td class="impact"><p>Detect dangerous default configurations, exposed internals, missing security controls, and insecure deployment settings.</p><p class="ctx">In this codebase: Terraform infrastructure, Flask-CORS, application configuration, and key material provide configuration surfaces.</p></td>
+  </tr><tr>
+    <td class="rank risk-medium">10</td>
+    <td class="type-name"><a href="vscode&#58;//file/home/user/scan/targets/aigoat/.secscan/runs/20261016-041819/findings.json:3529" title="Open its most severe finding in findings.json">sensitive-business-flows</a></td>
+    <td class="impact"><p>Detect business-critical operations that lack anti-automation safeguards.</p><p class="ctx">In this codebase: The application includes cart and checkout flows.</p></td>
+  </tr></tbody>
+</table>
+<h2>Run Details</h2>
+<table class="zap"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td class="field">Target</td><td><span class="mono">/home/user/scan/targets/aigoat</span></td></tr><tr><td class="field">Branch @ commit</td><td><span class="mono">main @ 9c62129</span></td></tr><tr><td class="field">Run ID</td><td><span class="mono">20261016-041819</span></td></tr><tr><td class="field">Status</td><td><span class="status-COMPLETE">COMPLETE</span></td></tr><tr><td class="field">Started</td><td><time datetime="2026-10-16T04:18:19.443Z" data-local>2026-10-16 04:18 UTC</time></td></tr><tr><td class="field">Model</td><td>GPT-6 Luna</td></tr><tr><td class="field">secscan version</td><td>0.1.0</td></tr><tr><td class="field">Budget</td><td>$5.00</td></tr><tr><td class="field">Spent</td><td>$0.20 (4% of budget)</td></tr><tr><td class="field">Input tokens</td><td>913k (913,446)</td></tr><tr><td class="field">Output tokens</td><td>246k (246,130)</td></tr><tr><td class="field">Wall clock</td><td>6m 12s</td></tr></tbody></table>
+<footer>Generated by secscan 0.1.0 on <time datetime="2026-10-16T04:24:31.550Z" data-local>2026-10-16 04:24 UTC</time>. Every finding, in full, is in findings.json next to this file; links open it in VS Code. Impact text comes from the scanner's playbooks and its playbook agent.</footer>
+</main>
+<script>
+(function () {
+  var times = document.querySelectorAll('time[data-local]');
+  for (var t = 0; t < times.length; t++) {
+    var d = new Date(times[t].getAttribute('datetime'));
+    if (!isNaN(d.getTime())) {
+      times[t].title = times[t].getAttribute('datetime');
+      times[t].textContent = d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+  }
+})();
+</script>
+</body>
+</html>
