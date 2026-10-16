@@ -75,11 +75,17 @@ const OUTPUT_DIR = runPath(resolveProvider('stage0'), 'stage0-recon')
 const SWAGGER_YML = path.join(TARGET_DIR, 'swagger.yml')
 const PACKAGE_JSON = path.join(TARGET_DIR, 'package.json')
 
-/** Absolute path inside TARGET_DIR -> target-relative; anything else unchanged. */
+/**
+ * Absolute path inside TARGET_DIR -> target-relative, '/'-separated like every
+ * inventory key; anything else unchanged. Through path.relative() rather than
+ * a string prefix: on Windows the separator is '\' (the prefix test left
+ * '\server.ts', which matched no inventory entry), and a sibling directory
+ * sharing the prefix (/work/app2 for /work/app) is not inside the target.
+ */
 function makeRelativePath(absPath: string, targetDir: string): string {
-  if (!absPath.startsWith(targetDir)) return absPath
-  const rel = absPath.slice(targetDir.length)
-  return rel.startsWith('/') ? rel.slice(1) : rel
+  const rel = path.relative(targetDir, absPath)
+  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return absPath
+  return rel.split(path.sep).join('/')
 }
 
 /**

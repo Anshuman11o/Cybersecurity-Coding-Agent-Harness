@@ -2,7 +2,6 @@
 import OpenAI from 'openai'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { ResponseCreateParamsNonStreaming } from 'openai/resources/responses/responses'
 import { runPath, REPO_ROOT } from '../../shared/run-paths.js'
 import { getRunContext } from '../../shared/run-context.js'
@@ -10,6 +9,7 @@ import { assertUpstream, writeMeta } from '../../shared/meta.js'
 import { resolveProvider, modelFor, clientConfigFor, outputTokenCap, samplingParams, transportFor, type Provider } from '../../shared/provider.js'
 import { readLedgerTotals } from '../../shared/ledger.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
+import { isEntryPoint } from '../../shared/entry.js'
 import { cacheRoot, listCachedPlaybooks, readCachedPlaybook, type PlaybookMeta } from '../../shared/playbook-cache.js'
 import { appendOverlayEntry, writeClassSelection, writeOverlayJson, validateClassSelection, validateOverlay,
   readClassSelection, readClassesOverlay, PLAYBOOK_STAGE, type ClassSelection, type ClassesOverlay, type ClassRegistry, type SignalClassMap } from '../../shared/playbook-overlay.js'
@@ -282,7 +282,8 @@ export async function reviewClass(request: ReviewRequest): Promise<ReviewResult>
     allowedDomains: (process.env.SCANNER_PLAYBOOK_ALLOWED_DOMAINS ?? '').split(',').map(s => s.trim()).filter(Boolean) })
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Only as `npm run review`: the CLI imports this module for its review API.
+if (isEntryPoint(import.meta.url)) {
   const args = process.argv.slice(2)
   const arg = (name: string) => { const i = args.indexOf(name); return i < 0 ? undefined : args[i + 1] }
   const action = arg('--action'), input = arg('--input')

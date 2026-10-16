@@ -45,7 +45,7 @@
  */
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs'
-import { join, dirname, relative } from 'path'
+import { join, dirname, relative, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { isDeepStrictEqual } from 'node:util'
 import { createClient, extractJson } from './llm-client.js'
@@ -63,6 +63,7 @@ import { runPath, type Provider } from '../../shared/run-paths.js'
 import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { readCorpusFile, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
+import { isEntryPoint } from '../../shared/entry.js'
 import { languageForPath } from '../../stage0-recon/src/recon-contract.js'
 import { summarizeKeyMaterial } from '../../shared/key-material.js'
 import { mergeClassTables, readClassesOverlay, type ClassesOverlay } from '../../shared/playbook-overlay.js'
@@ -2229,7 +2230,10 @@ async function main() {
   }
 
   const archPathRaw = assignments.source_stage0_run
-  const archPath = archPathRaw.startsWith('/') ? archPathRaw : join(REPO_ROOT, archPathRaw)
+  // resolve(), not a '/' test then join(): Stage 0.5 records this relative to
+  // REPO_ROOT, and on Windows a target on another drive than the scanner has no
+  // relative form, so it arrives as 'D:\...', which join() would append.
+  const archPath = resolve(REPO_ROOT, archPathRaw)
   const archSnippet = loadArchSummarySnippet(archPath)
   if (archSnippet) {
     console.log('\nArchitecture summary context loaded from: ' + archPath)
@@ -2948,7 +2952,9 @@ async function main() {
   if ((stop as { reason: StopReason } | null)?.reason === 'interrupted') process.exitCode = 130
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Realpath-based (shared/entry.ts): the budget governor imports this module,
+// and an exact argv comparison misses the npm bin symlink and Windows case.
+if (isEntryPoint(import.meta.url)) {
   main().catch(err => {
     console.error('Stage 2 (Per-File v2) failed:', err)
     process.exit(1)

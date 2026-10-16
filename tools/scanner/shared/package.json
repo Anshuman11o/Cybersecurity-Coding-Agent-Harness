@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "preflight": "tsx preflight.ts",
-    "test": "tsx --test guard.test.ts foundation.test.ts"
+    "test": "tsx --test guard.test.ts foundation.test.ts entry.test.ts portability.test.ts"
   },
   "dependencies": {
     "openai": "^6.49.0"

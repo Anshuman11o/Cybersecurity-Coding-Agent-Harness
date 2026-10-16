@@ -16,6 +16,7 @@ import { runPath, REPO_ROOT, type Provider, type Stage } from './run-paths.js'
 import { isDegraded, degradedReasons } from './degraded.js'
 import { isProviderExplicit } from './provider.js'
 import { describeRunContext } from './run-context.js'
+import { readBuildInfo } from './entry.js'
 
 export interface RunMeta {
   provider: Provider
@@ -61,7 +62,15 @@ export interface RunMeta {
   run_context?: Record<string, unknown>
 }
 
+/**
+ * The commit the running code came from. An installed package is not a git
+ * checkout: `git rev-parse` would fail there, or, from a package installed
+ * inside the user's repository, report the user's commit as the scanner's. The
+ * build records the harness commit it was cut from, and that wins when present.
+ */
 function gitSha(): string {
+  const build = readBuildInfo()
+  if (build) return build.harness_commit
   try {
     return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
       cwd: REPO_ROOT,
