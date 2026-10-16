@@ -51,6 +51,10 @@ export async function main(createResponse?: AgentOptions['create']): Promise<voi
   writeJson(join(dir, 'usage.json'), { schema: 'secscan.playbook-usage/1', calls })
   // An earlier attempt's decision must never be read as this run's.
   rmSync(join(dir, 'class-decision.json'), { force: true })
+  // Every new scan starts with an empty agent cache; only a resumed run keeps
+  // the entries it researched itself. The benchmark's runs root is shared
+  // between runs and never resumes, so it is always cleared here.
+  if (!getRunContext().resume) rmSync(cacheRoot(), { recursive: true, force: true })
   try {
     const loop = loopOptions()
     assertUpstream(provider, 'stage0-recon')

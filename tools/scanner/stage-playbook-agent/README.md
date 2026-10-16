@@ -10,7 +10,7 @@ flowchart LR
     Classes --> Estimate[Stage 1: deterministic estimate]
     Estimate --> Hunt[Stage 2: hunt]
     Hunt --> Report[Run record / report]
-    Cache[(Target playbook cache)] <--> Agent
+    Cache[(Run-scoped playbook cache)] <--> Agent
     Cache --> Estimate
     Cache --> Hunt
 ```
@@ -106,10 +106,11 @@ research progress line reports `unverified=<n>`. The call must still perform a
 web search, and the playbook must still pass the format, section and size
 checks; a failure writes `research-failures/<class-id>.json` (which lists any
 cited URL absent from the search as information) and stops the stage.
-Repeated runs still assess current coverage, but reuse matching cached entries
-instead of researching them again. Cached definitions keep their original
-codes and signals together with their text; changing coverage cannot relabel
-an old entry.
+Within one run (its resume and round-two review included), matching cached
+entries are reused instead of being researched again; a new run starts with an
+empty cache, so it assesses coverage and researches afresh. Cached definitions
+keep their original codes and signals together with their text; changing
+coverage cannot relabel an old entry.
 
 The decision calls also select the built-in classes that apply
 (`builtin_classes`, each with a reason). The final union's selected built-ins
@@ -129,11 +130,20 @@ A lane that hunts only because of its language's added classes is marked
 other framework keep signal-only routing. Without the file, Stage 0.5 output is
 unchanged.
 
-The cache lives at `reportsRoot(context)/playbooks/<class-id>/<framework>/<model>/`.
-Product reports roots use `SCANNER_REPORTS_ROOT` (the CLI's `--out`), defaulting
-to `<target>/.secscan`. They are shared across run IDs even when
-`SCANNER_RUNS_ROOT` relocates per-run outputs. The benchmark reports root is its
-configured runs root. The model path segment is percent-encoded. Each entry
+The cache lives at `<runsRoot>/playbooks/<class-id>/<framework>/<model>/`
+(`cacheRoot()` in `shared/playbook-cache.ts`), so it is scoped to one run. In
+the product profile `runsRoot` is `<reports>/runs/<run-id>` (or
+`SCANNER_RUNS_ROOT` when set); a resumed run has the same run id and finds its
+own entries, and no other run can see them. Lifetime: the playbook agent
+removes the cache when it starts unless the run is resumed
+(`SCANNER_RESUME=1`, which `secscan scan --resume` and `run.sh --resume` set);
+the CLI removes it once the run record and report are written, unless the run
+is INCOMPLETE: `--resume` accepts any INCOMPLETE run (with or without a
+`resume_command`), so the cache stays for that resume. The
+benchmark's runs root is shared between runs and never resumes, so the agent
+clears it at every start. A new (not resumed) CLI scan also removes a
+`<reports>/playbooks` folder left by versions that shared one cache across
+runs. The model path segment is percent-encoded. Each entry
 contains `playbook.md` and `meta.json` with the cited source URLs and their
 verified/unverified labels (absent from entries cached before labelling, which
 still load), sha256 of the UTF-8 text, creation time, model, queries, class codes, and signal mappings. Cache

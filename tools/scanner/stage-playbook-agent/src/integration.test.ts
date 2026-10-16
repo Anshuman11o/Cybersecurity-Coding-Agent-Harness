@@ -174,24 +174,50 @@ test('Stage 2 loads overlay text into the hunt prompt and records sources/hashes
   assert.deepEqual(readRunPlaybooks(huntDir, f.agentDir), [records[1]])
 })
 
-test('reports cache is shared across product runs, while artifacts stay run-scoped', t => {
+test('playbook cache is run-scoped: each product run id has its own, a resume finds the same one', t => {
   const f = fixture(t)
-  const next = resolveRunContext({ ...f.env, SCANNER_RUN_ID: 'next', SCANNER_RUNS_ROOT: undefined }, [])
-  assert.equal(cacheRoot(next), join(f.target, '.secscan/playbooks'))
-  assert.equal(cacheRoot(next), f.cache)
-  assert.notEqual(next.runsRoot, f.ctx.runsRoot)
+  const base = { ...f.env, SCANNER_RUNS_ROOT: undefined }
+  const first = resolveRunContext({ ...base, SCANNER_RUN_ID: 'first' }, [])
+  const next = resolveRunContext({ ...base, SCANNER_RUN_ID: 'next' }, [])
+  assert.equal(cacheRoot(first), join(f.target, '.secscan/runs/first/playbooks'))
+  assert.equal(cacheRoot(next), join(f.target, '.secscan/runs/next/playbooks'))
+  assert.notEqual(cacheRoot(first), cacheRoot(next))
+  assert.notEqual(cacheRoot(next), join(f.target, '.secscan/playbooks'), 'never the reports folder shared by every run')
+  const resumed = resolveRunContext({ ...base, SCANNER_RUN_ID: 'first', SCANNER_RESUME: '1' }, [])
+  assert.equal(resumed.resume, true)
+  assert.equal(cacheRoot(resumed), cacheRoot(first))
+  // An artifact-root override carries the cache with it.
+  assert.equal(f.cache, join(f.ctx.runsRoot, 'playbooks'))
   assert.ok(existsSync(join(f.cache, id, 'generic', 'test%2Fmodel', 'meta.json')))
 })
 
-test('custom reports root owns the playbook cache across runs and artifact-root overrides', t => {
+test('custom reports root places the playbook cache under runs/<run-id>/playbooks', t => {
   const f = fixture(t)
   const reports = join(f.root, 'custom-reports')
-  const first = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports }, [])
+  const first = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports, SCANNER_RUN_ID: 'first', SCANNER_RUNS_ROOT: undefined }, [])
   const next = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports, SCANNER_RUN_ID: 'next', SCANNER_RUNS_ROOT: undefined }, [])
-  assert.equal(cacheRoot(first), join(reports, 'playbooks'))
-  assert.equal(cacheRoot(next), cacheRoot(first))
+  assert.equal(cacheRoot(first), join(reports, 'runs/first/playbooks'))
+  assert.equal(cacheRoot(next), join(reports, 'runs/next/playbooks'))
+  assert.notEqual(cacheRoot(first), cacheRoot(next))
   assert.equal(next.runsRoot, join(reports, 'runs/next'))
-  assert.notEqual(first.runsRoot, next.runsRoot)
+})
+
+test('stage entrypoint clears a pre-existing playbook cache unless the run is resumed', t => {
+  const f = fixture(t)
+  const entry = join(f.cache, id, 'generic', 'test%2Fmodel', 'meta.json')
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    await main(async () => { throw new Error('mock request failure') });
+  `)
+  // Resumed: the run's own entries survive for the stages that read them back.
+  assert.ok(existsSync(entry), 'the fixture wrote a synthetic cache entry')
+  assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_RESUME: '1' }, stdio: 'pipe' }), /mock request failure/)
+  assert.ok(existsSync(entry), 'a resumed run keeps its cache')
+  assert.equal(readFileSync(join(f.cache, id, 'generic', 'test%2Fmodel', 'playbook.md'), 'utf8'), text)
+  // New: the stage starts with an empty cache before any model call.
+  assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_RESUME: undefined }, stdio: 'pipe' }), /mock request failure/)
+  assert.ok(!existsSync(f.cache), 'a new run starts with an empty cache')
 })
 
 test('recon input uses only the dependency section of the existing repo map', t => {

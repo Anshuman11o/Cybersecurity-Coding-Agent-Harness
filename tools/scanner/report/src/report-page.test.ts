@@ -156,19 +156,27 @@ test('impact text: scope line, citation clean-up, and reading the scanner output
 
   const root = mkdtempSync(join(tmpdir(), 'secscan-impact-'))
   try {
-    const agent = join(root, 'runs', 'r1', 'm', 'stage-playbook-agent')
+    const runDir = join(root, 'runs', 'r1')
+    const agent = join(runDir, 'm', 'stage-playbook-agent')
     mkdirSync(agent, { recursive: true })
     writeFileSync(join(agent, 'classes-overlay.json'), JSON.stringify({ 'ws-sec': { playbook: 'ws-sec', framework: 'socket-io', model: 'gpt-x' }, 'bad': { playbook: '../../etc', framework: 'x', model: 'y' } }))
+    // The agent class's text lives in the run's own playbook cache.
+    mkdirSync(join(runDir, 'playbooks', 'ws-sec', 'socket-io', 'gpt-x'), { recursive: true })
+    writeFileSync(join(runDir, 'playbooks', 'ws-sec', 'socket-io', 'gpt-x', 'playbook.md'), 'Playbook\n\nScope: Detect socket flaws.\n')
+    // A reports-level cache (the old shared location) is never read.
     mkdirSync(join(root, 'playbooks', 'ws-sec', 'socket-io', 'gpt-x'), { recursive: true })
-    writeFileSync(join(root, 'playbooks', 'ws-sec', 'socket-io', 'gpt-x', 'playbook.md'), 'Playbook\n\nScope: Detect socket flaws.\n')
+    writeFileSync(join(root, 'playbooks', 'ws-sec', 'socket-io', 'gpt-x', 'playbook.md'), 'Playbook\n\nScope: Shared cache text.\n')
     writeFileSync(join(agent, 'playbook-plan.json'), JSON.stringify({ decision: {
       builtin_classes: [{ id: 'access-control', reason: 'Routes take ids.' }],
       classes: [{ id: 'ws-sec', reason: 'Socket.IO is present. Source: https' + '://x.invalid/' }],
     } }))
-    const m = classImpacts({ stageDir: () => agent, reportsRoot: root })
+    const m = classImpacts({ stageDir: () => agent, runDir })
     assert.deepEqual(m['ws-sec'], { scope: 'Detect socket flaws.', reason: 'Socket.IO is present.' })
     assert.equal(m['access-control'].reason, 'Routes take ids.')
     assert.match(m['access-control'].scope ?? '', /^Detect authorization gaps/, 'built-in scope from the Stage 2 playbook')
     assert.ok(!('bad' in m) || m.bad.scope === null, 'an unsafe path segment is never read')
+    // A rebuild after the run's cache was cleared keeps the reason and has no scope line.
+    rmSync(join(runDir, 'playbooks'), { recursive: true, force: true })
+    assert.deepEqual(classImpacts({ stageDir: () => agent, runDir })['ws-sec'], { scope: null, reason: 'Socket.IO is present.' })
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

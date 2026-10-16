@@ -11,7 +11,7 @@ import type { ScanDependencies } from './secscan.js'
 import type { RunRecord } from './run-record.js'
 import type { ClassSelection } from '../../shared/playbook-overlay.js'
 
-type Scenario = 'add-success' | 'add-failure' | 'replan-failure' | 'resume-review-quit' | 'frozen-resume-add' | 'review-interrupt' | 'resume-replan-failure' | 'resume-selector-failure'
+type Scenario = 'add-success' | 'add-failure' | 'replan-failure' | 'resume-review-quit' | 'frozen-resume-add' | 'review-interrupt' | 'resume-replan-failure' | 'resume-selector-failure' | 'playbook-cache'
 const childScenario = process.env.SECSCAN_ORCHESTRATION_CASE as Scenario | undefined
 
 async function exerciseScan(scenario: Scenario) {
@@ -36,6 +36,11 @@ async function exerciseScan(scenario: Scenario) {
     const stages: string[] = []
     const events: string[] = []
     const output: string[] = []
+    // The CLI's own progress lines go to stdout; keep a copy to assert on.
+    const stdout: string[] = []
+    const realWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = ((chunk: any, ...rest: any[]) => { stdout.push(String(chunk)); return realWrite(chunk, ...rest) }) as typeof process.stdout.write
+    let huntCount = 0
     let interruptReview: (() => void) | undefined
     const requestedClass = scenario === 'resume-review-quit' ? 'prototype-pollution' : 'access-control'
     let planCount = 0
@@ -79,6 +84,8 @@ async function exerciseScan(scenario: Scenario) {
             break
           case 'stage-playbook-agent':
             save(stageFile(options.stage, 'class-selection.json'), selection)
+            // A synthetic agent cache entry in this run's own cache folder.
+            save(join(runsRoot, 'playbooks', 'synthetic-class', 'generic', 'test-model', 'meta.json'), { synthetic: true })
             break
           case 'stage05-lane-selector-perfile':
             selectorCount++
@@ -111,19 +118,26 @@ async function exerciseScan(scenario: Scenario) {
             }))
             break
           }
-          case 'stage2-hunt-lanes-perfile':
-            assert.ok(['add-success', 'resume-replan-failure', 'resume-selector-failure'].includes(scenario), 'failed review or replan must not start a hunt')
+          case 'stage2-hunt-lanes-perfile': {
+            assert.ok(['add-success', 'resume-replan-failure', 'resume-selector-failure', 'playbook-cache'].includes(scenario), 'failed review or replan must not start a hunt')
             assert.equal(planCount, scenario === 'resume-replan-failure' ? 3 : 2)
             assert.deepEqual(selection.classes, ['access-control', 'injection'])
+            huntCount++
+            // playbook-cache: the first hunt stops at the budget cap, so the run is resumable.
+            const capped = scenario === 'playbook-cache' && huntCount === 1
             save(stageFile(options.stage, 'run-status.json'), {
               schema: 'secscan.stage2-status/1', generated_at: new Date().toISOString(),
-              started_at: started, ended_at: new Date().toISOString(), status: 'COMPLETE', reasons: [],
-              lanes: { hunt: 1, admitted: 1, completed: 1, failed: 0, not_started: 0 },
-              unscanned: [], scope_excluded: [], findings_total: 0, blocked_reads: 0,
+              started_at: started, ended_at: new Date().toISOString(),
+              status: capped ? 'INCOMPLETE' : 'COMPLETE',
+              reasons: capped ? [{ reason: 'max_cost', detail: 'Synthetic cap' }] : [],
+              lanes: { hunt: 1, admitted: 1, completed: capped ? 0 : 1, failed: 0, not_started: capped ? 1 : 0 },
+              unscanned: capped ? [{ lane_id: 'handler', target_file: 'handler.ts', reason: 'max_cost', detail: 'Synthetic cap' }] : [],
+              scope_excluded: [], findings_total: 0, blocked_reads: 0,
               spend: { spent_usd: 0, estimate_usd: 0.00011, cap_usd: 10, calibration: 1 },
               limits: { ...NO_LIMITS, max_cost_usd: 10 }, resume_hint: null,
             })
             break
+          }
           default: assert.fail(`Unexpected real stage requested: ${options.stage}`)
         }
         if (exitCode === 0 && PRE_STAGES.includes(options.stage as typeof PRE_STAGES[number])) {
@@ -203,6 +217,8 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(previous.stages.findLast(stage => stage.stage === failedStage)?.exit_code, 1)
       assert.equal(JSON.parse(readFileSync(stageFile(failedStage, 'meta.json'), 'utf8')).exit_code, 0,
         'old successful metadata survives the failed replan')
+      assert.equal(previous.status, 'INCOMPLETE')
+      assert.ok(existsSync(join(runsRoot, 'playbooks')), 'a failed replan leaves a resumable run with its cache')
       assert.ok(JSON.parse(readFileSync(stageFile('stage1-budget-governor-perfile', 'scan-plan.json'), 'utf8')),
         'the stale plan remains on disk after failure')
       stages.length = 0
@@ -214,6 +230,42 @@ async function exerciseScan(scenario: Scenario) {
       const resumed = JSON.parse(readFileSync(recordPath, 'utf8')) as RunRecord
       assert.equal(resumed.status, 'COMPLETE')
       assert.deepEqual(resumed.class_review?.final.classes, ['access-control', 'injection'])
+      assert.ok(!existsSync(join(runsRoot, 'playbooks')), 'the COMPLETE resume clears the cache')
+      return
+    }
+    if (scenario === 'playbook-cache') {
+      const reportsRoot = join(target, '.secscan')
+      const legacy = join(reportsRoot, 'playbooks')
+      const legacyEntry = join(legacy, 'old-class', 'generic', 'test-model', 'meta.json')
+      const removedLine = `Removed the playbook cache left by earlier runs: ${legacy}`
+      save(legacyEntry, { synthetic: true })
+      const deps = { launchStage: fakeLaunch, review: fakeReview,
+        io: () => ({ interactive: false, write: (text: string) => output.push(text),
+          read: async () => assert.fail('--yes must never prompt') }) }
+      // A new run removes the shared cache older versions left, and says so once.
+      assert.equal(await scan({ ...args, out: reportsRoot }, deps), 3)
+      assert.ok(!existsSync(legacy), 'a new run removes the legacy shared cache')
+      assert.equal(stdout.join('').split(removedLine).length - 1, 1, 'one log line names the removed cache')
+      const recordPath = join(runsRoot, 'run-record.json')
+      const previous = JSON.parse(readFileSync(recordPath, 'utf8')) as RunRecord
+      const runCache = join(reportsRoot, 'runs', previous.run_id, 'playbooks')
+      assert.equal(runCache, join(runsRoot, 'playbooks'))
+      assert.equal(previous.status, 'INCOMPLETE')
+      assert.ok(previous.resume_command, 'a run stopped at the cap is resumable')
+      assert.ok(existsSync(join(runCache, 'synthetic-class', 'generic', 'test-model', 'meta.json')),
+        'a resumable run keeps its cache for the resume')
+      // A resume leaves a reports-level cache alone and clears its own once it finishes.
+      save(legacyEntry, { synthetic: true })
+      stdout.length = 0
+      events.length = 0
+      assert.equal(await scan({ ...args, classes: undefined, resume: previous.run_id, out: reportsRoot }, deps), 0)
+      assert.deepEqual(events, ['stage2-hunt-lanes-perfile'])
+      assert.ok(existsSync(legacyEntry), '--resume does not remove the reports-level cache')
+      assert.ok(!stdout.join('').includes(removedLine))
+      const resumed = JSON.parse(readFileSync(recordPath, 'utf8')) as RunRecord
+      assert.equal(resumed.status, 'COMPLETE')
+      assert.equal(resumed.resume_command, null)
+      assert.ok(!existsSync(runCache), 'a finished, non-resumable run clears its cache')
       return
     }
     if (scenario === 'review-interrupt') {
@@ -267,6 +319,11 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(previous.status, 'INCOMPLETE')
       assert.equal(previous.spend.spent_usd, 0)
       assert.deepEqual(previous.class_review?.final.classes, ['injection'])
+      // Quitting leaves no resume_command, but findResume still accepts the run,
+      // so its later stages must find the cache it researched.
+      assert.equal(previous.resume_command, null)
+      assert.ok(existsSync(join(runsRoot, 'playbooks', 'synthetic-class', 'generic', 'test-model', 'meta.json')),
+        'an INCOMPLETE run keeps its cache even without a resume_command')
       if (scenario === 'frozen-resume-add') {
         // Seed a stopped hunt with findings and incomplete coverage. A rejected
         // resume edit must preserve those prior results in the durable record.
@@ -308,6 +365,7 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(resumed.spend.calls, 1)
       assert.equal(resumed.status, 'INCOMPLETE')
       assert.equal(resumed.passes, previous.passes + 1)
+      assert.ok(existsSync(join(runsRoot, 'playbooks')), 'still INCOMPLETE after the resume: the cache stays')
       return
     }
     const code = await scan(args, {
@@ -332,6 +390,9 @@ async function exerciseScan(scenario: Scenario) {
       assert.equal(findings.summary.coverage.scanned, 1)
       assert.match(readFileSync(join(runsRoot, 'report.html'), 'utf8'), /<h2>Scan Results<\/h2>/)
       assert.match(readFileSync(join(target, '.secscan', 'index.html'), 'utf8'), new RegExp(`runs/${record.run_id}/report\\.html`))
+      assert.equal(record.resume_command, null)
+      assert.ok(!existsSync(join(runsRoot, 'playbooks')), 'the run cache is removed after a non-resumable finish')
+      assert.ok(existsSync(join(runsRoot, 'report.html')), 'removed only after the report is written')
     } else {
       assert.equal(code, 1)
       assert.equal(record.status, 'INCOMPLETE')
@@ -349,7 +410,7 @@ if (childScenario) {
   await exerciseScan(childScenario)
 } else {
   const require = createRequire(import.meta.url)
-  for (const scenario of ['add-success', 'add-failure', 'replan-failure', 'resume-review-quit', 'frozen-resume-add', 'review-interrupt', 'resume-replan-failure', 'resume-selector-failure'] as const) {
+  for (const scenario of ['add-success', 'add-failure', 'replan-failure', 'resume-review-quit', 'frozen-resume-add', 'review-interrupt', 'resume-replan-failure', 'resume-selector-failure', 'playbook-cache'] as const) {
     test(`scan orchestration: ${scenario}`, () => {
       const env: NodeJS.ProcessEnv = { ...process.env, SECSCAN_ORCHESTRATION_CASE: scenario }
       delete env.NODE_TEST_CONTEXT

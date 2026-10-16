@@ -392,7 +392,7 @@ test('product planning never loads deleted overlay playbooks but still validates
     writeFileSync(join(runs, 'read-allowlist.json'), JSON.stringify({
       schema: 'secscan.read-allowlist/1', target_root: target, files: ['sample.ts'],
     }))
-    const cache = join(root, 'playbooks')
+    const cache = join(runs, 'playbooks') // run-scoped: <runsRoot>/playbooks
     const selected = writeCachedPlaybook(cache, 'Synthetic selected playbook text.', {
       class_id: 'selected-custom', playbook: 'selected-custom', framework: 'synthetic', model,
       codes: ['SYNTHETIC'], signals: ['db_query'], source_urls: [], queries: [], created_at: new Date(0).toISOString(),

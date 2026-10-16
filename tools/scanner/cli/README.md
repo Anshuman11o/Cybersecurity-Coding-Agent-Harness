@@ -136,6 +136,10 @@ reads only what the run already wrote; the code is in `tools/scanner/report/`.
   links open it in VS Code at a finding. The impact text joins each type's
   playbook scope line with the playbook agent's reason for picking it, read
   from the run's outputs at render time; nothing is added to `findings.json`.
+  An agent-added class's scope line comes from the run's playbook cache
+  (`<reports>/runs/<run-id>/playbooks/`), which is removed once the run is no
+  longer resumable, so a later `secscan report` rebuild shows that class
+  without a scope line.
 - `<reports>/index.html`: rebuilt from every run's `findings.json`.
 
 Stage 2 may rate a finding critical. Only a run that has a critical finding

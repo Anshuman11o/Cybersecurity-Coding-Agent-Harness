@@ -29,7 +29,7 @@ Decisions already made (from the Q&A):
 |---|---|
 | Starting list | The agent's selection (`class-selection.json`). The agent is treated as always on. |
 | Edits | **Delete** and **add** only. No "update": to change a class, delete it and add another. |
-| Added class | Resolved by code first (catalog id, number, code, cached class). Otherwise a cheap model call resolves it to a built-in or defines a new class, and a new class gets a web research call for its playbook. |
+| Added class | Resolved by code first (catalog id, number, code, class already cached in this run). Otherwise a cheap model call resolves it to a built-in or defines a new class, and a new class gets a web research call for its playbook. |
 | Deleted class | Removed from the final list. Its playbook is never loaded, because no lane carries it. |
 | Rows on screen | Selected classes with file counts only. No per-class cost, no list of unselected classes. |
 | Files left with no class | Skipped (PR 62 behaviour). The screen says how many files dropped out. |
@@ -172,7 +172,7 @@ screen matches what the run then does").
 - **Add a class already selected:** "already selected", $0. The match uses id, catalog number, OWASP code or alias.
 - **Add a previously deleted built-in:** code-only re-add, $0. This is the undo path.
 - **Free text resolves to a built-in:** treated as a catalog add, after the resolve cost (~$0.005).
-- **Free text resolves to an existing cached class (same id, framework and model):** cache hit, no research.
+- **Free text resolves to a class already cached in this run (same id, framework and model):** cache hit, no research. The playbook cache is run-scoped (`<run>/playbooks`), so a class researched by an earlier run is researched again.
 - **Free text is not a class** ("make it fast"): `not_a_class`, message shown, resolve cost booked.
 - **New class whose signals reach no file:** goes on every hunt lane (existing unrouted rule). The row shows "(all files)".
 - **New class whose framework names a file language** (e.g. `c`, `android`, `evm`): goes on every hunt lane in that language as well as where its signals reach (`language-wide`).

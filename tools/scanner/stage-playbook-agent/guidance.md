@@ -82,7 +82,7 @@ sections. Do not ask the scanner to apply fixes.
 
 ## Storage and traceability
 
-The caller stores each entry at reports-root/playbooks/<class-id>/<framework-or-
+The caller stores each entry at run-root/playbooks/<class-id>/<framework-or-
 generic>/<model>/ as playbook.md plus meta.json containing source URLs, sha256,
 creation time, model and queries. Built-ins are immutable. The run plan records
 the decision, class-to-signal mapping and every consulted playbook's provenance.
