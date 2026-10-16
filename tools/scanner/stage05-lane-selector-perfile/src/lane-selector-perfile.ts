@@ -31,7 +31,8 @@ import { writeMeta, assertUpstream } from '../../shared/meta.js'
 import { activeDenylist, guardStats } from '../../shared/read-guard.js'
 import { getRunContext } from '../../shared/run-context.js'
 import { EXECUTABLE_LANGUAGES } from '../../shared/lane-languages.js'
-import { mergeClassTables, readClassesOverlay, readClassSelection } from '../../shared/playbook-overlay.js'
+import { frameworkLanguages } from '../../shared/lane-languages.js'
+import { mergeClassTables, readClassesOverlay, readClassSelection, type ClassesOverlay, type ClassSelection } from '../../shared/playbook-overlay.js'
 // Relative across packages: the contract has no runtime dependencies, so this
 // does not pull Stage 0's parsers into Stage 0.5.
 import {
@@ -194,6 +195,25 @@ interface LaneAssignments {
 }
 
 const NO_SELECTED_CLASS_REASON = 'No selected class applies to this file'
+
+/**
+ * Agent mode: the selected agent-added classes whose overlay `framework` names a
+ * file language (see frameworkLanguages), grouped by that language. These are
+ * the language's base classes: added to every hunt lane in the language.
+ */
+function languageWideClasses(selection: ClassSelection, overlay: ClassesOverlay | null): Map<string, string[]> {
+  const byLanguage = new Map<string, string[]>()
+  for (const id of [...selection.added].sort()) {
+    const entry = overlay && Object.hasOwn(overlay, id) ? overlay[id] : null
+    if (!entry) continue
+    for (const language of frameworkLanguages(entry.framework)) {
+      const list = byLanguage.get(language) ?? []
+      if (!list.includes(id)) list.push(id)
+      byLanguage.set(language, list)
+    }
+  }
+  return byLanguage
+}
 
 // ---------------------------------------------------------------------------
 // Framework name expansion
@@ -443,7 +463,8 @@ async function main() {
 
   const vulnClassesPath = path.join(sharedDir, 'vuln-classes.json')
   const vulnClassesRaw = fs.readFileSync(vulnClassesPath, 'utf-8')
-  const merged = mergeClassTables(JSON.parse(vulnClassesRaw), signalClassMap, readClassesOverlay(PROVIDER))
+  const overlay = readClassesOverlay(PROVIDER)
+  const merged = mergeClassTables(JSON.parse(vulnClassesRaw), signalClassMap, overlay)
   const vulnClasses = merged.registry
   signalClassMap = merged.signalMap
   const allClassIds = new Set<string>(Object.keys(vulnClasses))
@@ -625,14 +646,34 @@ async function main() {
   // Agent mode: route selected classes no file's signals reach onto every hunt
   // lane, then skip lanes left empty — Stage 2 would otherwise fall back to
   // category-derived classes and reintroduce defaults.
+  //
+  // Language-wide agent classes: an agent-added class whose framework names a
+  // file language (e.g. "c", "android" -> kotlin/java) goes on every hunt lane
+  // in that language as well as wherever its signals reach. A lane whose
+  // signals and the unrouted rule would leave empty therefore hunts with its
+  // language's base classes instead of being skipped. Frameworks that name no
+  // language keep signal-only routing.
   let unrouted: string[] = []
   if (selection) {
     const huntLanes = lanes.filter(l => l.disposition === 'hunt')
     for (const lane of huntLanes) {
       for (const [key, ids] of Object.entries(lane.class_basis)) if (!ids.length) delete lane.class_basis[key]
     }
+    const byLanguage = languageWideClasses(selection, overlay)
+    const languageOf = new Map(inventory.files.map(f => [f.path, f.language.toLowerCase()]))
+    const baseOf = (lane: Lane) => byLanguage.get(languageOf.get(lane.target_file) ?? '') ?? []
+    const signalRouted = new Map(huntLanes.map(l => [l.lane_id, l.classes.length]))
+    let languageWideLanes = 0
+    for (const lane of huntLanes) {
+      const base = baseOf(lane)
+      if (!base.length) continue
+      lane.classes = [...new Set([...lane.classes, ...base])].sort()
+      lane.class_basis['language-wide'] = [...base]
+      languageWideLanes++
+    }
     const reached = new Set(huntLanes.flatMap(l => l.classes))
     unrouted = selection.classes.filter(c => !reached.has(c))
+    let rescued = 0
     for (const lane of huntLanes) {
       if (unrouted.length) {
         lane.classes = [...new Set([...lane.classes, ...unrouted])].sort()
@@ -644,6 +685,10 @@ async function main() {
         lane.signals = []
         lane.classes = []
         lane.class_basis = {}
+      } else if (signalRouted.get(lane.lane_id) === 0 && !unrouted.length && baseOf(lane).length) {
+        // Base-class fallback: without its language's classes this lane would be skipped.
+        lane.class_basis['language-base'] = [...baseOf(lane)]
+        rescued++
       }
     }
     const hunted = lanes.filter(l => l.disposition === 'hunt')
@@ -651,6 +696,9 @@ async function main() {
     if (hunted.length && JSON.stringify(union) !== JSON.stringify([...selection.classes].sort())) {
       throw new Error('Hunt-lane classes ' + JSON.stringify(union) + ' differ from the agent selection ' + JSON.stringify(selection.classes))
     }
+    console.log('[Stage 0.5 v3] Language-wide agent classes: ' + languageWideLanes + ' lane(s) received language-wide classes, ' +
+      rescued + ' lane(s) rescued from skip by base classes' +
+      (byLanguage.size ? ' — ' + [...byLanguage].map(([lang, ids]) => lang + ': ' + ids.join(', ')).join('; ') : ''))
     console.log('[Stage 0.5 v3] Unrouted selected classes (on every hunt lane): ' + unrouted.length +
       (unrouted.length ? ' — ' + unrouted.join(', ') : '') + '; ' +
       (huntLanes.length - hunted.length) + ' lane(s) skipped with no selected class')

@@ -23,7 +23,8 @@ import {
 import { calibratedRatios } from '../../shared/calibration.js'
 import { calibrationFor } from '../../shared/provider.js'
 import { DEFAULT_SECONDS_PER_CALL, type ApiProfile } from '../../shared/api-profile.js'
-import { scanCostUsd, reservationUnitUsd, estimateBandPct, tierInfo, regionMultiplier } from '../../shared/pricing.js'
+import { scanCostUsd, reservationUnitUsd, planCallReservationsUsd, estimateBandPct, tierInfo, regionMultiplier } from '../../shared/pricing.js'
+import { budgetConcurrency } from './spend-gate.js'
 import type { LoopConfig } from '../../shared/loop-config.js'
 
 export const SCAN_PLAN_FILE = 'scan-plan.json'
@@ -76,6 +77,13 @@ export interface ScanPlan {
     source?: 'explicit' | 'rate-limits' | 'default'
     tokens_per_minute?: number | null
     requests_per_minute?: number | null
+    /**
+     * Files in flight the cap allows at the start: min(value, max(1,
+     * floor(0.5 x (cap - spent) / first_call_reservation_usd))). Stage 2
+     * re-evaluates it as spend grows, against the largest hold its calls have
+     * actually asked for. Equal to `value` without a cap; absent in older plans.
+     */
+    effective?: number
   }
   price_per_mtok: { input: number; cached_input?: number; cache_write?: number; output: number } | null
   price_asof: string | null
@@ -102,11 +110,22 @@ export interface ScanPlan {
    */
   estimate?: ScanEstimate | null
   /**
-   * The reservation unit U: the worst case of one chunk, which the spend gate
-   * reserves per chunk before a file starts (shared/pricing.ts
-   * reservationUnitUsd). Null when unpriced; absent only in older saved plans.
+   * The reservation unit U: the worst case of one whole chunk
+   * (shared/pricing.ts reservationUnitUsd). Kept for compatibility — older
+   * readers and the uncapped no-usage booking use it — but no longer the
+   * spend gate's unit. Null when unpriced; absent only in older saved plans.
    */
   reservation_unit_usd?: number | null
+  /**
+   * The largest single call's worst case (shared/pricing.ts
+   * planCallReservationsUsd), assuming every earlier turn's answer used the
+   * whole output cap. Recorded; each call actually holds its own bound, from
+   * its real prompt. Null when unpriced; absent in plans written before
+   * per-call holds.
+   */
+  call_reservation_usd?: number | null
+  /** The worst case of any file's first call: the hold that admits a file. */
+  first_call_reservation_usd?: number | null
   /** Runtime settings priced into U; a resumed hunt must use the same settings. */
   call_config?: ScanCallConfig
   cap: {
@@ -282,11 +301,20 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
     region_multiplier: regionMultiplier(input.provider, estimation.baseURL),
   } : null
   let reservation: number | null = null
+  let perCall: { first_usd: number; max_usd: number } | null = null
   if (estimation) {
     const bounds = admitted.map(l => estimation.promptBounds.get(l.lane_id))
     if (bounds.some(b => !b)) throw new Error('an admitted lane has no prompt reservation bound')
     const maximum = (f: (b: PromptBound) => number) => bounds.reduce((m, b) => Math.max(m, f(b!)), 0)
     reservation = reservationUnitUsd(input.provider, {
+      callsPerUnit: maximum(b => b.callsPerChunk),
+      maxPromptBytes: maximum(b => b.maxPromptBytes),
+      followUpTemplateBytes: maximum(b => b.followUpTemplateBytes),
+      outputCap: estimation.outputCap,
+      servedTier,
+      baseURL: estimation.baseURL,
+    })
+    perCall = planCallReservationsUsd(input.provider, {
       callsPerUnit: maximum(b => b.callsPerChunk),
       maxPromptBytes: maximum(b => b.maxPromptBytes),
       followUpTemplateBytes: maximum(b => b.followUpTemplateBytes),
@@ -319,7 +347,10 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
     source_assignments: { path: input.assignmentsPath, generated_at: input.assignmentsGeneratedAt },
     limits: input.limits,
     admission_key: admissionKey(input.limits),
-    concurrency,
+    concurrency: estimation ? {
+      ...concurrency,
+      effective: budgetConcurrency(concurrency.value, input.limits.max_cost_usd, spentBefore, perCall?.first_usd ?? null),
+    } : concurrency,
     price_per_mtok: input.price,
     price_asof: input.priceAsOf,
     admitted,
@@ -337,11 +368,16 @@ export function computeScanPlan(input: PlanInput): ScanPlan {
     },
     estimate,
     reservation_unit_usd: reservation,
+    ...(estimation ? {
+      call_reservation_usd: perCall?.max_usd ?? null,
+      first_call_reservation_usd: perCall?.first_usd ?? null,
+    } : {}),
     ...(product ? {
       order_basis: 'route_handler first, then distinct signal count descending, then path ascending',
       input_threshold_usd: estimate ? spentBefore + estimate.input_usd : null,
-      first_start_usd: reservation != null && remaining.length > 0 && input.laneRisk?.has(remaining[0].lane_id)
-        ? spentBefore + input.laneRisk.get(remaining[0].lane_id)!.chunks * reservation : null,
+      // A file starts once its first call's hold fits.
+      first_start_usd: perCall != null && remaining.length > 0 && input.laneRisk?.has(remaining[0].lane_id)
+        ? spentBefore + perCall.first_usd : null,
     } : {}),
     ...(input.callConfig ? { call_config: input.callConfig } : {}),
     cap: {

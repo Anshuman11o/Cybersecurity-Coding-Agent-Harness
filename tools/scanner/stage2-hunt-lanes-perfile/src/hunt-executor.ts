@@ -13,9 +13,12 @@
  * - Per-finding categories: model names the class actually found
  * - Budget enforcement at lane boundaries: Stage 1's scan plan decides which
  *   lanes the run's limits admit and what each is projected to cost, and a
- *   spend gate (stage1-budget-governor/src/spend-gate.ts) reserves chunks × U
- *   before a lane starts. Each retry reserves another U; every attempt is
- *   booked in the spend ledger, including failed and unmeasured responses.
+ *   spend gate (stage1-budget-governor/src/spend-gate.ts) holds each call's
+ *   own worst case while that call is in flight — first call, follow-up turn
+ *   and retry alike — and releases it as the call's cost is booked. A lane
+ *   starts when its first call's hold fits; a call that cannot get its hold
+ *   waits for releases. Every attempt is booked in the spend ledger,
+ *   including failed and unmeasured responses.
  * - **Bounded concurrency**: lanes run in parallel up to a ceiling derived in
  *   Stage 1 from an explicit setting or recon's rate limits, with 8 as the
  *   fallback. Rate-limit responses step that ceiling down for the run.
@@ -49,7 +52,7 @@ import { createClient, extractJson } from './llm-client.js'
 import { HuntCallPolicy, HuntCallError, resumeConcurrency } from './call-policy.js'
 import { SpendLedger, ledgerPathFor } from '../../shared/ledger.js'
 import { API_PROFILE_FILE, readApiProfile } from '../../shared/api-profile.js'
-import { reservationUnitUsd, tierInfo } from '../../shared/pricing.js'
+import { reservationUnitUsd, planCallReservationsUsd, tierInfo } from '../../shared/pricing.js'
 import { resolveLoopConfig, callsPerChunk, DEFAULT_LOOP_MODE, positiveEnvInt, type LoopMode } from '../../shared/loop-config.js'
 import { setUsageLedgerPath } from '../../shared/claude-cli-client.js'
 import {
@@ -1954,10 +1957,13 @@ function loadScanPlan(assignments: LaneAssignments, limits: RunLimits, product: 
   return plan
 }
 
-/** Recheck both slots and budget whenever an in-flight lane settles. */
+/**
+ * Recheck slots and budget whenever an in-flight lane settles or a call's hold
+ * is released. `firstCallHoldUsd` is the hold a lane's first call needs.
+ */
 export async function waitForLaneAdmission(
   gate: SpendGate,
-  reservationUsd: number | null,
+  firstCallHoldUsd: number | null,
   running: Set<Promise<void>>,
   concurrency: () => number,
   stopping: () => boolean,
@@ -1968,16 +1974,17 @@ export async function waitForLaneAdmission(
       await Promise.race(running)
       continue
     }
-    const decision = gate.decide(reservationUsd)
+    const decision = gate.decide(firstCallHoldUsd)
     if (decision.action === 'start') {
-      // Reserve and launch synchronously: no response may change the spend or
+      // Hold and launch synchronously: no response may change the spend or
       // concurrency between the admission check and the launch.
       start()
       return decision
     }
     if (decision.action === 'stop') return decision
-    // A 429 can lower the slot limit while waiting for budget to free up.
-    await Promise.race(running)
+    // A released call hold can make room before any lane finishes; a 429 can
+    // lower the slot limit meanwhile, so both are rechecked on the next pass.
+    await Promise.race([...running, gate.changed()])
   }
   return null
 }
@@ -2327,9 +2334,16 @@ async function main() {
   const apiProfile = readApiProfile(join(runPath(PROVIDER, 'stage0-recon'), API_PROFILE_FILE))
   const tierPin = { send: apiProfile?.served_tier ?? null }
   let reservationUnit = scanPlan?.reservation_unit_usd ?? null
-  // Old unlimited lab runs can lack a scan plan. Size their reservation once
-  // over the whole admitted set too, so a no-usage attempt is still booked.
-  if (scanPlan?.reservation_unit_usd === undefined && pricingFor(PROVIDER) && tierInfo(PROVIDER, tierPin.send).multiplier != null) {
+  // Per-call holds: the first call's bound admits a lane, the largest call's
+  // bound fits concurrency to the budget. A plan written before per-call holds
+  // has only U, so both are sized here from the prompts, like U for a run with
+  // no plan at all.
+  let firstCallHold = scanPlan?.first_call_reservation_usd ?? null
+  let maxCallHold = scanPlan?.call_reservation_usd ?? null
+  // Holds matter only under a cap, so an uncapped run never re-reads prompts for them.
+  const needsBounds = scanPlan?.reservation_unit_usd === undefined ||
+    (limits.max_cost_usd != null && scanPlan?.call_reservation_usd === undefined)
+  if (needsBounds && pricingFor(PROVIDER) && tierInfo(PROVIDER, tierPin.send).multiplier != null) {
     let maxBytes = 0, maxFollowUpBytes = 0, maxCalls = 1
     for (const lane of assignments.lanes.filter(l => admittedIds.has(l.lane_id))) {
       const raw = readCorpusFile(relative(REPO_ROOT, join(assignments.target_dir, lane.target_file)))
@@ -2342,14 +2356,17 @@ async function main() {
       maxFollowUpBytes = Math.max(maxFollowUpBytes, followUpTemplateBytes(classes))
       maxCalls = Math.max(maxCalls, callsPerChunk(LOOP, classes.length))
     }
-    reservationUnit = reservationUnitUsd(PROVIDER, {
+    const bounds = {
       callsPerUnit: maxCalls, maxPromptBytes: maxBytes, followUpTemplateBytes: maxFollowUpBytes,
       outputCap: OUTPUT_TOKEN_CAP, servedTier: tierPin.send, baseURL: client.baseURL,
-    })
+    }
+    if (scanPlan?.reservation_unit_usd === undefined) reservationUnit = reservationUnitUsd(PROVIDER, bounds)
+    if (scanPlan?.call_reservation_usd === undefined) {
+      const perCall = planCallReservationsUsd(PROVIDER, bounds)
+      firstCallHold = perCall?.first_usd ?? null
+      maxCallHold = perCall?.max_usd ?? null
+    }
   }
-  const reservationCost = new Map<string, number | null>(
-    huntLanes.map(l => [l.lane_id, reservationUnit == null ? null : l.chunk_plan.chunks.length * reservationUnit]),
-  )
   const unscanned: UnscannedLane[] = []
   const scopeExcluded: ScopeExcludedLane[] = []
   for (const e of scanPlan?.excluded ?? []) {
@@ -2423,8 +2440,9 @@ async function main() {
   console.log(`[CLASS RESOLUTION] ${lanesWithClasses} lanes use lane.classes (signal-based), ${lanesWithCategories} lanes fall back to lane.categories`)
 
   // ── Lane scheduler: bounded concurrency behind the spend gate ───────────
-  // Lanes start in scan-plan order when slots and fixed reservations permit.
-  // Calls in flight finish; retries need another reservation — see spend-gate.ts.
+  // Lanes start in scan-plan order when a slot is free and the first call's
+  // hold fits. Every call holds its own worst case while in flight; a call
+  // that cannot get its hold waits for releases — see spend-gate.ts.
   const stageStart = Date.now()
   const gate = new SpendGate(
     {
@@ -2451,6 +2469,7 @@ async function main() {
   let notStarted: LaneAssignmentEntry[] = []
   const callPolicy = new HuntCallPolicy({
     provider: PROVIDER, ledger: spendLedger, gate, reservationUnitUsd: reservationUnit, pin: tierPin,
+    outputCap: OUTPUT_TOKEN_CAP,
     ...concurrencyState,
     onStop: (reason, detail) => {
       if (!stop) stop = { reason, detail }
@@ -2462,6 +2481,19 @@ async function main() {
   if (tierInfo(PROVIDER, tierPin.send).multiplier == null) {
     stop = { reason: 'unpriced_service_tier', detail: `service tier ${tierPin.send} has no registered price` }
     phase = 'stopping'
+  }
+  // Files in flight: the slot limit (rate-limit step-downs lower it), fitted to
+  // the remaining budget under a cap. Recorded, never warned about.
+  // The hold concurrency is fitted to: the first call's bound, or the largest
+  // hold a call has actually asked for once follow-ups and retries run. The
+  // plan's largest-call bound assumes every earlier answer used the whole
+  // output cap, and is only the fallback when nothing else is known.
+  const fitHold = () => firstCallHold != null ? Math.max(firstCallHold, gate.largestHoldUsd()) : maxCallHold
+  let effectiveMin: number | null = null
+  const effectiveConcurrency = () => {
+    const value = gate.effectiveConcurrency(callPolicy.currentConcurrency, fitHold())
+    effectiveMin = effectiveMin == null ? value : Math.min(effectiveMin, value)
+    return value
   }
 
   const findingsBySeverity = () => {
@@ -2493,7 +2525,10 @@ async function main() {
         estimate_usd: totalEstimate,
         cap_usd: limits.max_cost_usd,
       },
-      concurrency: { current: callPolicy.currentConcurrency, initial: callPolicy.initialConcurrency },
+      concurrency: {
+        current: callPolicy.currentConcurrency, initial: callPolicy.initialConcurrency,
+        effective: gate.effectiveConcurrency(callPolicy.currentConcurrency, fitHold()),
+      },
       findings: { total: allFindings.length, by_severity: findingsBySeverity() },
     }
     try {
@@ -2528,7 +2563,7 @@ async function main() {
   const settle = (laneId: string, actualUsd: number | null, failed: boolean) => {
     if (settled.has(laneId)) return
     settled.add(laneId)
-    gate.finish(laneId, actualUsd)
+    gate.finish(laneId)
     if (failed) failedThisPass++
     else doneThisPass++
     callPolicy.laneFinished(failed)
@@ -2590,7 +2625,10 @@ async function main() {
         cap_usd: limits.max_cost_usd,
         calibration: gate.calibration(),
       },
-      concurrency: { initial: callPolicy.initialConcurrency, final: callPolicy.currentConcurrency, step_downs: callPolicy.stepDowns },
+      concurrency: {
+        initial: callPolicy.initialConcurrency, final: callPolicy.currentConcurrency, step_downs: callPolicy.stepDowns,
+        effective_min: effectiveMin ?? gate.effectiveConcurrency(callPolicy.currentConcurrency, fitHold()),
+      },
       findings_total: allFindings.length,
       blocked_reads: blocked,
       limits,
@@ -2627,7 +2665,7 @@ async function main() {
     for (const l of inFlightLanes.values()) {
       unscanned.push({ lane_id: l.lane_id, target_file: l.target_file, reason: 'aborted_in_flight', detail })
       // Completed attempts remain in the ledger even when the lane is aborted.
-      gate.finish(l.lane_id, null)
+      gate.finish(l.lane_id)
     }
     // Lanes the loop had not reached yet, or had already set aside — those keep
     // the reason that set them aside (a cap reached before the abort, say).
@@ -2737,7 +2775,7 @@ async function main() {
 
       console.log(`  [${lane.lane_id}] → ${result.findings.length} finding(s), ${result.tokensUsed.toLocaleString()} tokens, ${elapsed.toFixed(1)}s total`)
 
-      // Every call is in the ledger already; finishing releases its reservation.
+      // Every call is in the ledger already and its hold released.
       settle(lane.lane_id, null, false)
 
       // ── Checkpoint: write results immediately after each lane ─────────
@@ -2759,7 +2797,7 @@ async function main() {
         failed: true,
         failure_reason: String(err?.message ?? err).slice(0, 300),
       })
-      // Failed attempts are already booked; release only the held reservation.
+      // Failed attempts are already booked; finishing releases any unused first-call hold.
       settle(lane.lane_id, null, true)
       writeCheckpoint(outDir, allFindings, consumptionReport, laneRecordsV2)
     } finally {
@@ -2774,10 +2812,10 @@ async function main() {
   for (let i = 0; i < huntLanes.length; i++) {
     const lane = huntLanes[i]
     const decision = await waitForLaneAdmission(
-      gate, reservationCost.get(lane.lane_id) ?? null, running,
-      () => callPolicy.currentConcurrency, () => stop !== null,
+      gate, firstCallHold, running,
+      effectiveConcurrency, () => stop !== null,
       () => {
-        gate.begin(lane.lane_id, reservationCost.get(lane.lane_id) ?? null)
+        gate.begin(lane.lane_id, firstCallHold)
         startedLanes.add(lane.lane_id)
         inFlightLanes.set(lane.lane_id, lane)
         writeProgress()

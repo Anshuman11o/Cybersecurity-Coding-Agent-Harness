@@ -116,9 +116,17 @@ The decision calls also select the built-in classes that apply
 plus its additional classes are the run's complete class set, recorded as
 `selected_classes` in the plan and written to `class-selection.json`. When that
 file exists, Stage 0.5 runs in agent mode: no floor classes; each hunt lane gets
-the selected classes its file's signals reach; selected classes no hunt-eligible
-file reaches are added to every hunt lane (`class_basis['selection-unrouted']`);
-a lane left with no class is skipped. Without the file, Stage 0.5 output is
+the selected classes its file's signals reach; an added class whose
+`framework` names a file language (a Stage 0 language id such as `c`,
+`solidity` or `kotlin`, or an alias in `FRAMEWORK_LANGUAGE_ALIASES` in
+`shared/lane-languages.ts`: `android` -> kotlin and java, `c/c++` and `c++` ->
+c and cpp, `evm` and `ethereum` -> solidity) is also added to every hunt lane in
+that language (`class_basis['language-wide']`); selected classes no
+hunt-eligible file reaches are added to every hunt lane
+(`class_basis['selection-unrouted']`); a lane left with no class is skipped.
+A lane that hunts only because of its language's added classes is marked
+`class_basis['language-base']` (rescued from the skip). Added classes with any
+other framework keep signal-only routing. Without the file, Stage 0.5 output is
 unchanged.
 
 The cache lives at `reportsRoot(context)/playbooks/<class-id>/<framework>/<model>/`.

@@ -10,7 +10,7 @@ import { countNotStartedLanes, type UnscannedLane } from '../../stage1-budget-go
 import { SpendGate } from '../../stage1-budget-governor/src/spend-gate.js'
 import { SpendLedger } from '../../shared/ledger.js'
 import { apiKeyEnvFor, defaultProvider, modelFor, productDefaultProvider } from '../../shared/provider.js'
-import { callCostUsd, normalizeUsage } from '../../shared/pricing.js'
+import { callCostUsd, callPromptBytes, callReservationUsd, normalizeUsage, planCallReservationsUsd } from '../../shared/pricing.js'
 
 const provider = productDefaultProvider()
 const params = { model: modelFor(provider), messages: [{ role: 'user', content: 'tiny fake prompt' }], response_format: { type: 'json_schema' } }
@@ -66,16 +66,28 @@ test('targets without tier management omit service_tier', async t => {
   assert.equal('service_tier' in sent[0], false)
 })
 
-test('no usage is booked at the fixed U, including a failed network attempt', async t => {
+test('without a cap, no usage is booked at the fixed U, including a failed network attempt', async t => {
   const { policy, ledger, gate } = fixture(t)
   const { client, sent } = fake([apiError(503), ok({ usage: undefined })])
   await policy.call(client, params, 'lane', 'chunk')
   assert.equal(sent.length, 2)
   assert.equal(ledger.total(), 0.2)
   assert.deepEqual(ledger.list().map(e => [e.attempt, e.basis]), [[1, 'reservation'], [2, 'reservation']])
-  assert.equal(gate.snapshot().in_flight_projected_usd, 0.2)
+  assert.equal(gate.snapshot().in_flight_projected_usd, 0, 'each call released its hold as it returned')
   gate.finish('lane')
   assert.equal(gate.spentUsd(), 0.2)
+})
+
+test('under a cap, no usage is booked at that call\'s own hold, never more', async t => {
+  const outputCap = 64_000
+  const { policy, ledger, gate } = fixture(t, { outputCap, pin: { send: null } }, 5)
+  const { client } = fake([ok({ usage: undefined })])
+  await policy.call(client, params, 'lane', 'chunk')
+  const hold = callReservationUsd(provider, { promptBytes: callPromptBytes(params.messages), outputCap })!
+  assert.equal(ledger.list()[0].basis, 'reservation')
+  assert.equal(ledger.total(), hold)
+  assert.ok(hold < 0.1, 'one call holds less than the chunk unit U')
+  assert.equal(gate.snapshot().in_flight_projected_usd, 0)
 })
 
 for (const [name, choice] of [
@@ -134,14 +146,37 @@ test('429 steps concurrency down once per minute and waits the capped reset head
   assert.equal(policy.initialConcurrency, 8)
 })
 
-test('retry reservation refusal stops at max_cost without making another attempt', async t => {
-  const { policy, ledger, stops, gate } = fixture(t, {}, 0.25)
+test('a retry that cannot get its hold with nothing else in flight stops at max_cost without another attempt', async t => {
+  const { policy, ledger, stops, gate } = fixture(t, {}, 0.15)
   const { client, sent } = fake([apiError(503)])
   await assert.rejects(policy.call(client, params, 'lane', 'chunk'), (e: HuntCallError) => e.stopReason === 'max_cost')
   assert.equal(sent.length, 1)
   assert.equal(ledger.total(), 0.1)
-  assert.equal(gate.snapshot().in_flight_projected_usd, 0.1)
+  assert.equal(gate.snapshot().in_flight_projected_usd, 0)
   assert.deepEqual(stops, ['max_cost'])
+})
+
+test('a retry that cannot get its hold while others are in flight waits, then succeeds', async t => {
+  const { policy, ledger, stops, gate } = fixture(t, {}, 0.25)
+  gate.begin('other', 0.1)
+  const other = await gate.acquire('other', 0.1)
+  assert.ok(other.ok)
+  let backingOff!: () => void
+  const backedOff = new Promise<void>(resolve => { backingOff = resolve })
+  policy['opts'].sleep = async () => { backingOff() }
+  const { client, sent } = fake([apiError(503), ok()])
+  const pending = policy.call(client, params, 'lane', 'chunk')
+  await backedOff
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve))
+  // 0.1 booked + 0.1 held by the other lane + 0.1 for the retry > 0.25: wait.
+  assert.equal(sent.length, 1, 'the retry has not been sent')
+  assert.equal(gate.snapshot().calls_waiting, 1)
+  gate.release(other.hold, null, () => {})
+  await pending
+  assert.equal(sent.length, 2)
+  assert.deepEqual(stops, [])
+  assert.equal(ledger.list().length, 2)
+  assert.ok(ledger.total() <= 0.25)
 })
 
 test('three consecutive failed files stop in completion order; success resets the streak', t => {
@@ -188,7 +223,7 @@ test('scheduler rechecks concurrency when a budget wait wakes after a 429 step-d
     gate.begin(id, 0.2)
     let resolve!: () => void
     const pending = new Promise<void>(r => { resolve = r })
-    const tracked = pending.finally(() => { gate.finish(id, 0); running.delete(tracked) })
+    const tracked = pending.finally(() => { gate.finish(id); running.delete(tracked) })
     running.add(tracked)
     finish.push(resolve)
   }
@@ -302,4 +337,126 @@ test('progress estimate includes the full ledger and only remaining projected wo
   assert.equal(fullLedgerEstimate(plan, 5.1, new Set(['done', 'next'])), 5.1)
   assert.equal(fullLedgerEstimate(null, 0.7), null)
   assert.equal(fullLedgerEstimate({ admitted: [{ projected_cost_usd: null }] } as any, 0.7), null)
+})
+
+
+// ── Product-run simulations: the real policy, gate and admission loop ──────
+// Synthetic numbers shaped like the SmartBugs run that exposed the chunk-unit
+// gate: $5 cap, concurrency 32, 143 files, three calls per file, a 64,000-token
+// output cap. No model is called; the client is a fake.
+
+const OUTPUT_CAP = 64_000
+const PROMPT_BYTES = 20_000
+
+async function simulateRun(t: TestContext, o: { worstCase: boolean; retryEvery: number }) {
+  const cap = 5
+  const files = 143
+  const configured = 32
+  const root = mkdtempSync(join(tmpdir(), 'hunt-sim-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const ledger = new SpendLedger(join(root, 'ledger.jsonl'))
+  const gate = new SpendGate({ capUsd: cap, deadlineMs: null, ledgerTotal: () => ledger.total() })
+  const violations: string[] = []
+  const check = (where: string) => {
+    const committed = ledger.total() + gate.snapshot().in_flight_projected_usd
+    if (committed > cap + 1e-9) violations.push(`${where}: spent + holds = ${committed}`)
+  }
+  const append = ledger.append.bind(ledger)
+  ledger.append = (e: any) => { const r = append(e); check('booking'); return r }
+
+  let stop: { reason: string; detail: string } | null = null
+  const policy = new HuntCallPolicy({
+    provider, ledger, gate, reservationUnitUsd: null, pin: { send: null }, concurrency: configured,
+    outputCap: OUTPUT_CAP, onStop: (reason, detail) => { stop ??= { reason, detail } }, sleep: async () => {},
+  })
+  const perCall = planCallReservationsUsd(provider, {
+    callsPerUnit: 3, maxPromptBytes: PROMPT_BYTES, followUpTemplateBytes: 800, outputCap: OUTPUT_CAP,
+  })!
+  const firstCallHold = perCall.first_usd
+
+  let creates = 0
+  const client = { chat: { completions: { create: async (body: any) => {
+    creates++
+    check('send')
+    if (gate.snapshot().calls_in_flight < 1) violations.push('a call was sent without a hold')
+    await new Promise(resolve => setTimeout(resolve, creates % 4))
+    if (o.retryEvery && creates % o.retryEvery === 0) throw apiError(503)
+    const promptBytes = callPromptBytes(body.messages)
+    const usage = o.worstCase
+      // Exactly the hold: every prompt byte a cache-write token, the full output cap.
+      ? { prompt_tokens: promptBytes, completion_tokens: OUTPUT_CAP, prompt_tokens_details: { cache_write_tokens: promptBytes } }
+      // About $0.005: a quarter of the bytes as tokens and 9,000 output tokens.
+      : { prompt_tokens: Math.round(promptBytes / 4), completion_tokens: 9_000 }
+    return { choices: [{ message: { content: '{"findings":[]}' }, finish_reason: 'stop' }], usage }
+  } } } }
+
+  const completed = new Set<string>()
+  const failed = new Map<string, string | null>()
+  let effectiveMin = configured
+  let effectiveMax = 0
+  const runFile = async (id: string, f: number) => {
+    try {
+      const messages: { role: 'user' | 'assistant'; content: string }[] =
+        [{ role: 'user', content: 'x'.repeat(PROMPT_BYTES - (f % 40) * 100) }]
+      for (let turn = 0; turn < 3; turn++) {
+        const { response } = await policy.call(client, { model: modelFor(provider), messages: [...messages] }, id, `turn ${turn}`)
+        messages.push({ role: 'assistant', content: response.choices[0].message.content }, { role: 'user', content: 'y'.repeat(800) })
+      }
+      completed.add(id)
+    } catch (err: any) {
+      failed.set(id, err instanceof HuntCallError ? err.stopReason : null)
+    }
+  }
+  const running = new Set<Promise<void>>()
+  const notStarted: string[] = []
+  const effective = () => {
+    const value = gate.effectiveConcurrency(policy.currentConcurrency, Math.max(firstCallHold, gate.largestHoldUsd()))
+    effectiveMin = Math.min(effectiveMin, value)
+    effectiveMax = Math.max(effectiveMax, value)
+    return value
+  }
+  for (let f = 0; f < files; f++) {
+    const id = `file-${f}`
+    const decision = await waitForLaneAdmission(gate, firstCallHold, running, effective, () => stop !== null, () => {
+      gate.begin(id, firstCallHold)
+      check('admission')
+      const p: Promise<void> = runFile(id, f).finally(() => { gate.finish(id); running.delete(p) })
+      running.add(p)
+    })
+    if (decision?.action === 'start') continue
+    if (!stop && decision?.action === 'stop') stop = { reason: decision.reason, detail: decision.detail }
+    notStarted.push(...Array.from({ length: files - f }, (_, i) => `file-${f + i}`))
+    break
+  }
+  await Promise.all(running)
+  return { cap, files, ledger, gate, stop, completed, failed, notStarted, violations, creates, effectiveMin, effectiveMax, firstCallHold }
+}
+
+test('SmartBugs-shaped run: $5 cap, 32 in flight, 143 files at ~$0.005 a call with retries — every file completes', async t => {
+  const r = await simulateRun(t, { worstCase: false, retryEvery: 23 })
+  assert.ok(r.firstCallHold > 0.03 && r.firstCallHold < 0.04, `per-call hold ~$0.035, got ${r.firstCallHold}`)
+  assert.deepEqual(r.violations, [])
+  assert.equal(r.stop, null, `no stop expected, got ${JSON.stringify(r.stop)}`)
+  assert.equal(r.failed.size, 0)
+  assert.equal(r.notStarted.length, 0)
+  assert.equal(r.completed.size, r.files, 'status COMPLETE: all 143 files scanned')
+  assert.ok(r.ledger.list().filter(e => e.basis === 'reservation').length > 0, 'retries happened')
+  assert.equal(r.effectiveMax, 32, 'the budget did not need to narrow the configured 32')
+  assert.ok(r.ledger.total() < r.cap)
+  assert.equal(r.gate.snapshot().in_flight_projected_usd, 0)
+})
+
+test('adversarial run: every call costs exactly its hold — spend never passes the cap and the run stops cleanly at max_cost', async t => {
+  const r = await simulateRun(t, { worstCase: true, retryEvery: 0 })
+  assert.deepEqual(r.violations, [], 'spent + holds <= cap at every send, admission and booking')
+  assert.ok(r.ledger.total() <= r.cap + 1e-9, `spent ${r.ledger.total()} > cap ${r.cap}`)
+  assert.equal(r.stop?.reason, 'max_cost')
+  assert.ok(r.completed.size < r.files)
+  assert.ok(r.completed.size + r.failed.size + r.notStarted.length === r.files)
+  for (const reason of r.failed.values()) assert.equal(reason, 'max_cost')
+  assert.equal(r.ledger.list().length, r.creates, 'every call sent is booked; none was sent past the cap')
+  // Nothing left could have been sent: the smallest hold no longer fits.
+  assert.ok(r.ledger.total() + r.firstCallHold * 0.9 > r.cap)
+  assert.equal(r.effectiveMin, 1, 'concurrency narrowed to a single file near the cap')
+  assert.equal(r.gate.snapshot().in_flight_projected_usd, 0)
 })

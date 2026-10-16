@@ -55,5 +55,32 @@ class EvidenceTests(unittest.TestCase):
                 self.metrics([(10, "A01")], **extra)
 
 
+class ClassNameMatchTests(unittest.TestCase):
+    REG = {"access-control": ["A01"], "injection": ["A03"]}
+    C2C = {"A01": "access-control", "A03": "injection"}
+
+    def run_one(self, finding_classes, match, **extra):
+        entries = [{"key": "synthetic", "file": "sample.c", "line": 10, "codes": {"A03"}, **extra}]
+        findings = [{"finding_id": "f", "categories": [],
+                     "finding_classes": [{"class": c} for c in finding_classes],
+                     "trace": [{"file": "sample.c", "line": 10}]}]
+        return scorer.score(findings, entries, self.REG, self.C2C, False, match)
+
+    def test_name_from_codes(self):
+        self.assertEqual(self.run_one(["injection"], "classes")["recall"]["hits"], 1)
+        self.assertEqual(self.run_one(["access-control"], "classes")["recall"]["hits"], 0)
+
+    def test_any_one_name_is_enough_and_normalized(self):
+        self.assertEqual(self.run_one(["Access_Control", "INJECTION"], "classes")["recall"]["hits"], 1)
+
+    def test_explicit_classes_and_agent_names(self):
+        m = self.run_one(["memory-safety"], "classes", codes=set(), classes=["memory safety"])
+        self.assertEqual(m["recall"]["hits"], 1)
+        self.assertEqual(self.run_one(["memory-safety"], "classes", codes=set())["recall"]["hits"], 0)
+
+    def test_codes_mode_unchanged(self):
+        self.assertEqual(self.run_one(["injection"], "codes")["recall"]["hits"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

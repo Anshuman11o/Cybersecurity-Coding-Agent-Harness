@@ -175,19 +175,24 @@ is charged at a conservative reservation and labelled accordingly. Progress,
 budget checks and the final run record use the ledger total. Resumes append
 to the same ledger.
 
-The budget gate uses one fixed worst-case reservation **U** per chunk,
-computed at planning. A file with `c` chunks can start only when:
+The budget gate holds each model call's own worst case while that call is
+in flight: its actual prompt bound at the upper input rate plus the output
+cap at the output rate, with long-context, tier and region multipliers. The
+hold is released as the call returns and its real cost enters the ledger, so
 
 ```text
-ledger spend + reservations in flight + c × U <= budget
+ledger spend + holds of calls in flight <= budget
 ```
 
-If the next file does not fit, the scheduler waits for files in flight to
-finish. If none are in flight, it stops INCOMPLETE with `max_cost`. A retry
-must reserve another U; refusal also stops the run with `max_cost`. Actual
-call costs enter the ledger as responses arrive, and finishing a file
-releases its reservations. The estimate and U have different purposes: a
-file may need more budget to start than its estimated cost.
+holds at all times, even if every call costs its worst case. A file starts
+when its first call's hold fits. A call — first, follow-up or retry — that
+cannot get its hold waits while other calls are in flight; the run stops
+INCOMPLETE with `max_cost` only when nothing else is in flight and the next
+hold does not fit. Files in flight are also fitted to the remaining budget,
+`min(concurrency, max(1, floor(0.5 × (budget − spent) / largest hold)))`,
+recorded as `concurrency.effective` in `progress.json`. The estimate and the
+hold have different purposes: a file may need more budget to start than its
+estimated cost.
 
 When an interactive hunt reaches the budget, the CLI shows total spend,
 files completed and remaining, and an approximate additional cost. Its

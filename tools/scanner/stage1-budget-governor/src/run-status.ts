@@ -75,8 +75,13 @@ export interface Stage2Progress {
     /** The spend ledger's total: recon, earlier passes and this one. Optional for older run artifacts. */
     ledger_spent_usd?: number | null
   }
-  /** Lanes allowed in flight now, and at the start (rate-limit step-downs lower it). Optional for older run artifacts. */
-  concurrency?: { current: number; initial: number }
+  /**
+   * Lanes allowed in flight now, and at the start (rate-limit step-downs lower
+   * it). `effective` is `current` fitted to the remaining budget under a cap:
+   * min(current, max(1, floor(0.5 x (cap - spent) / largest call hold))).
+   * Optional for older run artifacts.
+   */
+  concurrency?: { current: number; initial: number; effective?: number }
   findings: { total: number; by_severity: Record<'critical' | 'high' | 'medium' | 'low', number> }
 }
 
@@ -119,13 +124,18 @@ export interface Stage2RunStatus {
     spent_usd: number | null
     estimate_usd: number | null
     cap_usd: number | null
-    /** Legacy field: always 1 with the fixed reservation unit U. */
+    /** Legacy field: always 1; per-call holds are never calibrated. */
     calibration: number
     /** The spend ledger's total at the end. Optional for older run artifacts. */
     ledger_spent_usd?: number | null
   }
-  /** Concurrency at the start and end, and how many rate-limit step-downs it took. Optional for older run artifacts. */
-  concurrency?: { initial: number; final: number; step_downs: number }
+  /**
+   * Concurrency at the start and end, and how many rate-limit step-downs it
+   * took. `effective_min` is the fewest files the remaining budget allowed in
+   * flight at any admission (equal to the slot limit without a cap).
+   * Optional for older run artifacts.
+   */
+  concurrency?: { initial: number; final: number; step_downs: number; effective_min?: number }
   findings_total: number
   blocked_reads: number
   limits: RunLimits | null

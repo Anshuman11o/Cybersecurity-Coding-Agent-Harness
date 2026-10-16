@@ -66,6 +66,15 @@ test('budget boundaries use ledger total, input threshold and exact first-file r
   assert.equal(message(1).text, blocked)
 })
 
+test('a plan with per-call holds starts a file once its first call hold fits, whatever its chunk count', () => {
+  const s = summary(['injection'], 10, input => {
+    input.plan.call_reservation_usd = 0.05
+    input.plan.first_call_reservation_usd = 0.035
+  })
+  assert.equal(s.budget_message!.first_start_usd, 0.1 + 0.035)
+  assert.equal(summary().budget_message!.first_start_usd, 0.1 + 2 * 0.1, 'an older plan keeps chunks × U')
+})
+
 test('summary rows count admitted files and record all-files routing and live spend', () => {
   const s = summary()
   assert.equal(s.classes![0].files, 1)

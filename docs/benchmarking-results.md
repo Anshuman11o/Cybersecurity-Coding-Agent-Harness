@@ -257,10 +257,21 @@ failed-lane reporting, checkpoint fix).
 Full Stage 0–2 v2 runs on separately pinned public targets belong here. These
 results have their own ground-truth denominators and are not directly comparable
 to the Juice Shop table above. Class-selection-only evaluations do not qualify.
-No held-out full-scan results have been recorded in this table yet.
+All rows: GPT-6 Luna, product profile, 2026-10-15, scored with the 95% OWASP-code floor lifted; category-aware figures are lower bounds where the playbook agent added non-OWASP classes. Full caveats are in each row of `results/eval-history/scanner.jsonl`.
 
 | Target | Target commit | Harness commit / run id | Ground truth | Recall | Localization | File-level | Precision proxy (category-aware) | Hedging | Notes |
 |---|---|---|---|---|---|---|---|---|---|
+| aigoat-clean-LLM (secscan, playbook agent) | `9c62129` | `d299ee2` / heldout-aigoat-2026-10-15-luna6-secscan | aigoat-clean v1.0.1 export (23 entries) | 12/23 (52.2%); blind 18 | 15; blind 22 | 23/23 | 23.4% (blind 40.6%) | 1.172 | complete $0.21 |
+| aigoat-clean-LLM (fixed classes) | `9c62129` | `d299ee2` / heldout-aigoat-2026-10-15-luna6-fixed-classes | aigoat-clean v1.0.1 export (23 entries) | 15/23 (65.2%); blind 19 | 16; blind 22 | 23/23 | 28.6% (blind 35.1%) | 1.299 | complete $0.2 |
+| androgoat-clean-mobile (secscan, playbook agent) | `8abc7a6` | `d299ee2` / heldout-androgoat-2026-10-15-luna6-secscan | androgoat-clean v1.1.1 export (29 entries) | 18/29 (62.1%); blind 21 | 20; blind 22 | 26/29 | 55.6% (blind 75.0%) | 1.417 | complete $0.27 |
+| androgoat-clean-mobile (fixed classes) | `8abc7a6` | `d299ee2` / heldout-androgoat-2026-10-15-luna6-fixed-classes | androgoat-clean v1.1.1 export (29 entries) | 25/29 (86.2%); blind 25 | 27; blind 27 | 27/29 | 69.0% (blind 73.8%) | 1.524 | complete $0.11 |
+| smartbugs-clean-solidity (secscan, playbook agent) | `6d09946` | `d299ee2` / heldout-smartbugs-2026-10-15-luna6-secscan | smartbugs-clean export (207 entries) | 9/207 (4.3%); blind 44 | 20; blind 59 | 62/207 | 20.4% (blind 74.2%) | 1.677 | INCOMPLETE: $5 cap hit by Stage 2 reservations, not spend ($1.04 spent); 18 lanes failed on reservation and 80 never started (63/143 hunted). Budgeting defect, not a reasoning result. $1.04 |
+| smartbugs-clean-solidity (fixed classes) | `6d09946` | `d299ee2` / heldout-smartbugs-2026-10-15-luna6-fixed-classes | smartbugs-clean export (207 entries) | 103/207 (49.8%); blind 145 | 134; blind 189 | 198/207 | 56.7% (blind 77.1%) | 1.551 | complete $0.7 |
+| castle-clean-c (secscan, playbook agent) | `4278a49` | `d299ee2` / heldout-castle-2026-10-15-luna6-secscan | castle-clean v1.2.0 per-record export (150 vulnerable records; 100 clean programs held separately) | 21/150 (14.0%); blind 78 | 21; blind 82 | 83/150 | 15.0% (blind 61.4%) | 1.026 | Playbook agent selected 8 classes without the floor; 85/250 programs had no selected class and were skipped. Clean-program false-positive rate 33.0% (33/100 clean programs flagged, 46 findings). $0.63 |
+| castle-clean-c (fixed classes) | `4278a49` | `d299ee2` / heldout-castle-2026-10-15-luna6-fixed-classes | castle-clean v1.2.0 per-record export (150 vulnerable records; 100 clean programs held separately) | 30/150 (20.0%); blind 55 | 31; blind 62 | 66/150 | 24.7% (blind 56.8%) | 1.048 | complete $0.5 |
+| smartbugs-clean-solidity (secscan post-fix, second sample) | `6d09946` | `c50ff09` / heldout-smartbugs-2026-10-15-luna6-secscan-rerun | smartbugs-clean export (207 entries) | 37/207 (17.9%); blind 137 | 52; blind 172 | 193/207 | 20.6% (blind 82.5%) | 1.478 | Intended as a budget-fix-only check, but the routing change landed in the same worktree before Stage 0.5 ran, so it used both fixes; treat as a second sample of the final configuration. $1.18 |
+| smartbugs-clean-solidity (secscan post-fix) | `6d09946` | `c50ff09` / heldout-smartbugs-2026-10-15-luna6-secscan-postfix | smartbugs-clean export (207 entries) | 31/207 (15.0%); blind 141 | 45; blind 182 | 192/207 | 18.3% (blind 79.5%) | 1.621 | complete $1.11 |
+| castle-clean-c (secscan post-fix) | `4278a49` | `c50ff09` / heldout-castle-2026-10-15-luna6-secscan-postfix | castle-clean v1.2.0 per-record export (150 vulnerable records; 100 clean programs held separately) | 24/150 (16.0%); blind 100 | 25; blind 108 | 111/150 | 11.6% (blind 60.2%) | 1.216 | Clean-program false-positive rate 48.0% (48/100 flagged, 78 findings). $0.9 |
 
 ### Historical playbook-agent comparability
 

@@ -14,7 +14,7 @@ import { writeCachedPlaybook, cacheDirectory } from '../../shared/playbook-cache
 import {
   productDefaultProvider, defaultProvider, modelFor, pricingFor, targetFor, calibrationFor, outputTokenCap, apiKeyEnvFor,
 } from '../../shared/provider.js'
-import { FOLLOW_UP_INPUT_MULTIPLIER, reservationUnitUsd, scanCostUsd } from '../../shared/pricing.js'
+import { FOLLOW_UP_INPUT_MULTIPLIER, reservationUnitUsd, planCallReservationsUsd, scanCostUsd } from '../../shared/pricing.js'
 import {
   buildLanePrompts, followUpTemplateBytes, loadPlaybooksForClasses, loadArchSummarySnippet, DEFAULT_OUTPUT_TOKEN_CAP,
 } from '../../stage2-hunt-lanes-perfile/src/hunt-executor.js'
@@ -241,6 +241,14 @@ test('Stage 1 sizes the hunt builders exact chunk prompts and uses ledger spend 
       followUpTemplateBytes: followUpTemplateBytes(lane.classes!),
       outputCap: outputTokenCap(provider, DEFAULT_OUTPUT_TOKEN_CAP), servedTier: 'default',
     }))
+    const perCall = planCallReservationsUsd(provider, {
+      callsPerUnit: 2, maxPromptBytes: Math.max(...prompts.map(p => Buffer.byteLength(p.prompt, 'utf8'))),
+      followUpTemplateBytes: followUpTemplateBytes(lane.classes!),
+      outputCap: outputTokenCap(provider, DEFAULT_OUTPUT_TOKEN_CAP), servedTier: 'default',
+    })!
+    assert.equal(plan.first_call_reservation_usd, perCall.first_usd)
+    assert.equal(plan.call_reservation_usd, perCall.max_usd)
+    assert.ok(plan.call_reservation_usd < plan.reservation_unit_usd, 'one call holds less than a whole chunk')
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
@@ -261,7 +269,8 @@ test('product risk order prioritizes routes, distinct signals and path; lab keep
   assert.deepEqual(plan.admitted.map(l => l.lane_id), ['file-4', 'file-3', 'file-2', 'file-1', 'file-5', 'file-0'])
   assert.match(plan.order_basis!, /route_handler/)
   assert.equal(plan.input_threshold_usd, plan.estimate!.spent_before_usd + plan.estimate!.input_usd)
-  assert.equal(plan.first_start_usd, plan.estimate!.spent_before_usd + 5 * plan.reservation_unit_usd!)
+  // A file starts once its first call's hold fits, whatever its chunk count.
+  assert.equal(plan.first_start_usd, plan.estimate!.spent_before_usd + plan.first_call_reservation_usd!)
   input.limits.max_cost_usd = input.estimation!.spentBeforeUsd + plan.admitted[0].projected_cost_usd! * 2.5
   assert.equal(computeScanPlan(input).cap.lanes_within_cap, 2)
 })
@@ -275,7 +284,7 @@ test('product thresholds and estimate price remaining work on resume without rem
   assert.equal(plan.admitted.length, 3)
   assert.equal(plan.estimate!.files, 2)
   assert.equal(plan.estimate!.input_tokens, 20_000)
-  assert.equal(plan.first_start_usd, 0.1 + 2 * plan.reservation_unit_usd!)
+  assert.equal(plan.first_start_usd, 0.1 + plan.first_call_reservation_usd!)
   input.completedLaneIds = new Set(input.lanes.map(l => l.lane_id))
   const done = computeScanPlan(input)
   assert.equal(done.first_start_usd, null)
@@ -352,7 +361,7 @@ test('the actual executor starts in reviewed risk order and keeps that order on 
     env.SCANNER_RESUME = '1'
     const resumed = generate()
     assert.equal(resumed.estimate.files, 2)
-    assert.equal(resumed.first_start_usd, new SpendLedger(ledger.path).total() + resumed.reservation_unit_usd)
+    assert.equal(resumed.first_start_usd, new SpendLedger(ledger.path).total() + resumed.first_call_reservation_usd)
     execute()
     recorded = JSON.parse(readFileSync(join(outDir, 'budget-consumption.json'), 'utf8')).legacy_entries
     assert.deepEqual(recorded.map((l: any) => l.lane_id), ['route', 'query'])
