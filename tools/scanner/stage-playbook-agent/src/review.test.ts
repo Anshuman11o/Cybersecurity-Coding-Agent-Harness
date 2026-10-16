@@ -22,7 +22,7 @@ process.env.SCANNER_RUNS_ROOT = join(root, 'runs')
 after(() => rmSync(root, { recursive: true, force: true }))
 const { getRunContext } = await import('../../shared/run-context.js')
 const { runPath } = await import('../../shared/run-paths.js')
-const { writeClassSelection, appendOverlayEntry } = await import('../../shared/playbook-overlay.js')
+const { writeClassSelection, appendOverlayEntry, validateClassSelection } = await import('../../shared/playbook-overlay.js')
 const { writeCachedPlaybook } = await import('../../shared/playbook-cache.js')
 const { initializeClassReview, recordReviewBudget, runClassReview, resolveLocalClass, validateResolution } = await import('./review.js')
 const { PlaybookMeter } = await import('./meter.js')
@@ -268,4 +268,37 @@ test('a later edit replaces the same attempt number with its own transport failu
   }
   assert.equal(o.meter.ledger.list().length, 4)
   assert.deepEqual(JSON.parse(read('class-selection.json')), original)
+})
+
+test('round two: a built-in the recon rule kept stays removed once the user drops it', async () => {
+  const { runPlaybookAgent } = await import('./agent.js')
+  const texts = new Map<string, string>()
+  for (const entry of Object.values(builtins) as { playbook: string }[]) {
+    texts.set(entry.playbook, (await import(`../../stage2-hunt-lanes-perfile/src/playbooks/${entry.playbook}.js`)).playbook)
+  }
+  const o = fixture(async () => { throw new Error('must not call') })
+  // The agent selects injection only; http_outbound fired, so the rule keeps ssrf and resource-consumption.
+  const decision = { reason: 'Covered.', builtin_classes: [{ id: 'injection', reason: 'Queries.' }], classes: [], changes: [] }
+  const agent = await runPlaybookAgent({
+    recon: { ...o.recon, file_signals: { files: { 'src/fetch.ts': ['http_outbound'] } } }, builtins, builtinTexts: texts, signals,
+    model, cacheRoot: o.cacheRoot, maxOutputTokens: 8000, loop: { enabled: false, maxPasses: 1 },
+    create: async () => response(decision), recordUsage: () => {}, recordDecision: () => {}, recordResearchFailure: () => {},
+  })
+  assert.deepEqual(agent.plan.recon_kept.map(k => k.id), ['ssrf', 'resource-consumption'])
+  // The selection Stage 0.5 reads names them, so it routes them by signal only.
+  assert.deepEqual(agent.selection.recon_kept, ['resource-consumption', 'ssrf'])
+  assert.throws(() => validateClassSelection({ ...agent.selection, recon_kept: ['crypto-auth'] }, builtins, {}), /Recon-kept classes must be selected built-ins/)
+  // The agent's selection replaces the fixture's before round two starts.
+  writeClassSelection(provider, agent.selection, builtins, {})
+  const dropped = await runClassReview({ ...o, action: 'drop', input: 'ssrf' })
+  assert.equal(dropped.ok, true)
+  assert.deepEqual(dropped.selection.classes, ['injection', 'resource-consumption'])
+  assert.deepEqual(dropped.selection.recon_kept, ['resource-consumption'])
+  // A later edit does not re-apply the rule: ssrf stays out.
+  const added = await runClassReview({ ...o, action: 'add', input: 'crypto-auth' })
+  assert.equal(added.ok, true)
+  assert.deepEqual(added.selection.classes, ['crypto-auth', 'injection', 'resource-consumption'])
+  assert.deepEqual(JSON.parse(read('class-selection.json')).classes, added.selection.classes)
+  assert.deepEqual(added.review.agent_selection.classes, ['injection', 'resource-consumption', 'ssrf'])
+  assert.equal(o.meter.ledger.list().length, 0)
 })

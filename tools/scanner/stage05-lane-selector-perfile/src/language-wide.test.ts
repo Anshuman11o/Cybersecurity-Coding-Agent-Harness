@@ -29,7 +29,7 @@ const FILES: Files = {
   'conf/settings.json': { language: 'json', signals: ['config_file'] },
 }
 
-function runSelector(files: Files, agent: { builtin: string[]; added: Record<string, AddedClass> } | null,
+function runSelector(files: Files, agent: { builtin: string[]; added: Record<string, AddedClass>; recon_kept?: string[] } | null,
   overlayOnly: Record<string, AddedClass> | null = null): { raw: string; out: any; log: string } {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'language-wide-'))
   try {
@@ -63,6 +63,7 @@ function runSelector(files: Files, agent: { builtin: string[]; added: Record<str
       json(path.join(agentDir, 'class-selection.json'), {
         schema: 'secscan.class-selection/1', created_at: '2026-01-01T00:00:00Z', model: 'test/model',
         builtin: agent.builtin, added, classes: [...agent.builtin, ...added].sort(),
+        ...(agent.recon_kept ? { recon_kept: agent.recon_kept } : {}),
       })
       json(path.join(agentDir, 'meta.json'), { provider, exit_code: 0 })
     } else if (overlayOnly) {
@@ -172,4 +173,17 @@ test('no agent selection: lane manifest is byte-identical to the pre-change sele
   // An overlay without a selection (fixed-class mode) routes by signals only, as before.
   const overlayOnly = { 'memory-safety': { framework: 'c', signals: ['deserialize'] } }
   assert.equal(runSelector(FILES, null, overlayOnly).raw, golden('lane-assignments-overlay-no-selection.json'))
+})
+
+test('a recon-kept built-in goes only where its signals reach a hunted file, never onto every lane', () => {
+  // misconfiguration is routed only by config_file, which fires here only on a skipped JSON file.
+  const control = runSelector(FILES, { builtin: ['injection', 'misconfiguration'], added: {} })
+  assert.ok(lane(control.out, 'tools/load.py').classes.includes('misconfiguration'), 'agent-selected unrouted class spreads (unchanged rule)')
+  const kept = runSelector(FILES, { builtin: ['injection', 'misconfiguration'], added: {}, recon_kept: ['misconfiguration'] })
+  assert.ok(!huntUnion(kept.out).includes('misconfiguration'))
+  assert.deepEqual(kept.out.class_selection.unrouted, [])
+  assert.match(kept.log, /Recon-kept classes with no hunted file in signal reach \(not hunted\): misconfiguration/)
+  // A recon-kept class whose signal does reach a hunted file is routed there as usual.
+  const reached = runSelector(FILES, { builtin: ['injection'], added: {}, recon_kept: ['injection'] })
+  assert.ok(lane(reached.out, 'tools/load.py').classes.includes('injection'))
 })

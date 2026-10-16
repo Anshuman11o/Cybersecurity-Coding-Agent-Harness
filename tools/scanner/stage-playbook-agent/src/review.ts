@@ -169,7 +169,8 @@ export async function runClassReview(o: ReviewOptions): Promise<ReviewResult> {
     if (o.action === 'drop') {
       if (!id || !selection.classes.includes(id)) throw new Error('Class is not selected')
       edit.resolved = { kind: Object.hasOwn(o.builtins, id) ? 'builtin' : 'cached', id }
-      selected = { ...selection, builtin: selection.builtin.filter(c => c !== id), added: selection.added.filter(c => c !== id), classes: selection.classes.filter(c => c !== id) }
+      selected = { ...selection, builtin: selection.builtin.filter(c => c !== id), added: selection.added.filter(c => c !== id), classes: selection.classes.filter(c => c !== id),
+        ...(selection.recon_kept ? { recon_kept: selection.recon_kept.filter(c => c !== id) } : {}) }
       edit.message = `Deleted ${id}`
     } else {
       if (!id) {

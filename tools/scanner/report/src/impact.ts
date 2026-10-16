@@ -71,7 +71,7 @@ function readScope(path: string): string | null {
 
 interface PlanEntry { id?: unknown; reason?: unknown }
 
-export function classImpacts(input: { stageDir: (stage: StageName) => string; reportsRoot: string }): Record<string, ClassImpact> {
+export function classImpacts(input: { stageDir: (stage: StageName) => string; runDir: string }): Record<string, ClassImpact> {
   const out: Record<string, ClassImpact> = {}
   const entry = (id: string) => (out[id] ??= { scope: null, reason: null })
 
@@ -88,7 +88,9 @@ export function classImpacts(input: { stageDir: (stage: StageName) => string; re
     const framework = safeSegment(cls?.framework ?? 'generic')
     const model = typeof cls?.model === 'string' && cls.model.trim() && cls.model !== '.' && cls.model !== '..' ? encodeURIComponent(cls.model) : null
     if (playbook && framework && model) {
-      const scope = readScope(join(input.reportsRoot, 'playbooks', playbook, framework, model, 'playbook.md'))
+      // The agent playbook cache is run-scoped and is cleared once the run can
+      // no longer be resumed, so a later rebuild simply has no scope line here.
+      const scope = readScope(join(input.runDir, 'playbooks', playbook, framework, model, 'playbook.md'))
       if (scope) entry(id).scope = scope
     }
   }

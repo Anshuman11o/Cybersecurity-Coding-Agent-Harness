@@ -29,13 +29,20 @@ const generated = texts.get('access-control')!.replace('Playbook for Access Cont
 const source = 'https://example.test/worker-security'
 // The specified task strings, character for character.
 const tasks = {
-  coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
-  turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
+  coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers. List every built-in class you do not select in excluded_builtins, with the recon evidence that shows its surface is absent.",
+  turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. List every built-in class you do not select in excluded_builtins, with the recon evidence that shows its surface is absent. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
   turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
   turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
 }
 const researchTask = 'Research this missing class using web_search and produce one generic playbook, using the built-in format. Cite the sources used. Keep the playbook under 8000 bytes.'
 const loopPurposes = ['coverage', 'turn1', 'turn2:pass1', 'turn3']
+// Built-ins each fixture's recon signals route through signal-classes.json; the recon rule keeps any the agent leaves out.
+const routed: Record<'covered' | 'uncovered', string[]> = {
+  covered: ['access-control', 'api-property-auth', 'crypto-auth', 'injection', 'resource-consumption'],
+  uncovered: ['injection', 'integrity-failures', 'resource-consumption'],
+}
+// Tests of the decision loop itself: no file signal fires, so the recon rule keeps nothing.
+const silent = (h: { options: AgentOptions }) => { h.options.recon = { ...h.options.recon, file_signals: { files: {} } } }
 
 interface Search { query: string; url: string }
 function response(value: unknown, search: boolean | Search[] = false): Response {
@@ -295,24 +302,27 @@ test('a failed request is recorded with unknown usage; no hidden retry', async t
 
 test('decision schemas: built-in ids as an enum; review turns add a required changes list', async t => {
   const h = harness(t, 'covered', unchanged(decision('Covered.')))
+  silent(h)
   const { plan, selection } = await runPlaybookAgent(h.options)
   const schema = (h.request('coverage').text?.format as { schema: any }).schema
-  assert.deepEqual(Object.keys(schema.properties), ['reason', 'builtin_classes', 'classes'])
-  assert.deepEqual(schema.required, ['reason', 'builtin_classes', 'classes'])
-  const item = schema.properties.builtin_classes.items
-  assert.deepEqual(item.properties.id.enum, Object.keys(builtins))
-  assert.deepEqual(item.required, ['id', 'reason'])
-  assert.equal(item.additionalProperties, false)
+  assert.deepEqual(Object.keys(schema.properties), ['reason', 'builtin_classes', 'excluded_builtins', 'classes'])
+  assert.deepEqual(schema.required, ['reason', 'builtin_classes', 'excluded_builtins', 'classes'])
+  for (const key of ['builtin_classes', 'excluded_builtins']) {
+    const item = schema.properties[key].items
+    assert.deepEqual(item.properties.id.enum, Object.keys(builtins), key)
+    assert.deepEqual(item.required, ['id', 'reason'], key)
+    assert.equal(item.additionalProperties, false, key)
+  }
   for (const purpose of loopPurposes.slice(1)) {
     const turnSchema = (h.request(purpose).text?.format as { schema: any }).schema
-    assert.deepEqual(turnSchema.required, ['reason', 'builtin_classes', 'classes', 'changes'])
+    assert.deepEqual(turnSchema.required, ['reason', 'builtin_classes', 'excluded_builtins', 'classes', 'changes'])
     const { changes, ...rest } = turnSchema.properties
     assert.deepEqual(rest, schema.properties, 'the existing decision schema plus changes')
     assert.deepEqual(changes.items, {
       type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, why: { type: 'string' } }, required: ['id', 'why'],
     })
   }
-  // An empty selection is valid: the run hunts nothing.
+  // An empty selection is valid when no recon signal fired: the run hunts nothing.
   assert.deepEqual(plan.selected_classes, [])
   assert.deepEqual(selection.classes, [])
 })
@@ -334,11 +344,14 @@ test('selected_classes and the class selection hold the sorted union of built-in
   const builtin_classes = [{ id: 'injection', reason: 'Queries.' }, { id: 'access-control', reason: 'Routes.' }]
   const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', builtin_classes, [proposed])), research()])
   const { plan, overlay, selection } = await runPlaybookAgent(h.options)
-  assert.deepEqual(plan.builtin_classes, builtin_classes)
-  assert.deepEqual(plan.selected_classes, ['access-control', 'injection', proposed.id])
+  // The agent's own selections first, then the built-ins the recon rule keeps (deserialize and model_write fired).
+  assert.deepEqual(plan.builtin_classes, [...builtin_classes,
+    { id: 'integrity-failures', reason: 'Kept by recon: signals model_write, deserialize fired on 1 file.' },
+    { id: 'resource-consumption', reason: 'Kept by recon: signals deserialize fired on 1 file.' }])
+  assert.deepEqual(plan.selected_classes, ['access-control', 'injection', 'integrity-failures', 'resource-consumption', proposed.id])
   assert.equal(selection.schema, 'secscan.class-selection/1')
   assert.equal(selection.model, 'test-model')
-  assert.deepEqual(selection.builtin, ['access-control', 'injection'])
+  assert.deepEqual(selection.builtin, ['access-control', 'injection', 'integrity-failures', 'resource-consumption'])
   assert.deepEqual(selection.added, Object.keys(overlay))
   assert.deepEqual(selection.classes, plan.selected_classes)
 })
@@ -403,6 +416,7 @@ test('loop order: coverage, turn1, turn2 passes, turn3; turn2 stops on the first
   const start = decision('Start.', [pick('access-control')])
   const grown = decision('Grown.', [pick('access-control'), pick('injection')])
   const h = harness(t, 'covered', [response(start), turn(start), turn(grown), turn(grown), turn(decision('Final.', grown.builtin_classes))])
+  silent(h)
   const { plan, selection } = await runPlaybookAgent(h.options)
   assert.deepEqual(h.purposes, ['coverage', 'turn1', 'turn2:pass1', 'turn2:pass2', 'turn3'])
   assert.deepEqual(plan.loop, { enabled: true, max_passes: 3, passes_run: 2 })
@@ -419,6 +433,7 @@ test('turn2 stops at max_passes when every pass adds', async t => {
     const passes = ids.map((_, k) => turn(decision(`Pass ${k + 1}.`, ids.slice(0, k + 1).map(pick))))
     const h = harness(t, 'covered', [response(decision('Start.')), turn(decision('Turn one.')), ...passes, turn(decision('Final.'))])
     if (maxPasses) h.options.loop = { enabled: true, maxPasses }
+    silent(h)
     const { plan, selection } = await runPlaybookAgent(h.options)
     assert.deepEqual(h.purposes, ['coverage', 'turn1', ...ids.map((_, k) => `turn2:pass${k + 1}`), 'turn3'])
     assert.deepEqual(plan.loop, { enabled: true, max_passes: n, passes_run: n })
@@ -431,6 +446,7 @@ test('a turn that omits a selected class cannot drop it: restored, recorded, and
   const start = decision('Start.', [pick('injection'), pick('access-control')], [proposed])
   const narrowed = decision('Narrowed.', [{ id: 'injection', reason: 'A later, different reason.' }])
   const h = harness(t, 'uncovered', [response(start), turn(narrowed), turn(narrowed), turn(decision('Final.', narrowed.builtin_classes)), research()])
+  silent(h)
   const { plan, selection } = await runPlaybookAgent(h.options)
   assert.deepEqual(plan.turns.map(x => x.restored), Array(3).fill(['access-control', proposed.id]))
   assert.deepEqual(plan.turns.map(x => x.added), [[], [], []])
@@ -462,6 +478,7 @@ test('a class first proposed in a turn is researched when uncached, using its fi
   const added = decision('Added.', start.builtin_classes, [proposed])
   const h = harness(t, 'uncovered', [response(start), turn(added, [{ id: proposed.id, why: 'Replay boundary.' }]), turn(added),
     turn(decision('Final.', [], [{ ...proposed, codes: ['CWE-400'], signals: ['http_outbound'] }])), research()])
+  silent(h)
   const { plan, overlay, selection } = await runPlaybookAgent(h.options)
   assert.deepEqual(h.purposes, [...loopPurposes, `research:${proposed.id}`])
   assert.deepEqual(plan.turns[0].added, [proposed.id])
@@ -521,9 +538,14 @@ test('the final union is recorded once, after the last decision call and before 
     assert.equal(d.schema, 'secscan.class-decision/1')
     assert.equal(d.model, 'test-model')
     assert.ok(Number.isFinite(Date.parse(d.created_at)))
-    assert.deepEqual(d.builtin, ['access-control', 'injection'])
+    // The recorded union includes the built-ins the recon rule kept.
+    assert.deepEqual(d.builtin, ['access-control', 'injection', 'integrity-failures', 'resource-consumption'])
+    assert.deepEqual(d.recon_kept, [
+      { id: 'integrity-failures', signals: ['model_write', 'deserialize'], files: 1 },
+      { id: 'resource-consumption', signals: ['deserialize'], files: 1 }])
+    assert.equal(d.excluded_builtins.length, 14 - 4)
     assert.deepEqual(d.added, [proposed])
-    assert.deepEqual(d.classes, ['access-control', 'injection', proposed.id])
+    assert.deepEqual(d.classes, ['access-control', 'injection', 'integrity-failures', 'resource-consumption', proposed.id])
     assert.deepEqual(d.turns.map(x => [x.purpose, x.added]), [['turn1', ['access-control', proposed.id]], ['turn2:pass1', []], ['turn3', []]])
     assert.deepEqual(d.loop, { enabled: true, max_passes: 3, passes_run: 1 })
   }
@@ -630,9 +652,12 @@ test('one progress line per completed model call; the research line carries the 
   const h = harness(t, 'uncovered', [...unchanged(decision('Uncovered.', [pick('injection')], [proposed])), research()])
   await runPlaybookAgent(h.options)
   const line = (purpose: string, searches: number, tail: string) => `[playbook-agent] ${purpose} completed in=120 out=50 searches=${searches} ${tail}`
+  const excluded = Object.keys(builtins).filter(id => !routed.uncovered.includes(id)).map(id => `${id} (no-signal)`).join(', ')
   assert.deepEqual(h.logs, [
     line('coverage', 0, `added=injection,${proposed.id}`), line('turn1', 0, 'added=-'), line('turn2:pass1', 0, 'added=-'),
-    line('turn3', 0, 'added=-'), line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)} unverified=0`),
+    line('turn3', 0, 'added=-'),
+    `[playbook-agent] recon kept 2 built-in(s): integrity-failures, resource-consumption; excluded 11: ${excluded}`,
+    line(`research:${proposed.id}`, 1, `bytes=${Buffer.byteLength(generated)} unverified=0`),
   ])
   const grown = harness(t, 'covered', [response(decision('Start.')), turn(decision('Grown.', [pick('injection'), pick('ssrf')])), turn(decision('Same.')), turn(decision('Same.'))])
   await runPlaybookAgent(grown.options)
@@ -751,4 +776,107 @@ test('a first playbook that passes makes no revision call and records a single a
   const revisions = { attempts: 1, sizes: [Buffer.byteLength(generated)] }
   assert.deepEqual((readCachedPlaybook(h.root, proposed.id, proposed.framework, 'test-model')!.meta as any).revisions, revisions)
   assert.deepEqual(plan.playbooks.at(-1)!.revisions, revisions)
+})
+
+// The recon rule: after the final turn, a built-in the agent left out is kept when one of its recon signals fired.
+const noSignalReason = 'No recon signal routes this class; the agent gave no reason.'
+
+test('recon rule: an unselected built-in whose signal fired is kept; the rest are excluded with their source', async t => {
+  const start = { ...decision('Start.', [pick('injection')]), excluded_builtins: [
+    { id: 'access-control', reason: 'Agent judged no ownership surface.' },
+    { id: 'ssrf', reason: 'First reason: no outbound calls.' },
+    { id: 'insecure-design', reason: 'No business workflow in recon.' },
+  ] }
+  const later = { ...decision('Later.', [pick('injection')]), excluded_builtins: [{ id: 'ssrf', reason: 'Latest reason: recon lists no HTTP client.' }] }
+  const h = harness(t, 'covered', [response(start), turn(later), turn(decision('Pass.', [pick('injection')])), turn(decision('Final.', [pick('injection')]))])
+  const { plan, selection } = await runPlaybookAgent(h.options)
+  // route_handler and db_query fired on src/handler.ts; access-control is kept although the agent excluded it.
+  assert.deepEqual(plan.recon_kept, [
+    { id: 'access-control', signals: ['route_handler'], files: 1 },
+    { id: 'crypto-auth', signals: ['route_handler'], files: 1 },
+    { id: 'api-property-auth', signals: ['route_handler', 'db_query'], files: 1 },
+    { id: 'resource-consumption', signals: ['route_handler', 'db_query'], files: 1 },
+  ])
+  assert.deepEqual(plan.builtin_classes, [pick('injection'),
+    { id: 'access-control', reason: 'Kept by recon: signals route_handler fired on 1 file.' },
+    { id: 'crypto-auth', reason: 'Kept by recon: signals route_handler fired on 1 file.' },
+    { id: 'api-property-auth', reason: 'Kept by recon: signals route_handler, db_query fired on 1 file.' },
+    { id: 'resource-consumption', reason: 'Kept by recon: signals route_handler, db_query fired on 1 file.' },
+  ])
+  assert.deepEqual(plan.decision.builtin_classes, plan.builtin_classes)
+  assert.deepEqual(selection.builtin, routed.covered)
+  const excluded = Object.fromEntries(plan.excluded_builtins.map(e => [e.id, e]))
+  assert.deepEqual(plan.excluded_builtins.map(e => e.id), Object.keys(builtins).filter(id => !routed.covered.includes(id)))
+  // The latest reason the agent gave for an id stands.
+  assert.deepEqual(excluded.ssrf, { id: 'ssrf', reason: 'Latest reason: recon lists no HTTP client.', source: 'agent' })
+  // A class no signal maps to keeps the agent's reason and is never force-kept.
+  assert.deepEqual(excluded['insecure-design'], { id: 'insecure-design', reason: 'No business workflow in recon.', source: 'agent' })
+  assert.deepEqual(excluded['client-side'], { id: 'client-side', reason: noSignalReason, source: 'no-signal' })
+  assert.deepEqual(plan.excluded_builtins.filter(e => e.source === 'agent').map(e => e.id), ['insecure-design', 'ssrf'])
+  // Recorded alike in the class decision, before research.
+  const [{ decision: d }] = h.decisions
+  assert.deepEqual(d.recon_kept, plan.recon_kept)
+  assert.deepEqual(d.excluded_builtins, plan.excluded_builtins)
+  assert.deepEqual(d.builtin, routed.covered)
+  assert.equal(h.logs.at(-1), '[playbook-agent] recon kept 4 built-in(s): access-control, crypto-auth, api-property-auth, ' +
+    'resource-consumption; excluded 9: insecure-design (agent), misconfiguration (no-signal), vulnerable-components (no-signal), ' +
+    'integrity-failures (no-signal), logging-monitoring (no-signal), ssrf (agent), sensitive-business-flows (no-signal), ' +
+    'ai-llm-agency (no-signal), client-side (no-signal)')
+  // The turns see the agent's own union; the rule runs once, after the last turn.
+  assert.deepEqual(h.input('turn3').current_decision.builtin_classes, [pick('injection')])
+})
+
+test('recon rule: signals and files are counted per class across every file', async t => {
+  const h = harness(t, 'covered', unchanged(decision('Nothing selected.')))
+  h.options.recon = { ...h.options.recon, file_signals: { files: {
+    'a.ts': ['route_handler', 'model_write'], 'b.ts': ['route_handler', 'route_handler'], 'c.ts': ['logging'], 'd.ts': [],
+  } } }
+  const { plan } = await runPlaybookAgent(h.options)
+  const kept = Object.fromEntries(plan.builtin_classes.map(b => [b.id, b.reason]))
+  assert.equal(kept.injection, 'Kept by recon: signals route_handler, model_write fired on 2 files.')
+  assert.equal(kept['integrity-failures'], 'Kept by recon: signals model_write fired on 1 file.')
+  assert.equal(kept['logging-monitoring'], 'Kept by recon: signals logging fired on 1 file.')
+  assert.deepEqual(plan.recon_kept.find(k => k.id === 'access-control'), { id: 'access-control', signals: ['route_handler'], files: 2 })
+  assert.ok(plan.excluded_builtins.every(e => e.source === 'no-signal'))
+})
+
+test('recon rule: a class no signal maps to is never force-kept, even when every signal fires', async t => {
+  const unmapped = Object.keys(builtins).filter(id => !Object.values(signals.signals as Record<string, string[]>).some(ids => ids.includes(id)))
+  assert.deepEqual(unmapped, ['insecure-design', 'sensitive-business-flows'])
+  const h = harness(t, 'covered', unchanged(decision('Nothing selected.')))
+  h.options.recon = { ...h.options.recon, file_signals: { files: { 'all.ts': Object.keys(signals.signals) } } }
+  const { plan, selection } = await runPlaybookAgent(h.options)
+  assert.deepEqual(plan.excluded_builtins, unmapped.map(id => ({ id, reason: noSignalReason, source: 'no-signal' })))
+  assert.deepEqual(selection.builtin, Object.keys(builtins).filter(id => !unmapped.includes(id)).sort())
+  // Selected by the agent, an unmapped class stays, with the agent's reason.
+  const chosen = harness(t, 'covered', unchanged(decision('Design.', [pick('insecure-design')])))
+  silent(chosen)
+  const kept = await runPlaybookAgent(chosen.options)
+  assert.deepEqual(kept.plan.builtin_classes, [pick('insecure-design')])
+  assert.deepEqual(kept.plan.recon_kept, [])
+})
+
+test('invalid excluded_builtins entries fail validation on any decision call; a missing or partial list does not', async t => {
+  const d = decision('Start.', [pick('injection')])
+  const cases: unknown[] = [
+    'ssrf',
+    [{ id: 'not-a-builtin', reason: 'Invented.' }],
+    [{ id: 'injection', reason: 'Also selected.' }],
+    [{ id: 'ssrf', reason: 'Once.' }, { id: 'ssrf', reason: 'Twice.' }],
+    [{ id: 'ssrf', reason: ' ' }],
+    [{ id: 'ssrf' }],
+    [null],
+  ]
+  for (const excluded_builtins of cases) {
+    const first = harness(t, 'covered', [response({ ...d, excluded_builtins })])
+    await assert.rejects(runPlaybookAgent(first.options), /excluded built-in/, JSON.stringify(excluded_builtins))
+    assert.deepEqual(first.decisions, [])
+    const later = harness(t, 'covered', [response(d), response({ ...d, excluded_builtins, changes: [] })])
+    await assert.rejects(runPlaybookAgent(later.options), /excluded built-in/, JSON.stringify(excluded_builtins))
+    assert.deepEqual(later.purposes, ['coverage', 'turn1'])
+  }
+  const partial = harness(t, 'covered', unchanged({ ...d, excluded_builtins: [{ id: 'ssrf', reason: 'No client.' }] } as CoverageDecision))
+  const { plan } = await runPlaybookAgent(partial.options)
+  assert.equal(plan.excluded_builtins.find(e => e.id === 'ssrf')!.source, 'agent')
+  assert.equal(plan.excluded_builtins.find(e => e.id === 'client-side')!.source, 'no-signal')
 })

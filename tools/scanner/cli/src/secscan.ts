@@ -17,7 +17,7 @@
  * Nothing here names a model, an endpoint or a credential: the registry
  * (shared/models.json) and the user's flags supply all three.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -232,6 +232,18 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
   // The same rule run.sh applies: `.secscan/` carries a `*` .gitignore before
   // anything is written, so run artifacts can never be committed by accident.
   mkdirSync(runsRoot, { recursive: true })
+  // The agent playbook cache is run-scoped (<run>/playbooks). A cache at the
+  // top of the reports folder can only be the shared one older versions kept;
+  // a new run must not inherit it. A resume leaves it for the run it belongs to.
+  if (!previous) {
+    const legacyCache = join(reportsRoot, 'playbooks')
+    if (existsSync(legacyCache)) {
+      try {
+        rmSync(legacyCache, { recursive: true, force: true })
+        say(`Removed the playbook cache left by earlier runs: ${legacyCache}`)
+      } catch (e: any) { err(`warning: could not remove the playbook cache left by earlier runs (${legacyCache}): ${e?.message ?? e}`) }
+    }
+  }
   const logPath = join(runsRoot, 'secscan.log')
   const stageDir = (s: Parameters<typeof paths.runPath>[1]) => paths.runPath(model.key, s)
   const stopPath = join(stageDir(HUNT), STOP_REQUEST_FILE)
@@ -435,6 +447,18 @@ export async function scan(args: ScanArgs, dependencies: ScanDependencies = {}):
     } catch (e: any) {
       err(`the report could not be written: ${e?.message ?? e}\n` +
         `Rebuild it with: secscan report ${runId} --out ${shellQuote(reportsRoot)}`)
+    }
+
+    // The agent playbook cache only saves repeated research within this run.
+    // Any INCOMPLETE run can still be picked up by `--resume` (findResume), even
+    // one without a resume_command (quit at confirmation, failed replan), and
+    // its later stages read this cache back; so only a run that can no longer
+    // be resumed clears it. Like the report, a failed removal never changes
+    // the exit code.
+    if (record.status !== 'INCOMPLETE') {
+      const runCache = join(runsRoot, 'playbooks')
+      try { rmSync(runCache, { recursive: true, force: true }) }
+      catch (e: any) { err(`warning: could not remove this run's playbook cache (${runCache}): ${e?.message ?? e}`) }
     }
 
     if (record.status === 'COMPLETE') return EXIT.complete

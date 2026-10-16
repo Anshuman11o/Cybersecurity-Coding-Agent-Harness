@@ -25,6 +25,12 @@ export interface ProposedClass {
   reason: string
 }
 export interface SelectedBuiltin { id: string; reason: string }
+/** A built-in the agent did not select, with the recon evidence it gave for leaving it out. */
+export interface ExcludedBuiltin { id: string; reason: string }
+/** A built-in the agent did not select but kept by code because its recon signals fired. */
+export interface ReconKept { id: string; signals: string[]; files: number }
+/** A built-in left out of the run: the agent's reason, or the code's when no signal routes it and the agent gave none. */
+export interface ExcludedBuiltinRecord { id: string; reason: string; source: 'agent' | 'no-signal' }
 export interface CoverageDecision { reason: string; builtin_classes: SelectedBuiltin[]; classes: ProposedClass[] }
 export interface DecisionChange { id: string; why: string }
 /** One review turn after the initial decision: what the no-drop union added and restored. */
@@ -67,6 +73,10 @@ export interface PlaybookPlan {
   loop: { enabled: boolean; max_passes: number; passes_run: number }
   allowed_domains: string[]
   builtin_classes: SelectedBuiltin[]
+  /** Built-ins the agent did not select whose recon signals fired; included in builtin_classes. */
+  recon_kept: ReconKept[]
+  /** Every other built-in the agent did not select, with the reason it is out of the run. */
+  excluded_builtins: ExcludedBuiltinRecord[]
   /** The run's complete class set: selected built-ins plus additional classes, sorted. */
   selected_classes: string[]
   classes: (ProposedClass & { cache: 'hit' | 'created'; sha256: string })[]
@@ -82,6 +92,8 @@ export interface ClassDecision {
   builtin: string[]
   added: ProposedClass[]
   classes: string[]
+  recon_kept: ReconKept[]
+  excluded_builtins: ExcludedBuiltinRecord[]
   turns: DecisionTurn[]
   loop: PlaybookPlan['loop']
 }
@@ -140,6 +152,9 @@ const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry, turn: 
   builtin_classes: { type: 'array', items: object({
     id: { type: 'string', enum: Object.keys(builtins) }, reason: { type: 'string' },
   }) },
+  excluded_builtins: { type: 'array', items: object({
+    id: { type: 'string', enum: Object.keys(builtins) }, reason: { type: 'string' },
+  }) },
   classes: { type: 'array', items: object({
     id: { type: 'string' }, framework: { type: 'string' }, codes: strings,
     signals: { type: 'array', minItems: 1, items: { type: 'string', enum: Object.keys(signals.signals) } },
@@ -150,8 +165,8 @@ const decisionSchema = (signals: SignalClassMap, builtins: ClassRegistry, turn: 
 const playbookSchema = object({ playbook: { type: 'string' }, source_urls: strings })
 // Decision-call tasks. Each follows the shared input prefix built in runPlaybookAgent.
 const tasks = {
-  coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers.",
-  turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
+  coverage: "Select the built-in classes that apply to this target and decide coverage against the built-ins. Return every applicable built-in class in builtin_classes and every additional class needed for this run in classes, including applicable cached classes. Use web search when you judge the built-in classes do not cover a surface recon shows. Reuse cached identifiers. List every built-in class you do not select in excluded_builtins, with the recon evidence that shows its surface is absent.",
+  turn1: "Decide which vulnerability classes this target needs. For every built-in class excluded go over the recon evidence behind it: platform, languages, frameworks, dependencies, file signals and category verdicts to reconcile your decision if applicable. Use web tool if applicable to find classes beyond built-ins if applicable. Include a class when the target has the kind of surface it covers. Exclude it only when recon shows that surface is absent, and name what shows it. List every built-in class you do not select in excluded_builtins, with the recon evidence that shows its surface is absent. If the target has a surface no built-in class covers, propose an additional class for it using web tool. Do not drop any class already selected.",
   turn2: "Reconsider every class you did not select: each excluded built-in, and any vulnerability family relevant to this platform that is not yet covered that you can use web tooling to search for. For each one, check recon's data again (platform, languages, frameworks, dependencies, file signals, category verdicts and architecture) and decide whether the target has a surface it applies to. Add it if recon supports it or does not rule it out. Do not drop any class already selected. Return the full updated decision in the same schema. If nothing is added, return the decision unchanged.",
   turn3: "Do a final check of the complete class set against recon's data. Confirm that every surface recon describes is covered by at least one selected class, and that each additional class you proposed names a distinct vulnerability family that the built-ins do not already cover. Add any class still missing whether from remaining in built-ins or from the web. Do not drop any class already selected. Return the final decision in the same schema, with a list of anything added and why.",
 }
@@ -267,6 +282,16 @@ function validateDecision(d: any, purpose: string, turn: boolean, o: AgentOption
     }
     builtins.add(b.id)
   }
+  // Optional: a missing or incomplete list is not an error; the recon rule decides unlisted built-ins.
+  if (d.excluded_builtins !== undefined) {
+    if (!Array.isArray(d.excluded_builtins)) throw new Error('Invalid excluded built-in classes')
+    const excluded = new Set<string>()
+    for (const e of d.excluded_builtins) {
+      if (!e || !Object.hasOwn(o.builtins, e.id) || builtins.has(e.id) || excluded.has(e.id) ||
+          typeof e.reason !== 'string' || !e.reason.trim()) throw new Error('Invalid, duplicate or selected excluded built-in class')
+      excluded.add(e.id)
+    }
+  }
   for (const c of d.classes) {
     if (!c || classes.has(c.id) || typeof c.reason !== 'string' || !c.reason.trim()) throw new Error('Invalid or duplicate proposed class')
     validateOverlay({ [c.id]: overlayEntry(c, o.model) }, o.builtins, o.signals)
@@ -285,6 +310,45 @@ function unionDecision(before: CoverageDecision, turn: CoverageDecision): { deci
   const decision = { reason: turn.reason, builtin_classes: [...builtins.values()], classes: [...classes.values()] }
   const had = new Set(classIds(before)), own = new Set(classIds(turn))
   return { decision, added: classIds(decision).filter(id => !had.has(id)), restored: [...had].filter(id => !own.has(id)) }
+}
+
+/** Code-enforced recon rule, applied once to the final union: a built-in the agent did not select is kept
+ *  when a recon signal that routes it fired on some file; otherwise it is excluded with the agent's latest
+ *  reason, or the code's when the agent gave none. A class no signal routes is never kept here. */
+export function applyReconRule(decision: CoverageDecision, exclusions: Map<string, string>,
+  o: Pick<AgentOptions, 'recon' | 'builtins' | 'signals'>): { decision: CoverageDecision; recon_kept: ReconKept[]; excluded: ExcludedBuiltinRecord[] } {
+  const fired = new Map<string, { signals: Set<string>; files: number }>()
+  for (const signals of Object.values(o.recon.file_signals.files)) {
+    const hits = new Map<string, Set<string>>()
+    for (const signal of new Set(signals)) {
+      for (const id of o.signals.signals[signal] ?? []) {
+        if (!hits.has(id)) hits.set(id, new Set())
+        hits.get(id)!.add(signal)
+      }
+    }
+    for (const [id, hit] of hits) {
+      const f = fired.get(id) ?? { signals: new Set<string>(), files: 0 }
+      for (const signal of hit) f.signals.add(signal)
+      f.files++
+      fired.set(id, f)
+    }
+  }
+  const selected = new Set(decision.builtin_classes.map(b => b.id))
+  const kept: SelectedBuiltin[] = [], recon_kept: ReconKept[] = [], excluded: ExcludedBuiltinRecord[] = []
+  for (const id of Object.keys(o.builtins)) {
+    if (selected.has(id)) continue
+    const f = fired.get(id)
+    if (f) {
+      const signals = Object.keys(o.signals.signals).filter(s => f.signals.has(s))
+      recon_kept.push({ id, signals, files: f.files })
+      kept.push({ id, reason: `Kept by recon: signals ${signals.join(', ')} fired on ${f.files} file${f.files === 1 ? '' : 's'}.` })
+    } else if (exclusions.has(id)) {
+      excluded.push({ id, reason: exclusions.get(id)!, source: 'agent' })
+    } else {
+      excluded.push({ id, reason: 'No recon signal routes this class; the agent gave no reason.', source: 'no-signal' })
+    }
+  }
+  return { decision: { ...decision, builtin_classes: [...decision.builtin_classes, ...kept] }, recon_kept, excluded }
 }
 
 /** Shared research/validation/cache path. Review retries whole attempts and disables revisions. */
@@ -420,12 +484,15 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   const schemas = { coverage: decisionSchema(o.signals, o.builtins, false), turn: decisionSchema(o.signals, o.builtins, true) }
   const searches = { queries: [] as string[], source_urls: [] as string[] }
   let decision!: CoverageDecision
+  const exclusions = new Map<string, string>()
   const decide = async (purpose: string, task: string, turn: boolean) => {
     const extra = turn ? { current_decision: decision, searches_so_far: searches } : {}
     const { text, trace } = await call(purpose, JSON.stringify({ ...base, task, ...extra }), turn ? schemas.turn : schemas.coverage, 'decision')
     const value = JSON.parse(text)
     for (const key of ['queries', 'source_urls'] as const) for (const s of trace[key]) if (!searches[key].includes(s)) searches[key].push(s)
     validateDecision(value, purpose, turn, o)
+    // The latest reason given for each excluded id stands.
+    for (const e of value.excluded_builtins ?? []) exclusions.set(e.id, e.reason)
     return { value, trace }
   }
   const turns: DecisionTurn[] = []
@@ -452,13 +519,18 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     decision = (await review('turn3', tasks.turn3)).decision
   }
 
+  const ruled = applyReconRule(decision, exclusions, o)
+  decision = ruled.decision
+  const { recon_kept } = ruled, excluded_builtins = ruled.excluded
+  o.log?.(`[playbook-agent] recon kept ${recon_kept.length} built-in(s): ${recon_kept.map(k => k.id).join(', ') || '-'}; ` +
+    `excluded ${excluded_builtins.length}: ${excluded_builtins.map(e => `${e.id} (${e.source})`).join(', ') || '-'}`)
   const selected = [...new Set(classIds(decision))].sort()
   const loopRecord = { enabled: loop.enabled, max_passes: loop.maxPasses, passes_run: passes }
   // Persist the finished decision before any research call can fail the stage.
   o.recordDecision({
     schema: 'secscan.class-decision/1', created_at: new Date().toISOString(), model: o.model,
     builtin: decision.builtin_classes.map(b => b.id).sort(), added: decision.classes, classes: selected,
-    turns, loop: loopRecord,
+    recon_kept, excluded_builtins, turns, loop: loopRecord,
   })
   const overlay: ClassesOverlay = {}
   const plan: PlaybookPlan = {
@@ -467,6 +539,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
     loop: loopRecord,
     allowed_domains: allowedDomains,
     builtin_classes: decision.builtin_classes,
+    recon_kept, excluded_builtins,
     selected_classes: selected,
     classes: [], playbooks: builtinRecords,
   }
@@ -490,6 +563,7 @@ export async function runPlaybookAgent(o: AgentOptions): Promise<{ plan: Playboo
   const selection: ClassSelection = {
     schema: 'secscan.class-selection/1', created_at: plan.created_at, model: o.model,
     builtin: decision.builtin_classes.map(b => b.id).sort(), added: Object.keys(overlay).sort(), classes: plan.selected_classes,
+    recon_kept: recon_kept.map(k => k.id).sort(),
   }
   validateClassSelection(selection, o.builtins, overlay)
   return { plan, overlay, selection }

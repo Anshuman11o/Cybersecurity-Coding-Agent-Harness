@@ -24,6 +24,9 @@ export interface ClassSelection {
   builtin: string[]
   added: string[]
   classes: string[]
+  /** Built-ins kept by code because their recon signals fired (a subset of builtin). Stage 0.5 routes these
+   *  only through their signals and never spreads them to every lane as unrouted. Absent in older runs. */
+  recon_kept?: string[]
 }
 
 export function assertSlug(value: string, label: string): void {
@@ -84,6 +87,9 @@ export function validateClassSelection(sel: ClassSelection, builtins: ClassRegis
   const all = [...sel.builtin, ...sel.added]
   if (new Set(all).size !== all.length) throw new Error('Duplicate class in selection')
   if (JSON.stringify(sel.classes) !== JSON.stringify([...all].sort())) throw new Error('Selection classes must be the sorted union of builtin and added')
+  if (sel.recon_kept !== undefined && (!Array.isArray(sel.recon_kept) || sel.recon_kept.some(id => !sel.builtin.includes(id)))) {
+    throw new Error('Recon-kept classes must be selected built-ins')
+  }
 }
 
 export function readClassSelection(provider: Provider): ClassSelection | null {

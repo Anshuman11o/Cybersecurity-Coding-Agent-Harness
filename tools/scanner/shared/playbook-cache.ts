@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { reportsRoot, type RunContext } from './run-context.js'
+import { getRunContext, type RunContext } from './run-context.js'
 import { assertSlug, validateOverlay, type ClassRegistry, type ClassesOverlay, type OverlayEntry, type SignalClassMap } from './playbook-overlay.js'
 
 export interface PlaybookMeta extends OverlayEntry {
@@ -32,7 +32,11 @@ export interface PlaybookRecord {
 
 export const textHash = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-export function cacheRoot(ctx?: RunContext): string { return join(reportsRoot(ctx), 'playbooks') }
+/**
+ * Run-scoped: <runsRoot>/playbooks, so no run inherits another run's agent
+ * playbooks. A resumed run (same run id) finds its own entries again.
+ */
+export function cacheRoot(ctx: RunContext = getRunContext()): string { return join(ctx.runsRoot, 'playbooks') }
 
 function modelSegment(model: string): string {
   if (!model.trim() || model === '.' || model === '..') throw new Error('Invalid cache model')

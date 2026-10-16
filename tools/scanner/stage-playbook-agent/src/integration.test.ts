@@ -174,24 +174,50 @@ test('Stage 2 loads overlay text into the hunt prompt and records sources/hashes
   assert.deepEqual(readRunPlaybooks(huntDir, f.agentDir), [records[1]])
 })
 
-test('reports cache is shared across product runs, while artifacts stay run-scoped', t => {
+test('playbook cache is run-scoped: each product run id has its own, a resume finds the same one', t => {
   const f = fixture(t)
-  const next = resolveRunContext({ ...f.env, SCANNER_RUN_ID: 'next', SCANNER_RUNS_ROOT: undefined }, [])
-  assert.equal(cacheRoot(next), join(f.target, '.secscan/playbooks'))
-  assert.equal(cacheRoot(next), f.cache)
-  assert.notEqual(next.runsRoot, f.ctx.runsRoot)
+  const base = { ...f.env, SCANNER_RUNS_ROOT: undefined }
+  const first = resolveRunContext({ ...base, SCANNER_RUN_ID: 'first' }, [])
+  const next = resolveRunContext({ ...base, SCANNER_RUN_ID: 'next' }, [])
+  assert.equal(cacheRoot(first), join(f.target, '.secscan/runs/first/playbooks'))
+  assert.equal(cacheRoot(next), join(f.target, '.secscan/runs/next/playbooks'))
+  assert.notEqual(cacheRoot(first), cacheRoot(next))
+  assert.notEqual(cacheRoot(next), join(f.target, '.secscan/playbooks'), 'never the reports folder shared by every run')
+  const resumed = resolveRunContext({ ...base, SCANNER_RUN_ID: 'first', SCANNER_RESUME: '1' }, [])
+  assert.equal(resumed.resume, true)
+  assert.equal(cacheRoot(resumed), cacheRoot(first))
+  // An artifact-root override carries the cache with it.
+  assert.equal(f.cache, join(f.ctx.runsRoot, 'playbooks'))
   assert.ok(existsSync(join(f.cache, id, 'generic', 'test%2Fmodel', 'meta.json')))
 })
 
-test('custom reports root owns the playbook cache across runs and artifact-root overrides', t => {
+test('custom reports root places the playbook cache under runs/<run-id>/playbooks', t => {
   const f = fixture(t)
   const reports = join(f.root, 'custom-reports')
-  const first = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports }, [])
+  const first = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports, SCANNER_RUN_ID: 'first', SCANNER_RUNS_ROOT: undefined }, [])
   const next = resolveRunContext({ ...f.env, SCANNER_REPORTS_ROOT: reports, SCANNER_RUN_ID: 'next', SCANNER_RUNS_ROOT: undefined }, [])
-  assert.equal(cacheRoot(first), join(reports, 'playbooks'))
-  assert.equal(cacheRoot(next), cacheRoot(first))
+  assert.equal(cacheRoot(first), join(reports, 'runs/first/playbooks'))
+  assert.equal(cacheRoot(next), join(reports, 'runs/next/playbooks'))
+  assert.notEqual(cacheRoot(first), cacheRoot(next))
   assert.equal(next.runsRoot, join(reports, 'runs/next'))
-  assert.notEqual(first.runsRoot, next.runsRoot)
+})
+
+test('stage entrypoint clears a pre-existing playbook cache unless the run is resumed', t => {
+  const f = fixture(t)
+  const entry = join(f.cache, id, 'generic', 'test%2Fmodel', 'meta.json')
+  const script = join(f.root, 'stage.mts')
+  writeFileSync(script, `
+    import { main } from ${JSON.stringify(join(scanner, 'stage-playbook-agent/src/main.ts'))};
+    await main(async () => { throw new Error('mock request failure') });
+  `)
+  // Resumed: the run's own entries survive for the stages that read them back.
+  assert.ok(existsSync(entry), 'the fixture wrote a synthetic cache entry')
+  assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_RESUME: '1' }, stdio: 'pipe' }), /mock request failure/)
+  assert.ok(existsSync(entry), 'a resumed run keeps its cache')
+  assert.equal(readFileSync(join(f.cache, id, 'generic', 'test%2Fmodel', 'playbook.md'), 'utf8'), text)
+  // New: the stage starts with an empty cache before any model call.
+  assert.throws(() => execFileSync(tsx, [script], { env: { ...f.env, SCANNER_RESUME: undefined }, stdio: 'pipe' }), /mock request failure/)
+  assert.ok(!existsSync(f.cache), 'a new run starts with an empty cache')
 })
 
 test('recon input uses only the dependency section of the existing repo map', t => {
@@ -346,13 +372,15 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
     });
   `)
   const log = execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }).toString()
-  assert.match(log, /Playbook agent: 3 class\(es\) selected \(2 built-in, 1 additional\); turns=3; searches=1/)
+  // deserialize fired on worker.ts: the recon rule keeps resource-consumption, which the agent left out.
+  assert.match(log, /Playbook agent: 4 class\(es\) selected \(3 built-in, 1 additional\); turns=3; searches=1/)
+  assert.match(log, /^\[playbook-agent\] recon kept 1 built-in\(s\): resource-consumption; excluded 11: /m)
   const labels = new SpendLedger(ledgerPathFor(f.ctx.runsRoot, provider)).list().map(e => e.label)
   assert.deepEqual(labels, ['coverage', 'turn1', 'turn2:pass1', 'turn3', `research:${id}`])
   const selection = JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8'))
   const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
-  assert.deepEqual(selection.classes, ['injection', 'integrity-failures', id])
-  assert.deepEqual(selection.builtin, ['injection', 'integrity-failures'])
+  assert.deepEqual(selection.classes, ['injection', 'integrity-failures', 'resource-consumption', id])
+  assert.deepEqual(selection.builtin, ['injection', 'integrity-failures', 'resource-consumption'])
   assert.deepEqual(selection.added, [id])
   assert.deepEqual(plan.selected_classes, selection.classes)
   const researched = plan.playbooks.find((p: any) => p.class_id === id)
@@ -367,7 +395,11 @@ test('stage entrypoint writes the class selection: union of selected built-ins a
   assert.deepEqual(decision.added.map((c: any) => c.id), selection.added)
   assert.deepEqual(decision.turns, plan.turns)
   assert.deepEqual(decision.loop, plan.loop)
-  assert.match(log, /^\[playbook-agent\] decision saved: 3 classes \(2 built-in, 1 additional\)$/m)
+  assert.deepEqual(decision.recon_kept, [{ id: 'resource-consumption', signals: ['deserialize'], files: 1 }])
+  assert.deepEqual(plan.recon_kept, decision.recon_kept)
+  assert.deepEqual(plan.excluded_builtins, decision.excluded_builtins)
+  assert.ok(decision.excluded_builtins.every((e: any) => e.source === 'no-signal'))
+  assert.match(log, /^\[playbook-agent\] decision saved: 4 classes \(3 built-in, 1 additional\)$/m)
   assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} completed in=100 out=20 searches=1 bytes=\\d+ unverified=0$`, 'm'))
   assert.ok(log.indexOf('decision saved') < log.indexOf(`research:${id}`), 'the decision is saved before research')
   assert.ok(!existsSync(join(f.agentDir, 'research-failures')))
@@ -406,8 +438,8 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   const log = failure.stdout.toString()
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 1)
   const decision = JSON.parse(readFileSync(join(f.agentDir, 'class-decision.json'), 'utf8'))
-  assert.deepEqual(decision.classes, ['injection', id])
-  assert.deepEqual(decision.builtin, ['injection'])
+  assert.deepEqual(decision.classes, ['injection', 'integrity-failures', 'resource-consumption', id])
+  assert.deepEqual(decision.builtin, ['injection', 'integrity-failures', 'resource-consumption'])
   assert.deepEqual(decision.added, [{ id, framework: 'example-queue', codes: ['CWE-362'], signals: ['deserialize'], reason: 'Replay.' }])
   assert.deepEqual(decision.loop, { enabled: true, max_passes: 3, passes_run: 1 })
   for (const file of ['playbook-plan.json', 'classes-overlay.json', CLASS_SELECTION_FILE]) assert.ok(!existsSync(join(f.agentDir, file)), file)
@@ -422,7 +454,7 @@ test('stage entrypoint: a failed research call keeps the decision and a debug re
   assert.deepEqual(record.size_bounds, [1500, 8000])
   assert.deepEqual(record.search_source_urls, ['https://example.test/worker-security'])
   assert.equal(record.reasoning_tokens, 7)
-  assert.match(log, /^\[playbook-agent\] decision saved: 2 classes \(1 built-in, 1 additional\)$/m)
+  assert.match(log, /^\[playbook-agent\] decision saved: 4 classes \(3 built-in, 1 additional\)$/m)
   assert.match(log, new RegExp(`^\\[playbook-agent\\] research:${id} completed in=100 out=20 searches=1 bytes=${record.byte_size} unverified=0$`, 'm'))
   // Both revisions return the same oversized playbook; the record is the last attempt's and lists every attempt.
   for (const n of [1, 2]) {
@@ -472,14 +504,14 @@ test('stage entrypoint: additional-class codes outside the strict format complet
     });
   `)
   const log = execFileSync(tsx, [script], { env: f.env, stdio: 'pipe' }).toString()
-  assert.match(log, /Playbook agent: 2 class\(es\) selected \(1 built-in, 1 additional\)/)
+  assert.match(log, /Playbook agent: 4 class\(es\) selected \(3 built-in, 1 additional\)/)
   assert.equal(JSON.parse(readFileSync(join(f.agentDir, 'meta.json'), 'utf8')).exit_code, 0)
   const overlay = JSON.parse(readFileSync(join(f.agentDir, 'classes-overlay.json'), 'utf8'))
   const selection = JSON.parse(readFileSync(join(f.agentDir, CLASS_SELECTION_FILE), 'utf8'))
   assert.deepEqual(Object.keys(overlay), [added])
   assert.deepEqual(overlay[added].codes, codes)
   assert.deepEqual(selection.added, [added])
-  assert.deepEqual(selection.classes, ['injection', added])
+  assert.deepEqual(selection.classes, ['injection', 'integrity-failures', added, 'resource-consumption'])
   const meta = JSON.parse(readFileSync(join(f.cache, added, 'generic', encodeURIComponent(overlay[added].model), 'meta.json'), 'utf8'))
   assert.deepEqual(meta.codes, codes)
 })
@@ -550,7 +582,8 @@ test('stage entrypoint: loop off makes one decision call; an invalid pass count 
     }));
   `)
   const log = execFileSync(tsx, [script], { env: { ...f.env, SCANNER_PLAYBOOK_LOOP: '0' }, stdio: 'pipe' }).toString()
-  assert.match(log, /Playbook agent: 1 class\(es\) selected \(1 built-in, 0 additional\); turns=0; searches=0/)
+  // With the loop off the recon rule still runs: deserialize keeps integrity-failures and resource-consumption.
+  assert.match(log, /Playbook agent: 3 class\(es\) selected \(3 built-in, 0 additional\); turns=0; searches=0/)
   const plan = JSON.parse(readFileSync(join(f.agentDir, 'playbook-plan.json'), 'utf8'))
   assert.deepEqual(plan.loop, { enabled: false, max_passes: 3, passes_run: 0 })
   assert.deepEqual(plan.turns, [])
