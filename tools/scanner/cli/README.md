@@ -6,8 +6,8 @@ recon, planning and the per-file hunt. The product default is **GPT-6 Luna**
 GPT-6 Luna is labelled unmeasured; its initial estimate calibration is borrowed
 from the existing Luna calibration, not a measurement of this model.
 
-This is a local npm package in this checkout. Install the scanner packages
-first, then use its local command:
+In this checkout, install the scanner packages first, then use the local
+command:
 
 ```bash
 cd tools/scanner
@@ -16,9 +16,22 @@ cd cli
 npx --no-install secscan scan /path/to/my-app
 ```
 
-`npm run secscan -- scan /path/to/my-app` is equivalent. No published npm
-package is required. Scans bill the account whose key you supply. `help` and
-`models` make no model calls.
+`npm run secscan -- scan /path/to/my-app` is equivalent. Scans bill the
+account whose key you supply. `help` and `models` make no model calls.
+
+The same CLI ships as the npm package `@anshuman11o/secscan`
+(`npx @anshuman11o/secscan`, or `npm install -g @anshuman11o/secscan`), built
+from `tools/scanner/package/`, whose README is the user-facing guide. The CLI
+starts each stage itself as a Node process (`src/stages.ts`): from source
+through `tsx`, from the package as transpiled `.js`. It no longer goes through
+`run.sh`, which is unchanged and remains the lab's entry point.
+
+`secscan help` lists every command and option group, and `secscan help
+<command>` (or `secscan <command> --help`) shows one command. The help text
+and the package README's command guide are both rendered from one definition
+in `src/args.ts`. After changing a command or a flag, run
+`npx tsx src/help-doc.ts --write`; `help.test.ts` fails while the README's
+guide is stale.
 
 ## Round-1 inputs
 
@@ -318,8 +331,9 @@ The config may select a model but cannot name an endpoint, credential
 variable or overlay. Automated fresh runs must supply the budget flag even
 if the config includes a cap.
 
-Help groups `--model`, `--models-file`, `--base-url`, `--api-key-env` and
-`--price` under **Lab options**. Overlays add OpenAI-compatible targets
+Help lists `--model`, `--models-file`, `--base-url`, `--api-key-env` and
+`--price` under **Model**; `secscan models` takes them too, so an overlay or a
+custom endpoint shows up in its listing. Overlays add OpenAI-compatible targets
 without replacing shipped entries. A custom endpoint uses the registry's
 generic credential variable unless `--api-key-env` overrides it, and needs
 `--price` for budgeted runs. Models, endpoints, credential variable names,

@@ -1,0 +1,11 @@
+{
+  "name": "secscan-release",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Harness-side release tooling for the secscan npm package: product export and leak guard (Task 1e). Never exported.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test leak-guard.test.mjs build.test.mjs export-product.test.mjs"
+  }
+}

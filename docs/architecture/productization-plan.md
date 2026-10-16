@@ -547,3 +547,35 @@ and output changes), and the Part 3 rows listed here are run after it merges.
 | 1e · Packaging | §2.11 | End to end, release bar |
 
 The work spec for each task is saved in `prompts/dispatch/` before it is built.
+
+---
+
+## Decision log
+
+Changes to this plan after it was written, oldest first. The sections above are
+left as they were; where one disagrees with an entry here, the entry wins.
+
+### 2026-10-16 · Task 1e packaging
+
+Decided with the owner. The design is in `npm-packaging-plan.md`. It changes
+§1.2, §2.11 and the Task 1e row of Part 5:
+
+- **Name.** The package is `@anshuman11o/secscan`, because the unscoped
+  `secscan` on npm belongs to an unrelated 2022 package. The command stays
+  `secscan`, so §1.2's `npx secscan` becomes `npx @anshuman11o/secscan`.
+- **A separate product repo.** Source, build and README ship from a new public
+  repo, `github.com/anshuman11o/secscan`, which is also the link handed to
+  users. This harness stays the source of truth: code flows one way through an
+  allowlisted export with a leak guard, and fixes land here first.
+- **Transpile, don't bundle.** §2.11's tsup/esbuild bundle becomes a per-file
+  esbuild transpile that keeps the `tools/scanner/` layout under `dist/`. The
+  existing path resolution, the per-module entry guards and the playbook text
+  read as data all keep working unchanged.
+- **A CLI launcher without bash.** The CLI starts each stage as a Node process
+  instead of through `bash run.sh`, so it runs on Windows and can be published.
+  `run.sh` is unchanged and stays the lab's entry point.
+- **Manual publish.** The owner publishes with `npm publish --access public`
+  and 2FA. Nothing publishes automatically.
+- **Smoke-only release gate.** `0.1.0` ships as a preview, gated on manual
+  smoke tests, the owner's end-to-end run and a README review, not on the
+  release bar (§3.1). The README states the release-bar status instead.
