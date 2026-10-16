@@ -235,7 +235,7 @@ test('product default model comes from registry and explicit lab model still res
   assert.equal(registry.info(registry.defaultKey()).isDefault, true)
   const explicit = parseArgs(['--model', 'luna']) as ScanArgs
   assert.equal(registry.info(explicit.model!).key, 'luna')
-  assert.match(usage('CUSTOM_VAR'), /Lab options:\n  --model/)
+  assert.match(usage('CUSTOM_VAR'), /Model:\n  --model/)
 })
 
 test('estimate screen includes total, input, output, and the calibrated band', () => {

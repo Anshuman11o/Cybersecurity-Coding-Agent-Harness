@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.tgz
+# A copy of the repository's LICENSE, made by build.mjs. The product
+# repository commits it at its root instead.
+LICENSE

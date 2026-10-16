@@ -84,6 +84,13 @@ export interface ModelTarget {
    */
   transport?: 'openai' | 'claude-cli'
   /**
+   * A lab instrument rather than a model a user would pick: an experiment arm
+   * or a lab transport. `secscan models` hides it unless `--all`, and the npm
+   * package build (tools/scanner/package/build.mjs) drops it from the shipped
+   * registry. The lab, run.sh and the benchmark resolve it exactly as before.
+   */
+  lab_only?: boolean
+  /**
    * Sampling params to send. Empty for models that reject non-defaults.
    *
    * Values may be numbers or strings: the GPT-5.x family takes
@@ -276,6 +283,9 @@ function validateTarget(key: string, t: ModelTarget, where: string): void {
       `${where}: target "${key}" has transport "${t.transport}"; ` +
         `expected "openai" or "claude-cli"`,
     )
+  }
+  if (t.lab_only != null && typeof t.lab_only !== 'boolean') {
+    throw new Error(`${where}: target "${key}" has lab_only "${t.lab_only}"; expected true or false`)
   }
   if (t.max_output_tokens != null &&
       (!Number.isInteger(t.max_output_tokens) || t.max_output_tokens <= 0)) {
