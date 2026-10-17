@@ -8,7 +8,7 @@ import {
   type CommandName, type OptionDef,
 } from './args.js'
 import { DEFAULT_README, GUIDE_END, GUIDE_START, guideBlock, renderCommandGuide, replaceGuide } from './help-doc.js'
-import { genericNames } from './registry.js'
+import { cliMode, cliModeFor, genericNames, shippedCliMode } from './registry.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const KEY = genericNames().api_key_env_default
@@ -127,4 +127,33 @@ test('help fits 80 columns and the guide is plain Markdown without em dashes', (
   const outsideCode = guide.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '')
   assert.doesNotMatch(outsideCode, /(?<!\\)</, 'a bare < would render as an HTML tag')
   assert.doesNotMatch(outsideCode, /<\/?[a-z][^>]*>/i, 'no HTML in the guide')
+})
+
+// ── One fixed model (the npm package) ───────────────────────────────────────
+
+test('cliModeFor: one target and no custom endpoint means one fixed model', () => {
+  const one = { targets: { m: { label: 'Model M', api_key_env: 'M_KEY' } } }
+  assert.deepEqual(cliModeFor(one), { modelChoice: false, model: { label: 'Model M', apiKeyEnv: 'M_KEY' } })
+  assert.deepEqual(cliModeFor({ ...one, generic_openai_compatible: {} }), { modelChoice: true })
+  assert.deepEqual(cliModeFor({ targets: { ...one.targets, n: { label: 'N', api_key_env: 'N_KEY' } } }), { modelChoice: true })
+  // From the harness's full registry, asShipped answers for the package.
+  const shipped = shippedCliMode()
+  assert.equal(shipped.modelChoice, false)
+  assert.ok(shipped.model?.label && shipped.model.apiKeyEnv)
+  assert.equal(cliMode().modelChoice, true, 'the harness keeps its model choice')
+})
+
+test('one fixed model: no models command, no model options, help names the model', () => {
+  const mode = { modelChoice: false, model: { label: 'Model M', apiKeyEnv: 'M_KEY' } }
+  for (const argv of [['models'], ['scan', '--model', 'x'], ['--base-url', 'http://x'], ['--models-file', 'f.json'], ['help', 'models']]) {
+    assert.throws(() => parseArgs(argv, mode), UsageError, argv.join(' '))
+  }
+  assert.equal(parseArgs(['scan', '.', '--budget', '2'], mode).command, 'scan')
+  const text = usage(KEY, undefined, mode)
+  assert.doesNotMatch(text, /--model|--base-url|--models-file|secscan models|^Model:/m)
+  assert.match(text, /Model M/)
+  assert.match(text, /M_KEY/)
+  assert.throws(() => usage(KEY, 'models', mode), UsageError)
+  const guide = renderCommandGuide(KEY, mode)
+  assert.doesNotMatch(guide, /--model|secscan models/)
 })

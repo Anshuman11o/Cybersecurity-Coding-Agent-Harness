@@ -36,7 +36,7 @@ The goal is one link the owner can hand to a developer. From it, the developer c
 | Source of truth | This harness. Code flows one way, harness → product repo, through an allowlisted export with a leak guard. Fixes land here first. |
 | Hand-off link | `github.com/anshuman11o/secscan`. The npm page renders the same README file. |
 | Orientation | The product README plus a grouped `secscan --help`. The README's command guide is generated from the same definition as `--help`, and a test fails if they drift. |
-| Models shipped | Product subset; default `luna6` (unmeasured). Entries marked `lab_only` in `shared/models.json` (`sonnet5cli`, `luna-fixed`) are dropped from the package. Re-checked against main at each export. |
+| Models shipped | **One fixed model, GPT-6 Luna (`luna6`)**, owner decision 2026-10-17. `shared/models.json` `product_models` lists what ships; the build drops every other target and the custom-endpoint template. The packaged CLI then has no `models` command and no `--model`, `--base-url`, `--api-key-env`, `--price` or `--models-file` (cli/src/registry.ts `cliMode()`); the harness keeps full model choice. (Superseded: the first cut shipped 11 models minus `lab_only`.) |
 | Publishing | Manual `npm publish --access public` by the owner, with 2FA |
 | Release gate | Smoke tests only, run manually by the owner. The owner also does an end-to-end test and a README review before handing the link to anyone. |
 

@@ -79,6 +79,25 @@ export const PRODUCT_URL = 'https://github.com/anshuman11o/secscan'
 export type CommandName = 'scan' | 'models' | 'report' | 'help' | 'version'
 export const COMMAND_NAMES: readonly CommandName[] = ['scan', 'models', 'report', 'help', 'version']
 
+/**
+ * Whether this install lets the user choose a model. The npm package ships one
+ * fixed model (models.json `product_models`), so it has no `models` command and
+ * no Model options; the harness registry offers many. Decided from the registry
+ * on disk by registry.ts cliMode(); `model` names the fixed one for the help.
+ */
+export interface CliMode {
+  modelChoice: boolean
+  model?: { label: string; apiKeyEnv: string }
+}
+export const FULL_MODE: CliMode = { modelChoice: true }
+
+/** The commands this install has. */
+export const commandNames = (mode: CliMode = FULL_MODE): readonly CommandName[] =>
+  mode.modelChoice ? COMMAND_NAMES : COMMAND_NAMES.filter(c => c !== 'models')
+
+/** Spellings that only exist where a model can be chosen. */
+const MODEL_FLAGS = new Set(['--model', '--base-url', '--api-key-env', '--price', '--models-file', '--all'])
+
 export interface OptionDef {
   /** The spelling help shows: '--budget'. */
   name: string
@@ -143,7 +162,21 @@ const SCAN: readonly CommandName[] = ['scan']
 const SCAN_MODELS: readonly CommandName[] = ['scan', 'models']
 const SCAN_REPORT: readonly CommandName[] = ['scan', 'report']
 
-export function cliDefinition(customKeyDefault: string): CliDefinition {
+export function cliDefinition(customKeyDefault: string, mode: CliMode = FULL_MODE): CliDefinition {
+  const def = fullDefinition(customKeyDefault)
+  if (mode.modelChoice) return def
+  const m = mode.model
+  return {
+    ...def,
+    quickstartNote: m
+      ? `Needs Node 20 or later and your API key for ${m.label} in \`${m.apiKeyEnv}\`.`
+      : 'Needs Node 20 or later and the model\'s API key in your environment.',
+    commands: def.commands.filter(c => c.name !== 'models'),
+    groups: def.groups.filter(g => g.title !== 'Model'),
+  }
+}
+
+function fullDefinition(customKeyDefault: string): CliDefinition {
   return {
     description: [
       'secscan finds security vulnerabilities in your code with your own AI API key.',
@@ -409,8 +442,8 @@ function footer(topic?: CommandName): string[] {
  * and the options it takes. The custom endpoint's default key variable is
  * registry data, so it is passed in.
  */
-export function usage(customKeyDefault: string, topic?: CommandName): string {
-  const def = cliDefinition(customKeyDefault)
+export function usage(customKeyDefault: string, topic?: CommandName, mode: CliMode = FULL_MODE): string {
+  const def = cliDefinition(customKeyDefault, mode)
   if (topic) {
     const cmd = def.commands.find(c => c.name === topic)
     if (!cmd) throw new UsageError(`unknown help topic "${topic}"`)
@@ -453,21 +486,22 @@ export function usage(customKeyDefault: string, topic?: CommandName): string {
 
 const HELP_FLAGS = new Set(['--help', '-h'])
 
-function helpTopic(word: string): CommandName {
-  if ((COMMAND_NAMES as readonly string[]).includes(word)) return word as CommandName
-  throw new UsageError(`unknown help topic "${word}"; try one of: ${COMMAND_NAMES.join(', ')}`)
+function helpTopic(word: string, mode: CliMode): CommandName {
+  const names = commandNames(mode)
+  if ((names as readonly string[]).includes(word)) return word as CommandName
+  throw new UsageError(`unknown help topic "${word}"; try one of: ${names.join(', ')}`)
 }
 
-export function parseArgs(argv: readonly string[]): Args {
+export function parseArgs(argv: readonly string[], mode: CliMode = FULL_MODE): Args {
   const args = [...argv]
   const first = args[0]
   if (first === 'help' || (first !== undefined && HELP_FLAGS.has(first))) {
     const rest = args.slice(1).filter(a => !HELP_FLAGS.has(a))
     if (rest.length > 1) throw new UsageError(`help takes one command, got ${rest.join(' ')}`)
-    return rest.length ? { command: 'help', topic: helpTopic(rest[0]) } : { command: 'help' }
+    return rest.length ? { command: 'help', topic: helpTopic(rest[0], mode) } : { command: 'help' }
   }
   if (first === '--version') return { command: 'version' }
-  if (first !== undefined && !first.startsWith('-') && !(COMMAND_NAMES as readonly string[]).includes(first)) throw new UsageError(`unknown command "${first}"`)
+  if (first !== undefined && !first.startsWith('-') && !(commandNames(mode) as readonly string[]).includes(first)) throw new UsageError(`unknown command "${first}"`)
   // `secscan scan --help`: that command's help, whatever else the line holds.
   if (args.some(a => HELP_FLAGS.has(a))) {
     return first !== undefined && !first.startsWith('-') ? { command: 'help', topic: first as CommandName } : { command: 'help' }
@@ -510,6 +544,8 @@ export function parseArgs(argv: readonly string[]): Args {
     const wrap = <T>(f: () => T): T => {
       try { return f() } catch (err: any) { throw new UsageError(err?.message ?? String(err)) }
     }
+    // One fixed model: the model flags do not exist here, rather than being ignored.
+    if (!mode.modelChoice && MODEL_FLAGS.has(a)) throw new UsageError(`unknown option "${a}"`)
     switch (a) {
       case '--model': model.model = value(); break
       case '--base-url': model.baseUrl = value(); break

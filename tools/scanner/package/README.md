@@ -1,8 +1,8 @@
 # secscan
 
-secscan is a command-line security scanner that uses an AI model to find vulnerabilities in your source code. It reads your repository, picks the OWASP vulnerability classes that fit it, has the model trace each file for exploitable flaws, and writes an HTML report plus a JSON file of findings. It runs on your machine with your own model API key: you pay your model provider directly, and the scan stops at the budget you set.
+secscan is a command-line security scanner that uses an AI model to find vulnerabilities in your source code. It reads your repository, picks the OWASP vulnerability classes that fit it, has the model trace each file for exploitable flaws, and writes an HTML report plus a JSON file of findings. It runs on your machine with your own OpenAI API key: you pay OpenAI directly, and the scan stops at the budget you set.
 
-> **Preview (0.1.0).** This is an early release. The bar for a full release is localization of 85% or more on every private test repository, on the default model, and it has not been met yet. The default model is unmeasured. Treat findings as leads for a human to check, not as a verdict.
+> **Preview (0.1.0).** This is an early release. The bar for a full release is localization of 85% or more on every private test repository, on its model, GPT-6 Luna, and it has not been met yet. Treat findings as leads for a human to check, not as a verdict.
 
 ## What it finds
 
@@ -27,7 +27,7 @@ secscan hunts the classes below. A class selection step decides from recon's vie
 
 `A` codes are the OWASP Top 10, `API` codes the OWASP API Security Top 10, and `LLM` codes the OWASP Top 10 for LLM Applications.
 
-**Recon-guided classes.** When recon finds a platform or framework these classes do not cover, the class selection step can add a class for it. It researches the class with the model provider's web search tool and writes hunting guidance for this run. Added classes appear on the plan screen with the built-in ones, and you can drop any of them.
+**Recon-guided classes.** When recon finds a platform or framework these classes do not cover, the class selection step can add a class for it. It researches the class with OpenAI's web search tool and writes hunting guidance for this run. Added classes appear on the plan screen with the built-in ones, and you can drop any of them.
 
 **What it does not do:**
 
@@ -39,7 +39,7 @@ secscan hunts the classes below. A class selection step decides from recon's vie
 
 ## Quickstart
 
-You need **Node.js 20 or later** and an **API key** for the model you use. The default model, GPT-6 Luna, reads `OPENAI_API_KEY`.
+You need **Node.js 20 or later** and an **OpenAI API key**. secscan runs on GPT-6 Luna and reads the key from `OPENAI_API_KEY`.
 
 ```sh
 export OPENAI_API_KEY=sk-...
@@ -72,35 +72,15 @@ What happens next:
 
 For CI or scripts, skip the prompts with `--yes`, which requires an explicit budget: `secscan scan . --yes --budget 5`.
 
-## Cost and models
+## Model and cost
 
-secscan is bring-your-own-key. It has no account and no server, and the model provider bills the key you supply. `secscan help` and `secscan models` make no model calls.
+secscan uses one model: **GPT-6 Luna** from OpenAI, with your `OPENAI_API_KEY`. There is nothing to choose or configure. It is bring-your-own-key: secscan has no account and no server, and OpenAI bills the key you supply.
 
-`secscan models` lists the models this release ships: the key you pass to `--model`, the provider's model id, the price per million input and output tokens with the date it was checked, whether the model is measured, and whether its API key variable is set. The default is marked `*`.
+- **Price:** $0.10 per million input tokens and $0.50 per million output tokens (OpenAI's list price, checked 2026-10-12), plus OpenAI's web search fee when class selection researches a class.
+- **Before you spend:** the plan screen shows the cost estimate for your repository, with an accuracy band, before the hunt starts. Recon and class selection have already spent a little by then (usually cents), and that is included in the total. The scan never goes past the budget you set.
+- **No-cost commands:** `secscan help`, `secscan version` and `secscan report` make no model calls.
 
-- **Measured** means the research harness scored that model on its benchmark: OWASP Juice Shop, a TypeScript application, against 97 known vulnerabilities held in a private answer key.
-- **Unmeasured** means everything else: the default model, GPT-6 Luna, every model you add with `--models-file`, and every `--base-url` endpoint.
-
-For reference, the measured results on Juice Shop. Recall counts a known vulnerability as found when a finding names the right file, the exact line and the right class; localization allows 15 lines either side.
-
-| Model (`--model`) | Recall | Localization | Cost | Wall clock |
-|---|---|---|---|---|
-| `luna` (GPT-5.6 Luna) | 71.1% | 88.7% | $4.37 | 13m04s |
-| `glm52` (GLM-5.2) | 67.0% | 85.6% | $17.01 | about 18.5 min |
-| `gemini36flash` (Gemini 3.6 Flash) | 58.8% | 75.3% | $24.85 | 32m12s |
-
-These numbers come from the research pipeline in August 2026, before this CLI and its class selection step existed, on 541 hunted files out of 865. They describe the approach and those models, not this release, and not your code. Early runs of the default model through secscan on other public test repositories are recorded in the research harness and are below the release bar.
-
-The plan screen shows the cost estimate for your repository, with an accuracy band, before the hunt starts. Recon and class selection have already spent a little by then, and that spend is included in the total.
-
-**Your own endpoint.** Any OpenAI-compatible endpoint can stand in for a shipped model:
-
-```sh
-export SCANNER_CUSTOM_API_KEY=...
-secscan scan . --base-url https://llm.example.com/v1 --model <model-id> --price 0.5/1.5
-```
-
-`--price` is USD per million input/output tokens, and a budget needs it. `--api-key-env` names a different variable for the key. Class selection calls the OpenAI Responses API with its web search tool, so the endpoint must offer both; without them, a scan stops at that step after recon has spent its share.
+**How well it works.** GPT-6 Luna is unmeasured against the release bar. For reference, the same approach in the research harness, on its predecessor GPT-5.6 Luna, found 88.7% of 97 known vulnerabilities in OWASP Juice Shop within 15 lines (71.1% on the exact line) for $4.37. That was the research pipeline in August 2026, before this CLI existed; it describes the approach, not this release and not your code. Early runs of GPT-6 Luna through secscan on other public test repositories are recorded in the research harness and are below the release bar.
 
 ## Command guide
 
@@ -111,14 +91,9 @@ secscan scan . --base-url https://llm.example.com/v1 --model <model-id> --price 
 | Command | What it does |
 |---|---|
 | `secscan scan [dir]` | Scan the repository in `dir`, or the current directory. The default command. |
-| `secscan models [--all]` | List the models with price, measured or unmeasured, and whether the API key is set. |
 | `secscan report [run-id]` | Rebuild a run's `report.html` and `findings.json` from what the run wrote. Default: the newest run. |
 | `secscan help [command]` | Show help for every command, or for one. |
 | `secscan version` | Print the version. |
-
-| Option | What it does | Command |
-|---|---|---|
-| `--all` | Also list lab-only models, hidden by default. | `secscan models` |
 
 ### Scope
 
@@ -137,18 +112,6 @@ secscan scan . --base-url https://llm.example.com/v1 --model <model-id> --price 
 | `--max-files <n>` | Scan at most n files; the rest are recorded as not scanned. |  |
 | `--timeout <time>` | Start no new file after this long: seconds, or `90s`, `30m`, `1h`. Each resume starts a new window. |  |
 | `--concurrency <n>` | Files scanned at once. | derived from the model's rate limits |
-
-### Model
-
-Also works with `secscan models`.
-
-| Option | What it does | Default |
-|---|---|---|
-| `--model <key>` | A model key or alias from `secscan models`. With `--base-url`, the endpoint's own model id. | the model marked `*` in `secscan models` |
-| `--base-url <url>` | Use an OpenAI-compatible endpoint instead, with `--model`. A scan needs its Responses API with web search. |  |
-| `--api-key-env <VAR>` | The variable holding that endpoint's API key. | `SCANNER_CUSTOM_API_KEY` |
-| `--price <in/out>` | That endpoint's price in USD per million input/output tokens, e.g. `0.5/1.5`. Needed for a budget. |  |
-| `--models-file <path>` | Your own `models.json` overlay. Adds models; never replaces shipped ones. |  |
 
 ### Classes
 
@@ -189,9 +152,6 @@ secscan scan . --yes --budget 10
 
 # Continue the latest INCOMPLETE run.
 secscan scan --resume
-
-# Show the models and which API keys are set.
-secscan models
 ```
 
 ### Exit codes
@@ -245,7 +205,6 @@ A resumed run keeps its model, spend and finished files, and its report then cov
 
 ```json
 {
-  "model": "luna6",
   "paths": ["src", "api"],
   "include": ["**/*.ts"],
   "exclude": ["**/*.test.ts", "vendor"],
@@ -254,34 +213,31 @@ A resumed run keeps its model, spend and finished files, and its report then cov
 }
 ```
 
-The file cannot name an endpoint, a credential variable or a models overlay. It is repository content, so anyone who can change it in a pull request could otherwise send your code and your key elsewhere. A fresh `--yes` run still needs `--budget` on the command line, even when the file sets `max_cost`.
+The file cannot name an endpoint or a credential variable. It is repository content, so anyone who can change it in a pull request could otherwise send your code and your key elsewhere. A fresh `--yes` run still needs `--budget` on the command line, even when the file sets `max_cost`.
 
 **`.secscanignore`** in the repository root uses `.gitignore` syntax and is applied after your `.gitignore` files. Put anything there you never want scanned or sent to the provider.
 
-**`--models-file <path>`** adds models from your own JSON file, in the same format as the shipped [`models.json`](tools/scanner/shared/models.json): a `targets` object and optional `aliases`. An overlay can add models but never redefine a shipped one or claim a benchmark result.
-
 ## Privacy and safety
 
-- **Your code goes only to the model provider you choose.** Recon sends a map of the repository and parts of some files, and the hunt sends each scanned file, all to the selected model's endpoint. Class selection uses that provider's web search tool, and the provider runs those searches.
+- **Your code goes only to OpenAI.** Recon sends a map of the repository and parts of some files, and the hunt sends each scanned file, all to OpenAI's API with your key. Class selection uses OpenAI's web search tool, and OpenAI runs those searches.
 - **No telemetry and no server.** secscan has no backend and sends nothing anywhere else.
-- **Keys stay in your environment.** secscan reads the key from the variable the model names. If it asks for one, it keeps it in memory for that run and does not write it to disk.
+- **Keys stay in your environment.** secscan reads the key from `OPENAI_API_KEY`. If it asks for one, it keeps it in memory for that run and does not write it to disk.
 - **Reports stay local.** `.secscan/` carries its own `.gitignore` (`*`), so runs are never committed by accident.
 - **The model cannot widen its own reach.** When the model asks for another file, a read guard allows only files recon selected inside the target. `.git/`, the reports folder and anything you excluded stay out.
 - **Secrets in the tree are withheld.** Key and certificate files (`.pem`, `.key`, `.crt`) are sent as a line count only, and private-key blocks inside other files are redacted.
 
 ## Limitations and status
 
-- **Preview.** The release bar is not met, and the default model is unmeasured.
+- **Preview.** The release bar is not met, and GPT-6 Luna is unmeasured.
 - **Languages.** Only TypeScript has been measured. Recon recognizes many more, including JavaScript, Python, Go, Java, Kotlin, Ruby, PHP, C#, Rust, C, C++, Swift, Dart and Solidity, but results on them are unmeasured.
 - **Static reasoning only.** The model reads one file at a time, with recon's map of the repository and any extra files it asks for. A flaw that spans many files can be missed.
 - **Precision.** The best measured run had a precision proxy of 12.5%. Expect to triage false positives.
 - **Re-runs differ.** Model output is not deterministic, so two scans of the same code can report different findings.
-- **Model endpoints.** Class selection needs the OpenAI Responses API with web search, so a model whose endpoint lacks either cannot complete a scan.
 - **Windows** is supported on a best-effort basis until it has been smoke-tested. macOS and Linux are the primary platforms.
 
 ## Troubleshooting
 
-**"OPENAI_API_KEY is not set."** A run with `--yes`, or one not attached to a terminal, needs the key in the environment before it starts. Export it, or run interactively to be asked once. `secscan models` shows which variable each model reads and whether it is set.
+**"OPENAI_API_KEY is not set."** A run with `--yes`, or one not attached to a terminal, needs the key in the environment before it starts. Export it, or run interactively to be asked once.
 
 **Behind a proxy.** Set `HTTPS_PROXY` (or `HTTP_PROXY`) and also `NODE_USE_ENV_PROXY=1`, which makes Node route the model calls through it. Node's built-in proxy support needs a recent Node 22 or 24 release; Node 20 does not have it.
 
@@ -297,6 +253,6 @@ The file cannot name an endpoint, a credential variable or a models overlay. It 
 
 ## About and license
 
-secscan is developed and measured in the [Cybersecurity Coding Agent Harness](https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness), where the benchmark method, per-model results and design records live. Fixes land there first and are exported here.
+secscan is developed and measured in the [Cybersecurity Coding Agent Harness](https://github.com/Anshuman11o/Cybersecurity-Coding-Agent-Harness), where the benchmark method, results and design records live. Fixes land there first and are exported here.
 
 Released under the [MIT License](LICENSE). Third-party notices are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

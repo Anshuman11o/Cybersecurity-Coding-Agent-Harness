@@ -579,3 +579,14 @@ Decided with the owner. The design is in `npm-packaging-plan.md`. It changes
 - **Smoke-only release gate.** `0.1.0` ships as a preview, gated on manual
   smoke tests, the owner's end-to-end run and a README review, not on the
   release bar (§3.1). The README states the release-bar status instead.
+
+### 2026-10-17 · One fixed model in the package
+
+Decided with the owner. The npm package ships exactly one model, GPT-6 Luna
+(`luna6`), listed in `shared/models.json` as `product_models`, and offers no
+model selection: no `secscan models`, no `--model`, `--base-url`,
+`--api-key-env`, `--price` or `--models-file`. This replaces §2.5's model
+selection for the product (the "custom models" bullet included). The harness
+CLI keeps every model for lab runs. A side effect: the class-selection step's
+dependence on the Responses API with web search no longer limits users, since
+the one shipped model has both.

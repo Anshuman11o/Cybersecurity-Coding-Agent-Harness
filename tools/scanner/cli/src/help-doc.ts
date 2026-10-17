@@ -16,9 +16,9 @@ import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import {
   COMMAND_NAMES, cliDefinition, optionText,
-  type CliDefinition, type OptionDef, type OptionGroup,
+  type CliDefinition, type CliMode, type OptionDef, type OptionGroup,
 } from './args.js'
-import { genericNames } from './registry.js'
+import { genericNames, shippedCliMode } from './registry.js'
 import { isEntryPoint } from '../../shared/entry.js'
 
 export const GUIDE_START = '<!-- commands:start -->'
@@ -108,9 +108,13 @@ function guideFrom(def: CliDefinition): string {
   return lines.join('\n')
 }
 
-/** The README's command guide: the Markdown between the markers. */
-export function renderCommandGuide(customKeyDefault: string): string {
-  return guideFrom(cliDefinition(customKeyDefault))
+/**
+ * The README's command guide: the Markdown between the markers. The README is
+ * the package's, so the guide documents the package's mode (one fixed model,
+ * no model options) unless another mode is passed.
+ */
+export function renderCommandGuide(customKeyDefault: string, mode: CliMode = shippedCliMode()): string {
+  return guideFrom(cliDefinition(customKeyDefault, mode))
 }
 
 /** The guide with its markers, exactly as the README holds it. */

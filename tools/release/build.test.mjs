@@ -61,12 +61,15 @@ test('a lab default that is itself lab_only falls back to the product default', 
   assert.equal(productRegistry(r).registry.default_provider, 'prod')
 })
 
-test('the real registry ships its product default and no lab entry', () => {
+test('the real registry ships exactly product_models, and no custom endpoint', () => {
   const { srcRoot } = resolveSourceRoot(PKG_DIR)
   const raw = JSON.parse(readFileSync(join(srcRoot, 'shared/models.json'), 'utf8'))
   const r = productRegistry(raw)
+  assert.deepEqual(r.shipped, [...raw.product_models].sort())
   assert.ok(r.shipped.includes(raw.product_default_provider))
-  assert.deepEqual(r.dropped, Object.keys(raw.targets).filter(k => raw.targets[k].lab_only).sort())
+  assert.equal(r.registry.default_provider, raw.product_default_provider)
+  assert.equal(r.registry.generic_openai_compatible, undefined)
+  assert.deepEqual(r.dropped, Object.keys(raw.targets).filter(k => !raw.product_models.includes(k)).sort())
   for (const t of Object.values(r.registry.targets)) {
     assert.equal(t.lab_only, undefined)
     assert.equal(t.transport ?? 'openai', 'openai')
@@ -115,4 +118,11 @@ test('harness_commit: EXPORTED_FROM wins; outside the harness without it, "unkno
   } finally { rmSync(dir, { recursive: true, force: true }) }
   const { srcRoot } = resolveSourceRoot(PKG_DIR)
   assert.match(harnessCommit(PKG_DIR, srcRoot, true), /^([0-9a-f]{7,}(-dirty)?|unknown)$/)
+})
+
+test('product_models may not name a missing or lab_only target', () => {
+  const base = { default_provider: 'a', product_default_provider: 'a', targets: { a: { label: 'A' }, b: { label: 'B', lab_only: true } } }
+  assert.throws(() => productRegistry({ ...base, product_models: ['a', 'zz'] }), /not a target/)
+  assert.throws(() => productRegistry({ ...base, product_models: ['a', 'b'] }), /lab_only/)
+  assert.deepEqual(productRegistry({ ...base, product_models: ['a'] }).shipped, ['a'])
 })
