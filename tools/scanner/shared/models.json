@@ -34,6 +34,11 @@
     "nothing selects one. `default_provider` stays the lab's default: benchmark runs,",
     "run.sh and every stage launched by hand resolve to it, unchanged.",
     "",
+    "`product_models` is the whole model list the npm package ships: the package",
+    "build drops every other target and the generic endpoint template, and a CLI",
+    "whose registry holds one model offers no model selection at all (no `models`",
+    "command, no --model/--base-url/--models-file). The lab reads every entry.",
+    "",
     "`generic_openai_compatible` is not a target. It is the template the CLI's",
     "--base-url/--model/--api-key-env flags fill in at runtime (OpenRouter, other",
     "vendors, a local Ollama or LM Studio). The model id, endpoint and credential",
@@ -43,6 +48,8 @@
   "default_provider": "luna",
 
   "product_default_provider": "luna6",
+
+  "product_models": ["luna6"],
 
   "aliases": {
     "openai": "luna",

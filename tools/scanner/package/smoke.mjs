@@ -5,7 +5,7 @@
  * the INSTALLED `secscan` (through npm's bin link, so the shebang, the bin
  * symlink or .cmd shim and the entry guard are all exercised):
  *
- *   --version  --help  models  scan <tiny dir> --yes --budget 0.01 (no key)
+ *   --version  --help  models (refused: one fixed model)  scan <tiny dir> --yes --budget 0.01 (no key)
  *
  * Never needs an API key and never spends: every credential variable the
  * registry names is removed from the scan step's environment, so the scan must
@@ -109,22 +109,26 @@ try {
     step('secscan --help', () => {
       const r = secscan('--help')
       expect(r.code === 0, `exit ${r.code}\n${tail(r.err || r.out)}`)
-      expect(/secscan/.test(r.out) && /\bscan\b/.test(r.out) && /\bmodels\b/.test(r.out), 'help text does not mention scan and models')
+      expect(/secscan/.test(r.out) && /\bscan\b/.test(r.out), 'help text does not mention scan')
+      // One fixed model: the help offers no way to choose one.
+      for (const flag of ['--model', '--base-url', '--models-file']) expect(!r.out.includes(flag), `help still offers ${flag}`)
+      const def = installedRegistry.targets[installedRegistry.product_default_provider]
+      expect(r.out.includes(def.label) && r.out.includes(def.api_key_env), `help does not name ${def.label} and ${def.api_key_env}`)
       return `${r.out.trim().split('\n').length} lines`
     })
 
-    step('secscan models', () => {
-      const r = secscan('models')
-      expect(r.code === 0, `exit ${r.code}\n${tail(r.err || r.out)}`)
-      const def = installedRegistry.product_default_provider
-      expect(new RegExp(`^\\* ${def}\\s`, 'm').test(r.out), `the default "${def}" is not listed with "*"`)
-      const table = r.out.split(/\n\s*\n/)[0].split('\n').slice(1)
-      const listed = table.map(l => /^(?:\* | {2})(\S+)\s/.exec(l)?.[1]).filter(Boolean)
-      const shipped = Object.keys(installedRegistry.targets).sort()
-      expect(JSON.stringify([...listed].sort()) === JSON.stringify(shipped), `listed ${listed.join(', ')}; shipped ${shipped.join(', ')}`)
-      const lab = Object.entries(installedRegistry.targets).filter(([, t]) => t.lab_only).map(([k]) => k)
-      expect(lab.length === 0, `the installed registry still carries lab_only entries: ${lab.join(', ')}`)
-      return `${listed.length} models, default ${def}`
+    step('one fixed model: secscan models and --model are refused', () => {
+      const shipped = Object.keys(installedRegistry.targets)
+      expect(shipped.length === 1 && shipped[0] === installedRegistry.product_default_provider,
+        `the installed registry ships ${shipped.join(', ')}; expected only ${installedRegistry.product_default_provider}`)
+      expect(!installedRegistry.generic_openai_compatible, 'the installed registry still carries the custom endpoint template')
+      for (const args of [['models'], ['scan', '.', '--model', 'x', '--yes', '--budget', '1']]) {
+        const r = secscan(...args)
+        const text = `${r.out}\n${r.err}`
+        expect(r.code === 2, `secscan ${args.join(' ')} exited ${r.code}, expected 2\n${tail(text)}`)
+        expect(/unknown (command|option)/.test(text) && !STACK.test(text), `secscan ${args.join(' ')}: ${tail(text)}`)
+      }
+      return `only ${shipped[0]}; models and --model refused`
     })
 
     step('secscan scan <tiny dir> --yes --budget 0.01 with no key: clean refusal, no stage launched', () => {

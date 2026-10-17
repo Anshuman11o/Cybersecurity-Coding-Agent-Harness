@@ -122,15 +122,24 @@ export function listSources(srcRoot) {
 }
 
 /**
- * The registry as shipped: every `lab_only` target removed, with the aliases
- * that point at one. Throws when the product default would be missing or when
- * a shipped target uses anything but the HTTP/OpenAI-compatible transport (the
- * claude-cli transport needs a local Claude Code binary and is a lab tool).
+ * The registry as shipped. With `product_models`, exactly those targets ship
+ * and the generic endpoint template is removed, so the packaged CLI has one
+ * fixed model and offers no model selection (cli/src/registry.ts cliMode()).
+ * Without it, every `lab_only` target is removed. Aliases pointing at a dropped
+ * target go with it. Throws when the product default would be missing, or when
+ * a shipped target is lab_only or uses anything but the HTTP/OpenAI-compatible
+ * transport (the claude-cli transport needs a local Claude Code binary).
  */
 export function productRegistry(raw) {
   const reg = JSON.parse(JSON.stringify(raw))
   const targets = reg.targets ?? {}
-  const dropped = Object.keys(targets).filter(k => targets[k]?.lab_only === true).sort()
+  const keep = Array.isArray(reg.product_models) ? new Set(reg.product_models) : null
+  if (keep) {
+    for (const k of keep) if (!targets[k]) throw new Error(`product_models names "${k}", which is not a target`)
+    for (const k of keep) if (targets[k].lab_only === true) throw new Error(`product_models names "${k}", which is marked lab_only`)
+    delete reg.generic_openai_compatible
+  }
+  const dropped = Object.keys(targets).filter(k => keep ? !keep.has(k) : targets[k]?.lab_only === true).sort()
   for (const k of dropped) delete targets[k]
   const droppedAliases = []
   for (const [alias, canonical] of Object.entries(reg.aliases ?? {})) {
@@ -151,9 +160,8 @@ export function productRegistry(raw) {
   }
   reg._comment = [
     'Model registry shipped with the secscan npm package. Generated from the',
-    "research harness's registry by build.mjs: lab-only entries (experiment arms",
-    'and lab transports) are removed. Add your own models with --models-file or',
-    'the --base-url endpoint flags rather than by editing this file.',
+    "research harness's registry by build.mjs: only the product models are kept",
+    '(product_models), so the CLI runs with one fixed model.',
   ]
   return { registry: reg, shipped: Object.keys(targets).sort(), dropped, droppedAliases }
 }
@@ -301,7 +309,7 @@ export async function build({ pkgDir = PKG_DIR, log = console.log } = {}) {
   const product = productRegistry(raw)
   writeFileSync(join(distScanner, 'shared', 'models.json'), JSON.stringify(product.registry, null, 2) + '\n')
   log(`  models: ${product.shipped.length} shipped (default ${product.registry.product_default_provider}), ` +
-    `${product.dropped.length} lab_only dropped${product.dropped.length ? ` (${product.dropped.join(', ')})` : ''}`)
+    `${product.dropped.length} dropped${product.dropped.length ? ` (${product.dropped.join(', ')})` : ''}`)
 
   // ── CLI entry ────────────────────────────────────────────────────────────
   const binRel = pkg.bin?.secscan

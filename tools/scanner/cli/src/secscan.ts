@@ -22,7 +22,7 @@ import { execFileSync } from 'child_process'
 import { join, relative, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { parseArgs, usage, UsageError, type ReportArgs, type ScanArgs } from './args.js'
-import { applyModelFlags, loadRegistryModules, genericNames } from './registry.js'
+import { applyModelFlags, loadRegistryModules, genericNames, cliMode } from './registry.js'
 import { CONFIG_FILENAME, loadConfig, configFromRun, writeConfig, type LoadedConfig } from './config.js'
 import { buildSummary, type ConfirmationSummary, type LaneLite } from './confirm.js'
 import { roundTwo } from './round2.js'
@@ -117,9 +117,12 @@ function newRunId(reportsRoot: string): string {
 }
 
 async function main(argv: string[]): Promise<number> {
+  // The npm package ships one model and so has no model selection; the
+  // harness's registry offers many (registry.ts cliMode()).
+  const mode = cliMode()
   let args
   try {
-    args = parseArgs(argv)
+    args = parseArgs(argv, mode)
   } catch (e: any) {
     if (e instanceof UsageError) {
       err(`${e.message}\nRun "secscan help" for usage.`)
@@ -130,7 +133,7 @@ async function main(argv: string[]): Promise<number> {
   if (args.command === 'help') {
     let keyDefault = 'the variable models.json names'
     try { keyDefault = genericNames().api_key_env_default } catch { /* no generic template */ }
-    say(usage(keyDefault, args.topic))
+    say(usage(keyDefault, args.topic, mode))
     return EXIT.complete
   }
   if (args.command === 'version') {

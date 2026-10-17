@@ -13,7 +13,7 @@
 import { readFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
-import type { ModelFlags } from './args.js'
+import type { CliMode, ModelFlags } from './args.js'
 
 const SHARED = join(dirname(fileURLToPath(import.meta.url)), '../../shared')
 
@@ -31,6 +31,33 @@ export function genericNames(): GenericNames {
   const g = raw.generic_openai_compatible
   if (!g) throw new Error('models.json has no generic_openai_compatible template, so --base-url is unavailable')
   return g
+}
+
+/**
+ * What a registry offers the CLI: a choice of models, or one fixed model. One
+ * target and no generic endpoint template (the npm package's registry, which
+ * build.mjs cuts down to `product_models`) means one fixed model: no `models`
+ * command and no model flags. `asShipped` answers for the package from the
+ * harness's full registry, which is what the README's command guide documents.
+ */
+export function cliModeFor(raw: any, asShipped = false): CliMode {
+  const targets: Record<string, { label: string; api_key_env: string; lab_only?: boolean }> = raw?.targets ?? {}
+  const shipped = asShipped && Array.isArray(raw?.product_models)
+  const keys: string[] = shipped ? raw.product_models : Object.keys(targets).filter(k => !targets[k].lab_only)
+  const generic = shipped ? false : Boolean(raw?.generic_openai_compatible)
+  if (keys.length !== 1 || generic || !targets[keys[0]]) return { modelChoice: true }
+  const t = targets[keys[0]]
+  return { modelChoice: false, model: { label: t.label, apiKeyEnv: t.api_key_env } }
+}
+
+/** The mode of the registry this CLI runs with. */
+export function cliMode(): CliMode {
+  return cliModeFor(JSON.parse(readFileSync(join(SHARED, 'models.json'), 'utf-8')))
+}
+
+/** The mode the npm package will have, from the harness's full registry. */
+export function shippedCliMode(): CliMode {
+  return cliModeFor(JSON.parse(readFileSync(join(SHARED, 'models.json'), 'utf-8')), true)
 }
 
 /**
